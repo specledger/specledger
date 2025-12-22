@@ -31,7 +31,18 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+Verify compliance with principles from `.specify/memory/constitution.md`:
+
+- [ ] **Specification-First**: Spec.md complete with prioritized user stories
+- [ ] **Test-First**: Test strategy defined (contract + integration tests planned)
+- [ ] **Code Quality**: Linting/formatting tools identified in Technical Context
+- [ ] **UX Consistency**: User flows documented in spec.md acceptance scenarios
+- [ ] **Performance**: Metrics defined in Technical Context (response time, throughput, memory)
+- [ ] **Observability**: Logging/metrics strategy documented
+- [ ] **Issue Tracking**: Beads epic created and linked to spec
+
+**Complexity Violations** (if any, justify in Complexity Tracking table below):
+- None identified / [List violations and justifications]
 
 ## Project Structure
 
