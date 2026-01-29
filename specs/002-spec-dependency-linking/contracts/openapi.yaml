@@ -1,0 +1,861 @@
+openapi: 3.0.0
+info:
+  title: SpecLedger Dependency Service API
+  description: API for managing external specification dependencies, resolution, and validation
+  version: 1.0.0
+  contact:
+    name: SpecLedger Team
+    email: team@specledger.o
+
+servers:
+  - url: https://api.specledger.o/v1
+    description: Production server
+  - url: https://staging-api.specledger.o/v1
+    description: Staging server
+
+paths:
+  # Dependency Management
+  /dependencies:
+    post:
+      summary: Add a new dependency
+      description: Add an external specification dependency to the current project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddDependencyRequest'
+      responses:
+        '201':
+          description: Dependency added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddDependencyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    get:
+      summary: List dependencies
+      description: List all declared dependencies for the current project
+      parameters:
+        - name: include_transitive
+          in: query
+          schema:
+            type: boolean
+            default: false
+          description: Include transitive dependencies
+      responses:
+        '200':
+          description: List of dependencies
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListDependenciesResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /dependencies/{repository_url}/{spec_path}:
+    delete:
+      summary: Remove a dependency
+      description: Remove a dependency declaration from the project
+      parameters:
+        - name: repository_url
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uri
+        - name: spec_path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Dependency removed successfully
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      summary: Update a dependency
+      description: Update the version of an existing dependency
+      parameters:
+        - name: repository_url
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uri
+        - name: spec_path
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDependencyRequest'
+      responses:
+        '200':
+          description: Dependency updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateDependencyResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # Resolution and Validation
+  /dependencies/resolve:
+    post:
+      summary: Resolve dependencies
+      description: Resolve all dependencies and generate the lockfile
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResolveDependenciesRequest'
+      responses:
+        '200':
+          description: Dependencies resolved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResolveDependenciesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /references/validate:
+    post:
+      summary: Validate external references
+      description: Validate all external references in a specification
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ValidateReferencesRequest'
+      responses:
+        '200':
+          description: References validated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidateReferencesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # Graph Operations
+  /graph:
+    get:
+      summary: Get dependency graph
+      description: Get the complete dependency graph for the project
+      parameters:
+        - name: include_transitive
+          in: query
+          schema:
+            type: boolean
+            default: true
+          description: Include transitive dependencies
+        - name: show_conflicts
+          in: query
+          schema:
+            type: boolean
+            default: true
+          description: Show conflicts in the graph
+      responses:
+        '200':
+          description: Dependency graph data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetDependencyGraphResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /conflicts/detect:
+    post:
+      summary: Detect conflicts
+      description: Detect and resolve dependency conflicts
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DetectConflictsRequest'
+      responses:
+        '200':
+          description: Conflicts detected and resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DetectConflictsResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # Vendoring
+  /vendor:
+    post:
+      summary: Vendor dependencies
+      description: Copy external dependencies to local vendor directory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VendorDependenciesRequest'
+      responses:
+        '201':
+          description: Dependencies vendored successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorDependenciesResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /vendor/update:
+    patch:
+      summary: Update vendored dependencies
+      description: Update existing vendored dependencies
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateVendorRequest'
+      responses:
+        '200':
+          description: Vendor dependencies updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UpdateVendorResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  schemas:
+    # Request Types
+    AddDependencyRequest:
+      type: object
+      required:
+        - repository_url
+        - version
+        - spec_path
+      properties:
+        repository_url:
+          type: string
+          format: uri
+          description: Git repository URL
+        version:
+          type: string
+          description: Version constraint (branch, tag, or commit hash)
+        spec_path:
+          type: string
+          description: Path to the spec file in the repository
+        alias:
+          type: string
+          description: Optional alias for the dependency
+
+    UpdateDependencyRequest:
+      type: object
+      required:
+        - new_version
+      properties:
+        new_version:
+          type: string
+          description: New version constraint
+
+    ResolveDependenciesRequest:
+      type: object
+      properties:
+        use_cache:
+          type: boolean
+          default: true
+          description: Use cached dependencies when available
+        deep_fetch:
+          type: boolean
+          default: false
+          description: Fetch full history for git operations
+
+    ValidateReferencesRequest:
+      type: object
+      required:
+        - spec_path
+      properties:
+        spec_path:
+          type: string
+          description: Path to the specification file to validate
+
+    DetectConflictsRequest:
+      type: object
+      properties:
+        resolve_automatically:
+          type: boolean
+          default: false
+          description: Automatically resolve detected conflicts
+
+    VendorDependenciesRequest:
+      type: object
+      required:
+        - output_path
+      properties:
+        output_path:
+          type: string
+          description: Path to vendor directory
+        overwrite:
+          type: boolean
+          default: false
+          description: Overwrite existing vendored specs
+
+    UpdateVendorRequest:
+      type: object
+      required:
+        - vendor_path
+      properties:
+        vendor_path:
+          type: string
+          description: Path to vendor directory
+        force_update:
+          type: boolean
+          default: false
+          description: Force update all vendored specs
+
+    # Response Types
+    AddDependencyResponse:
+      type: object
+      properties:
+        dependency:
+          $ref: '#/components/schemas/Dependency'
+        manifest_path:
+          type: string
+          description: Path to the updated manifest file
+        created_at:
+          type: string
+          format: date-time
+          description: When the dependency was added
+
+    ListDependenciesResponse:
+      type: object
+      properties:
+        dependencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dependency'
+        timestamp:
+          type: string
+          format: date-time
+          description: When the list was generated
+
+    UpdateDependencyResponse:
+      type: object
+      properties:
+        dependency:
+          $ref: '#/components/schemas/Dependency'
+        old_version:
+          type: string
+          description: Previous version
+        new_version:
+          type: string
+          description: Updated version
+        updated_at:
+          type: string
+          format: date-time
+          description: When the update was performed
+
+    ResolveDependenciesResponse:
+      type: object
+      properties:
+        lockfile:
+          $ref: '#/components/schemas/SpecLockfile'
+        graph:
+          type: array
+          items:
+            $ref: '#/components/schemas/DependencyGraph'
+        resolved_at:
+          type: string
+          format: date-time
+          description: When resolution was completed
+        errors:
+          type: array
+          items:
+            type: string
+          description: Any errors during resolution
+
+    ValidateReferencesResponse:
+      type: object
+      properties:
+        references:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalReference'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationError'
+        validated_at:
+          type: string
+          format: date-time
+          description: When validation was completed
+
+    DetectConflictsResponse:
+      type: object
+      properties:
+        conflicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conflict'
+        summary:
+          $ref: '#/components/schemas/ConflictResolutionSummary'
+
+    VendorDependenciesResponse:
+      type: object
+      properties:
+        specs:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendoredSpec'
+        total_size:
+          type: integer
+          format: int64
+          description: Total size of vendored specs in bytes
+        completed_at:
+          type: string
+          format: date-time
+          description: When vendoring was completed
+
+    UpdateVendorResponse:
+      type: object
+      properties:
+        updated_specs:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendoredSpec'
+        conflicts:
+          type: array
+          items:
+            type: string
+          description: Any conflicts during update
+        updated_at:
+          type: string
+          format: date-time
+          description: When update was completed
+
+    # Data Types
+    Dependency:
+      type: object
+      required:
+        - repository_url
+        - version
+        - spec_path
+      properties:
+        repository_url:
+          type: string
+          format: uri
+        version:
+          type: string
+        spec_path:
+          type: string
+        alias:
+          type: string
+        pinned:
+          type: boolean
+          description: Whether pinned to specific commit
+        transitive:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dependency'
+
+    LockfileEntry:
+      type: object
+      required:
+        - repository_url
+        - commit_hash
+        - content_hash
+        - spec_path
+      properties:
+        repository_url:
+          type: string
+          format: uri
+        commit_hash:
+          type: string
+          description: Git commit hash
+        content_hash:
+          type: string
+          description: SHA-256 hash of spec content
+        spec_path:
+          type: string
+        branch:
+          type: string
+        size:
+          type: integer
+          format: int64
+        fetched_at:
+          type: string
+          format: date-time
+
+    ExternalReference:
+      type: object
+      required:
+        - source_location
+        - target_spec_id
+        - target_section_id
+        - display_text
+      properties:
+        source_location:
+          type: string
+          description: "file:line" format
+        target_spec_id:
+          type: string
+        target_section_id:
+          type: string
+        display_text:
+          type: string
+        validated:
+          type: boolean
+        validation_time:
+          type: string
+          format: date-time
+
+    GraphNode:
+      type: object
+      required:
+        - id
+        - dependency
+        - level
+      properties:
+        id:
+          type: string
+        dependency:
+          $ref: '#/components/schemas/Dependency'
+        level:
+          type: integer
+        children:
+          type: array
+          items:
+            type: string
+        size:
+          type: integer
+          format: int64
+        state:
+          $ref: '#/components/schemas/NodeState'
+        cache_hit:
+          type: boolean
+
+    GraphEdge:
+      type: object
+      required:
+        - from
+        - to
+        - type
+      properties:
+        from:
+          type: string
+        to:
+          type: string
+        type:
+          $ref: '#/components/schemas/EdgeType'
+        weight:
+          type: integer
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+
+    Conflict:
+      type: object
+      required:
+        - type
+        - severity
+        - description
+        - affects
+      properties:
+        type:
+          $ref: '#/components/schemas/ConflictType'
+        severity:
+          $ref: '#/components/schemas/ConflictSeverity'
+        description:
+          type: string
+        affects:
+          type: array
+          items:
+            type: string
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Suggestion'
+        resolved:
+          type: boolean
+
+    Suggestion:
+      type: object
+      required:
+        - action
+        - description
+      properties:
+        action:
+          type: string
+          description: Action to take (update, pin, remove)
+        target:
+          type: string
+          description: Which dependency to apply to
+        description:
+          type: string
+
+    VendoredSpec:
+      type: object
+      required:
+        - original_url
+        - commit_hash
+        - local_path
+        - content_hash
+        - vendor_path
+      properties:
+        original_url:
+          type: string
+          format: uri
+        commit_hash:
+          type: string
+        local_path:
+          type: string
+        content_hash:
+          type: string
+        vendor_path:
+          type: string
+        copied_at:
+          type: string
+          format: date-time
+        size:
+          type: integer
+          format: int64
+        up_to_date:
+          type: boolean
+
+    SpecManifest:
+      type: object
+      required:
+        - version
+        - dependencies
+        - id
+        - path
+      properties:
+        version:
+          type: string
+        dependencies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Dependency'
+        id:
+          type: string
+        path:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    SpecLockfile:
+      type: object
+      required:
+        - version
+        - entries
+      properties:
+        version:
+          type: string
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/LockfileEntry'
+        hashes:
+          type: object
+          additionalProperties:
+            type: string
+        timestamp:
+          type: string
+          format: date-time
+        hash:
+          type: string
+
+    DependencyGraph:
+      type: object
+      required:
+        - root
+        - nodes
+        - edges
+      properties:
+        root:
+          $ref: '#/components/schemas/Dependency'
+        nodes:
+          type: array
+          items:
+            $ref: '#/components/schemas/GraphNode'
+        edges:
+          type: array
+          items:
+            $ref: '#/components/schemas/GraphEdge'
+        conflicts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Conflict'
+        depth:
+          type: integer
+        total_size:
+          type: integer
+          format: int64
+
+    ValidationError:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+        field:
+          type: string
+        reference:
+          type: string
+        line:
+          type: integer
+
+    ConflictResolutionSummary:
+      type: object
+      required:
+        - total_conflicts
+        - resolved_conflicts
+        - remaining_conflicts
+      properties:
+        total_conflicts:
+          type: integer
+        resolved_conflicts:
+          type: integer
+        remaining_conflicts:
+          type: integer
+        resolution_strategy:
+          type: string
+
+    # Enums
+    NodeState:
+      type: string
+      enum:
+        - NODE_STATE_UNSPECIFIED
+        - NODE_STATE_RESOLVED
+        - NODE_STATE_MISSING
+        - NODE_STATE_CONFLICTED
+
+    EdgeType:
+      type: string
+      enum:
+        - EDGE_TYPE_UNSPECIFIED
+        - EDGE_TYPE_DIRECT
+        - EDGE_TYPE_TRANSITIVE
+        - EDGE_TYPE_CONFLICT
+
+    ConflictType:
+      type: string
+      enum:
+        - CONFLICT_TYPE_UNSPECIFIED
+        - CONFLICT_TYPE_VERSION
+        - CONFLICT_TYPE_CIRCULAR
+        - CONFLICT_TYPE_MISSING
+
+    ConflictSeverity:
+      type: string
+      enum:
+        - CONFLICT_SEVERITY_UNSPECIFIED
+        - CONFLICT_SEVERITY_ERROR
+        - CONFLICT_SEVERITY_WARNING
+        - CONFLICT_SEVERITY_INFO
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              details:
+                type: object
+
+    Conflict:
+      description: Conflict detected
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              conflicts:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Conflict'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              resource:
+                type: string
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+              trace:
+                type: string
+
+security:
+  - ApiKeyAuth: []
+
+securitySchemes:
+  ApiKeyAuth:
+    type: apiKey
+    in: header
+    name: X-API-Key
+    description: API key for authentication

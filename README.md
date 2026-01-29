@@ -1,30 +1,146 @@
-# specledger
+# SpecLedger
 
-This system is a **team-scale, LLM-driven Specification-Driven Development (SDD) platform** that treats specifications, plans, and decisions as first-class, persistent artifacts - not ephemeral chat output or secondary documentation.
+Specification dependency management CLI tool for managing external specification dependencies across repositories.
 
-Built on the foundations popularized by **Kiro IDE**, **spec-kit**, and **Google Conductor**, the system extends SDD beyond single-developer workflows into a **shared, auditable, and scalable collaboration model** for humans and LLM agents.
+## Features
 
-At its core, the platform introduces a **remote control plane** that captures and links:
+- **Dependency Declaration**: Add external specification dependencies to your project
+- **Dependency Resolution**: Fetch and verify external specifications with cryptographic hashing
+- **Reference Validation**: Validate markdown links to external spec sections
+- **Dependency Graph**: Visualize and export dependency relationships
+- **Vendor Support**: Copy dependencies for offline use
 
-* Specifications (PRDs, user stories, acceptance criteria)
-* Implementation plans, research, and technical decisions
-* Generated task graphs with dependencies and priorities
-* Execution history from LLM coding agents and human interventions
+## Project Structure
 
-Each phase of work - **specification, planning, task generation, and implementation** - is executed through LLM-assisted commands, but every decision, clarification, and alternative explored is **checkpointed and versioned** on a shared server. This enables branching, comparison of approaches, and safe rollback, while preserving the full reasoning trail behind every outcome.
+```
+specledger/
+├── cmd/
+│   └── main.go           # CLI entry point
+├── pkg/
+│   └── cli/
+│       └── commands/
+│           ├── deps.go   # Dependency management commands
+│           ├── refs.go   # Reference validation commands
+│           ├── graph.go  # Graph visualization commands
+│           └── vendor.go # Vendoring commands
+├── internal/              # Internal logic (to be implemented)
+├── tests/                 # Test fixtures and tests (to be implemented)
+├── go.mod                 # Go module definition
+├── Makefile               # Build and development targets
+└── .gitignore             # Git ignore patterns
+```
 
-The system integrates a **spec-native issue tracker** that maps cleanly to SDD concepts:
+## Installation
 
-* Epics → Specification branches
-* Features → Planned phases and user stories
-* Tasks → Executable, agent-driven units of work
+### Build from Source
 
-LLM coding agents operate directly against this tracker, pulling “ready” work, executing tasks in isolated shells, and attaching their full session context (prompts, file diffs, decisions) back to the task. This ensures that **implementation history becomes shared knowledge**, accessible to both humans and machines.
+```bash
+make build
+```
 
-By decoupling SDD from any single IDE or model and combining it with persistent session storage (inspired by systems like **Depot**), the platform delivers:
+This creates `bin/specledger` binary.
 
-* Model-agnostic, CLI-first workflows
-* Team-wide consistency and governance
-* Traceability from intent → plan → code → production feedback
+### Run
 
-In short, this system turns SDD from a powerful individual practice into a **repeatable, observable, and collaborative engineering discipline**, enabling teams to truly *measure twice and code once* - even in an AI-accelerated world.
+```bash
+./bin/specledger --help
+```
+
+## Usage
+
+### Dependency Commands
+
+```bash
+# Add a dependency
+sl deps add <repo-url> [branch] [spec-path] [--alias <name>]
+
+# List dependencies
+sl deps list [--include-transitive]
+
+# Resolve dependencies
+sl deps resolve [--no-cache] [--deep]
+
+# Update dependencies
+sl deps update [--force] [repo-url]
+
+# Remove a dependency
+sl deps remove <repo-url> <spec-path>
+```
+
+### Reference Commands
+
+```bash
+# Validate references
+sl refs validate [--strict] [--spec-path <path>]
+
+# List references
+sl refs list
+```
+
+### Graph Commands
+
+```bash
+# Show dependency graph
+sl graph show [--format <format>] [--include-transitive]
+
+# Export graph to file
+sl graph export --format <format> --output <file>
+
+# Show transitive dependencies
+sl graph transitive [--depth <n>]
+```
+
+### Vendor Commands
+
+```bash
+# Vendor dependencies
+sl vendor --output <path>
+
+# Update vendored dependencies
+sl vendor update [--vendor-path <path>] [--force]
+
+# Clean vendored dependencies
+sl vendor clean
+```
+
+## Development
+
+### Build and Test
+
+```bash
+make build        # Build the binary
+make test         # Run tests
+make test-coverage  # Generate coverage report
+make fmt          # Format code
+make vet          # Run go vet
+```
+
+### Available Platforms
+
+```bash
+make build-all    # Build for linux, darwin, windows
+```
+
+## Project Status
+
+**Current Phase**: Setup and CLI framework
+
+Implemented:
+- ✅ Go project initialization (go.mod)
+- ✅ Cobra CLI framework
+- ✅ Command structure (deps, refs, graph, vendor)
+- ✅ Basic command help and flags
+- ✅ .gitignore and Makefile
+- ✅ Project structure
+
+To be implemented (see tasks.md):
+- 🔨 Dependency declaration and manifest parsing
+- 🔨 Dependency resolution with Git integration
+- 🔨 Cryptographic hash verification (spec.sum)
+- 🔨 Reference validation
+- 🔨 Cache management
+- 🔨 Authentication framework
+
+## License
+
+See LICENSE file for details.

@@ -40,3 +40,6 @@ bd show sl-xxxx  # CLI: View one issue
 bd show sl-xxxx && bd comments sl-xxxx # View issue details + comments
 bd ready --limit 5                         # Find issues ready to work on
 ```
+
+## Recent Changes
+- 002-spec-dependency-linking: Added [if applicable, e.g., PostgreSQL, CoreData, files or N/A]

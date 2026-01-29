@@ -1,0 +1,348 @@
+syntax = "proto3";
+
+package specledger.v1;
+
+option go_package = "github.com/specledger/specledger/contracts/v1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+
+// The spec dependency service provides operations for managing external
+// specification dependencies including resolution, validation, and versioning.
+service SpecDependencyService {
+  // Dependency Management Operations
+  rpc AddDependency(AddDependencyRequest) returns (AddDependencyResponse);
+  rpc RemoveDependency(RemoveDependencyRequest) returns (RemoveDependencyResponse);
+  rpc UpdateDependency(UpdateDependencyRequest) returns (UpdateDependencyResponse);
+  rpc ListDependencies(ListDependenciesRequest) returns (ListDependenciesResponse);
+
+  // Resolution and Locking Operations
+  rpc ResolveDependencies(ResolveDependenciesRequest) returns (ResolveDependenciesResponse);
+  rpc ValidateReferences(ValidateReferencesRequest) returns (ValidateReferencesResponse);
+  rpc UpdateLockfile(UpdateLockfileRequest) returns (UpdateLockfileResponse);
+
+  // Graph Operations
+  rpc GetDependencyGraph(GetDependencyGraphRequest) returns (GetDependencyGraphResponse);
+  rpc DetectConflicts(DetectConflictsRequest) returns (DetectConflictsResponse);
+
+  // Vendoring Operations
+  rpc VendorDependencies(VendorDependenciesRequest) returns (VendorDependenciesResponse);
+  rpc UpdateVendor(UpdateVendorRequest) returns (UpdateVendorResponse);
+
+  // Query Operations
+  rpc GetLockfile(GetLockfileRequest) returns (GetLockfileResponse);
+  rpc GetExternalReference(GetExternalReferenceRequest) returns (GetExternalReferenceResponse);
+}
+
+// Represents a single external specification dependency
+message Dependency {
+  string repository_url = 1;  // Git repository URL
+  string version = 2;          // Version constraint
+  string spec_path = 3;       // Path to spec file in repo
+  string alias = 4;           // Optional alias
+  bool pinned = 5;            // Pinned to specific commit
+  repeated Dependency transitive = 6; // Transitive dependencies
+}
+
+// Represents a resolved dependency entry
+message LockfileEntry {
+  string repository_url = 1;
+  string commit_hash = 2;     // Git commit hash
+  string content_hash = 3;   // SHA-256 of spec content
+  string spec_path = 4;
+  string branch = 5;         // Resolved branch
+  int64 size = 6;            // File size in bytes
+  google.protobuf.Timestamp fetched_at = 7;
+}
+
+// Represents an external reference in a specification
+message ExternalReference {
+  string source_location = 1; // "file:line" format
+  string target_spec_id = 2;  // Target spec ID
+  string target_section_id = 3;
+  string display_text = 4;
+  bool validated = 5;
+  google.protobuf.Timestamp validation_time = 6;
+}
+
+// Represents a node in the dependency graph
+message GraphNode {
+  string id = 1;
+  Dependency dependency = 2;
+  int32 level = 3;
+  repeated string children = 4;
+  int64 size = 5;
+  NodeState state = 6;
+  bool cache_hit = 7;
+}
+
+// Represents an edge in the dependency graph
+message GraphEdge {
+  string from = 1;
+  string to = 2;
+  EdgeType type = 3;
+  int32 weight = 4;
+  map<string, string> metadata = 5;
+}
+
+// Represents a dependency conflict
+message Conflict {
+  ConflictType type = 1;
+  ConflictSeverity severity = 2;
+  string description = 3;
+  repeated string affects = 4;
+  repeated Suggestion suggestions = 5;
+  bool resolved = 6;
+}
+
+// Represents a resolution suggestion for a conflict
+message Suggestion {
+  string action = 1;         // "update", "pin", "remove", etc.
+  string target = 2;         // Which dependency to apply to
+  string description = 3;   // Human-readable explanation
+}
+
+// Represents a vendored specification
+message VendoredSpec {
+  string original_url = 1;
+  string commit_hash = 2;
+  string local_path = 3;
+  string content_hash = 4;
+  string vendor_path = 5;
+  google.protobuf.Timestamp copied_at = 6;
+  int64 size = 7;
+  bool up_to_date = 8;
+}
+
+// RPC Request/Response Types
+
+// Add a new dependency
+message AddDependencyRequest {
+  string repository_url = 1;
+  string version = 2;
+  string spec_path = 3;
+  string alias = 4;
+}
+
+message AddDependencyResponse {
+  Dependency dependency = 1;
+  string manifest_path = 2;
+  google.protobuf.Timestamp created_at = 3;
+}
+
+// Remove a dependency
+message RemoveDependencyRequest {
+  string repository_url = 1;
+  string spec_path = 2;
+}
+
+message RemoveDependencyResponse {
+  bool success = 1;
+  string removed_from = 2;
+  google.protobuf.Timestamp removed_at = 3;
+}
+
+// Update a dependency version
+message UpdateDependencyRequest {
+  string repository_url = 1;
+  string spec_path = 2;
+  string new_version = 3;
+}
+
+message UpdateDependencyResponse {
+  Dependency dependency = 1;
+  string old_version = 2;
+  string new_version = 3;
+  google.protobuf.Timestamp updated_at = 4;
+}
+
+// List all dependencies
+message ListDependenciesRequest {
+  bool include_transitive = 1;
+}
+
+message ListDependenciesResponse {
+  repeated Dependency dependencies = 1;
+  google.protobuf.Timestamp timestamp = 2;
+}
+
+// Resolve all dependencies
+message ResolveDependenciesRequest {
+  bool use_cache = 1;
+  bool deep_fetch = 2;
+}
+
+message ResolveDependenciesResponse {
+  SpecLockfile lockfile = 1;
+  repeated DependencyGraph graph = 2;
+  google.protobuf.Timestamp resolved_at = 3;
+  repeated string errors = 4;
+}
+
+// Validate external references
+message ValidateReferencesRequest {
+  string spec_path = 1;
+}
+
+message ValidateReferencesResponse {
+  repeated ExternalReference references = 1;
+  repeated ValidationError errors = 2;
+  google.protobuf.Timestamp validated_at = 3;
+}
+
+// Update the lockfile
+message UpdateLockfileRequest {
+  bool force = 1;
+}
+
+message UpdateLockfileResponse {
+  SpecLockfile lockfile = 1;
+  repeated string updated_entries = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+// Get dependency graph
+message GetDependencyGraphRequest {
+  bool include_transitive = 1;
+  bool show_conflicts = 2;
+}
+
+message GetDependencyGraphResponse {
+  DependencyGraph graph = 1;
+  repeated Conflict conflicts = 2;
+  google.protobuf.Timestamp generated_at = 3;
+}
+
+// Detect conflicts
+message DetectConflictsRequest {
+  bool resolve_automatically = 1;
+}
+
+message DetectConflictsResponse {
+  repeated Conflict conflicts = 1;
+  ConflictResolutionSummary summary = 2;
+}
+
+// Vendor dependencies
+message VendorDependenciesRequest {
+  string output_path = 1;
+  bool overwrite = 2;
+}
+
+message VendorDependenciesResponse {
+  repeated VendoredSpec specs = 1;
+  int64 total_size = 2;
+  google.protobuf.Timestamp completed_at = 3;
+}
+
+// Update vendored dependencies
+message UpdateVendorRequest {
+  string vendor_path = 1;
+  bool force_update = 2;
+}
+
+message UpdateVendorResponse {
+  repeated VendoredSpec updated_specs = 1;
+  repeated string conflicts = 2;
+  google.protobuf.Timestamp updated_at = 3;
+}
+
+// Get lockfile
+message GetLockfileRequest {
+  string lockfile_path = 1;
+}
+
+message GetLockfileResponse {
+  SpecLockfile lockfile = 1;
+  bool valid = 2;
+  string hash = 3;
+}
+
+// Get external reference
+message GetExternalReferenceRequest {
+  string spec_path = 1;
+  string reference_id = 2;
+}
+
+message GetExternalReferenceResponse {
+  ExternalReference reference = 1;
+  string resolved_content = 2;
+  bool valid = 3;
+}
+
+// File Types
+
+// Spec Manifest (spec.mod)
+message SpecManifest {
+  string version = 1;
+  repeated Dependency dependencies = 2;
+  string id = 3;
+  string path = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+// Spec Lockfile (spec.sum)
+message SpecLockfile {
+  string version = 1;
+  repeated LockfileEntry entries = 2;
+  map<string, string> hashes = 3;
+  google.protobuf.Timestamp timestamp = 4;
+  string hash = 5;
+}
+
+// Dependency Graph
+message DependencyGraph {
+  Dependency root = 1;
+  repeated GraphNode nodes = 2;
+  repeated GraphEdge edges = 3;
+  repeated Conflict conflicts = 4;
+  int32 depth = 5;
+  int64 total_size = 6;
+}
+
+// Error Types
+
+message ValidationError {
+  string message = 1;
+  string field = 2;
+  string reference = 3;
+  int32 line = 4;
+}
+
+message ConflictResolutionSummary {
+  int32 total_conflicts = 1;
+  int32 resolved_conflicts = 2;
+  int32 remaining_conflicts = 3;
+  string resolution_strategy = 4;
+}
+
+// Enum Types
+
+enum NodeState {
+  NODE_STATE_UNSPECIFIED = 0;
+  NODE_STATE_RESOLVED = 1;
+  NODE_STATE_MISSING = 2;
+  NODE_STATE_CONFLICTED = 3;
+}
+
+enum EdgeType {
+  EDGE_TYPE_UNSPECIFIED = 0;
+  EDGE_TYPE_DIRECT = 1;
+  EDGE_TYPE_TRANSITIVE = 2;
+  EDGE_TYPE_CONFLICT = 3;
+}
+
+enum ConflictType {
+  CONFLICT_TYPE_UNSPECIFIED = 0;
+  CONFLICT_TYPE_VERSION = 1;  // Version mismatch
+  CONFLICT_TYPE_CIRCULAR = 2; // Circular dependency
+  CONFLICT_TYPE_MISSING = 3;  // Missing dependency
+}
+
+enum ConflictSeverity {
+  CONFLICT_SEVERITY_UNSPECIFIED = 0;
+  CONFLICT_SEVERITY_ERROR = 1;
+  CONFLICT_SEVERITY_WARNING = 2;
+  CONFLICT_SEVERITY_INFO = 3;
+}
