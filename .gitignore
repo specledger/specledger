@@ -61,3 +61,5 @@ build/
 # Ledger files (if any)
 ledger.db
 *.ledger
+
+bin

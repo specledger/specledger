@@ -50,17 +50,27 @@ irm https://raw.githubusercontent.com/your-org/specledger/main/scripts/install.p
 git clone https://github.com/your-org/specledger.git
 cd specledger
 
-# Build the CLI
-make build
+# Build and install the CLI
+make install
 
-# Run the CLI
-./bin/sl --help
+# The CLI is installed to $GOPATH/bin or ~/go/bin
+# Make sure $GOPATH/bin is in your PATH
+sl --help
 ```
 
-### Using Go (Developer)
+### Using Go Toolchain
 
 ```bash
-go install github.com/your-org/specledger/cmd/sl@latest
+# For local development (from source)
+cd specledger
+go install ./cmd/main.go
+
+# This installs to $GOPATH/bin (usually ~/go/bin/sl)
+# Add $GOPATH/bin to your PATH if not already:
+export PATH=$PATH:$(go env GOPATH)/bin
+
+# Verify installation:
+sl --version
 ```
 
 ### Using Package Managers

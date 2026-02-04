@@ -1,4 +1,4 @@
 # SpecLedger Dependency Manifest v1.0.0
-# Generated at 0001-01-01T00:00:00Z
+# Generated at 2026-02-05T00:10:19+08:00
 
-require https://github.com/example/test-repo main specs/test.md --alias mydep
+require https://github.com/arielmiki/dsa-web.git master spec.md

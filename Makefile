@@ -1,4 +1,4 @@
-.PHONY: build run test clean help
+.PHONY: build run test clean install help
 
 # Build the CLI binary (produces bin/sl)
 build:
@@ -37,10 +37,26 @@ build-all:
 clean:
 	rm -rf bin/ coverage.out coverage.html
 
+# Install the CLI to $GOBIN or $GOPATH/bin
+install: build
+	@if [ -n "$(GOBIN)" ]; then \
+		echo "Installing sl to $(GOBIN)/sl"; \
+		mkdir -p $(GOBIN); \
+		cp bin/sl $(GOBIN)/sl; \
+		echo "✓ Installed successfully to $(GOBIN)/sl"; \
+	else \
+		INSTALL_DIR=$$(go env GOPATH)/bin; \
+		echo "Installing sl to $$INSTALL_DIR/sl"; \
+		mkdir -p $$INSTALL_DIR; \
+		cp bin/sl $$INSTALL_DIR/sl; \
+		echo "✓ Installed successfully to $$INSTALL_DIR/sl"; \
+	fi
+
 # Help
 help:
 	@echo "Available targets:"
 	@echo "  make build          - Build the CLI binary (produces bin/sl)"
+	@echo "  make install        - Build and install sl to $$GOBIN or $$GOPATH/bin"
 	@echo "  make run            - Build and run the CLI"
 	@echo "  make test           - Run tests"
 	@echo "  make test-coverage  - Run tests with coverage report"
@@ -49,3 +65,7 @@ help:
 	@echo "  make build-all      - Build for all platforms"
 	@echo "  make clean          - Clean build artifacts"
 	@echo "  make help           - Show this help"
+	@echo ""
+	@echo "Installation:"
+	@echo "  make install        - Install from source"
+	@echo "  go install ./cmd/main.go@latest - Install with go toolchain"
