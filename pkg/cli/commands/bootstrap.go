@@ -7,22 +7,22 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"specledger/pkg/cli/config"
 	"specledger/pkg/cli/logger"
+	"specledger/pkg/cli/metadata"
+	"specledger/pkg/cli/prerequisites"
 	"specledger/pkg/cli/tui"
 	"specledger/pkg/embedded"
 )
 
 var (
 	projectNameFlag string
-	shortCodeFlag    string
-	playbookFlag     string
-	shellFlag        string
-	demoDirFlag      string
-	ciFlag           bool
+	shortCodeFlag   string
+	frameworkFlag   string
+	demoDirFlag     string
+	ciFlag          bool
 	// Init-specific flags
 	initShortCodeFlag string
 	initForceFlag     bool
@@ -44,7 +44,7 @@ The bootstrap creates:
 - .claude/ directory with skills and commands
 - .beads/ directory for issue tracking
 - specledger/ directory for specifications
-- specledger/specledger.mod file for project metadata`,
+- specledger/specledger.yaml file for project metadata`,
 
 	// RunE is called when the command is executed
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -83,7 +83,7 @@ The init creates:
 - .claude/ directory with skills
 - .beads/ directory for issue tracking
 - specledger/ directory for specifications
-- specledger/specledger.mod file for project metadata`,
+- specledger/specledger.yaml file for project metadata`,
 
 	// RunE is called when the command is executed
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -115,8 +115,17 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 	projectName := answers["project_name"]
 	projectDir := answers["project_dir"]
 	shortCode := answers["short_code"]
-	playbook := answers["playbook"]
-	shell := answers["shell"]
+	framework := answers["framework"]
+
+	// Check prerequisites before starting
+	fmt.Println("\nChecking prerequisites...")
+	if err := prerequisites.EnsurePrerequisites(true); err != nil {
+		// Continue anyway - prerequisites are helpful but not blocking
+		fmt.Printf("⚠️  %v\n", err)
+		fmt.Println("Continuing with bootstrap...\n")
+	} else {
+		fmt.Println("✓ All prerequisites installed\n")
+	}
 
 	// Create project path
 	projectPath := filepath.Join(projectDir, projectName)
@@ -142,6 +151,13 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 		return fmt.Errorf("failed to copy templates: %w", err)
 	}
 
+	// Create YAML metadata
+	frameworkChoice := metadata.FrameworkChoice(framework)
+	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, frameworkChoice)
+	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
+		return fmt.Errorf("failed to create project metadata: %w", err)
+	}
+
 	// Initialize git repo (but don't commit - user might bootstrap into existing repo)
 	if err := initializeGitRepo(projectPath); err != nil {
 		return fmt.Errorf("failed to initialize git: %w", err)
@@ -150,12 +166,13 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 	// Success message
 	fmt.Printf("\n✓ Project created: %s\n", projectPath)
 	fmt.Printf("✓ Beads prefix: %s\n", shortCode)
-	fmt.Printf("✓ Playbook: %s\n", playbook)
-	fmt.Printf("✓ Agent Shell: %s\n", shell)
+	fmt.Printf("✓ SDD Framework: %s\n", framework)
 	fmt.Printf("\nNext steps:\n")
 	fmt.Printf("  cd %s\n", projectPath)
-	fmt.Printf("  mise install    # Install tools (bd)\n")
-	fmt.Printf("  claude\n")
+	if framework != "none" {
+		fmt.Printf("  mise install    # Install framework tools via mise\n")
+	}
+	fmt.Printf("  sl doctor       # Check tool installation status\n")
 
 	return nil
 }
@@ -171,8 +188,15 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 		return fmt.Errorf("--short-code flag is required in non-interactive mode")
 	}
 
+	// Check prerequisites in CI mode (non-interactive)
+	if err := prerequisites.EnsurePrerequisites(false); err != nil {
+		// In CI mode, prerequisites are required
+		return fmt.Errorf("prerequisites check failed: %w", err)
+	}
+
 	projectName := projectNameFlag
 	shortCode := strings.ToLower(shortCodeFlag)
+	framework := frameworkFlag
 
 	// Limit short code to 4 characters
 	if len(shortCode) > 4 {
@@ -207,19 +231,23 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 		return fmt.Errorf("failed to initialize git: %w", err)
 	}
 
+	// Create YAML metadata
+	frameworkChoice := metadata.FrameworkChoice(framework)
+	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, frameworkChoice)
+	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
+		return fmt.Errorf("failed to create project metadata: %w", err)
+	}
+
 	// Success message
 	fmt.Printf("\n✓ Project created: %s\n", projectPath)
 	fmt.Printf("✓ Beads prefix: %s\n", shortCode)
-	if playbookFlag != "" {
-		fmt.Printf("✓ Playbook: %s\n", playbookFlag)
-	}
-	if shellFlag != "" {
-		fmt.Printf("✓ Agent Shell: %s\n", shellFlag)
-	}
+	fmt.Printf("✓ SDD Framework: %s\n", framework)
 	fmt.Printf("\nNext steps:\n")
 	fmt.Printf("  cd %s\n", projectPath)
-	fmt.Printf("  mise install    # Install tools (bd)\n")
-	fmt.Printf("  claude\n")
+	if framework != "none" {
+		fmt.Printf("  mise install    # Install framework tools\n")
+	}
+	fmt.Printf("  sl doctor       # Check tool status\n")
 
 	return nil
 }
@@ -237,8 +265,8 @@ func runInit(l *logger.Logger) error {
 
 	// Check if already initialized
 	if !initForceFlag {
-		if _, err := os.Stat(filepath.Join(projectPath, "specledger", "specledger.mod")); err == nil {
-			return fmt.Errorf("already initialized (specledger/specledger.mod exists). Use --force to re-initialize")
+		if _, err := os.Stat(filepath.Join(projectPath, "specledger", "specledger.yaml")); err == nil {
+			return fmt.Errorf("already initialized (specledger/specledger.yaml exists). Use --force to re-initialize")
 		}
 		if _, err := os.Stat(filepath.Join(projectPath, ".beads")); err == nil {
 			return fmt.Errorf("already initialized (.beads exists). Use --force to re-initialize")
@@ -271,26 +299,16 @@ func runInit(l *logger.Logger) error {
 		return fmt.Errorf("failed to copy templates: %w", err)
 	}
 
-	// Create specledger.mod file
-	specledgerMod := fmt.Sprintf(`# SpecLedger Dependency Manifest v1.0.0
-# Generated by sl init on %s
-# Project: %s
-# Short Code: %s
-#
-# This project was initialized with SpecLedger
-#
-# To add dependencies, use:
-#   sl deps add git@github.com:org/spec main spec.md --alias alias
-
-`, time.Now().Format("2006-01-02"), projectName, shortCode)
-
-	if err := os.WriteFile(filepath.Join(projectPath, "specledger", "specledger.mod"), []byte(specledgerMod), 0644); err != nil {
-		return fmt.Errorf("failed to create specledger.mod: %w", err)
+	// Create YAML metadata (default to "none" framework for sl init)
+	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, metadata.FrameworkNone)
+	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
+		return fmt.Errorf("failed to create project metadata: %w", err)
 	}
 
 	// Success message
 	fmt.Printf("\n✓ SpecLedger initialized in: %s\n", projectPath)
 	fmt.Printf("✓ Beads prefix: %s\n", shortCode)
+	fmt.Printf("✓ Metadata: specledger/specledger.yaml\n")
 	fmt.Println("\nSpecLedger is ready to use!")
 	fmt.Println("\nNext steps:")
 	fmt.Println("  sl deps list              # List dependencies")
@@ -384,8 +402,7 @@ func init() {
 	// Flags for 'new' command
 	VarBootstrapCmd.PersistentFlags().StringVarP(&projectNameFlag, "project-name", "n", "", "Project name")
 	VarBootstrapCmd.PersistentFlags().StringVarP(&shortCodeFlag, "short-code", "s", "", "Short code (2-4 letters)")
-	VarBootstrapCmd.PersistentFlags().StringVarP(&playbookFlag, "playbook", "p", "", "Playbook type")
-	VarBootstrapCmd.PersistentFlags().StringVarP(&shellFlag, "shell", "", "claude-code", "Agent shell")
+	VarBootstrapCmd.PersistentFlags().StringVarP(&frameworkFlag, "framework", "f", "none", "SDD framework (speckit, openspec, both, none)")
 	VarBootstrapCmd.PersistentFlags().StringVarP(&demoDirFlag, "project-dir", "d", "", "Project directory path")
 	VarBootstrapCmd.PersistentFlags().BoolVarP(&ciFlag, "ci", "", false, "Force non-interactive mode (skip TUI)")
 
@@ -462,18 +479,9 @@ func copyTemplates(projectPath, shortCode, projectName string) error {
 		return fmt.Errorf("failed to walk embedded templates: %w", err)
 	}
 
-	// Create specledger.mod file as project artifact (empty manifest for now)
-	specledgerMod := fmt.Sprintf(`# SpecLedger Dependency Manifest v1.0.0
-# Generated by sl new on %s
-# Project: %s
-# Short Code: %s
-#
-# To add dependencies, use:
-#   sl deps add git@github.com:org/spec main spec.md --alias alias
-
-`, time.Now().Format("2006-01-02"), projectName, shortCode)
-
-	return os.WriteFile(filepath.Join(projectPath, "specledger", "specledger.mod"), []byte(specledgerMod), 0644)
+	// Note: specledger.yaml is now created separately via metadata.SaveToProject()
+	// No longer creating .mod file here
+	return nil
 }
 
 // initializeGitRepo initializes a git repository in the project directory

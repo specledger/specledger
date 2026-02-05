@@ -29,8 +29,7 @@ const (
 	stepProjectName = iota
 	stepDirectory
 	stepShortCode
-	stepPlaybook
-	stepShell
+	stepFramework
 	stepConfirm
 	stepComplete
 )
@@ -84,7 +83,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleEnter()
 
 		case tea.KeyUp:
-			if m.step == stepPlaybook || m.step == stepShell {
+			if m.step == stepFramework {
 				if m.selectedIdx > 0 {
 					m.selectedIdx--
 				}
@@ -92,14 +91,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 
 		case tea.KeyDown:
-			if m.step == stepPlaybook {
-				playbookOptions := getPlaybookOptions()
-				if m.selectedIdx < len(playbookOptions)-1 {
-					m.selectedIdx++
-				}
-			} else if m.step == stepShell {
-				shellOptions := getShellOptions()
-				if m.selectedIdx < len(shellOptions)-1 {
+			if m.step == stepFramework {
+				frameworkOptions := getFrameworkOptions()
+				if m.selectedIdx < len(frameworkOptions)-1 {
 					m.selectedIdx++
 				}
 			}
@@ -168,20 +162,13 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.answers["short_code"] = strings.ToLower(value)
-		m.step = stepPlaybook
+		m.step = stepFramework
 		m.selectedIdx = 0
 		return m, nil
 
-	case stepPlaybook:
-		options := getPlaybookOptions()
-		m.answers["playbook"] = options[m.selectedIdx]
-		m.step = stepShell
-		m.selectedIdx = 0
-		return m, nil
-
-	case stepShell:
-		options := getShellOptions()
-		m.answers["shell"] = options[m.selectedIdx]
+	case stepFramework:
+		options := getFrameworkOptions()
+		m.answers["framework"] = getFrameworkValue(options[m.selectedIdx])
 		m.step = stepConfirm
 		return m, nil
 
@@ -208,7 +195,7 @@ func (m Model) View() string {
 	s.WriteString("\n\n")
 
 	// Step indicator
-	s.WriteString(colorSubtle.Render(fmt.Sprintf("Step %d of 6", m.step+1)))
+	s.WriteString(colorSubtle.Render(fmt.Sprintf("Step %d of 5", m.step+1)))
 	s.WriteString("\n\n")
 
 	// Step content
@@ -219,10 +206,8 @@ func (m Model) View() string {
 		s.WriteString(m.viewDirectory())
 	case stepShortCode:
 		s.WriteString(m.viewShortCode())
-	case stepPlaybook:
-		s.WriteString(m.viewPlaybook())
-	case stepShell:
-		s.WriteString(m.viewShell())
+	case stepFramework:
+		s.WriteString(m.viewFramework())
 	case stepConfirm:
 		s.WriteString(m.viewConfirm())
 	}
@@ -235,7 +220,7 @@ func (m Model) View() string {
 
 	// Help text
 	s.WriteString("\n\n")
-	if m.step == stepPlaybook || m.step == stepShell {
+	if m.step == stepFramework {
 		s.WriteString(colorSubtle.Render("↑/↓: Navigate • Enter: Confirm • Ctrl+C: Cancel"))
 	} else {
 		s.WriteString(colorSubtle.Render("Enter: Continue • Ctrl+C: Cancel"))
@@ -275,14 +260,15 @@ func (m Model) viewShortCode() string {
 	return s.String()
 }
 
-func (m Model) viewPlaybook() string {
+func (m Model) viewFramework() string {
 	var s strings.Builder
-	s.WriteString(colorPrimary.Render("Select Playbook"))
+	s.WriteString(colorPrimary.Render("Select SDD Framework"))
 	s.WriteString("\n")
-	s.WriteString(colorSubtle.Render("Choose a development playbook template"))
+	s.WriteString(colorSubtle.Render("Choose your specification-driven development framework"))
 	s.WriteString("\n\n")
 
-	options := getPlaybookOptions()
+	options := getFrameworkOptions()
+	descriptions := getFrameworkDescriptions()
 	for i, option := range options {
 		cursor := " "
 		style := unselectedStyle
@@ -291,27 +277,10 @@ func (m Model) viewPlaybook() string {
 			style = selectedStyle
 		}
 		s.WriteString(fmt.Sprintf("%s %s\n", cursor, style.Render(option)))
-	}
-
-	return s.String()
-}
-
-func (m Model) viewShell() string {
-	var s strings.Builder
-	s.WriteString(colorPrimary.Render("Select Agent Shell"))
-	s.WriteString("\n")
-	s.WriteString(colorSubtle.Render("Choose your preferred AI agent shell"))
-	s.WriteString("\n\n")
-
-	options := getShellOptions()
-	for i, option := range options {
-		cursor := " "
-		style := unselectedStyle
 		if i == m.selectedIdx {
-			cursor = "›"
-			style = selectedStyle
+			s.WriteString(colorSubtle.Render("  " + descriptions[i]))
+			s.WriteString("\n")
 		}
-		s.WriteString(fmt.Sprintf("%s %s\n", cursor, style.Render(option)))
 	}
 
 	return s.String()
@@ -326,8 +295,7 @@ func (m Model) viewConfirm() string {
 	s.WriteString(colorSuccess.Render("✓ ") + "Project Name: " + m.answers["project_name"] + "\n")
 	s.WriteString(colorSuccess.Render("✓ ") + "Location: " + projectPath + "\n")
 	s.WriteString(colorSuccess.Render("✓ ") + "Short Code: " + m.answers["short_code"] + "\n")
-	s.WriteString(colorSuccess.Render("✓ ") + "Playbook: " + m.answers["playbook"] + "\n")
-	s.WriteString(colorSuccess.Render("✓ ") + "Agent Shell: " + m.answers["shell"] + "\n")
+	s.WriteString(colorSuccess.Render("✓ ") + "SDD Framework: " + m.answers["framework"] + "\n")
 
 	s.WriteString("\n")
 	s.WriteString(colorSubtle.Render("Press Enter to create project"))
@@ -346,19 +314,37 @@ func (m Model) viewComplete() string {
 
 // Helper functions
 
-func getPlaybookOptions() []string {
+func getFrameworkOptions() []string {
 	return []string{
-		"Default (General SWE)",
-		"Data Science",
-		"Platform Engineering",
+		"Spec Kit (GitHub)",
+		"OpenSpec",
+		"Both",
+		"None",
 	}
 }
 
-func getShellOptions() []string {
+func getFrameworkDescriptions() []string {
 	return []string{
-		"Claude Code",
-		"Gemini CLI",
-		"Codex",
+		"Structured, phase-gated workflow with comprehensive tooling",
+		"Lightweight, iterative workflow for agile teams",
+		"Use both frameworks based on project needs",
+		"Bootstrap only - no SDD framework",
+	}
+}
+
+// getFrameworkValue converts display name to metadata.FrameworkChoice value
+func getFrameworkValue(displayName string) string {
+	switch displayName {
+	case "Spec Kit (GitHub)":
+		return "speckit"
+	case "OpenSpec":
+		return "openspec"
+	case "Both":
+		return "both"
+	case "None":
+		return "none"
+	default:
+		return "none"
 	}
 }
 
