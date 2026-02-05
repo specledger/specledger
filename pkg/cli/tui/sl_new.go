@@ -36,14 +36,15 @@ const (
 
 // TUI model for sl new command
 type Model struct {
-	step         int
-	textInput    textinput.Model
-	answers      map[string]string
-	showingError string
-	width        int
-	selectedIdx  int // Index for list selections
-	quitting     bool
-	defaultDir   string // Default project directory
+	step             int
+	textInput        textinput.Model
+	answers          map[string]string
+	showingError     string
+	width            int
+	selectedIdx      int                // Index for list selections
+	frameworkChoices map[string]bool    // Checkbox states for framework selection
+	quitting         bool
+	defaultDir       string             // Default project directory
 }
 
 // InitialModel creates initial model with default directory
@@ -55,11 +56,12 @@ func InitialModel(defaultDir string) Model {
 	ti.Width = 50
 
 	return Model{
-		step:       stepProjectName,
-		textInput:  ti,
-		answers:    make(map[string]string),
-		width:      80,
-		defaultDir: defaultDir,
+		step:             stepProjectName,
+		textInput:        ti,
+		answers:          make(map[string]string),
+		frameworkChoices: make(map[string]bool),
+		width:            80,
+		defaultDir:       defaultDir,
 	}
 }
 
@@ -92,12 +94,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case tea.KeyDown:
 			if m.step == stepFramework {
-				frameworkOptions := getFrameworkOptions()
+				frameworkOptions := getFrameworkCheckboxOptions()
 				if m.selectedIdx < len(frameworkOptions)-1 {
 					m.selectedIdx++
 				}
 			}
 			return m, nil
+
+		case tea.KeyRunes:
+			// Handle space bar for checkbox toggle at framework step
+			if m.step == stepFramework && len(msg.Runes) > 0 && msg.Runes[0] == ' ' {
+				options := getFrameworkCheckboxOptions()
+				if m.selectedIdx < len(options) {
+					key := options[m.selectedIdx]
+					m.frameworkChoices[key] = !m.frameworkChoices[key]
+				}
+				return m, nil
+			}
 		}
 
 	case tea.WindowSizeMsg:
@@ -167,8 +180,20 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case stepFramework:
-		options := getFrameworkOptions()
-		m.answers["framework"] = getFrameworkValue(options[m.selectedIdx])
+		// Determine framework choice based on checkbox selections
+		speckit := m.frameworkChoices["speckit"]
+		openspec := m.frameworkChoices["openspec"]
+
+		if speckit && openspec {
+			m.answers["framework"] = "both"
+		} else if speckit {
+			m.answers["framework"] = "speckit"
+		} else if openspec {
+			m.answers["framework"] = "openspec"
+		} else {
+			m.answers["framework"] = "none"
+		}
+
 		m.step = stepConfirm
 		return m, nil
 
@@ -221,7 +246,7 @@ func (m Model) View() string {
 	// Help text
 	s.WriteString("\n\n")
 	if m.step == stepFramework {
-		s.WriteString(colorSubtle.Render("↑/↓: Navigate • Enter: Confirm • Ctrl+C: Cancel"))
+		s.WriteString(colorSubtle.Render("↑/↓: Navigate • Space: Toggle • Enter: Confirm • Ctrl+C: Cancel"))
 	} else {
 		s.WriteString(colorSubtle.Render("Enter: Continue • Ctrl+C: Cancel"))
 	}
@@ -262,21 +287,30 @@ func (m Model) viewShortCode() string {
 
 func (m Model) viewFramework() string {
 	var s strings.Builder
-	s.WriteString(colorPrimary.Render("Select SDD Framework"))
+	s.WriteString(colorPrimary.Render("Select SDD Framework(s)"))
 	s.WriteString("\n")
-	s.WriteString(colorSubtle.Render("Choose your specification-driven development framework"))
+	s.WriteString(colorSubtle.Render("Use Space to toggle, Enter to confirm"))
 	s.WriteString("\n\n")
 
-	options := getFrameworkOptions()
-	descriptions := getFrameworkDescriptions()
+	options := getFrameworkCheckboxOptions()
+	descriptions := getFrameworkCheckboxDescriptions()
+
 	for i, option := range options {
 		cursor := " "
+		checkbox := "☐"
 		style := unselectedStyle
+
 		if i == m.selectedIdx {
 			cursor = "›"
 			style = selectedStyle
 		}
-		s.WriteString(fmt.Sprintf("%s %s\n", cursor, style.Render(option)))
+
+		if m.frameworkChoices[option] {
+			checkbox = "☑"
+		}
+
+		s.WriteString(fmt.Sprintf("%s %s %s\n", cursor, checkbox, style.Render(getFrameworkDisplayName(option))))
+
 		if i == m.selectedIdx {
 			s.WriteString(colorSubtle.Render("  " + descriptions[i]))
 			s.WriteString("\n")
@@ -295,7 +329,23 @@ func (m Model) viewConfirm() string {
 	s.WriteString(colorSuccess.Render("✓ ") + "Project Name: " + m.answers["project_name"] + "\n")
 	s.WriteString(colorSuccess.Render("✓ ") + "Location: " + projectPath + "\n")
 	s.WriteString(colorSuccess.Render("✓ ") + "Short Code: " + m.answers["short_code"] + "\n")
-	s.WriteString(colorSuccess.Render("✓ ") + "SDD Framework: " + m.answers["framework"] + "\n")
+
+	// Display framework selection with details
+	framework := m.answers["framework"]
+	frameworkDisplay := ""
+	switch framework {
+	case "speckit":
+		frameworkDisplay = "Spec Kit (GitHub)"
+	case "openspec":
+		frameworkDisplay = "OpenSpec"
+	case "both":
+		frameworkDisplay = "Both (Spec Kit + OpenSpec)"
+	case "none":
+		frameworkDisplay = "None"
+	default:
+		frameworkDisplay = framework
+	}
+	s.WriteString(colorSuccess.Render("✓ ") + "SDD Framework: " + frameworkDisplay + "\n")
 
 	s.WriteString("\n")
 	s.WriteString(colorSubtle.Render("Press Enter to create project"))
@@ -314,37 +364,31 @@ func (m Model) viewComplete() string {
 
 // Helper functions
 
-func getFrameworkOptions() []string {
+// getFrameworkCheckboxOptions returns the keys for checkbox selection
+func getFrameworkCheckboxOptions() []string {
 	return []string{
-		"Spec Kit (GitHub)",
-		"OpenSpec",
-		"Both",
-		"None",
+		"speckit",
+		"openspec",
 	}
 }
 
-func getFrameworkDescriptions() []string {
+// getFrameworkDisplayName returns the display name for a framework key
+func getFrameworkDisplayName(key string) string {
+	switch key {
+	case "speckit":
+		return "Spec Kit (GitHub)"
+	case "openspec":
+		return "OpenSpec"
+	default:
+		return key
+	}
+}
+
+// getFrameworkCheckboxDescriptions returns descriptions for each framework
+func getFrameworkCheckboxDescriptions() []string {
 	return []string{
 		"Structured, phase-gated workflow with comprehensive tooling",
 		"Lightweight, iterative workflow for agile teams",
-		"Use both frameworks based on project needs",
-		"Bootstrap only - no SDD framework",
-	}
-}
-
-// getFrameworkValue converts display name to metadata.FrameworkChoice value
-func getFrameworkValue(displayName string) string {
-	switch displayName {
-	case "Spec Kit (GitHub)":
-		return "speckit"
-	case "OpenSpec":
-		return "openspec"
-	case "Both":
-		return "both"
-	case "None":
-		return "none"
-	default:
-		return "none"
 	}
 }
 
