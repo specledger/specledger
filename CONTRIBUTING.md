@@ -44,7 +44,7 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 
 ### Prerequisites
 
-- Go 1.21 or higher
+- Go 1.24 or higher
 - Make
 - Git
 
