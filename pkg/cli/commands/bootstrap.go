@@ -151,8 +151,13 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 		return fmt.Errorf("failed to copy templates: %w", err)
 	}
 
-	// Create YAML metadata
+	// Update mise.toml to enable selected framework
 	frameworkChoice := metadata.FrameworkChoice(framework)
+	if err := updateMiseToml(projectPath, frameworkChoice); err != nil {
+		return fmt.Errorf("failed to update mise.toml: %w", err)
+	}
+
+	// Create YAML metadata
 	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, frameworkChoice)
 	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
 		return fmt.Errorf("failed to create project metadata: %w", err)
@@ -167,10 +172,13 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 	fmt.Printf("\n✓ Project created: %s\n", projectPath)
 	fmt.Printf("✓ Beads prefix: %s\n", shortCode)
 	fmt.Printf("✓ SDD Framework: %s\n", framework)
+	if framework != "none" {
+		fmt.Printf("✓ Framework tools enabled in mise.toml\n")
+	}
 	fmt.Printf("\nNext steps:\n")
 	fmt.Printf("  cd %s\n", projectPath)
 	if framework != "none" {
-		fmt.Printf("  mise install    # Install framework tools via mise\n")
+		fmt.Printf("  mise install    # Install framework tools\n")
 	}
 	fmt.Printf("  sl doctor       # Check tool installation status\n")
 
@@ -226,16 +234,21 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 		return fmt.Errorf("failed to copy templates: %w", err)
 	}
 
-	// Initialize git repo (but don't commit - user might bootstrap into existing repo)
-	if err := initializeGitRepo(projectPath); err != nil {
-		return fmt.Errorf("failed to initialize git: %w", err)
+	// Update mise.toml to enable selected framework
+	frameworkChoice := metadata.FrameworkChoice(framework)
+	if err := updateMiseToml(projectPath, frameworkChoice); err != nil {
+		return fmt.Errorf("failed to update mise.toml: %w", err)
 	}
 
 	// Create YAML metadata
-	frameworkChoice := metadata.FrameworkChoice(framework)
 	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, frameworkChoice)
 	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
 		return fmt.Errorf("failed to create project metadata: %w", err)
+	}
+
+	// Initialize git repo (but don't commit - user might bootstrap into existing repo)
+	if err := initializeGitRepo(projectPath); err != nil {
+		return fmt.Errorf("failed to initialize git: %w", err)
 	}
 
 	// Success message
