@@ -1,11 +1,11 @@
 # Homebrew formula for SpecLedger CLI
 # Place this file in a homebrew tap repository, e.g.,:
-#   github.com/your-org/homebrew-specledger
+#   github.com/specledger/homebrew-specledger
 
 class Specledger < Formula
   desc "Unified CLI for project bootstrap and specification dependency management"
-  homepage "https://github.com/your-org/specledger"
-  url "https://github.com/your-org/specledger/releases/download/v1.0.0/specledger_1.0.0_darwin_amd64.tar.gz"
+  homepage "https://github.com/specledger/specledger"
+  url "https://github.com/specledger/specledger/releases/download/v1.0.0/specledger_1.0.0_darwin_amd64.tar.gz"
   sha256 "abc123def456..."
 
   bottle do

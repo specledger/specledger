@@ -29,7 +29,7 @@ if ([string]::IsNullOrWhiteSpace($DownloadUrl)) {
         default { $OsSuffix = "windows-amd64" }
     }
 
-    $DownloadUrl = "https://github.com/your-org/specledger/releases/download/$Version/specledger_$Version_windows_$Arch.zip"
+    $DownloadUrl = "https://github.com/specledger/specledger/releases/download/$Version/specledger_$Version_windows_$Arch.zip"
 }
 
 Write-Host "Installing SpecLedger $Version" -ForegroundColor Cyan

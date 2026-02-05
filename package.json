@@ -5,9 +5,9 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/your-org/specledger.git"
+    "url": "git+https://github.com/specledger/specledger.git"
   },
-  "homepage": "https://github.com/your-org/specledger#readme",
+  "homepage": "https://github.com/specledger/specledger#readme",
   "bin": {
     "sl": "./bin/sl",
     "specledger": "./bin/sl"
@@ -33,6 +33,6 @@
   ],
   "funding": {
     "type": "github",
-    "url": "https://github.com/sponsors/your-org"
+    "url": "https://github.com/sponsors/specledger"
   }
 }

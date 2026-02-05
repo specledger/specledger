@@ -1,23 +1,95 @@
-# FORK notes
+# SpecLedger Specification Directory
 
-Notes on changes made to local files compared to upstream [github/spec-kit](https://github.com/github/spec-kit/).
+This directory contains your project's specifications using the SpecLedger framework.
 
-## Task Generation Updates
+## What is SpecLedger?
 
-- Updated `speckit.tasks` prompt template and `tasks.md` template to use [beads](https://github.com/steveyegge/beads) CLI for task management instead of a linear checklist.
-- Updated `speckit.analyze` prompt to reflect new task generation approach.
-- Updated `speckit.implement` prompt to reflect new task generation approach.
+SpecLedger is a unified framework for:
+- **Project Bootstrap**: Creating new projects with interactive CLI (`sl new`)
+- **Dependency Management**: Managing external specification dependencies (`sl deps`)
+- **Issue Tracking**: Tracking work across sessions using beads (bd)
 
-## Task Tracking Updates
+## Directory Structure
 
-- Updated `speckit.specify` prompt to review previous work using beads queries.
-- Updated `speckit.plan` prompt to research previous work first using beads queries.
+```
+specledger/
+├── specledger.mod       # Dependency manifest (declared dependencies)
+├── specledger.sum       # Lockfile (resolved dependencies with hashes)
+├── FORK.md             # This file
+└── specs/              # Your specification files (optional)
+    ├── 001-feature-name/
+    │   ├── spec.md     # Feature specification
+    │   └── plan.md     # Implementation plan
+    └── ...
+```
 
-## Scripts updates
+## Managing Dependencies
 
-- Update to `.specify/scripts/bash/create-new-feature.sh` to accept arguments for branch short name and branch number.
-- Updated `speckit.specify` to use new script arguments.
-- Updated `update-agent-context.sh` with upstream fixes.
-- Added new script `.specify/scripts/bash/adopt-feature-branch.sh` to help adopt existing feature branches (e.g. from https://claude.ia/code)
-- Added new prompt `speckit.adopt` to adopt existing feature branches using the new script.
-- Updated `.specify/scripts/bash/common.sh` to support feature branch mapping for adopted branches.
+### Add a Dependency
+
+```bash
+sl deps add git@github.com:org/spec-repo main spec.md --alias myspec
+```
+
+### List Dependencies
+
+```bash
+sl deps list
+```
+
+### Resolve (Download) Dependencies
+
+```bash
+sl deps resolve
+```
+
+Dependencies are cached locally at `~/.specledger/cache/` for offline use.
+
+## Issue Tracking
+
+SpecLedger uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking.
+
+### Tracking Work
+
+```bash
+bd create "Implement feature X" --priority high
+bd show sl-001           # View issue details
+bd comments add sl-001 "Progress update"
+bd close sl-001 "Completed"
+```
+
+### Finding Work
+
+```bash
+bd ready --limit 5       # Find issues ready to work on
+bd search "database" --limit 10
+```
+
+## LLM Integration
+
+Cached dependencies can be easily referenced by AI agents:
+
+```markdown
+## Dependencies
+
+This component extends:
+- `myspec` (git@github.com:org/spec-repo/main/spec.md)
+
+Cached at: ~/.specledger/cache/github.com/org/spec-repo/<commit>/spec.md
+```
+
+## Configuration
+
+Global config: `~/.config/specledger/config.yaml`
+
+```yaml
+default_project_dir: ~/demos
+preferred_shell: claude-code
+tui_enabled: true
+```
+
+## Documentation
+
+- CLI Help: `sl --help`
+- Documentation: https://specledger.io/docs
+- GitHub: https://github.com/specledger/specledger

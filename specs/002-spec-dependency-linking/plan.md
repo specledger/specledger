@@ -3,7 +3,7 @@
 **Branch**: `002-spec-dependency-linking` | **Date**: 2026-01-30 | **Spec**: [link]
 **Input**: Feature specification from `/specs/002-spec-dependency-linking/spec.md`
 
-**Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+**Note**: This template is filled in by the `implementation planning` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
 ## Summary
 
@@ -62,12 +62,12 @@ Verify compliance with principles from `.specify/memory/constitution.md`:
 
 ```text
 specs/[###-feature]/
-├── plan.md              # This file (/speckit.plan command output)
-├── research.md          # Phase 0 output (/speckit.plan command)
-├── data-model.md        # Phase 1 output (/speckit.plan command)
-├── quickstart.md        # Phase 1 output (/speckit.plan command)
-├── contracts/           # Phase 1 output (/speckit.plan command)
-└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
+├── plan.md              # This file (implementation planning command output)
+├── research.md          # Phase 0 output (implementation planning command)
+├── data-model.md        # Phase 1 output (implementation planning command)
+├── quickstart.md        # Phase 1 output (implementation planning command)
+├── contracts/           # Phase 1 output (implementation planning command)
+└── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by implementation planning)
 ```
 
 ### Source Code (repository root)

@@ -63,3 +63,4 @@ ledger.db
 *.ledger
 
 bin
+bin/

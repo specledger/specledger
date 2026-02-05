@@ -63,13 +63,13 @@ get_download_url() {
 
     case "$OS" in
         darwin)
-            echo "https://github.com/your-org/specledger/releases/download/${version}/specledger_${version}_darwin_${arch}.tar.gz"
+            echo "https://github.com/specledger/specledger/releases/download/${version}/specledger_${version}_darwin_${arch}.tar.gz"
             ;;
         linux)
-            echo "https://github.com/your-org/specledger/releases/download/${version}/specledger_${version}_linux_${arch}.tar.gz"
+            echo "https://github.com/specledger/specledger/releases/download/${version}/specledger_${version}_linux_${arch}.tar.gz"
             ;;
         windows)
-            echo "https://github.com/your-org/specledger/releases/download/${version}/specledger_${version}_windows_${arch}.zip"
+            echo "https://github.com/specledger/specledger/releases/download/${version}/specledger_${version}_windows_${arch}.zip"
             ;;
         *)
             echo -e "${RED}Error: Unsupported operating system: $OS${NC}" >&2

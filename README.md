@@ -21,33 +21,33 @@ SpecLedger (`sl`) helps you create new projects and manage specification depende
 
 ```bash
 # Using curl
-curl -fsSL https://raw.githubusercontent.com/your-org/specledger/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | bash
 
 # Or using wget
-wget -qO- https://raw.githubusercontent.com/your-org/specledger/main/scripts/install.sh | bash
+wget -qO- https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | bash
 ```
 
 #### Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/your-org/specledger/main/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | sudo bash
 
 # Or using wget
-wget -qO- https://raw.githubusercontent.com/your-org/specledger/main/scripts/install.sh | sudo bash
+wget -qO- https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | sudo bash
 ```
 
 #### Windows
 
 ```powershell
 # Using PowerShell
-irm https://raw.githubusercontent.com/your-org/specledger/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.ps1 | iex
 ```
 
 ### From Source
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-org/specledger.git
+git clone https://github.com/specledger/specledger.git
 cd specledger
 
 # Build and install the CLI
@@ -78,7 +78,7 @@ sl --version
 #### Homebrew
 
 ```bash
-brew tap your-org/homebrew-specledger
+brew tap specledger/homebrew-specledger
 brew install specledger
 ```
 
@@ -229,7 +229,7 @@ sl new --ci --project-name myproject --short-code mp
 sudo bin/sl new --ci --project-name myproject --short-code mp
 
 # Or run with sudo for the install script:
-curl -fsSL https://raw.githubusercontent.com/your-org/specledger/main/scripts/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | sudo bash
 ```
 
 ### TUI Not Working in CI/CD
@@ -345,9 +345,9 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Support
 
-- **Documentation**: [docs.specledger.dev](https://docs.specledger.dev)
-- **Issues**: [GitHub Issues](https://github.com/your-org/specledger/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/your-org/specledger/discussions)
+- **Documentation**: [https://specledger.io/docs](https://specledger.io/docs)
+- **Issues**: [GitHub Issues](https://github.com/specledger/specledger/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/specledger/specledger/discussions)
 
 ## Changelog
 
@@ -355,4 +355,4 @@ See [CHANGELOG.md](CHANGELOG.md) for detailed changes.
 
 ## Release Notes
 
-For the latest release notes, visit the [releases page](https://github.com/your-org/specledger/releases).
+For the latest release notes, visit the [releases page](https://github.com/specledger/specledger/releases).

@@ -56,7 +56,7 @@ archives:
 nfpms:
   - vendor: specledger
     maintainer: 'SpecLedger Team <contact@specledger.dev>'
-    homepage: 'https://github.com/your-org/specledger'
+    homepage: 'https://github.com/specledger/specledger'
     description: 'Unified CLI for project bootstrap and specification dependency management'
     license: MIT
     bindir: /usr/bin
@@ -69,12 +69,12 @@ nfpms:
 brews:
   - name: specledger
     tap:
-      owner: your-org
+      owner: specledger
       name: homebrew-specledger
-    homepage: 'https://github.com/your-org/specledger'
+    homepage: 'https://github.com/specledger/specledger'
     description: 'Unified CLI for project bootstrap and specification dependency management'
     license: MIT
-    url_template: 'https://github.com/your-org/specledger/releases/download/{{ .Tag }}/{{ .ArtifactName }}'
+    url_template: 'https://github.com/specledger/specledger/releases/download/{{ .Tag }}/{{ .ArtifactName }}'
     skip_upload: true
     commit_msg_template: 'Brew formula update for {{ .Tag }}'
 
@@ -105,7 +105,7 @@ checksum:
 
 release:
   github:
-    owner: your-org
+    owner: specledger
     name: specledger
 
   prerelease: auto
@@ -121,7 +121,7 @@ release:
     ## 📦 Installation
 
     ### Binary
-    Download from the [releases page](https://github.com/your-org/specledger/releases/latest).
+    Download from the [releases page](https://github.com/specledger/specledger/releases/latest).
 
     ### Homebrew
     ```bash
@@ -142,11 +142,11 @@ release:
 
     ### From source
     ```bash
-    go install github.com/your-org/specledger/cmd/sl@latest
+    go install github.com/specledger/specledger/cmd/sl@latest
     ```
 
     ## 📚 Documentation
 
-    - [Documentation](https://docs.specledger.dev)
-    - [GitHub Issues](https://github.com/your-org/specledger/issues)
-    - [Changelog](https://github.com/your-org/specledger/blob/main/CHANGELOG.md)
+    - [Documentation](https://specledger.io/docs)
+    - [GitHub Issues](https://github.com/specledger/specledger/issues)
+    - [Changelog](https://github.com/specledger/specledger/blob/main/CHANGELOG.md)
