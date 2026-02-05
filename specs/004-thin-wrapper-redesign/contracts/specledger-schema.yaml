@@ -1,0 +1,22 @@
+# SpecLedger Metadata Schema v1.0.0
+# This file documents the structure of specledger/specledger.yaml
+
+version: "1.0.0"
+
+project:
+  name: string              # Project name (alphanumeric + hyphens)
+  short_code: string        # Beads prefix (2-10 chars, alphanumeric)
+  created: timestamp        # ISO8601 format (e.g., "2026-02-05T10:30:00Z")
+  modified: timestamp       # ISO8601 format
+  version: string           # Semver format (e.g., "0.1.0")
+
+framework:
+  choice: enum              # Required: "speckit" | "openspec" | "both" | "none"
+  installed_at: timestamp   # Optional: ISO8601 format
+
+dependencies:
+  - url: string             # Required: Git URL (SSH or HTTPS)
+    branch: string          # Optional: Branch/tag name (default: "main")
+    path: string            # Optional: File path in repo (default: "spec.md")
+    alias: string           # Optional: Short reference name
+    resolved_commit: string # Optional: 40-char SHA hex string

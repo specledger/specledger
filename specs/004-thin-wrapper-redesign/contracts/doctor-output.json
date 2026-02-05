@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SpecLedger Doctor Output",
+  "description": "JSON output format for 'sl doctor' command",
+  "type": "object",
+  "required": ["status", "tools"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["pass", "fail"],
+      "description": "Overall status: pass if all core tools installed, fail otherwise"
+    },
+    "tools": {
+      "type": "array",
+      "description": "List of tool installation statuses",
+      "items": {
+        "type": "object",
+        "required": ["name", "installed", "category"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Tool identifier",
+            "enum": ["mise", "bd", "perles", "specify", "openspec"]
+          },
+          "installed": {
+            "type": "boolean",
+            "description": "Whether tool is found in PATH"
+          },
+          "version": {
+            "type": "string",
+            "description": "Version string from --version output (empty if not installed)"
+          },
+          "path": {
+            "type": "string",
+            "description": "Full path to executable (empty if not installed)"
+          },
+          "category": {
+            "type": "string",
+            "enum": ["core", "framework"],
+            "description": "Tool category: core (required) or framework (optional)"
+          }
+        }
+      }
+    },
+    "missing": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of missing core tool names"
+    },
+    "install_instructions": {
+      "type": "string",
+      "description": "Human-readable instructions for installing missing tools"
+    }
+  }
+}
