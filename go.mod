@@ -1,6 +1,6 @@
 module specledger
 
-go 1.21
+go 1.24.2
 
 // SpecLedger - Specification Dependency Management CLI
 //
