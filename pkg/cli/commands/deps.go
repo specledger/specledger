@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"specledger/pkg/cli/framework"
 	"specledger/pkg/cli/metadata"
 	"specledger/pkg/cli/ui"
 )
@@ -115,13 +116,44 @@ func runAddDependency(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid repository URL: %s", repoURL)
 	}
 
+	// Detect framework type
+	frameworkType := metadata.FrameworkNone
+	ui.PrintSection("Detecting Framework")
+	fmt.Printf("Checking %s...\n", ui.Bold(repoURL))
+
+	detectedFramework, err := framework.DetectFramework(repoURL)
+	if err != nil {
+		ui.PrintWarning(fmt.Sprintf("Could not detect framework: %v", err))
+		ui.PrintWarning("Continuing with 'none' as framework type")
+	} else {
+		frameworkType = detectedFramework
+	}
+
+	// Display detected framework
+	frameworkDisplay := "None"
+	switch frameworkType {
+	case metadata.FrameworkSpecKit:
+		frameworkDisplay = ui.Cyan("Spec Kit")
+	case metadata.FrameworkOpenSpec:
+		frameworkDisplay = ui.Cyan("OpenSpec")
+	case metadata.FrameworkBoth:
+		frameworkDisplay = ui.Cyan("Both")
+	}
+	fmt.Printf("  Framework:  %s\n", frameworkDisplay)
+	fmt.Println()
+
 	// Create dependency
 	dep := metadata.Dependency{
-		URL:    repoURL,
-		Branch: branch,
-		Path:   specPath,
-		Alias:  alias,
+		URL:       repoURL,
+		Branch:    branch,
+		Path:      specPath,
+		Alias:     alias,
+		Framework: frameworkType,
 	}
+
+	// Generate import path for AI context
+	importPath := framework.GetFrameworkImportPath(dep)
+	dep.ImportPath = importPath
 
 	// Check for duplicates
 	for _, existing := range meta.Dependencies {
@@ -148,6 +180,8 @@ func runAddDependency(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("  Branch:      %s\n", ui.Bold(branch))
 	fmt.Printf("  Path:        %s\n", ui.Bold(specPath))
+	fmt.Printf("  Framework:   %s\n", frameworkDisplay)
+	fmt.Printf("  Import Path: %s\n", ui.Cyan(importPath))
 	fmt.Println()
 	fmt.Printf("Next: %s\n", ui.Cyan("sl deps resolve"))
 	fmt.Println()
@@ -189,6 +223,13 @@ func runListDependencies(cmd *cobra.Command, args []string) error {
 		}
 		if dep.Alias != "" {
 			fmt.Printf("   Alias:   %s\n", ui.Cyan(dep.Alias))
+		}
+		if dep.Framework != "" && dep.Framework != metadata.FrameworkNone {
+			frameworkDisplay := string(dep.Framework)
+			fmt.Printf("   Framework: %s\n", ui.Cyan(frameworkDisplay))
+		}
+		if dep.ImportPath != "" {
+			fmt.Printf("   Import:    %s\n", ui.Yellow(dep.ImportPath))
 		}
 		if dep.ResolvedCommit != "" {
 			fmt.Printf("   Status:  %s %s\n", ui.Green("✓"), ui.Gray(dep.ResolvedCommit[:8]))
@@ -316,10 +357,13 @@ func runUpdateDependencies(cmd *cobra.Command, args []string) error {
 }
 
 func isValidGitURL(s string) bool {
-	// Simple check for common Git URLs
+	// Simple check for common Git URLs and local paths
 	return len(s) > 0 && (strings.HasPrefix(s, "http://") ||
 		strings.HasPrefix(s, "https://") ||
-		strings.HasPrefix(s, "git@"))
+		strings.HasPrefix(s, "git@") ||
+		strings.HasPrefix(s, "/") || // Local absolute path
+		strings.HasPrefix(s, "./") || // Local relative path
+		strings.HasPrefix(s, "../"))
 }
 
 func findProjectRoot() (string, error) {

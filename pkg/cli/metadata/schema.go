@@ -41,11 +41,13 @@ const (
 
 // Dependency represents an external spec dependency
 type Dependency struct {
-	URL            string `yaml:"url"`
-	Branch         string `yaml:"branch,omitempty"`
-	Path           string `yaml:"path,omitempty"`
-	Alias          string `yaml:"alias,omitempty"`
-	ResolvedCommit string `yaml:"resolved_commit,omitempty"`
+	URL            string            `yaml:"url"`
+	Branch         string            `yaml:"branch,omitempty"`
+	Path           string            `yaml:"path,omitempty"`
+	Alias          string            `yaml:"alias,omitempty"`
+	ResolvedCommit string            `yaml:"resolved_commit,omitempty"`
+	Framework      FrameworkChoice  `yaml:"framework,omitempty"` // speckit, openspec, both, none
+	ImportPath     string            `yaml:"import_path,omitempty"`   // @alias/spec format for AI imports
 }
 
 // ToolStatus represents runtime tool detection (not persisted)
@@ -89,10 +91,11 @@ func ValidateShortCode(code string) error {
 	return nil
 }
 
-// ValidateGitURL validates git URL format (SSH or HTTPS)
+// ValidateGitURL validates git URL format (SSH, HTTPS, or local path)
 func ValidateGitURL(url string) error {
 	sshPattern := `^git@[^:]+:[^/]+/.+\.git$|^git@[^:]+:[^/]+/[^/]+$`
 	httpsPattern := `^https://[^/]+/[^/]+/.+$`
+	localPathPattern := `^/|^./|^../`
 
 	if regexp.MustCompile(sshPattern).MatchString(url) {
 		return nil
@@ -100,8 +103,11 @@ func ValidateGitURL(url string) error {
 	if regexp.MustCompile(httpsPattern).MatchString(url) {
 		return nil
 	}
+	if regexp.MustCompile(localPathPattern).MatchString(url) {
+		return nil
+	}
 
-	return errors.New("url must be valid git SSH or HTTPS URL")
+	return errors.New("url must be valid git SSH, HTTPS URL, or local file path")
 }
 
 // ValidateCommitSHA validates commit SHA format (40-character hex)

@@ -258,16 +258,16 @@ sl init --framework speckit --short-code ms
 ### Managing Dependencies
 
 ```bash
-# Add a spec dependency
+# Add a spec dependency (automatically detects framework type)
 sl deps add git@github.com:org/auth-spec
 
 # Add with specific branch and path
 sl deps add git@github.com:org/api-spec v1.0 specs/api.md
 
-# Add with alias for easy reference
+# Add with alias for easy reference (used for AI import paths)
 sl deps add git@github.com:org/db-spec --alias db
 
-# List all dependencies
+# List all dependencies (shows detected framework and AI import path)
 sl deps list
 
 # Remove a dependency
@@ -276,6 +276,37 @@ sl deps remove git@github.com:org/auth-spec
 # Download and cache all dependencies
 sl deps resolve
 ```
+
+#### Framework Detection and AI Import Paths
+
+When you add a dependency, SpecLedger automatically:
+
+1. **Detects Framework Type**: Clones the repo to identify whether it uses Spec Kit, OpenSpec, both, or none
+2. **Generates Import Path**: Creates an `@alias` or `@reponame` import path for AI to reference
+
+Example output:
+```bash
+$ sl deps add git@github.com:org/api-spec --alias api
+
+Detecting Framework
+───────────────────
+Checking git@github.com:org/api-spec...
+  Framework:  Spec Kit
+
+✓ Dependency added
+  Repository:  git@github.com:org/api-spec
+  Alias:       api
+  Branch:      main
+  Path:        spec.md
+  Framework:   Spec Kit
+  Import Path: @api
+
+Next: sl deps resolve
+```
+
+**AI Context**: The `import_path` field enables AI to reference dependencies like coding imports:
+- In specifications: `See @api/spec.md for the data models`
+- During generation: AI can read cached dependencies from `~/.specledger/cache/@alias/`
 
 ### Checking Tool Status
 
