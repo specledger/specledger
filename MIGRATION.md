@@ -216,4 +216,4 @@ If you encounter issues:
 sl migrate
 ```
 
-Questions? Join the discussion at https://github.com/specledger/specledger/discussions
+Questions? Join the discussion at https://github.com/specledger/specledger/discussions or visit https://specledger.io/docs

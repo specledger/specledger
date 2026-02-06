@@ -190,7 +190,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		} else if openspec {
 			m.answers["framework"] = "openspec"
 		} else {
-			m.answers["framework"] = "none"
+			m.answers["framework"] = "speckit"
 		}
 
 		m.step = stepConfirm

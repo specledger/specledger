@@ -1,13 +1,13 @@
 # SpecLedger
 
-> Unified CLI for project bootstrap and specification dependency management
+> Unified CLI for project bootstrap with Spec Kit SDD framework
 
-SpecLedger (`sl`) helps you create new projects and manage specification dependencies with a simple, intuitive CLI.
+SpecLedger (`sl`) helps you create new projects with [Spec Kit](https://github.com/github/spec-kit) for specification-driven development. It provides a simple, intuitive CLI for project initialization and dependency management.
 
 ## Features
 
 - **Interactive TUI**: Create projects with a beautiful terminal interface
-- **Framework Agnostic**: Choose Spec Kit, OpenSpec, both, or none for SDD workflows
+- **Spec Kit Integration**: Built-in support for GitHub Spec Kit SDD framework
 - **Prerequisites Checking**: Automatically detect and install required tools (mise, bd, perles)
 - **Dependency Management**: Add, remove, and list spec dependencies
 - **YAML Metadata**: Modern, human-readable project configuration with `specledger.yaml`
@@ -96,27 +96,25 @@ npx @specledger/cli@latest --help
 ### Create a New Project
 
 ```bash
-# Interactive mode (recommended)
+# Interactive mode (recommended) - includes Spec Kit setup
 sl new
 
 # Non-interactive mode (for CI/CD)
-sl new --ci --project-name myproject --short-code mp --project-dir ~/demos
+sl new --ci --project-name myproject --short-code mp --project-dir ~/demos --framework speckit
 ```
 
-### Manage Dependencies
+### Initialize in Existing Repository
 
 ```bash
-# List dependencies
-sl deps list
+# Initialize with Spec Kit framework
+sl init --framework speckit
+```
 
-# Add a dependency
-sl deps add git@github.com:org/api-spec
+### Check Tool Status
 
-# Remove a dependency
-sl deps remove git@github.com:org/api-spec
-
-# Download and cache dependencies
-sl deps resolve
+```bash
+# Check if all required tools are installed
+sl doctor
 ```
 
 ## Commands
@@ -128,6 +126,7 @@ sl deps resolve
 | `sl new` | Create a new project (interactive TUI) |
 | `sl new --ci --project-name <name> --short-code <code>` | Create a project (non-interactive) |
 | `sl init` | Initialize SpecLedger in an existing repository |
+| `sl init --framework speckit` | Initialize with Spec Kit framework |
 
 ### Diagnostics
 
@@ -153,25 +152,40 @@ sl deps resolve
 | `sl migrate` | Convert legacy `specledger.mod` to `specledger.yaml` |
 | `sl migrate --dry-run` | Preview migration changes |
 
-### Visualization
+## Spec Kit Integration
 
-| Command | Description |
-|---------|-------------|
-| `sl graph show` | Show dependency graph (coming soon) |
-| `sl graph export` | Export graph to file (coming soon) |
+SpecLedger is designed to work seamlessly with [GitHub Spec Kit](https://github.com/github/spec-kit) for specification-driven development.
 
-## SDD Framework Choice
+### What Spec Kit Provides
 
-SpecLedger supports multiple SDD (Specification-Driven Development) frameworks. When creating a new project, you can choose:
+- **Structured Workflows**: Specifications → Plans → Tasks → Implementation
+- **AI Integration**: Built-in support for Claude, ChatGPT, and other AI assistants
+- **Phase Gates**: Clear transitions between specification, planning, and implementation
+- **Artifact Management**: Track all project artifacts with git-based resolution
 
-| Framework | Description | Best For |
-|-----------|-------------|----------|
-| **Spec Kit** | GitHub Spec Kit - structured, phase-gated workflow with specifications, plans, and tasks | Teams that want structured development phases |
-| **OpenSpec** | OpenSpec - lightweight, iterative specification workflow | Teams that prefer flexibility and iteration |
-| **Both** | Use both frameworks as needed | Teams that want maximum flexibility |
-| **None** | Use SpecLedger only for bootstrap and dependencies | Teams that have their own SDD process |
+### Automatic Setup
 
-Framework choice is recorded in `specledger/specledger.yaml` and doesn't affect SpecLedger's core functionality.
+When you create a project with `sl new --framework speckit`, SpecLedger:
+
+1. Installs Spec Kit via mise
+2. Initializes it with `specify init --here --ai claude --force --script sh --no-git`
+3. Updates your `specledger.yaml` with the framework choice
+
+### Using Spec Kit
+
+After initialization:
+
+```bash
+# Create a new specification
+specify spec create "User Authentication"
+
+# Create a plan from specs
+specify plan create
+
+# Generate and track tasks
+specify tasks generate
+bd ready --limit 5
+```
 
 ## Project Metadata
 
@@ -188,7 +202,7 @@ project:
   version: "0.1.0"
 
 framework:
-  choice: speckit  # or openspec, both, none
+  choice: speckit  # speckit, openspec, both, or none
 
 dependencies:
   - url: git@github.com:org/api-spec
@@ -200,17 +214,27 @@ dependencies:
 
 ## Usage Examples
 
-### Creating a Project
+### Creating a Project with Spec Kit
 
 ```bash
-# Interactive - guided by TUI
+# Interactive - guided by TUI (includes Spec Kit setup)
 sl new
 
 # Non-interactive - for CI/CD
-sl new --ci --project-name my-api --short-code mapi
+sl new --ci --project-name my-api --short-code mapi --framework speckit
 
 # With custom directory
-sl new --ci --project-name my-api --short-code mapi --project-dir ~/projects
+sl new --ci --project-name my-api --short-code mapi --project-dir ~/projects --framework speckit
+```
+
+### Initializing an Existing Repository
+
+```bash
+# Navigate to your repository
+cd my-existing-project
+
+# Initialize SpecLedger with Spec Kit
+sl init --framework speckit --short-code ms
 ```
 
 ### Managing Dependencies
@@ -255,14 +279,6 @@ sl migrate
 sl migrate --dry-run
 ```
 
-### Dependency Caching
-
-Dependencies are automatically cached locally:
-
-- Cache location: `~/.specledger/cache/`
-- Cached specs can be referenced by LLMs
-- Offline mode supported once cached
-
 ## Configuration
 
 Configuration is stored in `~/.config/specledger/config.yaml`:
@@ -282,7 +298,8 @@ language: en
 
 - **Config File**: `~/.config/specledger/config.yaml`
 - **CLI Binary**: `/usr/local/bin/sl` or `$HOME/.local/bin/sl`
-- **Beads Issues**: `.specledger/issues.jsonl`
+- **Project Metadata**: `specledger/specledger.yaml`
+- **Beads Issues**: `.beads/issues.jsonl`
 
 ## Troubleshooting
 
@@ -295,7 +312,7 @@ This error occurs when you try to run a spec-specific command outside a project 
 cd ~/demos/myproject
 
 # Solution 2: Create a new project first
-sl new --ci --project-name myproject --short-code mp
+sl new --ci --project-name myproject --short-code mp --framework speckit
 ```
 
 ### Permission Denied Errors
@@ -313,73 +330,37 @@ curl -fsSL https://raw.githubusercontent.com/specledger/specledger/main/scripts/
 The TUI requires an interactive terminal. Always use the `--ci` flag in non-interactive environments:
 
 ```bash
-sl new --ci --project-name myproject --short-code mp
+sl new --ci --project-name myproject --short-code mp --framework speckit
 ```
 
-### Missing Dependencies
+### Spec Kit Not Found
 
-If gum or mise is missing, you can:
-
-1. Install it manually:
-   ```bash
-   go install github.com/charmbracelet/gum@latest
-   ```
-
-2. Or run bootstrap without TUI:
-   ```bash
-   sl new --ci --project-name myproject --short-code mp
-   ```
-
-## Migration from Legacy Scripts
-
-If you were using the old `sl` bash script or standalone `specledger` CLI:
-
-| Legacy Command | New Command |
-|----------------|-------------|
-| `./sl new` | `sl new` |
-| `./specledger deps list` | `sl deps list` |
-| `./specledger new` | `sl new` |
-
-### Backward Compatibility
-
-The `specledger` command still works as an alias:
+If Spec Kit isn't installed after project creation:
 
 ```bash
-sl new      # or specledger new
-sl deps list  # or specledger deps list
-```
+# Check tool status
+sl doctor
 
-## Development
+# Install manually via mise
+mise install pipx:git+https://github.com/github/spec-kit.git
 
-### Build for All Platforms
-
-```bash
-make build-all
-```
-
-This creates:
-- `bin/sl-linux` - Linux (AMD64)
-- `bin/sl-darwin` - macOS (AMD64)
-- `bin/sl-windows.exe` - Windows (AMD64)
-- `bin/sl-linux-arm64` - Linux (ARM64)
-- `bin/sl-darwin-arm64` - macOS (ARM64)
-
-### Run Tests
-
-```bash
-make test
-```
-
-### Format and Lint
-
-```bash
-make fmt   # Format code
-make vet   # Run go vet
+# Initialize Spec Kit
+specify init --here --ai claude --force --script sh --no-git
 ```
 
 ## Architecture
 
-The CLI is built with:
+SpecLedger is a thin wrapper that delegates SDD workflows to external frameworks like [Spec Kit](https://github.com/github/spec-kit).
+
+### Design Philosophy
+
+1. **Framework Agnostic**: Supports multiple SDD frameworks (Spec Kit, OpenSpec)
+2. **Bootstrap Focus**: Handles project creation and initial setup
+3. **Dependency Management**: Tracks external spec dependencies
+4. **Tool Detection**: Ensures required tools are installed
+5. **Delegation**: Actual SDD workflows are handled by chosen frameworks
+
+### Tech Stack
 
 - **Cobra**: Command-line interface framework
 - **Bubble Tea**: Terminal UI library (for TUI)
@@ -396,9 +377,10 @@ specledger/
 │   ├── cli/
 │   │   ├── commands/    # Command implementations
 │   │   ├── config/      # Configuration management
-│   │   ├── dependencies/ # Dependency registry
-│   │   ├── logger/      # Logging
-│   │   └── tui/         # Terminal UI utilities
+│   │   ├── metadata/    # YAML metadata handling
+│   │   ├── prerequisites/ # Tool checking
+│   │   ├── tui/         # Terminal UI utilities
+│   │   └── ui/          # Color and formatting utilities
 │   └── ...
 ├── scripts/
 │   └── install.sh       # Installation script
@@ -409,11 +391,18 @@ specledger/
 
 ## Contributing
 
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes
 4. Run tests: `make test`
 5. Submit a pull request
+
+## Documentation
+
+- **Documentation**: [https://specledger.io/docs](https://specledger.io/docs)
+- **Spec Kit**: [https://github.com/github/spec-kit](https://github.com/github/spec-kit)
 
 ## License
 
@@ -421,14 +410,10 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Support
 
-- **Documentation**: [https://specledger.io/docs](https://specledger.io/docs)
 - **Issues**: [GitHub Issues](https://github.com/specledger/specledger/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/specledger/specledger/discussions)
+- **Website**: [https://specledger.io](https://specledger.io)
 
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for detailed changes.
-
-## Release Notes
-
-For the latest release notes, visit the [releases page](https://github.com/specledger/specledger/releases).

@@ -465,13 +465,13 @@ func init() {
 	// Flags for 'new' command
 	VarBootstrapCmd.PersistentFlags().StringVarP(&projectNameFlag, "project-name", "n", "", "Project name")
 	VarBootstrapCmd.PersistentFlags().StringVarP(&shortCodeFlag, "short-code", "s", "", "Short code (2-4 letters)")
-	VarBootstrapCmd.PersistentFlags().StringVarP(&frameworkFlag, "framework", "f", "none", "SDD framework (speckit, openspec, both, none)")
+	VarBootstrapCmd.PersistentFlags().StringVarP(&frameworkFlag, "framework", "f", "speckit", "SDD framework (speckit, openspec, both, none)")
 	VarBootstrapCmd.PersistentFlags().StringVarP(&demoDirFlag, "project-dir", "d", "", "Project directory path")
 	VarBootstrapCmd.PersistentFlags().BoolVarP(&ciFlag, "ci", "", false, "Force non-interactive mode (skip TUI)")
 
 	// Flags for 'init' command
 	VarInitCmd.PersistentFlags().StringVarP(&initShortCodeFlag, "short-code", "s", "", "Short code for issue IDs (2-4 letters)")
-	VarInitCmd.PersistentFlags().StringVarP(&initFrameworkFlag, "framework", "f", "none", "SDD framework (speckit, openspec, both, none)")
+	VarInitCmd.PersistentFlags().StringVarP(&initFrameworkFlag, "framework", "f", "speckit", "SDD framework (speckit, openspec, both, none)")
 	VarInitCmd.PersistentFlags().BoolVarP(&initForceFlag, "force", "", false, "Force initialize even if SpecLedger files exist")
 }
 
