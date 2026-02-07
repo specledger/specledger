@@ -17,6 +17,7 @@ SpecLedger:
 - Creates new projects and initializes them with Spec Kit or OpenSpec
 - Manages dependencies between spec repositories
 - Provides AI-friendly import paths for linked specs
+- **Copies embedded templates** to new projects (Claude Code commands, skills, scripts)
 - Delegates actual SDD workflows to the chosen framework
 
 ### Shared Concepts
@@ -25,10 +26,11 @@ SpecLedger adopts these Spec Kit concepts:
 - **Phase-gated workflow**: spec → plan → tasks → implement
 - **Beads for issue tracking**: Dependency-aware task management
 - **AI-first design**: Optimized for Claude Code and other AI agents
+- **Embedded templates**: Ships with Spec Kit playbook templates for immediate use
 
 ## Template Origin
 
-The templates in `templates/specledger/` are adapted from Spec Kit with modifications:
+The templates in `templates/` are adapted from Spec Kit with modifications:
 
 ### Task Generation Updates
 - Updated prompt templates and `tasks.md` to use [beads](https://github.com/steelywing/beads) CLI for task management
@@ -43,14 +45,42 @@ The templates in `templates/specledger/` are adapted from Spec Kit with modifica
 - Added adopt-feature-branch script to adopt existing feature branches
 - Updated common.sh for feature branch mapping
 
+## Embedded Templates
+
+SpecLedger ships with embedded Spec Kit playbook templates:
+
+- **Claude Code commands**: `.claude/commands/specledger.*.md`
+- **Claude Code skills**: `.claude/skills/bd-issue-tracking/`
+- **Helper scripts**: `specledger/scripts/bash/`
+- **File templates**: `specledger/templates/`
+- **Issue tracker**: `.beads/` configuration
+
+These templates are **automatically copied** to new projects during `sl new` and `sl init`.
+
+## Template Management
+
+```bash
+# List available embedded templates
+sl template list
+
+# Create project with templates (automatic)
+sl new --framework speckit
+
+# Templates are copied to:
+#   - .claude/       (Claude Code integration)
+#   - .beads/       (Issue tracker)
+#   - specledger/   (Scripts and file templates)
+```
+
 ## Integration
 
 When you create a SpecLedger project with `sl new --framework speckit`:
 
 1. SpecLedger creates the project structure
-2. Installs Spec Kit via mise
-3. Runs `specify init --here --ai claude --force --script sh --no-git`
-4. Your project is ready for Spec Kit workflows
+2. SpecLedger **copies embedded templates** to the project
+3. SpecLedger installs Spec Kit via mise
+4. SpecLedger runs `specify init --here --ai claude --force --script sh --no-git`
+5. Your project is ready for Spec Kit workflows
 
 ## See Also
 

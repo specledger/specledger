@@ -117,10 +117,10 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T033 [P] Update README.md with template copying documentation and examples
-- [ ] T034 [P] Update FORK.md with embedded templates information
-- [ ] T035 [P] Add template manifest validation to pkg/cli/templates/manifest.go with schema checks
-- [ ] T036 [P] Add performance metrics to pkg/cli/templates/copy.go tracking copy duration
+- [x] T033 [P] Update README.md with template copying documentation and examples
+- [x] T034 [P] Update FORK.md with embedded templates information
+- [x] T035 [P] Add template manifest validation to pkg/cli/templates/manifest.go with schema checks
+- [x] T036 [P] Add performance metrics to pkg/cli/templates/copy.go tracking copy duration
 - [ ] T037 Run quickstart.md validation to verify all documented examples work
 
 ---
