@@ -85,9 +85,9 @@
 
 ### Implementation for User Story 2
 
-- [ ] T023 [P] [US2] Create template list command in pkg/cli/commands/templates.go with VarTemplateCmd and runListTemplates function
-- [ ] T024 [US2] Add template list formatters in pkg/cli/templates/templates.go with FormatTable, FormatJSON functions
-- [ ] T025 [US2] Add template list command to root command in cmd/main.go with proper registration
+- [x] T023 [P] [US2] Create template list command in pkg/cli/commands/templates.go with VarTemplateCmd and runListTemplates function
+- [x] T024 [US2] Add template list formatters in pkg/cli/templates/templates.go with FormatTable, FormatJSON functions
+- [x] T025 [US2] Add template list command to root command in cmd/main.go with proper registration
 - [ ] T026 [US2] Add autocomplete support in pkg/cli/commands/templates.go for --framework flag completion
 - [ ] T027 [US2] Write integration test in tests/integration/templates_test.go for template list command output
 - [ ] T028 [US2] Write integration test in tests/integration/templates_test.go for template list JSON output
@@ -104,9 +104,9 @@
 
 ### Implementation for User Story 3
 
-- [ ] T029 [P] [US3] Add RemoteSource struct stub in pkg/cli/templates/remote.go implementing TemplateSource interface
-- [ ] T030 [US3] Add remote template source documentation in pkg/cli/templates/remote.go with future implementation notes
-- [ ] T031 [US3] Add template cache directory setup in pkg/cli/templates/cache.go for future remote template storage
+- [x] T029 [P] [US3] Add RemoteSource struct stub in pkg/cli/templates/remote.go implementing TemplateSource interface
+- [x] T030 [US3] Add remote template source documentation in pkg/cli/templates/remote.go with future implementation notes
+- [x] T031 [US3] Add template cache directory setup in pkg/cli/templates/cache.go for future remote template storage
 - [ ] T032 [US3] Write architecture validation in tests/integration/templates_test.go verifying interface supports both embedded and remote sources
 
 **Checkpoint**: All user stories should now be independently functional - architecture is ready for future remote template support
