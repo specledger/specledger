@@ -23,8 +23,8 @@
 
 **Purpose**: Project initialization and basic structure
 
-- [ ] T001 Create templates manifest file at templates/manifest.yaml with Spec Kit template metadata
-- [ ] T002 Create pkg/embedded directory for embedded filesystem package
+- [x] T001 Create templates manifest file at templates/manifest.yaml with Spec Kit template metadata
+- [x] T002 Create pkg/embedded directory for embedded filesystem package
 
 ---
 
@@ -34,14 +34,14 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T003 Create embedded filesystem in pkg/embedded/templates.go with //go:embed directives for templates/ folder
-- [ ] T004 Create template source interface in pkg/cli/templates/source.go defining TemplateSource, List, Copy, Exists methods
-- [ ] T005 Create template data structures in pkg/cli/templates/template.go with Template, TemplateManifest, CopyOptions, CopyResult, CopyError types
-- [ ] T006 Create manifest parser in pkg/cli/templates/manifest.go with LoadManifest, ParseManifest functions
-- [ ] T007 Create file copying utilities in pkg/cli/templates/copy.go with CopyTemplates, CopyFile, CopyDir functions
-- [ ] T008 Create embedded source implementation in pkg/cli/templates/embedded.go with EmbeddedSource struct implementing TemplateSource interface
-- [ ] T009 Create template manager in pkg/cli/templates/templates.go with ApplyToProject, ListTemplates functions
-- [ ] T010 Create integration test file at tests/integration/templates_test.go with test framework setup
+- [x] T003 Create path resolution in pkg/cli/templates/path.go with TemplatesDir function
+- [x] T004 Create template source interface and types in pkg/cli/templates/template.go defining TemplateSource, List, Copy, Exists methods
+- [x] T005 Create template data structures in pkg/cli/templates/template.go with Template, TemplateManifest, CopyOptions, CopyResult, CopyError types
+- [x] T006 Create manifest parser in pkg/cli/templates/manifest.go with LoadManifest, ParseManifest functions
+- [x] T007 Create file copying utilities in pkg/cli/templates/copy.go with CopyTemplates, CopyFile functions
+- [x] T008 Create embedded source implementation in pkg/cli/templates/embedded.go with EmbeddedSource struct implementing TemplateSource interface
+- [x] T009 Create template manager in pkg/cli/templates/templates.go with ApplyToProject, ListTemplates functions
+- [x] T010 Create integration test file at tests/integration/templates_test.go with test framework setup
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 
@@ -60,15 +60,15 @@
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Add applyEmbeddedTemplates function to pkg/cli/commands/bootstrap_helpers.go that calls templates.ApplyToProject with framework
-- [ ] T012 [US1] Integrate template copying into runNew function in pkg/cli/commands/bootstrap.go after project directory creation
-- [ ] T013 [US1] Integrate template copying into runInit function in pkg/cli/commands/bootstrap_init.go after metadata creation
-- [ ] T014 [US1] Add framework-to-file-patterns mapping in pkg/cli/templates/embedded.go for speckit, openspec, both, none
-- [ ] T015 [US1] Add template validation in pkg/cli/templates/embedded.go to check templates folder exists before copy
-- [ ] T016 [US1] Add existing file handling in pkg/cli/templates/copy.go with skip logic and warning messages
-- [ ] T017 [US1] Add copy result tracking in pkg/cli/templates/copy.go with FilesCopied, FilesSkipped, Errors counts
-- [ ] T018 [US1] Add verbose output option in pkg/cli/templates/copy.go for debugging template copy operations
-- [ ] T019 [US1] Add error handling in pkg/cli/templates/embedded.go for missing templates, permission errors, disk space
+- [x] T011 [US1] Add applyEmbeddedTemplates function to pkg/cli/commands/bootstrap_helpers.go that calls templates.ApplyToProject with framework
+- [x] T012 [US1] Integrate template copying into runNew function in pkg/cli/commands/bootstrap.go after project directory creation
+- [x] T013 [US1] Integrate template copying into runInit function in pkg/cli/commands/bootstrap.go after metadata creation
+- [x] T014 [US1] Add framework-to-file-patterns mapping in pkg/cli/templates/embedded.go for speckit, openspec, both, none
+- [x] T015 [US1] Add template validation in pkg/cli/templates/embedded.go to check templates folder exists before copy
+- [x] T016 [US1] Add existing file handling in pkg/cli/templates/copy.go with skip logic and warning messages
+- [x] T017 [US1] Add copy result tracking in pkg/cli/templates/copy.go with FilesCopied, FilesSkipped, Errors counts
+- [x] T018 [US1] Add verbose output option in pkg/cli/templates/copy.go for debugging template copy operations
+- [x] T019 [US1] Add error handling in pkg/cli/templates/embedded.go for missing templates, permission errors, disk space
 - [ ] T020 [US1] Write integration test in tests/integration/templates_test.go for template copying with speckit framework
 - [ ] T021 [US1] Write integration test in tests/integration/templates_test.go for sl init with template copying
 - [ ] T022 [US1] Write integration test in tests/integration/templates_test.go for existing file skip behavior

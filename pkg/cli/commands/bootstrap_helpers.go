@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"specledger/pkg/cli/metadata"
+	"specledger/pkg/cli/templates"
 	"specledger/pkg/cli/ui"
 )
 
@@ -147,5 +148,26 @@ func installMiseTool(projectPath, tool string) error {
 		return fmt.Errorf("mise install failed: %w\nOutput: %s", err, string(output))
 	}
 
+	return nil
+}
+
+// applyEmbeddedTemplates copies embedded templates to the project directory.
+func applyEmbeddedTemplates(projectPath string, framework metadata.FrameworkChoice) error {
+	if framework == metadata.FrameworkNone {
+		return nil
+	}
+
+	frameworkStr := string(framework)
+	ui.PrintSection("Copying Templates")
+	fmt.Printf("Applying %s templates...\n", ui.Bold(frameworkStr))
+
+	if err := templates.ApplyToProject(projectPath, frameworkStr); err != nil {
+		// Templates are helpful but not critical - log warning and continue
+		ui.PrintWarning(fmt.Sprintf("Template copying failed: %v", err))
+		ui.PrintWarning("Project will be created without templates")
+		return nil
+	}
+
+	fmt.Printf("%s Templates applied\n", ui.Checkmark())
 	return nil
 }

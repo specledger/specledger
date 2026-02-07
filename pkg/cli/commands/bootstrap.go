@@ -177,6 +177,12 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 		fmt.Printf("Warning: framework initialization had issues: %v\n", err)
 	}
 
+	// Apply embedded templates
+	if err := applyEmbeddedTemplates(projectPath, frameworkChoice); err != nil {
+		// Template application failure is not fatal - log and continue
+		fmt.Printf("Warning: template application had issues: %v\n", err)
+	}
+
 	// Initialize git repo (but don't commit - user might bootstrap into existing repo)
 	if err := initializeGitRepo(projectPath); err != nil {
 		return fmt.Errorf("failed to initialize git: %w", err)
@@ -270,6 +276,12 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 		fmt.Printf("Warning: framework initialization had issues: %v\n", err)
 	}
 
+	// Apply embedded templates
+	if err := applyEmbeddedTemplates(projectPath, frameworkChoice); err != nil {
+		// Template application failure is not fatal - log and continue
+		fmt.Printf("Warning: template application had issues: %v\n", err)
+	}
+
 	// Initialize git repo (but don't commit - user might bootstrap into existing repo)
 	if err := initializeGitRepo(projectPath); err != nil {
 		return fmt.Errorf("failed to initialize git: %w", err)
@@ -359,6 +371,12 @@ func runInit(l *logger.Logger) error {
 		if err := initializeFramework(projectPath, frameworkChoice); err != nil {
 			// Framework init failure is not fatal - log and continue
 			fmt.Printf("Warning: framework initialization had issues: %v\n", err)
+		}
+
+		// Apply embedded templates
+		if err := applyEmbeddedTemplates(projectPath, frameworkChoice); err != nil {
+			// Template application failure is not fatal - log and continue
+			fmt.Printf("Warning: template application had issues: %v\n", err)
 		}
 	}
 
