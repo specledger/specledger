@@ -1,6 +1,6 @@
 # Research: Embedded Templates
 
-**Feature**: 001-embedded-templates
+**Feature**: 005-embedded-templates
 **Phase**: 0 - Research & Technical Decisions
 **Date**: 2026-02-07
 

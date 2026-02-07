@@ -1,6 +1,6 @@
 # Feature Specification: Embedded Templates
 
-**Feature Branch**: `001-embedded-templates`
+**Feature Branch**: `005-embedded-templates`
 **Created**: 2026-02-07
 **Status**: Draft
 **Input**: User description: "make it not platform agnostic, it can support multiple tamplate from remote but for now the opensource just embed the current tempalte"

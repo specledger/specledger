@@ -1,7 +1,7 @@
 # Implementation Plan: Embedded Templates
 
-**Branch**: `001-embedded-templates` | **Date**: 2026-02-07 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `/specs/001-embedded-templates/spec.md`
+**Branch**: `005-embedded-templates` | **Date**: 2026-02-07 | **Spec**: [spec.md](spec.md)
+**Input**: Feature specification from `/specs/005-embedded-templates/spec.md`
 
 ## Summary
 
@@ -57,7 +57,7 @@ SpecLedger currently has templates in the `templates/` folder but they are not b
 ### Documentation (this feature)
 
 ```text
-specs/001-embedded-templates/
+specs/005-embedded-templates/
 ├── plan.md              # This file
 ├── research.md          # Phase 0 output
 ├── data-model.md        # Phase 1 output

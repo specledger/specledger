@@ -1,6 +1,6 @@
 # Quickstart: Embedded Templates
 
-**Feature**: 001-embedded-templates
+**Feature**: 005-embedded-templates
 **Phase**: 1 - Design & Contracts
 **Date**: 2026-02-07
 
