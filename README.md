@@ -12,33 +12,16 @@ SpecLedger (`sl`) is a comprehensive Specification-Driven Development playbook t
 
 **Documentation**: [https://specledger.io/docs](https://specledger.io/docs) | **Website**: [https://specledger.io](https://specledger.io)
 
-## Getting Started
+## What is SpecLedger?
 
-### Quick Install
+SpecLedger is an **all-in-one SDD playbook** that provides:
 
-```bash
-# Install via Homebrew (recommended)
-brew tap specledger/homebrew-specledger
-brew install specledger
-
-# Or install via one-line script
-curl -fsSL https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | bash
-```
-
-### Create Your First Project
-
-```bash
-# Interactive mode - guides you through setup
-sl new
-
-# Non-interactive mode
-sl new --ci --project-name myproject --short-code mp
-
-# Verify tools are installed
-sl doctor
-```
-
-**Next Steps**: See [full documentation](https://specledger.io/docs) for contributor setup, development guide, and more.
+- **Easy Bootstrap** - Create new projects with a single command
+- **Customizable Playbooks** - Support for multiple SDD playbook workflows
+- **Issue Tracking** - Built-in task tracking with Beads integration
+- **Spec Dependencies** - Manage and track specification dependencies across projects
+- **Tool Checking** - Ensures all required tools are installed and configured
+- **Workflow Orchestration** - End-to-end workflows from spec to deployment
 
 ## Features
 
@@ -47,160 +30,62 @@ sl doctor
 - **Prerequisites Checking**: Automatically detect and install required tools (mise, bd, perles)
 - **Dependency Management**: Add, remove, and list spec dependencies
 - **YAML Metadata**: Modern, human-readable project configuration with `specledger.yaml`
-- **Migration Support**: Convert legacy `.mod` files to YAML with `sl migrate`
 - **Local Caching**: Dependencies are cached locally at `~/.specledger/cache` for offline use
 - **LLM Integration**: Cached specs can be easily referenced by AI agents
 - **Cross-Platform**: Works on Linux, macOS, and Windows
 
-## What SpecLedger Does
-
-SpecLedger is an **all-in-one SDD playbook** that provides:
-
-✅ **Easy Bootstrap** - Create new projects with a single command
-✅ **Customizable Playbooks** - Support for multiple SDD playbook workflows
-✅ **Issue Tracking** - Built-in task tracking with Beads integration
-✅ **Spec Dependencies** - Manage and track specification dependencies across projects
-✅ **Tool Checking** - Ensures all required tools are installed and configured
-✅ **Metadata Management** - Project configuration in YAML with template support
-✅ **Framework Integration** - Current support for SpecKit-derived SDD playbook
-✅ **Workflow Orchestration** - End-to-end workflows from spec to deployment
-
-**Current Focus**: SpecLedger currently supports one SDD playbook type (forked from Spec Kit) with plans to support multiple playbook types in the future.
-
 ## Installation
 
-### From GitHub Releases
-
-#### macOS
+### Quick Install (Recommended)
 
 ```bash
-# Using curl
+# Install via Homebrew
+brew tap specledger/homebrew-specledger
+brew install specledger
+
+# Or install via one-line script
 curl -fsSL https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | bash
-
-# Or using wget
-wget -qO- https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | bash
-```
-
-#### Linux
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | sudo bash
-
-# Or using wget
-wget -qO- https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | sudo bash
-```
-
-#### Windows
-
-```powershell
-# Using PowerShell
-irm https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.ps1 | iex
 ```
 
 ### From Source
 
 ```bash
-# Clone the repository
 git clone https://github.com/specledger/specledger.git
 cd specledger
-
-# Build and install the CLI
 make install
-
-# The CLI is installed to $GOPATH/bin or ~/go/bin
-# Make sure $GOPATH/bin is in your PATH
-sl --help
 ```
 
-### Using Go Toolchain
+### Package Managers
 
 ```bash
-# For local development (from source)
-cd specledger
-go install ./cmd
-
-# Or if building locally:
-go build -o sl ./cmd
-./sl --version
-
-# This installs to $GOPATH/bin (usually ~/go/bin/sl)
-# Add $GOPATH/bin to your PATH if not already:
-export PATH=$PATH:$(go env GOPATH)/bin
-
-# Verify installation:
-sl --version
-```
-
-### Using Package Managers
-
-#### Homebrew
-
-```bash
+# Homebrew
 brew tap specledger/homebrew-specledger
 brew install specledger
-```
 
-**Homebrew Tap**: [https://github.com/specledger/homebrew-specledger](https://github.com/specledger/homebrew-specledger)
-
-#### npm / npx
-
-```bash
+# npm / npx
 npx @specledger/cli@latest --help
 ```
 
 ## Quick Start
 
-### Installation
-
 ```bash
-# Install via Homebrew (recommended)
-brew tap specledger/homebrew-specledger
-brew install specledger
-
-# Or install via script
-curl -fsSL https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | bash
-
-# Verify installation
-sl --version
-```
-
-### Create a New Project
-
-```bash
-# Interactive mode (recommended) - guides you through setup
+# Create a new project (interactive mode)
 sl new
 
-# Non-interactive mode (for CI/CD)
-sl new --ci --project-name myproject --short-code mp --project-dir ~/demos
-```
+# Create a project (non-interactive mode)
+sl new --ci --project-name myproject --short-code mp
 
-### Initialize in Existing Repository
-
-```bash
-# Navigate to your repository
-cd my-existing-project
-
-# Initialize SpecLedger
+# Initialize in existing repository
 sl init
-```
 
-### Check Tool Status
-
-```bash
-# Check if all required tools are installed
+# Check required tools
 sl doctor
 
-# Get JSON output for CI/CD
-sl doctor --json
+# Manage dependencies
+sl deps add git@github.com:org/api-spec
+sl deps list
+sl deps resolve
 ```
-
-### Next Steps
-
-After creating a project, see the [full documentation](https://specledger.io/docs) for:
-- Contributor setup and development guide
-- SDD workflows and best practices
-- Dependency management
-- Architecture and design patterns
 
 ## Commands
 
@@ -216,326 +101,51 @@ After creating a project, see the [full documentation](https://specledger.io/doc
 
 | Command | Description |
 |---------|-------------|
-| `sl doctor` | Check installation status of all required and optional tools |
+| `sl doctor` | Check installation status of all required tools |
 | `sl doctor --json` | Get tool status in JSON format for CI/CD |
 
-### Dependency Management
+### Dependencies
 
 | Command | Description |
 |---------|-------------|
-| `sl deps list` | List all dependencies from `specledger.yaml` |
-| `sl deps add <url>` | Add a dependency to `specledger.yaml` |
+| `sl deps list` | List all dependencies |
+| `sl deps add <url>` | Add a dependency |
 | `sl deps add <url> --alias <name>` | Add with alias for AI import paths |
 | `sl deps remove <url>` | Remove a dependency |
 | `sl deps resolve` | Download and cache dependencies |
-| `sl deps update` | Update to latest versions |
 
-### Framework Workflows
+### Workflows
 
 | Command | Description |
 |---------|-------------|
-| `sl playbook` | Run framework-specific workflows |
+| `sl playbook` | Run SDD playbook workflows |
 | `sl graph` | Show dependency graph |
 | `sl refs` | Manage reference resolution |
 
-### Migration
+### Utilities
 
 | Command | Description |
 |---------|-------------|
 | `sl migrate` | Convert legacy `specledger.mod` to `specledger.yaml` |
-| `sl migrate --dry-run` | Preview migration changes |
-
-### Vendor Management
-
-| Command | Description |
-|---------|-------------|
 | `sl vendor list` | List vendored dependencies |
 | `sl vendor add <url>` | Add a vendored dependency |
-| `sl vendor remove <url>` | Remove a vendored dependency |
-
-## Project Metadata
-
-SpecLedger projects use `specledger/specledger.yaml` for configuration:
-
-```yaml
-version: "1.0.0"
-
-project:
-  name: my-project
-  short_code: mp
-  created: "2026-02-05T10:30:00Z"
-  modified: "2026-02-05T10:30:00Z"
-  version: "0.1.0"
-
-framework:
-  choice: specledger
-  installed_at: "2026-02-05T10:30:00Z"
-
-task_tracker:
-  choice: beads  # beads, none
-  enabled_at: "2026-02-05T10:30:00Z"
-
-dependencies:
-  - url: git@github.com:org/api-spec
-    branch: main
-    path: spec.md
-    alias: api
-    resolved_commit: abc123...
-    framework: specledger
-    import_path: "@api"
-```
-
-## Usage Examples
-
-### Creating a New Project
-
-```bash
-# Interactive - guided by TUI
-sl new
-
-# Non-interactive mode
-sl new --ci --project-name my-api --short-code mapi
-
-# With custom directory
-sl new --ci --project-name my-api --short-code mapi --project-dir ~/projects
-```
-
-### Initializing an Existing Repository
-
-```bash
-# Navigate to your repository
-cd my-existing-project
-
-# Initialize SpecLedger
-sl init --short-code ms
-```
-
-### Managing Dependencies
-
-```bash
-# Add a spec dependency (automatically detects framework type)
-sl deps add git@github.com:org/auth-spec
-
-# Add with specific branch and path
-sl deps add git@github.com:org/api-spec v1.0 specledger/api.md
-
-# Add with alias for easy reference (used for AI import paths)
-sl deps add git@github.com:org/db-spec --alias db
-
-# List all dependencies (shows detected framework and AI import path)
-sl deps list
-
-# Remove a dependency
-sl deps remove git@github.com:org/auth-spec
-
-# Download and cache all dependencies
-sl deps resolve
-```
-
-#### Framework Detection and AI Import Paths
-
-When you add a dependency, SpecLedger automatically:
-
-1. **Detects Framework Type**: Clones the repo to identify whether it uses Spec Kit, OpenSpec, both, or none
-2. **Generates Import Path**: Creates an `@alias` or `@reponame` import path for AI to reference
-
-Example output:
-```bash
-$ sl deps add git@github.com:org/api-spec --alias api
-
-Detecting Framework
-───────────────────
-Checking git@github.com:org/api-spec...
-  Framework:  SpecLedger
-
-✓ Dependency added
-  Repository:  git@github.com:org/api-spec
-  Alias:       api
-  Branch:      main
-  Path:        spec.md
-  Framework:   SpecLedger
-  Import Path: @api
-
-Next: sl deps resolve
-```
-
-**AI Context**: The `import_path` field enables AI to reference dependencies like coding imports:
-- In specifications: `See @api/spec.md for the data models`
-- During generation: AI can read cached dependencies from `~/.specledger/cache/@alias/`
-
-### Task Tracking
-
-SpecLedger uses [Beads](https://github.com/amelie/beads) for task and issue tracking. When you create a new project, Beads is automatically configured with your project's short code.
-
-```bash
-# View all tasks
-bd ls
-
-# Show ready tasks (limit 5)
-bd ready --limit 5
-
-# Create a new task
-bd new "Implement user authentication"
-
-# Mark a task as done
-bd done <task-id>
-```
-
-The task tracker configuration is stored in `specledger/specledger.yaml`:
-
-```yaml
-task_tracker:
-  choice: beads  # Currently only beads is supported
-  enabled_at: "2026-02-05T10:30:00Z"
-```
-
-### Checking Tool Status
-
-```bash
-# Check if all required tools are installed
-sl doctor
-
-# Get JSON output for CI/CD
-sl doctor --json
-```
-
-### Migrating from Legacy Format
-
-```bash
-# Convert specledger.mod to specledger.yaml
-sl migrate
-
-# Preview migration without making changes
-sl migrate --dry-run
-```
-
-## Configuration
-
-Configuration is stored in `~/.config/specledger/config.yaml`:
-
-```yaml
-default_project_dir: ~/demos
-preferred_shell: claude-code
-tui_enabled: true
-auto_install_deps: false
-fallback_to_plain_cli: false
-log_level: debug
-theme: neobrutalist
-language: en
-```
-
-### Configuration Locations
-
-- **Config File**: `~/.config/specledger/config.yaml`
-- **CLI Binary**: `/usr/local/bin/sl` or `$HOME/.local/bin/sl`
-- **Project Metadata**: `specledger/specledger.yaml`
-- **Beads Issues**: `.beads/issues.jsonl`
-
-## Troubleshooting
-
-### "Not a SpecLedger project" Error
-
-This error occurs when you try to run a spec-specific command outside a project directory.
-
-```bash
-# Solution 1: Navigate to a project directory
-cd ~/demos/myproject
-
-# Solution 2: Create a new project first
-sl new --ci --project-name myproject --short-code mp
-```
-
-### Permission Denied Errors
-
-```bash
-# If you see permission errors:
-sudo bin/sl new --ci --project-name myproject --short-code mp
-
-# Or run with sudo for the install script:
-curl -fsSL https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | sudo bash
-```
-
-### TUI Not Working in CI/CD
-
-The TUI requires an interactive terminal. Always use the `--ci` flag in non-interactive environments:
-
-```bash
-sl new --ci --project-name myproject --short-code mp
-```
-
-## Architecture
-
-SpecLedger is an all-in-one SDD playbook that provides complete Specification-Driven Development workflows.
-
-### Design Philosophy
-
-1. **Unified Workflow**: Complete SDD workflow from spec to deployment
-2. **Easy Bootstrap**: Create new projects with a single command
-3. **Dependency Management**: Track and manage specification dependencies
-4. **Tool Detection**: Ensures required tools are installed and configured
-5. **Built-in Templates**: Embedded templates for specifications, plans, and tasks
-
-### Tech Stack
-
-- **Go 1.24+**: Core language version
-- **Cobra**: Command-line interface framework
-- **Bubble Tea**: Terminal UI library (for TUI)
-- **go-git**: Git operations
-- **YAML v3**: Configuration parsing
-- **GoReleaser**: Automated releases and builds
-- **golangci-lint**: Code quality and linting
-
-### Project Structure
-
-```
-specledger/
-├── cmd/
-│   └── main.go          # CLI entry point
-├── pkg/
-│   ├── cli/             # Command-line interface
-│   │   ├── commands/    # Command implementations (new, init, deps, doctor, etc.)
-│   │   ├── config/      # Configuration management
-│   │   ├── metadata/    # YAML metadata handling (specledger.yaml)
-│   │   ├── dependencies/# Dependency management
-│   │   ├── framework/   # SDD framework integration
-│   │   ├── playbooks/   # Framework-specific workflows
-│   │   ├── prerequisites/# Tool checking (mise, bd, perles, etc.)
-│   │   ├── tui/         # Terminal UI utilities
-│   │   ├── logger/      # Logging utilities
-│   │   └── ui/          # Color and formatting utilities
-│   ├── embedded/        # Embedded templates for project initialization
-│   │   └── templates/   # Project template files
-│   └── models/          # Data models
-├── scripts/
-│   ├── install.sh       # Unix installation script
-│   └── install.ps1      # Windows installation script
-├── homebrew/            # Homebrew formula
-├── .specledger/         # SpecLedger framework templates
-│   ├── templates/       # Feature templates (spec, plan, tasks)
-│   └── scripts/         # Framework scripts
-├── Makefile             # Build automation
-├── go.mod              # Go module definition
-└── .goreleaser.yaml     # Release configuration
-```
-
-## Contributing
-
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-**Quick Start**:
-1. Fork the repository at [https://github.com/specledger/specledger](https://github.com/specledger/specledger)
-2. Create a feature branch: `git checkout -b my-feature`
-3. Make your changes
-4. Run tests: `make test`
-5. Run linting: `make fmt && make lint`
-6. Submit a pull request
-
-**Contributor Guide**: See [Contributor Setup](https://specledger.io/docs/contributor/setup) for development environment setup.
 
 ## Documentation
 
-- **Documentation**: [https://specledger.io/docs](https://specledger.io/docs) - User and contributor guides
-- **Main Website**: [https://specledger.io](https://specledger.io) - Project landing page
+Full documentation is available at [https://specledger.io/docs](https://specledger.io/docs)
+
+- **Getting Started**: Installation and first project setup
+- **User Guide**: Complete command reference and workflows
+- **Contributing**: Development setup and contribution guidelines
+- **Governance**: Project governance and decision-making
+
+## Tech Stack
+
+- **Go 1.24+** - Core language
+- **Cobra** - Command-line interface
+- **Bubble Tea** - Terminal UI
+- **go-git** - Git operations
+- **YAML v3** - Configuration parsing
 
 ## License
 
@@ -543,12 +153,7 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/specledger/specledger/issues) - Bug reports and feature requests
-- **Discussions**: [GitHub Discussions](https://github.com/specledger/specledger/discussions) - Community Q&A
-- **Security**: Report vulnerabilities per [SECURITY.md](SECURITY.md)
-- **Documentation**: [https://specledger.io/docs](https://specledger.io/docs) - Full user and contributor guides
-- **Website**: [https://specledger.io](https://specledger.io) - Project landing page
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for detailed changes.
+- **Documentation**: [https://specledger.io/docs](https://specledger.io/docs)
+- **Issues**: [GitHub Issues](https://github.com/specledger/specledger/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/specledger/specledger/discussions)
+- **Website**: [https://specledger.io](https://specledger.io)
