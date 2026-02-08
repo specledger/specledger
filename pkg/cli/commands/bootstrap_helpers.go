@@ -60,8 +60,8 @@ func applyEmbeddedSkills(projectPath string) error {
 			return err
 		}
 
-		// Skip the root directory
-		if path == "." || path == ".claude" {
+		// Skip the root directory and skills wrapper
+		if path == "." || path == "skills" {
 			return nil
 		}
 
@@ -70,8 +70,8 @@ func applyEmbeddedSkills(projectPath string) error {
 			return nil
 		}
 
-		// Calculate destination path
-		relPath := strings.TrimPrefix(path, ".")
+		// Remove "skills/" prefix to get relative path from commands/ and skills/
+		relPath := strings.TrimPrefix(path, "skills/")
 		destPath := filepath.Join(targetDir, relPath)
 
 		// Ensure parent directory exists
