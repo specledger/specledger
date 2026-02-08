@@ -1,4 +1,4 @@
-.PHONY: build run test clean install lint help
+.PHONY: build run test test-integration clean install lint help
 
 # Build the CLI binary (produces bin/sl)
 build:
@@ -8,13 +8,17 @@ build:
 run: build
 	./bin/sl
 
-# Run tests
+# Run unit tests (excludes integration tests that require external tools)
 test:
-	go test -v ./...
+	go test -v ./pkg/... ./internal/... ./cmd/...
 
-# Run tests with coverage
+# Run integration tests (requires mise, beads, perles installed)
+test-integration:
+	go test -v ./tests/integration/...
+
+# Run tests with coverage (excludes integration tests)
 test-coverage:
-	go test -v -coverprofile=coverage.out ./...
+	go test -v -coverprofile=coverage.out ./pkg/... ./internal/... ./cmd/...
 	go tool cover -html=coverage.out -o coverage.html
 
 # Format code
@@ -59,17 +63,18 @@ install: build
 # Help
 help:
 	@echo "Available targets:"
-	@echo "  make build          - Build the CLI binary (produces bin/sl)"
-	@echo "  make install        - Build and install sl to $$GOBIN or $$GOPATH/bin"
-	@echo "  make run            - Build and run the CLI"
-	@echo "  make test           - Run tests"
-	@echo "  make test-coverage  - Run tests with coverage report"
-	@echo "  make fmt            - Format Go code"
-	@echo "  make vet            - Run go vet"
-	@echo "  make lint           - Run golangci-lint"
-	@echo "  make build-all      - Build for all platforms"
-	@echo "  make clean          - Clean build artifacts"
-	@echo "  make help           - Show this help"
+	@echo "  make build            - Build the CLI binary (produces bin/sl)"
+	@echo "  make install          - Build and install sl to $$GOBIN or $$GOPATH/bin"
+	@echo "  make run              - Build and run the CLI"
+	@echo "  make test             - Run unit tests (excludes integration tests)"
+	@echo "  make test-integration - Run integration tests (requires external tools)"
+	@echo "  make test-coverage    - Run tests with coverage report"
+	@echo "  make fmt              - Format Go code"
+	@echo "  make vet              - Run go vet"
+	@echo "  make lint             - Run golangci-lint"
+	@echo "  make build-all        - Build for all platforms"
+	@echo "  make clean            - Clean build artifacts"
+	@echo "  make help             - Show this help"
 	@echo ""
 	@echo "Installation:"
 	@echo "  make install        - Install from source"
