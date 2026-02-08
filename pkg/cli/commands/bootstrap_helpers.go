@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"specledger/pkg/cli/metadata"
 	"specledger/pkg/cli/playbooks"
 	"specledger/pkg/cli/ui"
 	"specledger/pkg/embedded"
@@ -99,4 +100,108 @@ func applyEmbeddedSkills(projectPath string) error {
 	}
 
 	return nil
+}
+
+// setupSpecLedgerProject applies playbooks, skills, and creates metadata.
+// Optionally initializes git based on flags.
+// Returns the playbook name, version, and structure for metadata storage.
+func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName string, initGit bool) (string, string, []string, error) {
+	// Apply embedded playbooks
+	selectedPlaybookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath, playbookName)
+	if err != nil {
+		// Playbook application failure is not fatal - log warning and continue
+		fmt.Printf("Warning: playbook application had issues: %v\n", err)
+	}
+
+	// Apply embedded skills
+	if err := applyEmbeddedSkills(projectPath); err != nil {
+		// Skills are helpful but not critical - log warning and continue
+		fmt.Printf("Warning: skills installation had issues: %v\n", err)
+	}
+
+	// Create YAML metadata with playbook info
+	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, selectedPlaybookName, playbookVersion, playbookStructure)
+	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
+		return "", "", nil, fmt.Errorf("failed to create project metadata: %w", err)
+	}
+
+	// Initialize git if requested (bootstrap only)
+	if initGit {
+		if err := initializeGitRepo(projectPath); err != nil {
+			return "", "", nil, fmt.Errorf("failed to initialize git: %w", err)
+		}
+	}
+
+	// Run post-init script if it exists
+	runPostInitScript(projectPath, projectMetadata)
+
+	return selectedPlaybookName, playbookVersion, playbookStructure, nil
+}
+
+// runPostInitScript executes the template's init.sh script if it exists.
+// This allows templates to perform post-initialization tasks like setting up beads.
+// Passes specledger.yaml data as environment variables for use in scripts.
+// The init.sh script is read from embedded templates (not copied to target project).
+func runPostInitScript(projectPath string, projectMetadata *metadata.ProjectMetadata) {
+	// Look for init.sh in the embedded templates for the selected playbook
+	playbookName := projectMetadata.Playbook.Name
+	if playbookName == "" {
+		return
+	}
+
+	// Path to init.sh in embedded templates
+	initScriptPath := filepath.Join("templates", playbookName, "init.sh")
+
+	// Check if init.sh exists in embedded templates
+	scriptContent, err := embedded.TemplatesFS.ReadFile(initScriptPath)
+	if err != nil {
+		// Script doesn't exist in this template, skip silently
+		return
+	}
+
+	ui.PrintSection("Running Post-Init Script")
+
+	// Write script to a temp file for execution
+	tmpFile, err := os.CreateTemp("", "specledger-init-*.sh")
+	if err != nil {
+		ui.PrintWarning(fmt.Sprintf("Failed to create temp file for init script: %v", err))
+		return
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.Write(scriptContent); err != nil {
+		ui.PrintWarning(fmt.Sprintf("Failed to write init script: %v", err))
+		tmpFile.Close()
+		return
+	}
+	tmpFile.Close()
+
+	// Make the temp file executable
+	if err := os.Chmod(tmpFile.Name(), 0755); err != nil {
+		ui.PrintWarning(fmt.Sprintf("Failed to make init script executable: %v", err))
+		return
+	}
+
+	// Execute the script with environment variables
+	cmd := exec.Command(tmpFile.Name())
+	cmd.Dir = projectPath
+
+	// Set environment variables from specledger.yaml for script use
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("SPECLEDGER_PROJECT_ROOT=%s", projectPath),
+		fmt.Sprintf("SPECLEDGER_PROJECT_NAME=%s", projectMetadata.Project.Name),
+		fmt.Sprintf("SPECLEDGER_PROJECT_SHORT_CODE=%s", projectMetadata.Project.ShortCode),
+		fmt.Sprintf("SPECLEDGER_PROJECT_VERSION=%s", projectMetadata.Project.Version),
+		fmt.Sprintf("SPECLEDGER_PLAYBOOK_NAME=%s", projectMetadata.Playbook.Name),
+		fmt.Sprintf("SPECLEDGER_PLAYBOOK_VERSION=%s", projectMetadata.Playbook.Version),
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		// Post-init script failure is not fatal - log warning and continue
+		ui.PrintWarning(fmt.Sprintf("Post-init script had issues: %v", err))
+		fmt.Println(string(output))
+	} else {
+		fmt.Printf("%s Post-init completed\n", ui.Checkmark())
+	}
 }

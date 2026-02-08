@@ -11,7 +11,6 @@ import (
 	"github.com/spf13/cobra"
 	"specledger/pkg/cli/config"
 	"specledger/pkg/cli/logger"
-	"specledger/pkg/cli/metadata"
 	"specledger/pkg/cli/prerequisites"
 	"specledger/pkg/cli/tui"
 	"specledger/pkg/cli/ui"
@@ -147,28 +146,10 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 		return fmt.Errorf("failed to create project directory: %w", err)
 	}
 
-	// Apply embedded playbooks (use TUI selection or default)
-	selectedPlaybookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath, playbookName)
+	// Setup SpecLedger project (playbooks, skills, metadata, git)
+	_, _, _, err = setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName, true)
 	if err != nil {
-		// Playbook application failure is not fatal - log and continue
-		fmt.Printf("Warning: playbook application had issues: %v\n", err)
-	}
-
-	// Apply embedded skills and commands
-	if err := applyEmbeddedSkills(projectPath); err != nil {
-		// Skills are helpful but not critical - log warning and continue
-		fmt.Printf("Warning: skills installation had issues: %v\n", err)
-	}
-
-	// Create YAML metadata with playbook info
-	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, selectedPlaybookName, playbookVersion, playbookStructure)
-	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
-		return fmt.Errorf("failed to create project metadata: %w", err)
-	}
-
-	// Initialize git repo (but don't commit - user might bootstrap into existing repo)
-	if err := initializeGitRepo(projectPath); err != nil {
-		return fmt.Errorf("failed to initialize git: %w", err)
+		return err
 	}
 
 	// Success message
@@ -227,28 +208,10 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 		return ErrPermissionDenied(projectPath)
 	}
 
-	// Apply embedded playbooks (use default for CI mode)
-	selectedPlaybookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath, "")
+	// Setup SpecLedger project (playbooks, skills, metadata, git)
+	_, _, _, err := setupSpecLedgerProject(projectPath, projectName, shortCode, "", true)
 	if err != nil {
-		// Playbook application failure is not fatal - log and continue
-		fmt.Printf("Warning: playbook application had issues: %v\n", err)
-	}
-
-	// Apply embedded skills and commands
-	if err := applyEmbeddedSkills(projectPath); err != nil {
-		// Skills are helpful but not critical - log warning and continue
-		fmt.Printf("Warning: skills installation had issues: %v\n", err)
-	}
-
-	// Create YAML metadata with playbook info
-	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, selectedPlaybookName, playbookVersion, playbookStructure)
-	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
-		return fmt.Errorf("failed to create project metadata: %w", err)
-	}
-
-	// Initialize git repo (but don't commit - user might bootstrap into existing repo)
-	if err := initializeGitRepo(projectPath); err != nil {
-		return fmt.Errorf("failed to initialize git: %w", err)
+		return err
 	}
 
 	// Success message
@@ -280,9 +243,6 @@ func runInit(l *logger.Logger) error {
 		if _, err := os.Stat(filepath.Join(projectPath, "specledger", "specledger.yaml")); err == nil {
 			return fmt.Errorf("already initialized (specledger/specledger.yaml exists). Use --force to re-initialize")
 		}
-		if _, err := os.Stat(filepath.Join(projectPath, ".beads")); err == nil {
-			return fmt.Errorf("already initialized (.beads exists). Use --force to re-initialize")
-		}
 	}
 
 	// Determine short code
@@ -310,23 +270,11 @@ func runInit(l *logger.Logger) error {
 	}
 	fmt.Println()
 
-	// Apply embedded playbooks (use flag if provided, otherwise default)
-	selectedPlaybookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath, initPlaybookFlag)
+	// Setup SpecLedger project (playbooks, skills, metadata, no git)
+	// Note: initGit=false because we're in an existing repo
+	_, _, _, err = setupSpecLedgerProject(projectPath, projectName, shortCode, initPlaybookFlag, false)
 	if err != nil {
-		// Playbook application failure is not fatal - log and continue
-		fmt.Printf("Warning: playbook application had issues: %v\n", err)
-	}
-
-	// Apply embedded skills and commands
-	if err := applyEmbeddedSkills(projectPath); err != nil {
-		// Skills are helpful but not critical - log warning and continue
-		fmt.Printf("Warning: skills installation had issues: %v\n", err)
-	}
-
-	// Create YAML metadata with playbook info
-	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, selectedPlaybookName, playbookVersion, playbookStructure)
-	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
-		return fmt.Errorf("failed to create project metadata: %w", err)
+		return err
 	}
 
 	// Success message
@@ -339,8 +287,6 @@ func runInit(l *logger.Logger) error {
 	fmt.Println(ui.Bold("Next steps:"))
 	fmt.Printf("  %s             %s\n", ui.Cyan("sl deps list"), ui.Dim("# List dependencies"))
 	fmt.Printf("  %s <repo-url> %s\n", ui.Cyan("sl deps add"), ui.Dim("# Add a dependency"))
-	fmt.Printf("  %s             %s\n", ui.Cyan("bd create"), ui.Dim("Create an issue"))
-	fmt.Printf("  %s             %s\n", ui.Cyan("bd ready"), ui.Dim("Find work to do"))
 	fmt.Println()
 
 	return nil
@@ -381,12 +327,10 @@ func copyInitTemplates(projectPath, shortCode, projectName string) error {
 
 		destPath := filepath.Join(projectPath, relPath)
 
-		// For files that already exist, skip unless it's .beads/config
+		// For files that already exist, skip them
 		if _, err := os.Stat(destPath); err == nil {
-			if filepath.Base(path) != "config.yaml" || filepath.Dir(path) != "templates/.beads" {
-				// File exists, skip it
-				return nil
-			}
+			// File exists, skip it
+			return nil
 		}
 
 		if d.IsDir() {
@@ -397,11 +341,6 @@ func copyInitTemplates(projectPath, shortCode, projectName string) error {
 		data, err := embedded.TemplatesFS.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("failed to read embedded file %s: %w", path, err)
-		}
-
-		// For .beads/config.yaml, replace the prefix
-		if filepath.Base(path) == "config.yaml" && filepath.Dir(path) == "templates/.beads" {
-			data = []byte(strings.ReplaceAll(string(data), "issue-prefix: \"sl\"", fmt.Sprintf("issue-prefix: \"%s\"", shortCode)))
 		}
 
 		if err := os.WriteFile(destPath, data, 0644); err != nil {
@@ -481,11 +420,6 @@ func copyTemplates(projectPath, shortCode, projectName string) error {
 		data, err := embedded.TemplatesFS.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("failed to read embedded file %s: %w", path, err)
-		}
-
-		// For .beads/config.yaml, replace the prefix
-		if filepath.Base(path) == "config.yaml" && filepath.Dir(path) == "templates/.beads" {
-			data = []byte(strings.ReplaceAll(string(data), "issue-prefix: \"sl\"", fmt.Sprintf("issue-prefix: \"%s\"", shortCode)))
 		}
 
 		if err := os.WriteFile(destPath, data, 0644); err != nil {

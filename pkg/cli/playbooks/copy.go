@@ -70,6 +70,11 @@ func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) 
 			return nil
 		}
 
+		// Skip init.sh - it's executed during init but not copied to target project
+		if filepath.Base(path) == "init.sh" {
+			return nil
+		}
+
 		// Check if file matches any pattern
 		if !matchesPattern(relPath, patterns) {
 			return nil
