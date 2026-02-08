@@ -10,3 +10,6 @@ import (
 //go:embed templates/specledger/.gitattributes
 //go:embed templates/specledger/.specledger
 var TemplatesFS embed.FS
+
+//go:embed deps/.claude
+var DepsFS embed.FS

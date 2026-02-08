@@ -2,10 +2,15 @@ package commands
 
 import (
 	"fmt"
+	"io/fs"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 
 	"specledger/pkg/cli/playbooks"
 	"specledger/pkg/cli/ui"
+	"specledger/pkg/embedded"
 )
 
 // applyEmbeddedPlaybooks copies embedded playbooks to the project directory.
@@ -41,4 +46,57 @@ func trustMiseConfig(projectPath string) {
 		ui.PrintWarning(fmt.Sprintf("Could not trust mise.toml: %v", err))
 		ui.PrintWarning("Run 'mise trust' to enable mise tools")
 	}
+}
+
+// applyDepsSkillsAndCommands copies embedded deps skills and commands to the project.
+// These provide Claude with context about managing spec dependencies.
+func applyDepsSkillsAndCommands(projectPath string) error {
+	// Target directory is .claude in the project root
+	targetDir := filepath.Join(projectPath, ".claude")
+
+	// Walk through the deps embedded filesystem
+	err := fs.WalkDir(embedded.DepsFS, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip the root directory
+		if path == "." || path == ".claude" {
+			return nil
+		}
+
+		// Skip directories (they'll be created when files are written)
+		if d.IsDir() {
+			return nil
+		}
+
+		// Calculate destination path
+		relPath := strings.TrimPrefix(path, ".")
+		destPath := filepath.Join(targetDir, relPath)
+
+		// Ensure parent directory exists
+		destDir := filepath.Dir(destPath)
+		if err := os.MkdirAll(destDir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", destDir, err)
+		}
+
+		// Read file from embedded FS
+		data, err := embedded.DepsFS.ReadFile(path)
+		if err != nil {
+			return fmt.Errorf("failed to read embedded file %s: %w", path, err)
+		}
+
+		// Write to destination
+		if err := os.WriteFile(destPath, data, 0644); err != nil {
+			return fmt.Errorf("failed to write file %s: %w", destPath, err)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return fmt.Errorf("failed to copy deps skills: %w", err)
+	}
+
+	return nil
 }

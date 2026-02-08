@@ -154,6 +154,12 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
 	}
 
+	// Apply deps skills and commands
+	if err := applyDepsSkillsAndCommands(projectPath); err != nil {
+		// Deps skills are helpful but not critical - log warning and continue
+		fmt.Printf("Warning: deps skills installation had issues: %v\n", err)
+	}
+
 	// Create YAML metadata with playbook info
 	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, selectedPlaybookName, playbookVersion, playbookStructure)
 	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
@@ -226,6 +232,12 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 	if err != nil {
 		// Playbook application failure is not fatal - log and continue
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
+	}
+
+	// Apply deps skills and commands
+	if err := applyDepsSkillsAndCommands(projectPath); err != nil {
+		// Deps skills are helpful but not critical - log warning and continue
+		fmt.Printf("Warning: deps skills installation had issues: %v\n", err)
 	}
 
 	// Create YAML metadata with playbook info
@@ -303,6 +315,12 @@ func runInit(l *logger.Logger) error {
 	if err != nil {
 		// Playbook application failure is not fatal - log and continue
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
+	}
+
+	// Apply deps skills and commands
+	if err := applyDepsSkillsAndCommands(projectPath); err != nil {
+		// Deps skills are helpful but not critical - log warning and continue
+		fmt.Printf("Warning: deps skills installation had issues: %v\n", err)
 	}
 
 	// Create YAML metadata with playbook info
