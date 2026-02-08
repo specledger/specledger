@@ -269,7 +269,7 @@ sl init --framework speckit --short-code ms
 sl deps add git@github.com:org/auth-spec
 
 # Add with specific branch and path
-sl deps add git@github.com:org/api-spec v1.0 specs/api.md
+sl deps add git@github.com:org/api-spec v1.0 specledger/api.md
 
 # Add with alias for easy reference (used for AI import paths)
 sl deps add git@github.com:org/db-spec --alias db

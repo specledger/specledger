@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"specledger/internal/spec"
 	"specledger/pkg/models"
+
+	"github.com/spf13/cobra"
 )
 
 // VarConflictCmd represents the conflict command
@@ -35,7 +36,7 @@ func init() {
 }
 
 func runCheckConflicts(cmd *cobra.Command, args []string) error {
-	manifestPath := "specs/spec.mod"
+	manifestPath := "specledger/spec.mod"
 
 	// Read manifest
 	manifest, err := spec.ParseManifest(manifestPath)
@@ -99,7 +100,7 @@ func runCheckConflicts(cmd *cobra.Command, args []string) error {
 }
 
 func runDetectConflicts(cmd *cobra.Command, args []string) error {
-	manifestPath := "specs/spec.mod"
+	manifestPath := "specledger/spec.mod"
 
 	// Read manifest
 	manifest, err := spec.ParseManifest(manifestPath)

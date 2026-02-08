@@ -63,7 +63,7 @@ Add a new specification dependency.
 sl deps add <git-url> [<branch>] [<path>] [--alias <name>]
 
 # Examples
-sl deps add git@github.com:org/specs main specs/api.md
+sl deps add git@github.com:org/specs main specledger/api.md
 sl deps add https://github.com/org/specs.git --alias api-specs
 sl deps add git@github.com:user/repo main docs/spec.md --alias user-repo-spec
 ```

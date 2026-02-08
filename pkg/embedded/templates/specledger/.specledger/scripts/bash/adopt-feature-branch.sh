@@ -208,7 +208,7 @@ fi
 
 if [ "$HAS_GIT" = true ]; then
     # append existing branch name to branch-map.json
-	MAPPING_FILE="$REPO_ROOT/specs/branch-map.json"
+	MAPPING_FILE="$REPO_ROOT/specledger/branch-map.json"
 	if [ ! -f "$MAPPING_FILE" ]; then
 		echo "{}" > "$MAPPING_FILE"
 	fi

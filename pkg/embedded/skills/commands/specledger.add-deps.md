@@ -16,7 +16,7 @@ $ARGUMENTS
 ## Quick Usage
 
 ```bash
-sl deps add git@github.com:org/specs main specs/api.md
+sl deps add git@github.com:org/specs main specledger/api.md
 sl deps add https://github.com/org/specs.git --alias api
 sl deps add git@github.com:user/repo develop docs/spec.md --alias user-spec
 ```

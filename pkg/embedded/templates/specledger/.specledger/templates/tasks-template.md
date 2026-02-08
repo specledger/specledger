@@ -10,11 +10,11 @@ This index does **not contain tasks directly**—those are fully managed through
 ## Feature Tracking
 
 * **Beads Epic ID**: `sl-[epic-id]`
-* **User Stories Source**: `specs/[###-feature-name]/spec.md`
-* **Research Inputs**: `specs/[###-feature-name]/research.md`
-* **Planning Details**: `specs/[###-feature-name]/plan.md`
-* **Data Model**: `specs/[###-feature-name]/data-model.md`
-* **Contract Definitions**: `specs/[###-feature-name]/contracts/`
+* **User Stories Source**: `specledger/[###-feature-name]/spec.md`
+* **Research Inputs**: `specledger/[###-feature-name]/research.md`
+* **Planning Details**: `specledger/[###-feature-name]/plan.md`
+* **Data Model**: `specledger/[###-feature-name]/data-model.md`
+* **Contract Definitions**: `specledger/[###-feature-name]/contracts/`
 
 ## Beads Query Hints
 

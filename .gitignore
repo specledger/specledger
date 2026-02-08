@@ -38,7 +38,7 @@ Thumbs.db
 
 # SpecLedger specific
 .spec-cache/
-specs/vendor/
+specledger/vendor/
 .spec-config/auth.json
 .cache/
 

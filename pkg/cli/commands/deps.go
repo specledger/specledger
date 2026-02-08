@@ -7,10 +7,11 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/spf13/cobra"
 	"specledger/pkg/cli/framework"
 	"specledger/pkg/cli/metadata"
 	"specledger/pkg/cli/ui"
+
+	"github.com/spf13/cobra"
 )
 
 // VarDepsCmd represents the deps command
@@ -33,7 +34,7 @@ var VarAddCmd = &cobra.Command{
 	Short:   "Add a dependency",
 	Long:    `Add an external specification dependency to your project. The dependency will be tracked in specledger.yaml and cached locally for offline use.`,
 	Example: `  sl deps add git@github.com:org/api-spec
-  sl deps add git@github.com:org/api-spec v1.0 specs/api.md
+  sl deps add git@github.com:org/api-spec v1.0 specledger/api.md
   sl deps add git@github.com:org/api-spec main spec.md --alias api`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: runAddDependency,

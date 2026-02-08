@@ -62,11 +62,11 @@ has_git() {
     git rev-parse --show-toplevel >/dev/null 2>&1
 }
 
-# Check if current branch is mapped in specs/branch-map.json
+# Check if current branch is mapped in specledger/branch-map.json
 check_mapped_branch() {
 	local branch="$1"
 	local repo_root="$2"
-	local mapping_file="$repo_root/specs/branch-map.json"
+	local mapping_file="$repo_root/specledger/branch-map.json"
 	if [[ ! -f "$mapping_file" ]]; then
 		# echo "Mapping file not found: $mapping_file" >&2
 		return 1
@@ -83,7 +83,7 @@ check_mapped_branch() {
 get_mapped_branch() {
 	local branch="$1"
 	local repo_root="$2"
-	local mapping_file="$repo_root/specs/branch-map.json"
+	local mapping_file="$repo_root/specledger/branch-map.json"
 	jq -r --arg branch "$branch" '.[$branch] // empty' "$mapping_file"
 }
 
@@ -120,7 +120,7 @@ check_feature_branch() {
     return 0
 }
 
-get_feature_dir() { echo "$1/specs/$2"; }
+get_feature_dir() { echo "$1/specledger/$2"; }
 
 # Find feature directory by numeric prefix instead of exact branch match
 # This allows multiple branches to work on the same spec (e.g., 004-fix-bug, 004-add-feature)
@@ -138,7 +138,7 @@ find_feature_dir_by_prefix() {
 
     local prefix="${BASH_REMATCH[1]}"
 
-    # Search for directories in specs/ that start with this prefix
+    # Search for directories in specledger/ that start with this prefix
     local matches=()
     if [[ -d "$specs_dir" ]]; then
         for dir in "$specs_dir"/"$prefix"-*; do
@@ -174,7 +174,7 @@ get_feature_paths() {
 
 
 	# Check if branch is mapped in branch-map.json
-	local mapping_file="$repo_root/specs/branch-map.json"
+	local mapping_file="$repo_root/specledger/branch-map.json"
 	if [[ -f "$mapping_file" ]]; then
 		local mapped_branch=$(get_mapped_branch "$current_branch" "$repo_root")
 		if [[ -n "$mapped_branch" ]]; then

@@ -53,7 +53,7 @@ Given that feature description, do this:
 
 2. **Check for existing branches before creating new one**:
 
-   a. Find the highest feature number for the short-name across specs directories: Check for directories matching `specs/[0-9]+-<short-name>`
+   a. Find the highest feature number for the short-name across specs directories: Check for directories matching `specledger/[0-9]+-<short-name>`
 
    b. Determine the next available number:
       - Extract all numbers from specs directory

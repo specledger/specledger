@@ -1,7 +1,7 @@
 # Implementation Plan: [FEATURE]
 
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
+**Input**: Feature specification from `/specledger/[###-feature-name]/spec.md`
 
 **Note**: This template is filled in by the `/specledger.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
@@ -49,7 +49,7 @@ Verify compliance with principles from `.specify/memory/constitution.md`:
 ### Documentation (this feature)
 
 ```text
-specs/[###-feature]/
+specledger/[###-feature]/
 ├── plan.md              # This file (/specledger.plan command output)
 ├── research.md          # Phase 0 output (/specledger.plan command)
 ├── data-model.md        # Phase 1 output (/specledger.plan command)
