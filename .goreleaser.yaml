@@ -75,28 +75,6 @@ brews:
     license: MIT
     skip_upload: true
 
-snapcrafts:
-  - name: specledger
-    summary: 'Unified CLI for project bootstrap and specification dependency management'
-    description: |
-      SpecLedger provides a unified CLI tool for project bootstrap with interactive TUI
-      and specification dependency management.
-
-      Features:
-      - Interactive TUI for project bootstrap
-      - Non-interactive mode for CI/CD
-      - Specification dependency management
-      - Multiple distribution channels
-
-      Installation:
-      - Download binary from GitHub Releases
-      - Build from source
-      - Install via Homebrew, Snap, or package managers
-
-    grade: stable
-    confinement: classic
-    base: core18
-
 release:
   github:
     owner: specledger
@@ -120,18 +98,6 @@ release:
     ### Homebrew
     ```bash
     brew install specledger
-    ```
-
-    ### Snap
-    ```bash
-    sudo snap install specledger
-    ```
-
-    ### Source
-    ```bash
-    git clone https://github.com/specledger/specledger.git
-    cd specledger
-    make build
     ```
 
     ### From source
