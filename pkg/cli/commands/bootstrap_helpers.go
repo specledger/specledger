@@ -2,6 +2,7 @@ package commands
 
 import (
 	"fmt"
+	"os/exec"
 
 	"specledger/pkg/cli/playbooks"
 	"specledger/pkg/cli/ui"
@@ -20,5 +21,21 @@ func applyEmbeddedPlaybooks(projectPath string) error {
 	}
 
 	fmt.Printf("%s Playbooks applied\n", ui.Checkmark())
+
+	// Trust mise.toml if it exists
+	trustMiseConfig(projectPath)
+
 	return nil
+}
+
+// trustMiseConfig runs `mise trust` on the project's mise.toml file.
+func trustMiseConfig(projectPath string) {
+	misePath := projectPath + "/mise.toml"
+	cmd := exec.Command("mise", "trust", misePath)
+	cmd.Dir = projectPath
+	if err := cmd.Run(); err != nil {
+		// mise trust failing is not critical - mise will prompt user to trust on first use
+		ui.PrintWarning(fmt.Sprintf("Could not trust mise.toml: %v", err))
+		ui.PrintWarning("Run 'mise trust' to enable mise tools")
+	}
 }
