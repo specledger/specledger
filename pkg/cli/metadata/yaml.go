@@ -102,3 +102,10 @@ func NewProjectMetadata(name, shortCode string, playbookName string, playbookVer
 
 	return metadata
 }
+
+// HasYAMLMetadata checks if a project has the new YAML metadata file
+func HasYAMLMetadata(projectRoot string) bool {
+	yamlPath := filepath.Join(projectRoot, DefaultMetadataFile)
+	_, err := os.Stat(yamlPath)
+	return err == nil
+}
