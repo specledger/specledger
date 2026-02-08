@@ -104,6 +104,7 @@ func (l *Lockfile) Write(path string) error {
 	}
 
 	// Write to file
+	// #nosec G306 -- lockfile needs to be readable, 0644 is appropriate
 	if err := os.WriteFile(path, data, 0644); err != nil {
 		return fmt.Errorf("failed to write lockfile: %w", err)
 	}

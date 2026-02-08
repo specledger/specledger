@@ -74,7 +74,7 @@ func runValidateReferences(cmd *cobra.Command, args []string) error {
 
 	// Create resolver and set dependencies
 	resolver := ref.NewResolver("specledger/spec.sum")
-	resolver.SetDependencies(dependencies)
+	_ = resolver.SetDependencies(dependencies)
 
 	// Parse references
 	references, err := resolver.ParseSpec(string(content))
@@ -136,7 +136,7 @@ func runListReferences(cmd *cobra.Command, args []string) error {
 
 	// Create resolver and set dependencies
 	resolver := ref.NewResolver("specledger/spec.sum")
-	resolver.SetDependencies(dependencies)
+	_ = resolver.SetDependencies(dependencies)
 
 	// Parse references
 	references, err := resolver.ParseSpec(string(content))

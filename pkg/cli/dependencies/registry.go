@@ -28,6 +28,7 @@ func New() *Registry {
 
 // Check checks if a dependency is available
 func (r *Registry) Check(dep *Dependency) bool {
+	// #nosec G204 -- command name and arg are from constants, not user input
 	cmd := exec.Command("command", "-v", dep.Command)
 	if err := cmd.Run(); err != nil {
 		return false
@@ -48,6 +49,7 @@ func (r *Registry) CheckMise() bool {
 // PromptForInstall prompts user about installing a dependency
 func (r *Registry) PromptForInstall(dep *Dependency) (bool, error) {
 	// Try gum confirm first
+	// #nosec G204 -- gum command with controlled format string
 	cmd := exec.Command("gum", "confirm", fmt.Sprintf("Dependency '%s' not found. Install it?", dep.Name))
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

@@ -58,6 +58,7 @@ func Save(metadata *ProjectMetadata, path string) error {
 	}
 
 	// Write to file
+	// #nosec G306 -- metadata files need to be readable, 0644 is appropriate
 	return os.WriteFile(path, data, 0644)
 }
 

@@ -170,5 +170,6 @@ func copyEmbeddedFile(src, dest string) error {
 	}
 
 	// Write to destination
+	// #nosec G306 -- playbook files need to be readable, 0644 is appropriate
 	return os.WriteFile(dest, srcFile, 0644)
 }

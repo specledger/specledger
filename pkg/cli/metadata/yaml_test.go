@@ -185,6 +185,7 @@ project:
 framework:
   choice: none
 `
+	// #nosec G306 -- test file, 0644 is appropriate
 	if err := os.WriteFile(yamlPath, []byte(invalidYAML), 0644); err != nil {
 		t.Fatalf("failed to write invalid YAML: %v", err)
 	}

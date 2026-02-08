@@ -177,6 +177,7 @@ func copyFile(src, dst string) error {
 		return err
 	}
 
+	// #nosec G306 -- vendored spec files need to be readable, 0644 is appropriate
 	return os.WriteFile(dst, input, 0644)
 }
 
