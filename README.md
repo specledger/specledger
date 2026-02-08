@@ -40,11 +40,9 @@ sl doctor
 
 **Next Steps**: See [full documentation](https://specledger.io/docs) for contributor setup, development guide, and more.
 
-SpecLedger (`sl`) is a lightweight CLI that helps you create new projects and set up Specification-Driven Development frameworks like [Spec Kit](https://github.com/github/spec-kit) or [OpenSpec](https://github.com/fission-ai/openspec).
-
 ## Features
 
-- **Framework Agnostic**: Choose Spec Kit, OpenSpec, both, or none for SDD workflows
+- **All-in-One SDD**: Complete Specification-Driven Development workflow built-in
 - **Interactive TUI**: Create projects with a beautiful terminal interface
 - **Prerequisites Checking**: Automatically detect and install required tools (mise, bd, perles)
 - **Dependency Management**: Add, remove, and list spec dependencies
@@ -184,9 +182,6 @@ cd my-existing-project
 
 # Initialize SpecLedger
 sl init
-
-# Initialize with Spec Kit framework
-sl init --framework speckit
 ```
 
 ### Check Tool Status
@@ -203,7 +198,7 @@ sl doctor --json
 
 After creating a project, see the [full documentation](https://specledger.io/docs) for:
 - Contributor setup and development guide
-- SDD framework integration (Spec Kit, OpenSpec)
+- SDD workflows and best practices
 - Dependency management
 - Architecture and design patterns
 
@@ -216,7 +211,6 @@ After creating a project, see the [full documentation](https://specledger.io/doc
 | `sl new` | Create a new project (interactive TUI) |
 | `sl new --ci --project-name <name> --short-code <code>` | Create a project (non-interactive) |
 | `sl init` | Initialize SpecLedger in an existing repository |
-| `sl init --framework <name>` | Initialize with framework (speckit, openspec) |
 
 ### Diagnostics
 
@@ -259,42 +253,6 @@ After creating a project, see the [full documentation](https://specledger.io/doc
 | `sl vendor add <url>` | Add a vendored dependency |
 | `sl vendor remove <url>` | Remove a vendored dependency |
 
-## SDD Framework Support
-
-SpecLedger supports multiple SDD (Specification-Driven Development) frameworks. When creating a new project, you can choose:
-
-| Framework | Description | Best For |
-|-----------|-------------|----------|
-| **Spec Kit** | GitHub Spec Kit - structured, phase-gated workflow with specifications, plans, and tasks | Teams that want structured development phases |
-| **OpenSpec** | OpenSpec - lightweight, iterative specification workflow | Teams that prefer flexibility and iteration |
-| **Both** | Use both frameworks as needed | Teams that want maximum flexibility |
-| **None** | Use SpecLedger only for bootstrap and dependencies | Teams that have their own SDD process |
-
-### What Happens When You Choose a Framework
-
-When you create a project with `sl new --framework speckit`:
-
-1. **Framework Installation** - Spec Kit is installed via mise
-2. **Framework Initialization** - Runs `specify init --here --ai claude --force --script sh --no-git`
-3. **Configuration** - Your `specledger.yaml` is updated with your framework choice
-4. **Ready to Use** - Your project is ready for SDD workflows with the chosen framework
-
-### After Framework Setup
-
-Once your project is created, you use the framework's tools directly:
-
-```bash
-# With Spec Kit
-specify spec create "User Authentication"
-specify plan create
-specify tasks generate
-bd ready --limit 5
-
-# With OpenSpec
-openspec spec create "User Authentication"
-# (OpenSpec workflows differ from Spec Kit)
-```
-
 ## Project Metadata
 
 SpecLedger projects use `specledger/specledger.yaml` for configuration:
@@ -310,7 +268,7 @@ project:
   version: "0.1.0"
 
 framework:
-  choice: speckit  # speckit, openspec, both, or none
+  choice: specledger
   installed_at: "2026-02-05T10:30:00Z"
 
 task_tracker:
@@ -323,26 +281,23 @@ dependencies:
     path: spec.md
     alias: api
     resolved_commit: abc123...
-    framework: speckit
+    framework: specledger
     import_path: "@api"
 ```
 
 ## Usage Examples
 
-### Creating a Project with Framework Setup
+### Creating a New Project
 
 ```bash
 # Interactive - guided by TUI
 sl new
 
-# Non-interactive - with Spec Kit
-sl new --ci --project-name my-api --short-code mapi --framework speckit
-
-# Non-interactive - with OpenSpec
-sl new --ci --project-name my-api --short-code mapi --framework openspec
+# Non-interactive mode
+sl new --ci --project-name my-api --short-code mapi
 
 # With custom directory
-sl new --ci --project-name my-api --short-code mapi --project-dir ~/projects --framework speckit
+sl new --ci --project-name my-api --short-code mapi --project-dir ~/projects
 ```
 
 ### Initializing an Existing Repository
@@ -351,8 +306,8 @@ sl new --ci --project-name my-api --short-code mapi --project-dir ~/projects --f
 # Navigate to your repository
 cd my-existing-project
 
-# Initialize SpecLedger with Spec Kit
-sl init --framework speckit --short-code ms
+# Initialize SpecLedger
+sl init --short-code ms
 ```
 
 ### Managing Dependencies
@@ -391,14 +346,14 @@ $ sl deps add git@github.com:org/api-spec --alias api
 Detecting Framework
 ───────────────────
 Checking git@github.com:org/api-spec...
-  Framework:  Spec Kit
+  Framework:  SpecLedger
 
 ✓ Dependency added
   Repository:  git@github.com:org/api-spec
   Alias:       api
   Branch:      main
   Path:        spec.md
-  Framework:   Spec Kit
+  Framework:   SpecLedger
   Import Path: @api
 
 Next: sl deps resolve
@@ -487,7 +442,7 @@ This error occurs when you try to run a spec-specific command outside a project 
 cd ~/demos/myproject
 
 # Solution 2: Create a new project first
-sl new --ci --project-name myproject --short-code mp --framework speckit
+sl new --ci --project-name myproject --short-code mp
 ```
 
 ### Permission Denied Errors
@@ -505,37 +460,20 @@ curl -fsSL https://raw.githubusercontent.com/specledger/specledger/main/scripts/
 The TUI requires an interactive terminal. Always use the `--ci` flag in non-interactive environments:
 
 ```bash
-sl new --ci --project-name myproject --short-code mp --framework speckit
-```
-
-### Framework Not Found
-
-If your chosen framework isn't installed after project creation:
-
-```bash
-# Check tool status
-sl doctor
-
-# Install manually via mise
-mise install pipx:git+https://github.com/github/spec-kit.git
-mise install npm:@fission-ai/openspec
-
-# Initialize manually
-specify init --here --ai claude --force --script sh --no-git
-openspec init --force --tools claude
+sl new --ci --project-name myproject --short-code mp
 ```
 
 ## Architecture
 
-SpecLedger is a platform-agnostic bootstrap tool that delegates SDD workflows to external frameworks.
+SpecLedger is an all-in-one SDD playbook that provides complete Specification-Driven Development workflows.
 
 ### Design Philosophy
 
-1. **Framework Agnostic**: Supports multiple SDD frameworks without being tied to any single one
-2. **Bootstrap Focus**: Handles project creation and initial setup only
-3. **Dependency Management**: Tracks external spec dependencies
-4. **Tool Detection**: Ensures required tools are installed
-5. **Delegation**: All SDD workflows are handled by the chosen framework
+1. **Unified Workflow**: Complete SDD workflow from spec to deployment
+2. **Easy Bootstrap**: Create new projects with a single command
+3. **Dependency Management**: Track and manage specification dependencies
+4. **Tool Detection**: Ensures required tools are installed and configured
+5. **Built-in Templates**: Embedded templates for specifications, plans, and tasks
 
 ### Tech Stack
 
@@ -598,8 +536,6 @@ We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for deta
 
 - **Documentation**: [https://specledger.io/docs](https://specledger.io/docs) - User and contributor guides
 - **Main Website**: [https://specledger.io](https://specledger.io) - Project landing page
-- **Spec Kit**: [https://github.com/github/spec-kit](https://github.com/github/spec-kit)
-- **OpenSpec**: [https://github.com/fission-ai/openspec](https://github.com/fission-ai/openspec)
 
 ## License
 
