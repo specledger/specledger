@@ -64,3 +64,4 @@ ledger.db
 
 bin
 bin/
+main >> .gitignore

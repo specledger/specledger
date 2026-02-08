@@ -1,0 +1,8 @@
+version: "1.0"
+playbooks:
+  - name: specledger
+    description: "SpecLedger playbook with Claude Code commands, skills, and bash scripts"
+    version: "1.0.0"
+    path: "specledger"
+    patterns:
+      - "**"

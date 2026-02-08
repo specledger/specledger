@@ -21,13 +21,11 @@ import (
 var (
 	projectNameFlag string
 	shortCodeFlag   string
-	frameworkFlag   string
 	demoDirFlag     string
 	ciFlag          bool
 	// Init-specific flags
 	initShortCodeFlag string
 	initForceFlag     bool
-	initFrameworkFlag string
 )
 
 // VarBootstrapCmd is the bootstrap command
@@ -80,19 +78,12 @@ This adds SpecLedger to an existing project without creating a new directory.
 Usage:
   sl init
   sl init --short-code abc
-  sl init --framework speckit
 
 The init creates:
 - .claude/ directory with skills
 - .beads/ directory for issue tracking
 - specledger/ directory for specifications
-- specledger/specledger.yaml file for project metadata
-
-Framework options:
-- none: No SDD framework (default)
-- speckit: Use GitHub Spec Kit
-- openspec: Use OpenSpec
-- both: Initialize both frameworks`,
+- specledger/specledger.yaml file for project metadata`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		l := logger.New(logger.Debug)
 		return runInit(l)
@@ -122,7 +113,6 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 	projectName := answers["project_name"]
 	projectDir := answers["project_dir"]
 	shortCode := answers["short_code"]
-	framework := answers["framework"]
 
 	// Check prerequisites before starting
 	fmt.Println()
@@ -159,28 +149,16 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 		return fmt.Errorf("failed to copy templates: %w", err)
 	}
 
-	// Update mise.toml to enable selected framework
-	frameworkChoice := metadata.FrameworkChoice(framework)
-	if err := updateMiseToml(projectPath, frameworkChoice); err != nil {
-		return fmt.Errorf("failed to update mise.toml: %w", err)
-	}
-
-	// Create YAML metadata
-	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, frameworkChoice)
+	// Create YAML metadata (no framework)
+	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, metadata.FrameworkNone)
 	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
 		return fmt.Errorf("failed to create project metadata: %w", err)
 	}
 
-	// Initialize the chosen SDD framework
-	if err := initializeFramework(projectPath, frameworkChoice); err != nil {
-		// Framework init failure is not fatal - log and continue
-		fmt.Printf("Warning: framework initialization had issues: %v\n", err)
-	}
-
-	// Apply embedded templates
-	if err := applyEmbeddedTemplates(projectPath, frameworkChoice); err != nil {
-		// Template application failure is not fatal - log and continue
-		fmt.Printf("Warning: template application had issues: %v\n", err)
+	// Apply embedded playbooks
+	if err := applyEmbeddedPlaybooks(projectPath); err != nil {
+		// Playbook application failure is not fatal - log and continue
+		fmt.Printf("Warning: playbook application had issues: %v\n", err)
 	}
 
 	// Initialize git repo (but don't commit - user might bootstrap into existing repo)
@@ -192,14 +170,6 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 	ui.PrintHeader("Project Created Successfully", "", 60)
 	fmt.Printf("  Path:       %s\n", ui.Bold(projectPath))
 	fmt.Printf("  Beads:      %s\n", ui.Bold(shortCode))
-	fmt.Printf("  Framework:  %s\n", ui.Bold(framework))
-	if framework != "none" {
-		if framework == "both" {
-			fmt.Printf("  Status:     %s\n", ui.Green("Spec Kit initialized"))
-		} else {
-			fmt.Printf("  Status:     %s\n", ui.Green("Framework initialized"))
-		}
-	}
 	fmt.Println()
 	fmt.Println(ui.Bold("Next steps:"))
 	fmt.Printf("  %s    %s\n", ui.Cyan("cd"), projectPath)
@@ -228,7 +198,6 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 
 	projectName := projectNameFlag
 	shortCode := strings.ToLower(shortCodeFlag)
-	framework := frameworkFlag
 
 	// Limit short code to 4 characters
 	if len(shortCode) > 4 {
@@ -253,33 +222,16 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 		return ErrPermissionDenied(projectPath)
 	}
 
-	// Copy template files
-	if err := copyTemplates(projectPath, shortCode, projectName); err != nil {
-		return fmt.Errorf("failed to copy templates: %w", err)
+	// Apply embedded playbooks
+	if err := applyEmbeddedPlaybooks(projectPath); err != nil {
+		// Playbook application failure is not fatal - log and continue
+		fmt.Printf("Warning: playbook application had issues: %v\n", err)
 	}
 
-	// Update mise.toml to enable selected framework
-	frameworkChoice := metadata.FrameworkChoice(framework)
-	if err := updateMiseToml(projectPath, frameworkChoice); err != nil {
-		return fmt.Errorf("failed to update mise.toml: %w", err)
-	}
-
-	// Create YAML metadata
-	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, frameworkChoice)
+	// Create YAML metadata (no framework)
+	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, metadata.FrameworkNone)
 	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
 		return fmt.Errorf("failed to create project metadata: %w", err)
-	}
-
-	// Initialize the chosen SDD framework
-	if err := initializeFramework(projectPath, frameworkChoice); err != nil {
-		// Framework init failure is not fatal - log and continue
-		fmt.Printf("Warning: framework initialization had issues: %v\n", err)
-	}
-
-	// Apply embedded templates
-	if err := applyEmbeddedTemplates(projectPath, frameworkChoice); err != nil {
-		// Template application failure is not fatal - log and continue
-		fmt.Printf("Warning: template application had issues: %v\n", err)
 	}
 
 	// Initialize git repo (but don't commit - user might bootstrap into existing repo)
@@ -291,7 +243,6 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 	ui.PrintHeader("Project Created Successfully", "", 60)
 	fmt.Printf("  Path:       %s\n", ui.Bold(projectPath))
 	fmt.Printf("  Beads:      %s\n", ui.Bold(shortCode))
-	fmt.Printf("  Framework:  %s\n", ui.Bold(framework))
 	fmt.Println()
 	fmt.Println(ui.Bold("Next steps:"))
 	fmt.Printf("  %s    %s\n", ui.Cyan("cd"), projectPath)
@@ -349,35 +300,16 @@ func runInit(l *logger.Logger) error {
 		return fmt.Errorf("failed to copy templates: %w", err)
 	}
 
-	// Determine framework choice (default to "none" for sl init)
-	frameworkChoice := metadata.FrameworkChoice(initFrameworkFlag)
-	if initFrameworkFlag == "" {
-		frameworkChoice = metadata.FrameworkNone
-	}
-
-	// Create YAML metadata with framework choice
-	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, frameworkChoice)
+	// Create YAML metadata (no framework)
+	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, metadata.FrameworkNone)
 	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
 		return fmt.Errorf("failed to create project metadata: %w", err)
 	}
 
-	// Update mise.toml if framework is specified
-	if frameworkChoice != metadata.FrameworkNone {
-		if err := updateMiseToml(projectPath, frameworkChoice); err != nil {
-			ui.PrintWarning(fmt.Sprintf("Failed to update mise.toml: %v", err))
-		}
-
-		// Initialize the chosen SDD framework
-		if err := initializeFramework(projectPath, frameworkChoice); err != nil {
-			// Framework init failure is not fatal - log and continue
-			fmt.Printf("Warning: framework initialization had issues: %v\n", err)
-		}
-
-		// Apply embedded templates
-		if err := applyEmbeddedTemplates(projectPath, frameworkChoice); err != nil {
-			// Template application failure is not fatal - log and continue
-			fmt.Printf("Warning: template application had issues: %v\n", err)
-		}
+	// Apply embedded playbooks
+	if err := applyEmbeddedPlaybooks(projectPath); err != nil {
+		// Playbook application failure is not fatal - log and continue
+		fmt.Printf("Warning: playbook application had issues: %v\n", err)
 	}
 
 	// Success message
@@ -385,9 +317,6 @@ func runInit(l *logger.Logger) error {
 	fmt.Printf("  Directory:  %s\n", ui.Bold(projectPath))
 	fmt.Printf("  Beads:      %s\n", ui.Bold(shortCode))
 	fmt.Printf("  Metadata:   %s\n", ui.Bold("specledger/specledger.yaml"))
-	if frameworkChoice != metadata.FrameworkNone {
-		fmt.Printf("  Framework:  %s\n", ui.Bold(string(frameworkChoice)))
-	}
 	fmt.Println()
 	ui.PrintSuccess("SpecLedger is ready to use!")
 	fmt.Println(ui.Bold("Next steps:"))
@@ -483,13 +412,11 @@ func init() {
 	// Flags for 'new' command
 	VarBootstrapCmd.PersistentFlags().StringVarP(&projectNameFlag, "project-name", "n", "", "Project name")
 	VarBootstrapCmd.PersistentFlags().StringVarP(&shortCodeFlag, "short-code", "s", "", "Short code (2-4 letters)")
-	VarBootstrapCmd.PersistentFlags().StringVarP(&frameworkFlag, "framework", "f", "speckit", "SDD framework (speckit, openspec, both, none)")
 	VarBootstrapCmd.PersistentFlags().StringVarP(&demoDirFlag, "project-dir", "d", "", "Project directory path")
 	VarBootstrapCmd.PersistentFlags().BoolVarP(&ciFlag, "ci", "", false, "Force non-interactive mode (skip TUI)")
 
 	// Flags for 'init' command
 	VarInitCmd.PersistentFlags().StringVarP(&initShortCodeFlag, "short-code", "s", "", "Short code for issue IDs (2-4 letters)")
-	VarInitCmd.PersistentFlags().StringVarP(&initFrameworkFlag, "framework", "f", "speckit", "SDD framework (speckit, openspec, both, none)")
 	VarInitCmd.PersistentFlags().BoolVarP(&initForceFlag, "force", "", false, "Force initialize even if SpecLedger files exist")
 }
 

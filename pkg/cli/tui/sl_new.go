@@ -29,22 +29,21 @@ const (
 	stepProjectName = iota
 	stepDirectory
 	stepShortCode
-	stepFramework
+	stepPlaybook
 	stepConfirm
 	stepComplete
 )
 
 // TUI model for sl new command
 type Model struct {
-	step             int
-	textInput        textinput.Model
-	answers          map[string]string
-	showingError     string
-	width            int
-	selectedIdx      int                // Index for list selections
-	frameworkChoices map[string]bool    // Checkbox states for framework selection
-	quitting         bool
-	defaultDir       string             // Default project directory
+	step         int
+	textInput    textinput.Model
+	answers      map[string]string
+	showingError string
+	width        int
+	selectedIdx  int
+	quitting     bool
+	defaultDir   string
 }
 
 // InitialModel creates initial model with default directory
@@ -56,12 +55,12 @@ func InitialModel(defaultDir string) Model {
 	ti.Width = 50
 
 	return Model{
-		step:             stepProjectName,
-		textInput:        ti,
-		answers:          make(map[string]string),
-		frameworkChoices: make(map[string]bool),
-		width:            80,
-		defaultDir:       defaultDir,
+		step:       stepProjectName,
+		textInput:  ti,
+		answers:    make(map[string]string),
+		width:      80,
+		selectedIdx: 0,
+		defaultDir: defaultDir,
 	}
 }
 
@@ -76,14 +75,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		// Handle space bar for checkbox toggle (must be before switch)
-		if m.step == stepFramework && msg.String() == " " {
-			options := getFrameworkCheckboxOptions()
-			if m.selectedIdx < len(options) {
-				key := options[m.selectedIdx]
-				m.frameworkChoices[key] = !m.frameworkChoices[key]
+		// Handle up/down for playbook selection
+		if m.step == stepPlaybook {
+			switch msg.String() {
+			case "up", "k":
+				if m.selectedIdx > 0 {
+					m.selectedIdx--
+				}
+				return m, nil
+			case "down", "j":
+				playbooks := getAvailablePlaybooks()
+				if m.selectedIdx < len(playbooks)-1 {
+					m.selectedIdx++
+				}
+				return m, nil
 			}
-			return m, nil
 		}
 
 		switch msg.Type {
@@ -93,23 +99,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case tea.KeyEnter:
 			return m.handleEnter()
-
-		case tea.KeyUp:
-			if m.step == stepFramework {
-				if m.selectedIdx > 0 {
-					m.selectedIdx--
-				}
-			}
-			return m, nil
-
-		case tea.KeyDown:
-			if m.step == stepFramework {
-				frameworkOptions := getFrameworkCheckboxOptions()
-				if m.selectedIdx < len(frameworkOptions)-1 {
-					m.selectedIdx++
-				}
-			}
-			return m, nil
 		}
 
 	case tea.WindowSizeMsg:
@@ -174,25 +163,15 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.answers["short_code"] = strings.ToLower(value)
-		m.step = stepFramework
+		m.step = stepPlaybook
 		m.selectedIdx = 0
 		return m, nil
 
-	case stepFramework:
-		// Determine framework choice based on checkbox selections
-		speckit := m.frameworkChoices["speckit"]
-		openspec := m.frameworkChoices["openspec"]
-
-		if speckit && openspec {
-			m.answers["framework"] = "both"
-		} else if speckit {
-			m.answers["framework"] = "speckit"
-		} else if openspec {
-			m.answers["framework"] = "openspec"
-		} else {
-			m.answers["framework"] = "speckit"
+	case stepPlaybook:
+		playbooks := getAvailablePlaybooks()
+		if m.selectedIdx >= 0 && m.selectedIdx < len(playbooks) {
+			m.answers["playbook"] = playbooks[m.selectedIdx]
 		}
-
 		m.step = stepConfirm
 		return m, nil
 
@@ -230,8 +209,8 @@ func (m Model) View() string {
 		s.WriteString(m.viewDirectory())
 	case stepShortCode:
 		s.WriteString(m.viewShortCode())
-	case stepFramework:
-		s.WriteString(m.viewFramework())
+	case stepPlaybook:
+		s.WriteString(m.viewPlaybook())
 	case stepConfirm:
 		s.WriteString(m.viewConfirm())
 	}
@@ -244,8 +223,8 @@ func (m Model) View() string {
 
 	// Help text
 	s.WriteString("\n\n")
-	if m.step == stepFramework {
-		s.WriteString(colorSubtle.Render("↑/↓: Navigate • Space: Toggle • Enter: Confirm • Ctrl+C: Cancel"))
+	if m.step == stepPlaybook {
+		s.WriteString(colorSubtle.Render("↑/↓: Select • Enter: Confirm • Ctrl+C: Cancel"))
 	} else {
 		s.WriteString(colorSubtle.Render("Enter: Continue • Ctrl+C: Cancel"))
 	}
@@ -284,19 +263,19 @@ func (m Model) viewShortCode() string {
 	return s.String()
 }
 
-func (m Model) viewFramework() string {
+func (m Model) viewPlaybook() string {
 	var s strings.Builder
-	s.WriteString(colorPrimary.Render("Select SDD Framework(s)"))
+	s.WriteString(colorPrimary.Render("Select Playbook"))
 	s.WriteString("\n")
-	s.WriteString(colorSubtle.Render("Use Space to toggle, Enter to confirm"))
+	s.WriteString(colorSubtle.Render("Choose the playbook to apply to your project"))
 	s.WriteString("\n\n")
 
-	options := getFrameworkCheckboxOptions()
-	descriptions := getFrameworkCheckboxDescriptions()
+	playbooks := getAvailablePlaybooks()
+	descriptions := getPlaybookDescriptions()
 
-	for i, option := range options {
+	for i, playbook := range playbooks {
 		cursor := " "
-		checkbox := "☐"
+		radio := "○"
 		style := unselectedStyle
 
 		if i == m.selectedIdx {
@@ -304,11 +283,11 @@ func (m Model) viewFramework() string {
 			style = selectedStyle
 		}
 
-		if m.frameworkChoices[option] {
-			checkbox = "☑"
+		if m.selectedIdx == i {
+			radio = "◉"
 		}
 
-		s.WriteString(fmt.Sprintf("%s %s %s\n", cursor, checkbox, style.Render(getFrameworkDisplayName(option))))
+		s.WriteString(fmt.Sprintf("%s %s %s\n", cursor, radio, style.Render(playbook)))
 
 		if i == m.selectedIdx {
 			s.WriteString(colorSubtle.Render("  " + descriptions[i]))
@@ -329,22 +308,9 @@ func (m Model) viewConfirm() string {
 	s.WriteString(colorSuccess.Render("✓ ") + "Location: " + projectPath + "\n")
 	s.WriteString(colorSuccess.Render("✓ ") + "Short Code: " + m.answers["short_code"] + "\n")
 
-	// Display framework selection with details
-	framework := m.answers["framework"]
-	frameworkDisplay := ""
-	switch framework {
-	case "speckit":
-		frameworkDisplay = "Spec Kit (GitHub)"
-	case "openspec":
-		frameworkDisplay = "OpenSpec"
-	case "both":
-		frameworkDisplay = "Both (Spec Kit + OpenSpec)"
-	case "none":
-		frameworkDisplay = "None"
-	default:
-		frameworkDisplay = framework
+	if playbook, ok := m.answers["playbook"]; ok {
+		s.WriteString(colorSuccess.Render("✓ ") + "Playbook: " + playbook + "\n")
 	}
-	s.WriteString(colorSuccess.Render("✓ ") + "SDD Framework: " + frameworkDisplay + "\n")
 
 	s.WriteString("\n")
 	s.WriteString(colorSubtle.Render("Press Enter to create project"))
@@ -361,34 +327,14 @@ func (m Model) viewComplete() string {
 	return s.String()
 }
 
-// Helper functions
-
-// getFrameworkCheckboxOptions returns the keys for checkbox selection
-func getFrameworkCheckboxOptions() []string {
-	return []string{
-		"speckit",
-		"openspec",
-	}
+// getAvailablePlaybooks returns the list of available playbooks
+func getAvailablePlaybooks() []string {
+	return []string{"specledger"}
 }
 
-// getFrameworkDisplayName returns the display name for a framework key
-func getFrameworkDisplayName(key string) string {
-	switch key {
-	case "speckit":
-		return "Spec Kit (GitHub)"
-	case "openspec":
-		return "OpenSpec"
-	default:
-		return key
-	}
-}
-
-// getFrameworkCheckboxDescriptions returns descriptions for each framework
-func getFrameworkCheckboxDescriptions() []string {
-	return []string{
-		"Structured, phase-gated workflow with comprehensive tooling",
-		"Lightweight, iterative workflow for agile teams",
-	}
+// getPlaybookDescriptions returns descriptions for each playbook
+func getPlaybookDescriptions() []string {
+	return []string{"SpecLedger playbook with Claude Code commands, skills, and bash scripts"}
 }
 
 func generateShortCode(projectName string) string {
