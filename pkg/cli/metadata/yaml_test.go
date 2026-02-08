@@ -8,56 +8,45 @@ import (
 )
 
 func TestNewProjectMetadata(t *testing.T) {
-	tests := []struct {
-		name      string
-		projName  string
-		shortCode string
-		framework FrameworkChoice
-		wantAt    bool // whether InstalledAt should be set
-	}{
-		{"with speckit", "test-project", "tp", FrameworkSpecKit, true},
-		{"with openspec", "test-project", "tp", FrameworkOpenSpec, true},
-		{"with both", "test-project", "tp", FrameworkBoth, true},
-		{"with none", "test-project", "tp", FrameworkNone, false},
-	}
+	t.Run("creates specledger playbook metadata", func(t *testing.T) {
+		metadata := NewProjectMetadata("test-project", "tp", "specledger", "1.0.0", []string{".beads/", ".claude/"})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			metadata := NewProjectMetadata(tt.projName, tt.shortCode, tt.framework)
+		if metadata.Version != MetadataVersion {
+			t.Errorf("expected version %s, got %s", MetadataVersion, metadata.Version)
+		}
 
-			if metadata.Version != MetadataVersion {
-				t.Errorf("expected version %s, got %s", MetadataVersion, metadata.Version)
-			}
+		if metadata.Project.Name != "test-project" {
+			t.Errorf("expected name test-project, got %s", metadata.Project.Name)
+		}
 
-			if metadata.Project.Name != tt.projName {
-				t.Errorf("expected name %s, got %s", tt.projName, metadata.Project.Name)
-			}
+		if metadata.Project.ShortCode != "tp" {
+			t.Errorf("expected short code tp, got %s", metadata.Project.ShortCode)
+		}
 
-			if metadata.Project.ShortCode != tt.shortCode {
-				t.Errorf("expected short code %s, got %s", tt.shortCode, metadata.Project.ShortCode)
-			}
+		if metadata.Playbook.Name != "specledger" {
+			t.Errorf("expected playbook specledger, got %s", metadata.Playbook.Name)
+		}
 
-			if metadata.Framework.Choice != tt.framework {
-				t.Errorf("expected framework %s, got %s", tt.framework, metadata.Framework.Choice)
-			}
+		if metadata.Playbook.Version != "1.0.0" {
+			t.Errorf("expected playbook version 1.0.0, got %s", metadata.Playbook.Version)
+		}
 
-			if tt.wantAt && metadata.Framework.InstalledAt == nil {
-				t.Error("expected InstalledAt to be set")
-			}
+		if metadata.Playbook.AppliedAt == nil {
+			t.Error("expected AppliedAt to be set")
+		}
 
-			if !tt.wantAt && metadata.Framework.InstalledAt != nil {
-				t.Error("expected InstalledAt to be nil")
-			}
+		if len(metadata.Playbook.Structure) != 2 {
+			t.Errorf("expected 2 structure items, got %d", len(metadata.Playbook.Structure))
+		}
 
-			if metadata.Project.Version != "0.1.0" {
-				t.Errorf("expected project version 0.1.0, got %s", metadata.Project.Version)
-			}
+		if metadata.Project.Version != "0.1.0" {
+			t.Errorf("expected project version 0.1.0, got %s", metadata.Project.Version)
+		}
 
-			if len(metadata.Dependencies) != 0 {
-				t.Errorf("expected empty dependencies, got %d", len(metadata.Dependencies))
-			}
-		})
-	}
+		if len(metadata.Dependencies) != 0 {
+			t.Errorf("expected empty dependencies, got %d", len(metadata.Dependencies))
+		}
+	})
 }
 
 func TestSaveAndLoad(t *testing.T) {
@@ -79,8 +68,9 @@ func TestSaveAndLoad(t *testing.T) {
 			Modified:  now,
 			Version:   "0.1.0",
 		},
-		Framework: FrameworkInfo{
-			Choice: FrameworkSpecKit,
+		Playbook: PlaybookInfo{
+			Name:    "specledger",
+			Version: "1.0.0",
 		},
 		Dependencies: []Dependency{
 			{
@@ -122,8 +112,8 @@ func TestSaveAndLoad(t *testing.T) {
 		t.Errorf("short code mismatch: got %s, want %s", loaded.Project.ShortCode, metadata.Project.ShortCode)
 	}
 
-	if loaded.Framework.Choice != metadata.Framework.Choice {
-		t.Errorf("framework choice mismatch: got %s, want %s", loaded.Framework.Choice, metadata.Framework.Choice)
+	if loaded.Playbook.Name != metadata.Playbook.Name {
+		t.Errorf("playbook name mismatch: got %s, want %s", loaded.Playbook.Name, metadata.Playbook.Name)
 	}
 
 	if len(loaded.Dependencies) != len(metadata.Dependencies) {
@@ -144,7 +134,7 @@ func TestSaveToProjectAndLoadFromProject(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create test metadata
-	metadata := NewProjectMetadata("test-project", "tp", FrameworkNone)
+	metadata := NewProjectMetadata("test-project", "tp", "specledger", "1.0.0", []string{})
 
 	// Save to project
 	if err := SaveToProject(metadata, tmpDir); err != nil {
@@ -232,8 +222,9 @@ func TestSaveUpdatesModifiedTimestamp(t *testing.T) {
 			Modified:  past,
 			Version:   "0.1.0",
 		},
-		Framework: FrameworkInfo{
-			Choice: FrameworkNone,
+		Playbook: PlaybookInfo{
+			Name:    "specledger",
+			Version: "1.0.0",
 		},
 		Dependencies: []Dependency{},
 	}

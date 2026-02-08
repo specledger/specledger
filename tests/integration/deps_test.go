@@ -21,8 +21,7 @@ func TestDepsAddCommand(t *testing.T) {
 	cmd := exec.Command(slBinary, "new", "--ci",
 		"--project-name", "test-deps-project",
 		"--short-code", "tdp",
-		"--project-dir", tempDir,
-		"--framework", "none")
+		"--project-dir", tempDir)
 	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to create test project: %v\nOutput: %s", err, string(output))
@@ -83,8 +82,7 @@ func TestDepsListCommand(t *testing.T) {
 	cmd := exec.Command(slBinary, "new", "--ci",
 		"--project-name", "test-list-project",
 		"--short-code", "tlp",
-		"--project-dir", tempDir,
-		"--framework", "none")
+		"--project-dir", tempDir)
 	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to create test project: %v\nOutput: %s", err, string(output))
@@ -158,8 +156,7 @@ func TestDepsRemoveCommand(t *testing.T) {
 	cmd := exec.Command(slBinary, "new", "--ci",
 		"--project-name", "test-remove-project",
 		"--short-code", "trp",
-		"--project-dir", tempDir,
-		"--framework", "none")
+		"--project-dir", tempDir)
 	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to create test project: %v\nOutput: %s", err, string(output))
@@ -224,8 +221,7 @@ func TestDepsRemoveByURL(t *testing.T) {
 	cmd := exec.Command(slBinary, "new", "--ci",
 		"--project-name", "test-remove-url-project",
 		"--short-code", "trup",
-		"--project-dir", tempDir,
-		"--framework", "none")
+		"--project-dir", tempDir)
 	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to create test project: %v\nOutput: %s", err, string(output))
@@ -277,8 +273,7 @@ func TestDepsDuplicateDetection(t *testing.T) {
 	cmd := exec.Command(slBinary, "new", "--ci",
 		"--project-name", "test-dup-project",
 		"--short-code", "tdp",
-		"--project-dir", tempDir,
-		"--framework", "none")
+		"--project-dir", tempDir)
 	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to create test project: %v\nOutput: %s", err, string(output))
@@ -319,8 +314,7 @@ func TestDepsResolve(t *testing.T) {
 	cmd := exec.Command(slBinary, "new", "--ci",
 		"--project-name", "test-resolve-project",
 		"--short-code", "trp",
-		"--project-dir", tempDir,
-		"--framework", "none")
+		"--project-dir", tempDir)
 	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to create test project: %v\nOutput: %s", err, string(output))
@@ -368,8 +362,7 @@ func TestFindProjectRoot(t *testing.T) {
 	cmd := exec.Command(slBinary, "new", "--ci",
 		"--project-name", "test-root-project",
 		"--short-code", "trp",
-		"--project-dir", tempDir,
-		"--framework", "none")
+		"--project-dir", tempDir)
 	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to create test project: %v\nOutput: %s", err, string(output))

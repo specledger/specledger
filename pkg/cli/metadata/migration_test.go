@@ -133,8 +133,8 @@ func TestMigrateModToYAML(t *testing.T) {
 		t.Errorf("expected short code 'mt', got '%s'", metadata.Project.ShortCode)
 	}
 
-	if metadata.Framework.Choice != FrameworkNone {
-		t.Errorf("expected framework 'none', got '%s'", metadata.Framework.Choice)
+	if metadata.Playbook.Name != "specledger" {
+		t.Errorf("expected playbook 'specledger', got '%s'", metadata.Playbook.Name)
 	}
 
 	if metadata.Project.Version != "0.1.0" {
@@ -194,7 +194,7 @@ func TestMigrateModToYAMLAlreadyMigrated(t *testing.T) {
 		t.Fatalf("failed to write .mod file: %v", err)
 	}
 
-	metadata := NewProjectMetadata("test", "ts", FrameworkNone)
+	metadata := NewProjectMetadata("test", "ts", "specledger", "1.0.0", []string{})
 	if err := SaveToProject(metadata, tmpDir); err != nil {
 		t.Fatalf("failed to create YAML file: %v", err)
 	}
@@ -248,7 +248,7 @@ func TestHasYAMLMetadata(t *testing.T) {
 	}
 
 	// Create YAML file
-	metadata := NewProjectMetadata("test", "ts", FrameworkNone)
+	metadata := NewProjectMetadata("test", "ts", "specledger", "1.0.0", []string{})
 	if err := SaveToProject(metadata, tmpDir); err != nil {
 		t.Fatalf("failed to save metadata: %v", err)
 	}

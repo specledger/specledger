@@ -218,8 +218,7 @@ func TestDoctorInProjectDirectory(t *testing.T) {
 	cmd := exec.Command(slBinary, "new", "--ci",
 		"--project-name", "test-project",
 		"--short-code", "tp",
-		"--project-dir", tempDir,
-		"--framework", "none")
+		"--project-dir", tempDir)
 	cmd.Dir = tempDir
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to create test project: %v\nOutput: %s", err, string(output))

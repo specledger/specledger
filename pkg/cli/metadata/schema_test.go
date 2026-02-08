@@ -121,8 +121,9 @@ func TestProjectMetadataValidate(t *testing.T) {
 			Modified:  now,
 			Version:   "0.1.0",
 		},
-		Framework: FrameworkInfo{
-			Choice: FrameworkNone,
+		Playbook: PlaybookInfo{
+			Name:    "specledger",
+			Version: "1.0.0",
 		},
 		Dependencies: []Dependency{},
 	}
@@ -166,11 +167,11 @@ func TestProjectMetadataValidate(t *testing.T) {
 		}
 	})
 
-	t.Run("invalid framework choice", func(t *testing.T) {
+	t.Run("invalid playbook name", func(t *testing.T) {
 		m := *validMetadata
-		m.Framework.Choice = "invalid"
+		m.Playbook.Name = ""
 		if err := m.Validate(); err == nil {
-			t.Error("expected error for invalid framework choice")
+			t.Error("expected error for invalid playbook name")
 		}
 	})
 
@@ -198,34 +199,26 @@ func TestProjectMetadataValidate(t *testing.T) {
 	})
 }
 
-func TestFrameworkChoice(t *testing.T) {
-	validChoices := []FrameworkChoice{
-		FrameworkSpecKit,
-		FrameworkOpenSpec,
-		FrameworkBoth,
-		FrameworkNone,
-	}
-
-	for _, choice := range validChoices {
-		t.Run(string(choice), func(t *testing.T) {
-			metadata := &ProjectMetadata{
+func TestPlaybookValidation(t *testing.T) {
+	t.Run("valid specledger playbook", func(t *testing.T) {
+		metadata := &ProjectMetadata{
+			Version: "1.0.0",
+			Project: ProjectInfo{
+				Name:      "test",
+				ShortCode: "ts",
+				Created:   time.Now(),
+				Modified:  time.Now(),
+				Version:   "0.1.0",
+			},
+			Playbook: PlaybookInfo{
+				Name:    "specledger",
 				Version: "1.0.0",
-				Project: ProjectInfo{
-					Name:      "test",
-					ShortCode: "ts",
-					Created:   time.Now(),
-					Modified:  time.Now(),
-					Version:   "0.1.0",
-				},
-				Framework: FrameworkInfo{
-					Choice: choice,
-				},
-				Dependencies: []Dependency{},
-			}
+			},
+			Dependencies: []Dependency{},
+		}
 
-			if err := metadata.Validate(); err != nil {
-				t.Errorf("expected %s to be valid, got error: %v", choice, err)
-			}
-		})
-	}
+		if err := metadata.Validate(); err != nil {
+			t.Errorf("expected specledger playbook to be valid, got error: %v", err)
+		}
+	})
 }

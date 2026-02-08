@@ -26,8 +26,7 @@ func TestBootstrapNewCI(t *testing.T) {
 	cmd := exec.Command(slBinary, "new", "--ci",
 		"--project-name", projectName,
 		"--short-code", shortCode,
-		"--project-dir", tempDir,
-		"--framework", "none")
+		"--project-dir", tempDir)
 	cmd.Dir = tempDir
 
 	output, err := cmd.CombinedOutput()
@@ -54,8 +53,8 @@ func TestBootstrapNewCI(t *testing.T) {
 	if meta.Project.ShortCode != shortCode {
 		t.Errorf("Expected short code %s, got %s", shortCode, meta.Project.ShortCode)
 	}
-	if meta.Framework.Choice != metadata.FrameworkNone {
-		t.Errorf("Expected framework 'none', got %s", meta.Framework.Choice)
+	if meta.Playbook.Name != "specledger" {
+		t.Errorf("Expected playbook 'specledger', got %s", meta.Playbook.Name)
 	}
 
 	// Verify .beads directory was created
@@ -77,52 +76,44 @@ func TestBootstrapNewCI(t *testing.T) {
 	}
 }
 
-// TestBootstrapNewWithFramework tests bootstrap with different framework choices
-func TestBootstrapNewWithFramework(t *testing.T) {
+// TestBootstrapNewWithPlaybook tests bootstrap with playbook applied
+func TestBootstrapNewWithPlaybook(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Build the sl binary using the helper
 	slBinary := buildSLBinary(t, tempDir)
 
-	frameworks := []struct {
-		name      string
-		framework metadata.FrameworkChoice
-	}{
-		{"none", metadata.FrameworkNone},
-		{"speckit", metadata.FrameworkSpecKit},
-		{"openspec", metadata.FrameworkOpenSpec},
-		// Note: "both" is tested but won't fully initialize without frameworks installed
+	projectName := "test-project-playbook"
+	projectPath := filepath.Join(tempDir, projectName)
+
+	cmd := exec.Command(slBinary, "new", "--ci",
+		"--project-name", projectName,
+		"--short-code", "tp",
+		"--project-dir", tempDir)
+	cmd.Dir = tempDir
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("sl new failed: %v\nOutput: %s", err, string(output))
 	}
 
-	for _, tc := range frameworks {
-		t.Run(tc.name, func(t *testing.T) {
-			projectName := "test-project-" + tc.name
-			projectPath := filepath.Join(tempDir, projectName)
+	// Verify specledger.yaml has playbook applied
+	yamlPath := filepath.Join(projectPath, "specledger", "specledger.yaml")
+	meta, err := metadata.Load(yamlPath)
+	if err != nil {
+		t.Fatalf("Failed to load specledger.yaml: %v", err)
+	}
 
-			cmd := exec.Command(slBinary, "new", "--ci",
-				"--project-name", projectName,
-				"--short-code", tc.name[:2],
-				"--project-dir", tempDir,
-				"--framework", string(tc.framework))
-			cmd.Dir = tempDir
+	if meta.Playbook.Name != "specledger" {
+		t.Errorf("Expected playbook 'specledger', got %s", meta.Playbook.Name)
+	}
 
-			output, err := cmd.CombinedOutput()
-			if err != nil {
-				// Framework install may fail if mise isn't set up, but bootstrap should continue
-				t.Logf("sl new output (may have warnings): %s", string(output))
-			}
+	if meta.Playbook.Version == "" {
+		t.Errorf("Expected playbook version to be set")
+	}
 
-			// Verify specledger.yaml has correct framework choice
-			yamlPath := filepath.Join(projectPath, "specledger", "specledger.yaml")
-			meta, err := metadata.Load(yamlPath)
-			if err != nil {
-				t.Fatalf("Failed to load specledger.yaml: %v", err)
-			}
-
-			if meta.Framework.Choice != tc.framework {
-				t.Errorf("Expected framework '%s', got %s", tc.framework, meta.Framework.Choice)
-			}
-		})
+	if len(meta.Playbook.Structure) == 0 {
+		t.Errorf("Expected playbook structure to be set")
 	}
 }
 
@@ -155,9 +146,9 @@ func TestBootstrapInitInExistingDirectory(t *testing.T) {
 		t.Fatalf("Failed to load specledger.yaml: %v", err)
 	}
 
-	// Verify default framework is "none" for sl init
-	if meta.Framework.Choice != metadata.FrameworkNone {
-		t.Errorf("Expected framework 'none' for sl init, got %s", meta.Framework.Choice)
+	// Verify default playbook is "specledger" for sl init
+	if meta.Playbook.Name != "specledger" {
+		t.Errorf("Expected playbook 'specledger' for sl init, got %s", meta.Playbook.Name)
 	}
 
 	// Verify .beads was created
@@ -184,8 +175,7 @@ func TestBootstrapPrerequisiteChecking(t *testing.T) {
 	cmd := exec.Command(slBinary, "new", "--ci",
 		"--project-name", projectName,
 		"--short-code", "pr",
-		"--project-dir", tempDir,
-		"--framework", "none")
+		"--project-dir", tempDir)
 	cmd.Dir = tempDir
 
 	output, err := cmd.CombinedOutput()

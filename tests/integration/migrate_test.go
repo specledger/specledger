@@ -73,9 +73,9 @@ func TestMigrateModToYAML(t *testing.T) {
 		t.Errorf("Expected short code 'tmp', got '%s'", meta.Project.ShortCode)
 	}
 
-	// Migrated projects should default to "none" framework
-	if meta.Framework.Choice != metadata.FrameworkNone {
-		t.Errorf("Expected framework 'none' for migrated project, got '%s'", meta.Framework.Choice)
+	// Migrated projects should have specledger playbook
+	if meta.Playbook.Name != "specledger" {
+		t.Errorf("Expected playbook 'specledger' for migrated project, got '%s'", meta.Playbook.Name)
 	}
 
 	// Verify .mod file was backed up
@@ -187,7 +187,7 @@ func TestMigrateAlreadyMigrated(t *testing.T) {
 
 	// Create YAML file (simulating already migrated)
 	yamlPath := filepath.Join(specledgerDir, "specledger.yaml")
-	meta := metadata.NewProjectMetadata("test-already-migrated", "tam", metadata.FrameworkNone)
+	meta := metadata.NewProjectMetadata("test-already-migrated", "tam", "specledger", "1.0.0", []string{})
 	if err := metadata.Save(meta, yamlPath); err != nil {
 		t.Fatalf("Failed to create YAML file: %v", err)
 	}
