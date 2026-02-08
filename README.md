@@ -113,22 +113,15 @@ sl deps resolve
 | `sl deps add <url> --alias <name>` | Add with alias for AI import paths |
 | `sl deps remove <url>` | Remove a dependency |
 | `sl deps resolve` | Download and cache dependencies |
+| `sl deps update` | Update dependencies to latest versions |
 
 ### Workflows
 
 | Command | Description |
 |---------|-------------|
 | `sl playbook` | Run SDD playbook workflows |
-| `sl graph` | Show dependency graph |
-| `sl refs` | Manage reference resolution |
-
-### Utilities
-
-| Command | Description |
-|---------|-------------|
-| `sl migrate` | Convert legacy `specledger.mod` to `specledger.yaml` |
-| `sl vendor list` | List vendored dependencies |
-| `sl vendor add <url>` | Add a vendored dependency |
+| `sl graph show` | Show dependency graph |
+| `sl graph export` | Export dependency graph |
 
 ## Documentation
 
