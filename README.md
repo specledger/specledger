@@ -1,30 +1,152 @@
-# specledger
+# SpecLedger
 
-This system is a **team-scale, LLM-driven Specification-Driven Development (SDD) platform** that treats specifications, plans, and decisions as first-class, persistent artifacts - not ephemeral chat output or secondary documentation.
+[![Build Status](https://img.shields.io/github/actions/workflow/status/specledger/specledger/ci.yml?branch=main)](https://github.com/specledger/specledger/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/specledger/specledger)](https://goreportcard.com/report/github.com/specledger/specledger)
+[![Coverage](https://img.shields.io/codecov/c/github/specledger/specledger)](https://codecov.io/gh/specledger/specledger)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/github/v/release/specledger/specledger)](https://github.com/specledger/specledger/releases)
 
-Built on the foundations popularized by **Kiro IDE**, **spec-kit**, and **Google Conductor**, the system extends SDD beyond single-developer workflows into a **shared, auditable, and scalable collaboration model** for humans and LLM agents.
+> All-in-one SDD Playbook for modern development teams
 
-At its core, the platform introduces a **remote control plane** that captures and links:
+SpecLedger (`sl`) is a comprehensive Specification-Driven Development playbook that unifies project creation, customizable workflows, issue tracking, and specification dependency management.
 
-* Specifications (PRDs, user stories, acceptance criteria)
-* Implementation plans, research, and technical decisions
-* Generated task graphs with dependencies and priorities
-* Execution history from LLM coding agents and human interventions
+**Documentation**: [https://specledger.io/docs](https://specledger.io/docs) | **Website**: [https://specledger.io](https://specledger.io)
 
-Each phase of work - **specification, planning, task generation, and implementation** - is executed through LLM-assisted commands, but every decision, clarification, and alternative explored is **checkpointed and versioned** on a shared server. This enables branching, comparison of approaches, and safe rollback, while preserving the full reasoning trail behind every outcome.
+## What is SpecLedger?
 
-The system integrates a **spec-native issue tracker** that maps cleanly to SDD concepts:
+SpecLedger is an **all-in-one SDD playbook** that provides:
 
-* Epics → Specification branches
-* Features → Planned phases and user stories
-* Tasks → Executable, agent-driven units of work
+- **Easy Bootstrap** - Create new projects with a single command
+- **Customizable Playbooks** - Support for multiple SDD playbook workflows
+- **Issue Tracking** - Built-in task tracking with Beads integration
+- **Spec Dependencies** - Manage and track specification dependencies across projects
+- **Tool Checking** - Ensures all required tools are installed and configured
+- **Workflow Orchestration** - End-to-end workflows from spec to deployment
 
-LLM coding agents operate directly against this tracker, pulling “ready” work, executing tasks in isolated shells, and attaching their full session context (prompts, file diffs, decisions) back to the task. This ensures that **implementation history becomes shared knowledge**, accessible to both humans and machines.
+## Features
 
-By decoupling SDD from any single IDE or model and combining it with persistent session storage (inspired by systems like **Depot**), the platform delivers:
+- **All-in-One SDD**: Complete Specification-Driven Development workflow built-in
+- **Interactive TUI**: Create projects with a beautiful terminal interface
+- **Prerequisites Checking**: Automatically detect and install required tools (mise, bd, perles)
+- **Dependency Management**: Add, remove, and list spec dependencies
+- **YAML Metadata**: Modern, human-readable project configuration with `specledger.yaml`
+- **Local Caching**: Dependencies are cached locally at `~/.specledger/cache` for offline use
+- **LLM Integration**: Cached specs can be easily referenced by AI agents
+- **Cross-Platform**: Works on Linux, macOS, and Windows
 
-* Model-agnostic, CLI-first workflows
-* Team-wide consistency and governance
-* Traceability from intent → plan → code → production feedback
+## Installation
 
-In short, this system turns SDD from a powerful individual practice into a **repeatable, observable, and collaborative engineering discipline**, enabling teams to truly *measure twice and code once* - even in an AI-accelerated world.
+### Quick Install (Recommended)
+
+```bash
+# Install via Homebrew
+brew tap specledger/homebrew-specledger
+brew install specledger
+
+# Or install via one-line script
+curl -fsSL https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | bash
+```
+
+### From Source
+
+```bash
+git clone https://github.com/specledger/specledger.git
+cd specledger
+make install
+```
+
+### Package Managers
+
+```bash
+# Homebrew
+brew tap specledger/homebrew-specledger
+brew install specledger
+
+# npm / npx
+npx @specledger/cli@latest --help
+```
+
+## Quick Start
+
+```bash
+# Create a new project (interactive mode)
+sl new
+
+# Create a project (non-interactive mode)
+sl new --ci --project-name myproject --short-code mp
+
+# Initialize in existing repository
+sl init
+
+# Check required tools
+sl doctor
+
+# Manage dependencies
+sl deps add git@github.com:org/api-spec
+sl deps list
+sl deps resolve
+```
+
+## Commands
+
+### Project Creation
+
+| Command | Description |
+|---------|-------------|
+| `sl new` | Create a new project (interactive TUI) |
+| `sl new --ci --project-name <name> --short-code <code>` | Create a project (non-interactive) |
+| `sl init` | Initialize SpecLedger in an existing repository |
+
+### Diagnostics
+
+| Command | Description |
+|---------|-------------|
+| `sl doctor` | Check installation status of all required tools |
+| `sl doctor --json` | Get tool status in JSON format for CI/CD |
+
+### Dependencies
+
+| Command | Description |
+|---------|-------------|
+| `sl deps list` | List all dependencies |
+| `sl deps add <url>` | Add a dependency |
+| `sl deps add <url> --alias <name>` | Add with alias for AI import paths |
+| `sl deps remove <url>` | Remove a dependency |
+| `sl deps resolve` | Download and cache dependencies |
+| `sl deps update` | Update dependencies to latest versions |
+
+### Workflows
+
+| Command | Description |
+|---------|-------------|
+| `sl playbook` | Run SDD playbook workflows |
+| `sl graph show` | Show dependency graph |
+| `sl graph export` | Export dependency graph |
+
+## Documentation
+
+Full documentation is available at [https://specledger.io/docs](https://specledger.io/docs)
+
+- **Getting Started**: Installation and first project setup
+- **User Guide**: Complete command reference and workflows
+- **Contributing**: Development setup and contribution guidelines
+- **Governance**: Project governance and decision-making
+
+## Tech Stack
+
+- **Go 1.24+** - Core language
+- **Cobra** - Command-line interface
+- **Bubble Tea** - Terminal UI
+- **go-git** - Git operations
+- **YAML v3** - Configuration parsing
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+## Support
+
+- **Documentation**: [https://specledger.io/docs](https://specledger.io/docs)
+- **Issues**: [GitHub Issues](https://github.com/specledger/specledger/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/specledger/specledger/discussions)
+- **Website**: [https://specledger.io](https://specledger.io)

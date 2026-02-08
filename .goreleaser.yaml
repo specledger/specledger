@@ -1,0 +1,152 @@
+# .goreleaser.yaml - GitHub Releases Configuration
+# Enables cross-platform builds and automated release creation
+
+before:
+  hooks:
+    - go mod tidy
+    - go generate ./...
+
+env:
+  GO111MODULE: auto
+  CGO_ENABLED: 0
+
+checksum:
+  name_template: 'checksums.txt'
+
+changelog:
+  sort: asc
+  use: github
+  groups:
+    - title: 'Features'
+      regex: '^feat[\s].*'
+      order: 100
+    - title: 'Under the Hood'
+      regex: '^fix[\s].*|^perf[\s].*'
+      order: 200
+    - title: 'Other Changes'
+      order: 300
+
+builds:
+  - env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+      - arm
+    goarm:
+      - 7
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+
+archives:
+  - format: tar.gz
+    format_overrides:
+      - goos: windows
+        format: zip
+    name_template: '{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
+    files:
+      - LICENSE
+      - README.md
+    strip_parent: true
+
+nfpms:
+  - vendor: specledger
+    maintainer: 'SpecLedger Team <contact@specledger.dev>'
+    homepage: 'https://github.com/specledger/specledger'
+    description: 'Unified CLI for project bootstrap and specification dependency management'
+    license: MIT
+    bindir: /usr/bin
+    formats:
+      - deb
+      - rpm
+    dependencies:
+      - glibc (>= 2.17)
+
+brews:
+  - name: specledger
+    tap:
+      owner: specledger
+      name: homebrew-specledger
+    homepage: 'https://github.com/specledger/specledger'
+    description: 'Unified CLI for project bootstrap and specification dependency management'
+    license: MIT
+    url_template: 'https://github.com/specledger/specledger/releases/download/{{ .Tag }}/{{ .ArtifactName }}'
+    skip_upload: true
+    commit_msg_template: 'Brew formula update for {{ .Tag }}'
+
+snapcrafts:
+  - name: specledger
+    summary: 'Unified CLI for project bootstrap and specification dependency management'
+    description: |
+      SpecLedger provides a unified CLI tool for project bootstrap with interactive TUI
+      and specification dependency management.
+
+      Features:
+      - Interactive TUI for project bootstrap
+      - Non-interactive mode for CI/CD
+      - Specification dependency management
+      - Multiple distribution channels
+
+      Installation:
+      - Download binary from GitHub Releases
+      - Build from source
+      - Install via Homebrew, Snap, or package managers
+
+    grade: stable
+    confinement: classic
+    base: core18
+
+checksum:
+  name_template: 'checksums.txt'
+
+release:
+  github:
+    owner: specledger
+    name: specledger
+
+  prerelease: auto
+  draft: false
+
+  mode: replace
+  header: |
+    ## 🚀 SpecLedger {{ .Tag }}
+
+    {{ .Changelog }}
+
+  footer: |
+    ## 📦 Installation
+
+    ### Binary
+    Download from the [releases page](https://github.com/specledger/specledger/releases/latest).
+
+    ### Homebrew
+    ```bash
+    brew install specledger
+    ```
+
+    ### Snap
+    ```bash
+    sudo snap install specledger
+    ```
+
+    ### Source
+    ```bash
+    git clone https://github.com/your-org/specledger.git
+    cd specledger
+    make build
+    ```
+
+    ### From source
+    ```bash
+    go install github.com/specledger/specledger/cmd/sl@latest
+    ```
+
+    ## 📚 Documentation
+
+    - [Documentation](https://specledger.io/docs)
+    - [GitHub Issues](https://github.com/specledger/specledger/issues)
+    - [Changelog](https://github.com/specledger/specledger/blob/main/CHANGELOG.md)

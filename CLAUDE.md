@@ -1,42 +1,34 @@
-# CLAUDE.md
+# specledger Development Guidelines
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+Auto-generated from all feature plans. Last updated: 2026-02-05
 
-**Note**: This project uses [bd (beads)](https://github.com/steveyegge/beads) for issue tracking. Use `bd` commands instead of markdown TODOs. See AGENTS.md for workflow details.
+## Active Technologies
+- File system (templates embedded in codebase at `templates/`, copied to user projects) (001-embedded-templates)
+- Go 1.24+ (current: 1.24.2) + Cobra (CLI), Bubble Tea (TUI), go-git (v5), YAML v3, GoReleaser (006-opensource-readiness)
+- GitHub repository (https://github.com/specledger/specledger), Documentation hosted separately (006-opensource-readiness)
 
-## Project Overview
+- Go 1.24+ (004-thin-wrapper-redesign)
 
-This is a neobrutalist landing page for TerraConstructs, a CDKTF L2 Constructs library. The page showcases TypeScript, Go, and Python code examples with interactive syntax highlighting and live Terraform synthesis demos.
+## Project Structure
 
-## Beads (Issue Tracking) Best Practices
-
-### ⚠️ CRITICAL: Avoid Context Exhaustion with bd list
-
-**NEVER run `bd list` without rigorous filtering or limits!** This will kill your context:
-
-```bash
-# ❌ DANGER: Even CLI can consume 5k-15k tokens without filters
-bd list  # Lists ALL issues with full descriptions
-
-# ✅ SAFE: Always use specific filters
-bd search "database" --limit 10
-bd list --status open --priority 1 --limit 5
-
-# ✅ BETTER: Use targeted queries
-bd ready --limit 5 # CLI: Find unblocked issues
-bd show sl-xxxx  # CLI: View one issue
+```text
+src/
+tests/
 ```
 
-### Workflow Pattern
+## Commands
 
-1. Create issue: `bd create` with full description
-2. Update progress: `bd comments add`
-3. Update status: `bd update` for status/priority changes
-4. Close issue: `bd close` with reason
+# Add commands for Go 1.24+
 
-### Common Commands
+## Code Style
 
-```bash
-bd show sl-xxxx && bd comments sl-xxxx # View issue details + comments
-bd ready --limit 5                         # Find issues ready to work on
-```
+Go 1.24+: Follow standard conventions
+
+## Recent Changes
+- 006-opensource-readiness: Added Go 1.24+ (current: 1.24.2) + Cobra (CLI), Bubble Tea (TUI), go-git (v5), YAML v3, GoReleaser
+- 001-embedded-templates: Added Go 1.24+
+
+- 004-thin-wrapper-redesign: Added Go 1.24+
+
+<!-- MANUAL ADDITIONS START -->
+<!-- MANUAL ADDITIONS END -->

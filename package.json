@@ -1,0 +1,38 @@
+{
+  "name": "@specledger/cli",
+  "version": "1.0.0",
+  "description": "Unified CLI for project bootstrap and specification dependency management",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/specledger/specledger.git"
+  },
+  "homepage": "specledger.io",
+  "bin": {
+    "sl": "./bin/sl",
+    "specledger": "./bin/sl"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "keywords": [
+    "cli",
+    "specification",
+    "dependency",
+    "management",
+    "bootstrap",
+    "tui",
+    "bubble-tea"
+  ],
+  "author": {
+    "name": "SpecLedger Team",
+    "email": "contact@specledger.io"
+  },
+  "files": [
+    "bin/sl"
+  ],
+  "funding": {
+    "type": "github",
+    "url": "https://github.com/sponsors/specledger"
+  }
+}
