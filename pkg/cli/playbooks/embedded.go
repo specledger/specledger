@@ -68,6 +68,12 @@ func (s *EmbeddedSource) getPlaybook(name string) (*Playbook, error) {
 	return nil, fmt.Errorf("playbook not found: %s", name)
 }
 
+// GetPlaybook retrieves a playbook by name.
+// Returns the playbook with the matching name, or an error if not found.
+func (s *EmbeddedSource) GetPlaybook(name string) (*Playbook, error) {
+	return s.getPlaybook(name)
+}
+
 // GetDefaultPlaybook returns the first available playbook.
 // For now, there's only one playbook (specledger).
 func (s *EmbeddedSource) GetDefaultPlaybook() (*Playbook, error) {

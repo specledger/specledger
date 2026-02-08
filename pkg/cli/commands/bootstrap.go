@@ -25,6 +25,7 @@ var (
 	ciFlag          bool
 	// Init-specific flags
 	initShortCodeFlag string
+	initPlaybookFlag  string
 	initForceFlag     bool
 )
 
@@ -78,6 +79,7 @@ This adds SpecLedger to an existing project without creating a new directory.
 Usage:
   sl init
   sl init --short-code abc
+  sl init --playbook specledger
 
 The init creates:
 - .claude/ directory with skills
@@ -113,6 +115,7 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 	projectName := answers["project_name"]
 	projectDir := answers["project_dir"]
 	shortCode := answers["short_code"]
+	playbookName := answers["playbook"]
 
 	// Check prerequisites before starting
 	fmt.Println()
@@ -144,15 +147,15 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 		return fmt.Errorf("failed to create project directory: %w", err)
 	}
 
-	// Apply embedded playbooks
-	playbookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath)
+	// Apply embedded playbooks (use TUI selection or default)
+	selectedPlaybookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath, playbookName)
 	if err != nil {
 		// Playbook application failure is not fatal - log and continue
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
 	}
 
 	// Create YAML metadata with playbook info
-	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, playbookName, playbookVersion, playbookStructure)
+	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, selectedPlaybookName, playbookVersion, playbookStructure)
 	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
 		return fmt.Errorf("failed to create project metadata: %w", err)
 	}
@@ -218,15 +221,15 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 		return ErrPermissionDenied(projectPath)
 	}
 
-	// Apply embedded playbooks
-	playbookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath)
+	// Apply embedded playbooks (use default for CI mode)
+	selectedPlaybookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath, "")
 	if err != nil {
 		// Playbook application failure is not fatal - log and continue
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
 	}
 
 	// Create YAML metadata with playbook info
-	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, playbookName, playbookVersion, playbookStructure)
+	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, selectedPlaybookName, playbookVersion, playbookStructure)
 	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
 		return fmt.Errorf("failed to create project metadata: %w", err)
 	}
@@ -290,17 +293,20 @@ func runInit(l *logger.Logger) error {
 	fmt.Printf("  Directory:  %s\n", ui.Bold(projectPath))
 	fmt.Printf("  Project:    %s\n", ui.Bold(projectName))
 	fmt.Printf("  Short Code: %s\n", ui.Bold(shortCode))
+	if initPlaybookFlag != "" {
+		fmt.Printf("  Playbook:   %s\n", ui.Bold(initPlaybookFlag))
+	}
 	fmt.Println()
 
-	// Apply embedded playbooks
-	playbookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath)
+	// Apply embedded playbooks (use flag if provided, otherwise default)
+	selectedPlaybookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath, initPlaybookFlag)
 	if err != nil {
 		// Playbook application failure is not fatal - log and continue
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
 	}
 
 	// Create YAML metadata with playbook info
-	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, playbookName, playbookVersion, playbookStructure)
+	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, selectedPlaybookName, playbookVersion, playbookStructure)
 	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
 		return fmt.Errorf("failed to create project metadata: %w", err)
 	}
@@ -410,6 +416,7 @@ func init() {
 
 	// Flags for 'init' command
 	VarInitCmd.PersistentFlags().StringVarP(&initShortCodeFlag, "short-code", "s", "", "Short code for issue IDs (2-4 letters)")
+	VarInitCmd.PersistentFlags().StringVarP(&initPlaybookFlag, "playbook", "p", "", "Playbook to apply (default: specledger)")
 	VarInitCmd.PersistentFlags().BoolVarP(&initForceFlag, "force", "", false, "Force initialize even if SpecLedger files exist")
 }
 

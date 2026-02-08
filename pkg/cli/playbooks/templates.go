@@ -7,9 +7,9 @@ import (
 
 // ApplyToProject applies playbooks to a project.
 // This is the main entry point for playbook copying during project creation.
-// It automatically selects the appropriate playbook (currently always "specledger").
+// If playbookName is empty, it uses the default playbook (currently "specledger").
 // Returns the playbook name, version, and structure.
-func ApplyToProject(projectPath, framework string) (string, string, []string, error) {
+func ApplyToProject(projectPath, playbookName string) (string, string, []string, error) {
 	source, err := NewEmbeddedSource()
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to initialize playbook source: %w", err)
@@ -20,10 +20,18 @@ func ApplyToProject(projectPath, framework string) (string, string, []string, er
 		return "", "", nil, fmt.Errorf("playbook validation failed: %w", err)
 	}
 
-	// Get the first available playbook
-	playbook, err := source.GetDefaultPlaybook()
-	if err != nil {
-		return "", "", nil, fmt.Errorf("failed to get playbook: %w", err)
+	// Get the playbook - use default if not specified
+	var playbook *Playbook
+	if playbookName == "" {
+		playbook, err = source.GetDefaultPlaybook()
+		if err != nil {
+			return "", "", nil, fmt.Errorf("failed to get default playbook: %w", err)
+		}
+	} else {
+		playbook, err = source.getPlaybook(playbookName)
+		if err != nil {
+			return "", "", nil, fmt.Errorf("failed to get playbook '%s': %w", playbookName, err)
+		}
 	}
 
 	// Copy playbooks
