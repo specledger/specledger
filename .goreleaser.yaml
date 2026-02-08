@@ -1,5 +1,6 @@
 # .goreleaser.yaml - GitHub Releases Configuration
 # Enables cross-platform builds and automated release creation
+version: 2
 
 before:
   hooks:
@@ -69,15 +70,10 @@ nfpms:
 
 brews:
   - name: specledger
-    tap:
-      owner: specledger
-      name: homebrew-specledger
     homepage: 'https://github.com/specledger/specledger'
     description: 'Unified CLI for project bootstrap and specification dependency management'
     license: MIT
-    url_template: 'https://github.com/specledger/specledger/releases/download/{{ .Tag }}/{{ .ArtifactName }}'
     skip_upload: true
-    commit_msg_template: 'Brew formula update for {{ .Tag }}'
 
 snapcrafts:
   - name: specledger
