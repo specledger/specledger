@@ -1,294 +1,238 @@
 ---
-name: specledger-deps
-description: Manage specification dependencies using the SpecLedger CLI deps commands. Use when working with external specification dependencies, dependency resolution, or linking specs across repositories.
+name: sl-deps
+description: Manage specification dependencies with sl deps commands. Use when adding, listing, removing, or resolving spec dependencies in a SpecLedger project.
 ---
 
-# SpecLedger Dependency Management
+# sl deps Dependency Management
 
 ## Overview
 
-The SpecLedger CLI provides commands to manage external specification dependencies. Dependencies are specified in `specledger/specledger.yaml`, downloaded and cached locally at `~/.specledger/cache/` (similar to Go's module cache), and can be easily referenced by LLMs.
+`sl deps` commands manage external specification dependencies stored in `specledger/specledger.yaml`. Dependencies are Git repositories containing specification documents that this project references or depends on.
 
 ## When to Use
 
-Use this skill when:
-- **Adding new dependencies** - Referencing specs from other repositories
-- **Listing dependencies** - Understanding what specs a project depends on
-- **Downloading dependencies** - Fetching and caching external specs for offline use
-- **Updating dependencies** - Keeping specs at the latest compatible version
-- **Removing dependencies** - Cleaning up unused spec references
+Use `sl deps` when you need to:
+- **Add a dependency** on an external specification
+- **List current dependencies** to see what specs are referenced
+- **Remove a dependency** that's no longer needed
+- **Resolve/checkout dependencies** to work with them locally
+- **View dependency graph** to understand relationships
 
-## How Caching Works
+## Project Context
 
-Dependencies are cached locally at `~/.specledger/cache/`:
+`sl deps` commands must be run from within a SpecLedger project directory (one containing `specledger/specledger.yaml`).
 
-- **Automatic download**: `sl deps resolve` downloads all dependencies
-- **Offline access**: Once cached, specs are available offline
-- **LLM integration**: Cached specs can be easily read and referenced by AI agents
-- **Version pinning**: Each cached version has a cryptographic hash (in specledger.sum)
+### Finding Project Root
 
-```
-~/.specledger/cache/
-└── github.com/
-    └── org/
-        └── api-spec/
-            └── a1b2c3d/           # Commit hash
-                └── spec.md        # Cached spec file
-```
+The `sl deps` commands automatically find the project root by searching for `specledger/specledger.yaml` in parent directories. This means you can run commands from any subdirectory within your project.
 
-## CLI Commands Reference
-
-| Command | Description |
-|---------|-------------|
-| `sl deps add <repo-url>` | Add a specification dependency |
-| `sl deps list` | List all declared dependencies |
-| `sl deps resolve` | Download and cache all dependencies |
-| `sl deps update` | Update dependencies to latest versions |
-| `sl deps remove <repo-url>` | Remove a dependency |
-
-### Adding Dependencies
-
-**Basic usage:**
+Example:
 ```bash
-sl deps add git@github.com:org/project-spec
+cd src/components  # Deep in project tree
+sl deps list        # Still works - finds project root automatically
 ```
 
-**With branch and spec path:**
-```bash
-sl deps add git@github.com:org/project-spec main specs/api.md
-```
+## Available Commands
 
-**With alias:**
-```bash
-sl deps add git@github.com:org/project-spec --alias myapi
-```
+### sl deps list
 
-**What happens:**
-- The dependency is added to `specledger/specledger.yaml`
-- It will be downloaded when you run `sl deps resolve`
-- Once downloaded, it's cached locally for offline use
-
-### Listing Dependencies
+List all dependencies in the current project.
 
 ```bash
 sl deps list
 ```
 
-Output:
+**Output includes:**
+- Dependency URL
+- Branch name
+- File path (within the dependency)
+- Alias (short name for reference)
+- Current status (resolved/unresolved)
+
+**When to use:**
+- Check what dependencies exist before adding new ones
+- Verify a dependency was added successfully
+- Review all external specs this project references
+
+### sl deps add
+
+Add a new specification dependency.
+
+```bash
+# Full syntax
+sl deps add <git-url> [<branch>] [<path>] [--alias <name>]
+
+# Examples
+sl deps add git@github.com:org/specs main specs/api.md
+sl deps add https://github.com/org/specs.git --alias api-specs
+sl deps add git@github.com:user/repo main docs/spec.md --alias user-repo-spec
 ```
-Dependencies (2):
 
-1. git@github.com:org/project-spec
-   Version: main
-   Spec: spec.md
-   Cached: ✓
-   Alias: myapi
+**Parameters:**
+- `<git-url>`: Git repository URL (required)
+  - SSH: `git@github.com:org/repo.git`
+  - HTTPS: `https://github.com/org/repo.git`
+- `<branch>`: Branch name (default: `main`)
+- `<path>`: Path to spec file within repo (default: root)
+- `--alias <name>`: Short reference name (optional)
 
-2. git@github.com:org/referenced-spec
-   Version: v1.0
-   Spec: spec.md
-   Cached: ✗ (not downloaded yet)
+**When to use:**
+- This project needs to reference another specification
+- Building on top of existing spec documents
+- Creating a dependency graph between related specs
+
+### sl deps remove
+
+Remove a dependency by URL or alias.
+
+```bash
+sl deps remove <url-or-alias>
+sl deps remove git@github.com:org/specs.git
+sl deps remove api-specs  # Using alias
 ```
 
-### Resolving (Downloading) Dependencies
+**When to use:**
+- Dependency is no longer relevant
+- Replacing with a different reference
+- Cleaning up unused dependencies
+
+### sl deps resolve
+
+Checkout/update dependencies locally for offline access.
 
 ```bash
 sl deps resolve
 ```
 
-This command:
-1. Reads `specledger/specledger.yaml`
-2. Fetches external specifications from Git
-3. Validates versions and commits
-4. Caches them locally at `~/.specledger/cache/`
-5. Generates `specledger/specledger.sum` with cryptographic hashes
+**What it does:**
+- Clones dependencies to `specledger/deps/` directory
+- Resolves commit SHAs for reproducibility
+- Stores resolved commit in metadata
 
-**After running this:**
-- Dependencies are available offline
-- LLMs can read and reference the cached specs
-- Reproducible builds with locked hashes
+**When to use:**
+- Need offline access to dependencies
+- Want to pin specific commits for reproducibility
+- Preparing for work without internet access
 
-### Updating Dependencies
+### sl deps graph
 
-```bash
-# Update all dependencies to latest compatible versions
-sl deps update
-
-# Update specific dependency
-sl deps update git@github.com:org/project-spec
-```
-
-### Removing Dependencies
+Display dependency relationships as a graph.
 
 ```bash
-sl deps remove git@github.com:org/project-spec
+sl deps graph
 ```
 
-**Note:** The local cache is kept (for potential future use).
+**Output:**
+- Visual representation of dependency tree
+- Shows which specs depend on others
+- Helps understand impact of changes
 
-## Dependency Workflow
+## Dependency Storage
 
-### Typical Project Setup
+Dependencies are stored in `specledger/specledger.yaml`:
 
-```bash
-# 1. Initialize a new project
-sl new
-
-# 2. Add your first dependency
-sl deps add git@github.com:org/spec-base --alias base
-
-# 3. Resolve to fetch and cache
-sl deps resolve
-
-# 4. Add more dependencies as needed
-sl deps add git@github.com:org/ui-specs
-
-# 5. Resolve again
-sl deps resolve
-```
-
-### Working with Dependencies in Specs
-
-**In markdown specs:**
-```markdown
-# User Authentication Spec
-
-## Dependencies
-- `base` (git@github.com:org/spec-base/main/specs/auth-base.md)
-
-## Content
-This spec extends the base authentication specification...
-```
-
-**For LLM reference:**
-```markdown
-## API Integration
-
-This component depends on: `api` (git@github.com:org/api-spec/main/specs/api.md)
-
-Cached at: ~/.specledger/cache/github.com/org/api-spec/<commit>/specs/api.md
-```
-
-## Dependency Format
-
-**spec.mod file structure:**
 ```yaml
-manifest_version: 1
 dependencies:
-  - repository_url: git@github.com:org/project-spec
-    version: main
-    spec_path: spec.md
-    alias: myproject
-    added_at: 2024-01-15T10:00:00Z
+  - url: git@github.com:org/specs.git
+    branch: main
+    path: spec.md
+    alias: org-spec
+    resolved_commit: abc123...
 ```
 
-**specledger.sum file structure:**
-```json
-{
-  "lockfile_version": "1",
-  "dependencies": [
-    {
-      "repository_url": "git@github.com:org/project-spec",
-      "commit_hash": "abc123def456",
-      "content_hash": "xyz789",
-      "spec_path": "spec.md",
-      "branch": "main",
-      "size": 1024,
-      "fetched_at": "2024-01-15T10:00:00Z"
-    }
-  ],
-  "generated_at": "2024-01-15T10:00:00Z"
-}
-```
+## Common Patterns
 
-## Advanced Patterns
+### Pattern 1: Adding API Dependencies
 
-### Multiple Aliases for Same Repo
+When your service depends on an API specification:
 
 ```bash
-sl deps add git@github.com:org/shared main specs/common.md --alias common
-sl deps add git@github.com:org/shared main specs/ui.md --alias ui
+sl deps add git@github.com:api-team/api-specs main openapi.yaml --alias api-spec
 ```
 
-### Dependency Version Locking
+This allows Claude to read the API spec when implementing your service.
+
+### Pattern 2: Cross-Project References
+
+When multiple projects reference shared specs:
 
 ```bash
-# Add with specific version
-sl deps add git@github.com:org/project-spec v1.2.3
+# In project-a
+sl deps add git@github.com:org/shared-specs main common.yaml --alias shared
 
-# This locks to the commit at v1.2.3
-# To update, run: sl deps update
+# In project-b
+sl deps add git@github.com:org/shared-specs main common.yaml --alias shared
 ```
+
+Both projects now reference the same source of truth.
+
+### Pattern 3: Hierarchical Specs
+
+When building on top of platform specs:
+
+```bash
+# Platform team creates core spec
+# Service teams add dependency on platform spec
+sl deps add git@github.com:org/platform-specs main core.yaml --alias platform
+```
+
+## Session Start Checklist
+
+When starting a session in a SpecLedger project:
+
+```
+Deps Check:
+- [ ] Run sl deps list to see current dependencies
+- [ ] Check if dependencies are resolved (committed SHAs present)
+- [ ] Ask user if they want to add any new dependencies
+- [ ] Report dependency context: "This project has X dependencies: [summary]"
+```
+
+## Error Handling
+
+**Not in a SpecLedger project:**
+```
+Error: failed to find project root: not in a SpecLedger project (no specledger/specledger.yaml found)
+```
+Solution: Navigate to your SpecLedger project directory first.
+
+**Dependency already exists:**
+```
+Error: dependency already exists
+```
+Solution: Use `sl deps remove` first, or check if you meant to add a different dependency.
+
+**Invalid Git URL:**
+```
+Error: invalid git URL format
+```
+Solution: Use proper SSH or HTTPS Git URL format.
+
+## Integration with Other Commands
+
+The `sl deps` commands work with:
+- `sl doctor` - Shows dependency status
+- `sl new` - Initializes empty dependency list
+- `sl init` - Initializes empty dependency list
+
+Claude can read dependencies using the metadata when:
+- Implementing features that reference external specs
+- Checking compatibility with dependent specs
+- Understanding project context and relationships
 
 ## Troubleshooting
 
-### "Not a SpecLedger project"
+**Dependencies not resolving:**
+- Check Git URL is accessible
+- Verify you have authentication for private repos
+- Check network connectivity
 
-Make sure you're in a project directory with `specledger.yaml`:
-```bash
-ls specledger.yaml
-sl deps list
-```
+**Dependencies disappeared:**
+- Check `specledger/specledger.yaml` still exists
+- Verify YAML format is correct
+- Run `sl deps list` to confirm current state
 
-### "Dependency not found"
-
-```bash
-# Check if added correctly
-sl deps list
-
-# Check the spec.mod file directly
-cat specledger/specledger.yaml
-```
-
-### "Failed to resolve dependencies"
-
-```bash
-# Check internet connection and repo URLs
-# Verify the repo exists at the specified path
-git ls-remote git@github.com:org/project-spec.git
-```
-
-### "Invalid repository URL"
-
-Use valid Git URLs:
-- ✅ `git@github.com:org/project.git`
-- ✅ `https://github.com/org/project.git`
-
-## Best Practices
-
-1. **Use aliases** for common dependencies to make specs more readable
-2. **Lock versions** when you need reproducibility (use tags instead of `main`)
-3. **Resolve regularly** to keep `specledger.sum` up to date
-4. **Commit specledger.sum** to ensure reproducible builds
-5. **Document dependencies** in your README with their purpose
-
-## Files Reference
-
-| File | Description |
-|------|-------------|
-| `specledger/specledger.yaml` | Dependency manifest and project metadata |
-| `specledger/specledger.sum` | Lockfile with resolved commits and hashes |
-| `~/.specledger/cache/` | Local cache of downloaded dependencies |
-
-## Related Skills
-
-- **[bd-issue-tracking](.claude/skills/bd-issue-tracking/SKILL.md)** - Use for tracking work across sessions
-
-## Quick Commands Cheat Sheet
-
-```bash
-# Add dependency
-sl deps add <repo-url> [branch] [spec-path] [--alias <name>]
-
-# List dependencies
-sl deps list
-
-# Resolve (download) all
-sl deps resolve
-
-# Update all
-sl deps update [repo-url]
-
-# Remove dependency
-sl deps remove <repo-url>
-```
+**Need to update dependency:**
+- Remove and re-add with new parameters
+- Or edit `specledger/specledger.yaml` directly
+- Run `sl deps resolve` to update commit SHAs

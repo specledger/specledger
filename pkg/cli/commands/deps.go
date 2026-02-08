@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -303,23 +304,159 @@ func runResolveDependencies(cmd *cobra.Command, args []string) error {
 	}
 
 	ui.PrintSection("Resolving Dependencies")
-	// TODO: Implement actual dependency resolution
-	// For now, just show what would be resolved
-	fmt.Printf("Would resolve %s dependencies:\n", ui.Bold(fmt.Sprintf("%d", len(meta.Dependencies))))
+	fmt.Printf("Resolving %s dependencies...\n", ui.Bold(fmt.Sprintf("%d", len(meta.Dependencies))))
 	fmt.Println()
-	for _, dep := range meta.Dependencies {
-		fmt.Printf("  - %s", ui.Bold(dep.URL))
-		if dep.Alias != "" {
-			fmt.Printf(" (alias: %s)", ui.Cyan(dep.Alias))
+
+	// Check for --no-cache flag
+	noCache, _ := cmd.Flags().GetBool("no-cache")
+
+	// Resolve each dependency
+	resolvedCount := 0
+	for i, dep := range meta.Dependencies {
+		// Use alias as directory name if available, otherwise generate from URL
+		dirName := dep.Alias
+		if dirName == "" {
+			dirName = generateDirName(dep.URL)
 		}
+
+		// Determine cache location: project-local specledger/deps/ or global cache
+		var cacheDir string
+		if noCache {
+			// Use project-local cache
+			cacheDir = filepath.Join(projectDir, "specledger", "deps", dirName)
+		} else {
+			// Use global cache in user home directory
+			homeDir, _ := os.UserHomeDir()
+			cacheDir = filepath.Join(homeDir, ".specledger", "cache", dirName)
+		}
+
+		fmt.Printf("%s. %s\n", ui.Bold(fmt.Sprintf("%d", i+1)), ui.Bold(dep.URL))
+		if dep.Alias != "" {
+			fmt.Printf("   Alias:  %s\n", ui.Cyan(dep.Alias))
+		}
+		fmt.Printf("   Branch: %s\n", ui.Cyan(dep.Branch))
+
+		// Check if already resolved (skip if --no-cache not set and commit exists)
+		if dep.ResolvedCommit != "" && !noCache {
+			// Verify the commit still exists in the cloned repo
+			if _, err := os.Stat(cacheDir); err == nil {
+				// Repo exists, verify commit
+				cmd := exec.Command("git", "-C", cacheDir, "rev-parse", dep.ResolvedCommit+"^{commit}")
+				if output, err := cmd.CombinedOutput(); err == nil {
+					// Commit still valid
+					resolvedCount++
+					fmt.Printf("   Status: %s %s\n", ui.Green("✓"), ui.Gray(strings.TrimSpace(string(output))[:8]))
+					fmt.Println()
+					continue
+				}
+			}
+		}
+
+		// Clone or update the repository
+		fmt.Printf("   Cache:  %s\n", ui.Cyan(cacheDir))
+		fmt.Printf("   Status: %s...\n", ui.Yellow("cloning"))
+
+		if err := cloneOrUpdateRepository(dep, cacheDir); err != nil {
+			ui.PrintWarning(fmt.Sprintf("Failed to clone %s: %v", dep.URL, err))
+			fmt.Println()
+			continue
+		}
+
+		// Resolve current commit SHA
+		cmd := exec.Command("git", "-C", cacheDir, "rev-parse", "HEAD")
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			ui.PrintWarning(fmt.Sprintf("Failed to resolve commit: %v", err))
+			fmt.Println()
+			continue
+		}
+
+		commitSHA := strings.TrimSpace(string(output))
+		meta.Dependencies[i].ResolvedCommit = commitSHA
+		resolvedCount++
+
+		fmt.Printf("   Status: %s %s\n", ui.Green("✓"), ui.Gray(commitSHA[:8]))
 		fmt.Println()
 	}
+
+	// Save updated metadata
+	if err := metadata.SaveToProject(meta, projectDir); err != nil {
+		return fmt.Errorf("failed to save metadata: %w", err)
+	}
+
+	ui.PrintSuccess(fmt.Sprintf("Resolved %d/%d dependencies", resolvedCount, len(meta.Dependencies)))
 	fmt.Println()
-	ui.PrintWarning("Dependency resolution not yet implemented")
-	fmt.Println("Dependencies are tracked in specledger/specledger.yaml")
+	if resolvedCount < len(meta.Dependencies) {
+		ui.PrintWarning("Some dependencies failed to resolve")
+	}
 	fmt.Println()
 
 	return nil
+}
+
+// cloneOrUpdateRepository clones a Git repository if it doesn't exist, or updates it if it does
+func cloneOrUpdateRepository(dep metadata.Dependency, targetDir string) error {
+	// Check if directory already exists
+	if _, err := os.Stat(targetDir); os.IsNotExist(err) {
+		// Clone the repository
+		args := []string{"clone", dep.URL, targetDir}
+		if dep.Branch != "" && dep.Branch != "main" {
+			args = append(args, "--branch", dep.Branch)
+		}
+
+		cmd := exec.Command("git", args...)
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("git clone failed: %w", err)
+		}
+	} else {
+		// Repository exists, fetch and pull updates
+		// Fetch latest changes
+		cmd := exec.Command("git", "-C", targetDir, "fetch", "origin")
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("git fetch failed: %w", err)
+		}
+
+		// Checkout the specified branch
+		branch := dep.Branch
+		if branch == "" {
+			branch = "main"
+		}
+
+		cmd = exec.Command("git", "-C", targetDir, "checkout", branch)
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("git checkout failed: %w", err)
+		}
+
+		// Pull latest changes
+		cmd = exec.Command("git", "-C", targetDir, "pull", "origin", branch)
+		cmd.Stdout = nil
+		cmd.Stderr = nil
+		if err := cmd.Run(); err != nil {
+			// Pull might fail if no tracking branch, ignore
+			// This is okay for read-only access
+		}
+	}
+
+	return nil
+}
+
+// generateDirName generates a directory name from a Git URL
+func generateDirName(url string) string {
+	// Remove protocol and domain, extract repo name
+	url = strings.TrimPrefix(url, "https://")
+	url = strings.TrimPrefix(url, "http://")
+	url = strings.TrimPrefix(url, "git@")
+
+	// Replace : and / with -
+	url = strings.ReplaceAll(url, ":", "-")
+	url = strings.ReplaceAll(url, "/", "-")
+
+	// Remove .git suffix if present
+	url = strings.TrimSuffix(url, ".git")
+
+	return url
 }
 
 func runUpdateDependencies(cmd *cobra.Command, args []string) error {

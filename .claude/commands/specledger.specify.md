@@ -1,5 +1,13 @@
 ---
-description: Create or update the feature specification from a natural language feature description and existing branch information.
+description: Create or update the feature specification from a natural language feature description.
+handoffs: 
+  - label: Build Technical Plan
+    agent: specledger.plan
+    prompt: Create a plan for the spec. I am building with...
+  - label: Clarify Spec Requirements
+    agent: specledger.clarify
+    prompt: Clarify specification requirements
+    send: true
 ---
 
 ## User Input
@@ -12,30 +20,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Outline
 
-The text the user typed after `/specledger.adopt` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `$ARGUMENTS` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
-
-Spawn Explore Agent (Haiku) to research the branch's commit history to understand what has been done.
-Provide it with this exact execution flow to follow and context of the user provided feature description as well as instructions to provide a summary of the research.
-
-Expore Agent Execution Flow:
-
-   First Review recent commits on current branch for context of completed work
-      - confirm branch name: `git rev-parse --abbrev-ref HEAD`
-      - Make sure main ref is up to date: `git fetch origin main.`
-      - Find branch-off point: git merge-base HEAD origin/main (remember the hash, e.g., `2c4104c86b00b53dc32ac35c7d529fe5c20b7255` as BASE).
-   If no commits: ERROR "Branch has no commits to analyze"
-      - List commits since branching: `git log --oneline --graph BASE..HEAD` (use hash for example: `git log --oneline --graph 2c4104c86b00b53dc32ac35c7d529fe5c20b7255..HEAD`)
-      - High-level diff vs main: `git diff --stat BASE..HEAD` (files and churn summary). (use hash for example: `git diff --stat 2c4104c86b00b53dc32ac35c7d529fe5c20b7255..HEAD`)
-      - Read interesting commit’s message (and short stat): `git show <commit> --stat`.
-      - Full patch in 100-line chunks (no pager):
-        - First 100: `git show <commit> | sed -n '1,100p'`
-        - Next 100: `git show <commit> | sed -n '101,200p'`
-        - Keep bumping the ranges as needed.
-      - Summarize changes made to different files and related commit messages, keep track of paths and provide detailed index of changes.
-
-From the Explore Agent research, clarify the feature description.
-
-Prompt the user to confirm or refine the deduced feature description before proceeding.
+The text the user typed after `/specledger.specledger` in the triggering message **is** the feature description. Assume you always have it available in this conversation even if `$ARGUMENTS` appears literally below. Do not ask the user to repeat it unless they provided an empty command.
 
 Given that feature description, do this:
 
@@ -49,7 +34,7 @@ Given that feature description, do this:
      - "I want to add user authentication" → "user-auth"
      - "Implement OAuth2 integration for the API" → "oauth2-api-integration"
      - "Create a dashboard for analytics" → "analytics-dashboard"
-     - "Fix payment processing timeout bug" → "fix-payment-timeout
+     - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
 2. **Check for existing branches before creating new one**:
 
@@ -60,9 +45,9 @@ Given that feature description, do this:
       - Find the highest number N
       - Use N+1 for the new branch number
 
-   c. Run the script `.specledger/scripts/bash/adopt-feature-branch.sh --json "$ARGUMENTS"` with the calculated number and short-name:
+   c. Run the script `.specledger/scripts/bash/create-new-feature.sh --json "$ARGUMENTS"` with the calculated number and short-name:
       - Pass `--number N+1` and `--short-name "your-short-name"` along with the feature description
-      - For example: `.specledger/scripts/bash/adopt-feature-branch.sh --json --number 5 --short-name "user-auth" "Add user authentication"`
+      - For example: `.specledger/scripts/bash/create-new-feature.sh --json --number 5 --short-name "user-auth" "Add user authentication"`
 
    **IMPORTANT**:
    - Check specs directories to find the highest number
@@ -79,7 +64,7 @@ Given that feature description, do this:
 
     1. Parse user description from Input
        If empty: ERROR "No feature description provided"
-    2. Extract key concepts from description and existing branch research
+    2. Extract key concepts from description
        Identify: actors, actions, data, constraints
     3. For unclear aspects:
        - Make informed guesses based on context and industry standards
@@ -89,7 +74,7 @@ Given that feature description, do this:
          - No reasonable default exists
        - **LIMIT: Maximum 3 [NEEDS CLARIFICATION] markers total**
        - Prioritize clarifications by impact: scope > security/privacy > user experience > technical details
-    4. Fill User Scenarios & Testing section (both included from completed work and missing flows)
+    4. Fill User Scenarios & Testing section
        If no clear user flow: ERROR "Cannot determine user scenarios"
     5. Generate Functional Requirements
        Each requirement must be testable
@@ -99,7 +84,7 @@ Given that feature description, do this:
        Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion)
        Each criterion must be verifiable without implementation details
     7. Identify Key Entities (if data involved)
-    8. Query Beads for related features/tasks
+    8. Query Beads issue tracker for related features/tasks
        Include references in Previous work section
     9. Return: SUCCESS (spec ready for planning)
 

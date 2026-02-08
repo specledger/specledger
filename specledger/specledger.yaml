@@ -1,10 +1,21 @@
 version: 1.0.0
 project:
     name: specledger
-    short_code: sl
-    created: 2026-02-06T11:22:19.740223+08:00
-    modified: 2026-02-06T11:22:19.740224+08:00
+    short_code: sp
+    created: 2026-02-08T22:39:56.064148+08:00
+    modified: 2026-02-08T22:39:56.064165+08:00
     version: 0.1.0
-framework:
-    choice: speckit
-    installed_at: 2026-02-06T11:22:19.740223+08:00
+playbook:
+    name: specledger
+    version: 1.0.0
+    applied_at: 2026-02-08T22:39:56.064148+08:00
+    structure:
+        - .beads/
+        - .claude/
+        - .gitattributes
+        - AGENTS.md
+        - mise.toml
+        - .specledger/
+task_tracker:
+    choice: beads
+    enabled_at: 2026-02-08T22:39:56.064148+08:00
