@@ -27,7 +27,9 @@ changelog:
       order: 300
 
 builds:
-  - env:
+  - main: ./cmd/main.go
+    binary: sl
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
