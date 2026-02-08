@@ -33,11 +33,6 @@ func (e *CLIError) Error() string {
 	return sb.String()
 }
 
-// ExitCode returns the exit code for this error
-func (e *CLIError) getExitCode() int {
-	return e.ExitCode
-}
-
 // NewCLIError creates a new CLI error with suggestions
 func NewCLIError(title, description string, suggestions []string, exitCode int) *CLIError {
 	if suggestions == nil {

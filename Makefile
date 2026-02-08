@@ -1,4 +1,4 @@
-.PHONY: build run test clean install help
+.PHONY: build run test clean install lint help
 
 # Build the CLI binary (produces bin/sl)
 build:
@@ -24,6 +24,10 @@ fmt:
 # Vet code
 vet:
 	go vet ./...
+
+# Run golangci-lint
+lint:
+	golangci-lint run ./...
 
 # Build for all platforms
 build-all:
@@ -62,6 +66,7 @@ help:
 	@echo "  make test-coverage  - Run tests with coverage report"
 	@echo "  make fmt            - Format Go code"
 	@echo "  make vet            - Run go vet"
+	@echo "  make lint           - Run golangci-lint"
 	@echo "  make build-all      - Build for all platforms"
 	@echo "  make clean          - Clean build artifacts"
 	@echo "  make help           - Show this help"
