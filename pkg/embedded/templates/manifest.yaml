@@ -12,4 +12,4 @@ playbooks:
       - ".gitattributes"
       - "AGENTS.md"
       - "mise.toml"
-      - "specledger/"
+      - ".specledger/"
