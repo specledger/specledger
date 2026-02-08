@@ -154,10 +154,10 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
 	}
 
-	// Apply deps skills and commands
-	if err := applyDepsSkillsAndCommands(projectPath); err != nil {
-		// Deps skills are helpful but not critical - log warning and continue
-		fmt.Printf("Warning: deps skills installation had issues: %v\n", err)
+	// Apply embedded skills and commands
+	if err := applyEmbeddedSkills(projectPath); err != nil {
+		// Skills are helpful but not critical - log warning and continue
+		fmt.Printf("Warning: skills installation had issues: %v\n", err)
 	}
 
 	// Create YAML metadata with playbook info
@@ -234,10 +234,10 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
 	}
 
-	// Apply deps skills and commands
-	if err := applyDepsSkillsAndCommands(projectPath); err != nil {
-		// Deps skills are helpful but not critical - log warning and continue
-		fmt.Printf("Warning: deps skills installation had issues: %v\n", err)
+	// Apply embedded skills and commands
+	if err := applyEmbeddedSkills(projectPath); err != nil {
+		// Skills are helpful but not critical - log warning and continue
+		fmt.Printf("Warning: skills installation had issues: %v\n", err)
 	}
 
 	// Create YAML metadata with playbook info
@@ -317,10 +317,10 @@ func runInit(l *logger.Logger) error {
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
 	}
 
-	// Apply deps skills and commands
-	if err := applyDepsSkillsAndCommands(projectPath); err != nil {
-		// Deps skills are helpful but not critical - log warning and continue
-		fmt.Printf("Warning: deps skills installation had issues: %v\n", err)
+	// Apply embedded skills and commands
+	if err := applyEmbeddedSkills(projectPath); err != nil {
+		// Skills are helpful but not critical - log warning and continue
+		fmt.Printf("Warning: skills installation had issues: %v\n", err)
 	}
 
 	// Create YAML metadata with playbook info

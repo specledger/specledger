@@ -48,14 +48,14 @@ func trustMiseConfig(projectPath string) {
 	}
 }
 
-// applyDepsSkillsAndCommands copies embedded deps skills and commands to the project.
-// These provide Claude with context about managing spec dependencies.
-func applyDepsSkillsAndCommands(projectPath string) error {
+// applyEmbeddedSkills copies embedded skills and commands to the project.
+// These provide Claude with context for SpecLedger capabilities.
+func applyEmbeddedSkills(projectPath string) error {
 	// Target directory is .claude in the project root
 	targetDir := filepath.Join(projectPath, ".claude")
 
-	// Walk through the deps embedded filesystem
-	err := fs.WalkDir(embedded.DepsFS, ".", func(path string, d fs.DirEntry, err error) error {
+	// Walk through the skills embedded filesystem
+	err := fs.WalkDir(embedded.SkillsFS, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -81,7 +81,7 @@ func applyDepsSkillsAndCommands(projectPath string) error {
 		}
 
 		// Read file from embedded FS
-		data, err := embedded.DepsFS.ReadFile(path)
+		data, err := embedded.SkillsFS.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("failed to read embedded file %s: %w", path, err)
 		}
@@ -95,7 +95,7 @@ func applyDepsSkillsAndCommands(projectPath string) error {
 	})
 
 	if err != nil {
-		return fmt.Errorf("failed to copy deps skills: %w", err)
+		return fmt.Errorf("failed to copy embedded skills: %w", err)
 	}
 
 	return nil

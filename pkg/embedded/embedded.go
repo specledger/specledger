@@ -11,5 +11,5 @@ import (
 //go:embed templates/specledger/.specledger
 var TemplatesFS embed.FS
 
-//go:embed deps/.claude
-var DepsFS embed.FS
+//go:embed skills/.claude
+var SkillsFS embed.FS
