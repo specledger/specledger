@@ -125,15 +125,16 @@ func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName st
 		return "", "", nil, fmt.Errorf("failed to create project metadata: %w", err)
 	}
 
+	// Run post-init script BEFORE git init (so generated files are included)
+	runPostInitScript(projectPath, projectMetadata)
+
 	// Initialize git if requested (bootstrap only)
+	// This runs AFTER post-init so generated files (like .beads/) are staged
 	if initGit {
 		if err := initializeGitRepo(projectPath); err != nil {
 			return "", "", nil, fmt.Errorf("failed to initialize git: %w", err)
 		}
 	}
-
-	// Run post-init script if it exists
-	runPostInitScript(projectPath, projectMetadata)
 
 	return selectedPlaybookName, playbookVersion, playbookStructure, nil
 }

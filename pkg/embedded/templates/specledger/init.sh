@@ -49,20 +49,15 @@ main() {
     cd "$PROJECT_ROOT"
 
     # Export specledger environment variables for child scripts
-    export SPECLEDGER_PROJECT_NAME
-    export SPECLEDGER_PROJECT_SHORT_CODE
-    export SPECLEDGER_PROJECT_VERSION
-    export SPECLEDGER_PLAYBOOK_NAME
-    export SPECLEDGER_PLAYBOOK_VERSION
+    export SPECLEDGER_PROJECT_NAME="${SPECLEDGER_PROJECT_NAME:-}"
+    export SPECLEDGER_PROJECT_SHORT_CODE="${SPECLEDGER_PROJECT_SHORT_CODE:-}"
+    export SPECLEDGER_PROJECT_VERSION="${SPECLEDGER_PROJECT_VERSION:-}"
+    export SPECLEDGER_PLAYBOOK_NAME="${SPECLEDGER_PLAYBOOK_NAME:-}"
+    export SPECLEDGER_PLAYBOOK_VERSION="${SPECLEDGER_PLAYBOOK_VERSION:-}"
 
     # Run setup-beads.sh if it exists in the target project
     if [ -f ".specledger/scripts/bash/setup-beads.sh" ]; then
-        if [ -x ".specledger/scripts/bash/setup-beads.sh" ]; then
-            .specledger/scripts/bash/setup-beads.sh
-        else
-            print_warning "setup-beads.sh found but not executable"
-            print_warning "Run manually: bash .specledger/scripts/bash/setup-beads.sh"
-        fi
+        bash .specledger/scripts/bash/setup-beads.sh
     else
         print_warning "setup-beads.sh not found - skipping beads initialization"
     fi
