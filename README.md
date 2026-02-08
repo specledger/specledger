@@ -6,7 +6,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Version](https://img.shields.io/github/v/release/specledger/specledger)](https://github.com/specledger/specledger/releases)
 
-> Platform-agnostic CLI for project bootstrap and SDD framework setup
+> All-in-one SDD Playbook for modern development teams
+
+SpecLedger (`sl`) is a comprehensive Specification-Driven Development playbook that unifies project creation, customizable workflows, issue tracking, and specification dependency management.
 
 **Documentation**: [https://specledger.io/docs](https://specledger.io/docs) | **Website**: [https://specledger.io](https://specledger.io)
 
@@ -52,19 +54,20 @@ SpecLedger (`sl`) is a lightweight CLI that helps you create new projects and se
 - **LLM Integration**: Cached specs can be easily referenced by AI agents
 - **Cross-Platform**: Works on Linux, macOS, and Windows
 
-## What SpecLedger Does (And Doesn't Do)
+## What SpecLedger Does
 
-SpecLedger is a **thin wrapper** that handles:
+SpecLedger is an **all-in-one SDD playbook** that provides:
 
-✅ **Project creation** - Creates directory structure and configuration files
-✅ **Framework setup** - Installs and initializes your chosen SDD framework
-✅ **Tool checking** - Verifies required tools (mise, bd, perles) are installed
-✅ **Dependency tracking** - Manages external specification dependencies
-✅ **Metadata management** - Maintains project configuration in YAML format
+✅ **Easy Bootstrap** - Create new projects with a single command
+✅ **Customizable Playbooks** - Support for multiple SDD playbook workflows
+✅ **Issue Tracking** - Built-in task tracking with Beads integration
+✅ **Spec Dependencies** - Manage and track specification dependencies across projects
+✅ **Tool Checking** - Ensures all required tools are installed and configured
+✅ **Metadata Management** - Project configuration in YAML with template support
+✅ **Framework Integration** - Current support for SpecKit-derived SDD playbook
+✅ **Workflow Orchestration** - End-to-end workflows from spec to deployment
 
-❌ **NOT a full SDD framework** - Actual specification workflows are delegated to the framework you choose
-❌ **NOT a task tracker** - Uses [beads](https://github.com/amelie/beads) for issue tracking
-❌ **NOT a spec tool** - Relies on external frameworks for specification workflows
+**Current Focus**: SpecLedger currently supports one SDD playbook type (forked from Spec Kit) with plans to support multiple playbook types in the future.
 
 ## Installation
 
