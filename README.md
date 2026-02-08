@@ -8,6 +8,36 @@
 
 > Platform-agnostic CLI for project bootstrap and SDD framework setup
 
+**Documentation**: [https://specledger.io/docs](https://specledger.io/docs) | **Website**: [https://specledger.io](https://specledger.io)
+
+## Getting Started
+
+### Quick Install
+
+```bash
+# Install via Homebrew (recommended)
+brew tap specledger/homebrew-specledger
+brew install specledger
+
+# Or install via one-line script
+curl -fsSL https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | bash
+```
+
+### Create Your First Project
+
+```bash
+# Interactive mode - guides you through setup
+sl new
+
+# Non-interactive mode
+sl new --ci --project-name myproject --short-code mp
+
+# Verify tools are installed
+sl doctor
+```
+
+**Next Steps**: See [full documentation](https://specledger.io/docs) for contributor setup, development guide, and more.
+
 SpecLedger (`sl`) is a lightweight CLI that helps you create new projects and set up Specification-Driven Development frameworks like [Spec Kit](https://github.com/github/spec-kit) or [OpenSpec](https://github.com/fission-ai/openspec).
 
 ## Features
@@ -86,7 +116,11 @@ sl --help
 ```bash
 # For local development (from source)
 cd specledger
-go install ./cmd/main.go
+go install ./cmd
+
+# Or if building locally:
+go build -o sl ./cmd
+./sl --version
 
 # This installs to $GOPATH/bin (usually ~/go/bin/sl)
 # Add $GOPATH/bin to your PATH if not already:
@@ -105,6 +139,8 @@ brew tap specledger/homebrew-specledger
 brew install specledger
 ```
 
+**Homebrew Tap**: [https://github.com/specledger/homebrew-specledger](https://github.com/specledger/homebrew-specledger)
+
 #### npm / npx
 
 ```bash
@@ -113,10 +149,24 @@ npx @specledger/cli@latest --help
 
 ## Quick Start
 
+### Installation
+
+```bash
+# Install via Homebrew (recommended)
+brew tap specledger/homebrew-specledger
+brew install specledger
+
+# Or install via script
+curl -fsSL https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | bash
+
+# Verify installation
+sl --version
+```
+
 ### Create a New Project
 
 ```bash
-# Interactive mode (recommended)
+# Interactive mode (recommended) - guides you through setup
 sl new
 
 # Non-interactive mode (for CI/CD)
@@ -126,6 +176,12 @@ sl new --ci --project-name myproject --short-code mp --project-dir ~/demos
 ### Initialize in Existing Repository
 
 ```bash
+# Navigate to your repository
+cd my-existing-project
+
+# Initialize SpecLedger
+sl init
+
 # Initialize with Spec Kit framework
 sl init --framework speckit
 ```
@@ -135,7 +191,18 @@ sl init --framework speckit
 ```bash
 # Check if all required tools are installed
 sl doctor
+
+# Get JSON output for CI/CD
+sl doctor --json
 ```
+
+### Next Steps
+
+After creating a project, see the [full documentation](https://specledger.io/docs) for:
+- Contributor setup and development guide
+- SDD framework integration (Spec Kit, OpenSpec)
+- Dependency management
+- Architecture and design patterns
 
 ## Commands
 
@@ -146,7 +213,7 @@ sl doctor
 | `sl new` | Create a new project (interactive TUI) |
 | `sl new --ci --project-name <name> --short-code <code>` | Create a project (non-interactive) |
 | `sl init` | Initialize SpecLedger in an existing repository |
-| `sl init --framework speckit` | Initialize with Spec Kit framework |
+| `sl init --framework <name>` | Initialize with framework (speckit, openspec) |
 
 ### Diagnostics
 
@@ -161,9 +228,18 @@ sl doctor
 |---------|-------------|
 | `sl deps list` | List all dependencies from `specledger.yaml` |
 | `sl deps add <url>` | Add a dependency to `specledger.yaml` |
+| `sl deps add <url> --alias <name>` | Add with alias for AI import paths |
 | `sl deps remove <url>` | Remove a dependency |
 | `sl deps resolve` | Download and cache dependencies |
 | `sl deps update` | Update to latest versions |
+
+### Framework Workflows
+
+| Command | Description |
+|---------|-------------|
+| `sl playbook` | Run framework-specific workflows |
+| `sl graph` | Show dependency graph |
+| `sl refs` | Manage reference resolution |
 
 ### Migration
 
@@ -171,6 +247,14 @@ sl doctor
 |---------|-------------|
 | `sl migrate` | Convert legacy `specledger.mod` to `specledger.yaml` |
 | `sl migrate --dry-run` | Preview migration changes |
+
+### Vendor Management
+
+| Command | Description |
+|---------|-------------|
+| `sl vendor list` | List vendored dependencies |
+| `sl vendor add <url>` | Add a vendored dependency |
+| `sl vendor remove <url>` | Remove a vendored dependency |
 
 ## SDD Framework Support
 
@@ -452,10 +536,13 @@ SpecLedger is a platform-agnostic bootstrap tool that delegates SDD workflows to
 
 ### Tech Stack
 
+- **Go 1.24+**: Core language version
 - **Cobra**: Command-line interface framework
 - **Bubble Tea**: Terminal UI library (for TUI)
-- **Go Modules**: Dependency management
+- **go-git**: Git operations
+- **YAML v3**: Configuration parsing
 - **GoReleaser**: Automated releases and builds
+- **golangci-lint**: Code quality and linting
 
 ### Project Structure
 
@@ -464,18 +551,29 @@ specledger/
 ├── cmd/
 │   └── main.go          # CLI entry point
 ├── pkg/
-│   ├── cli/
-│   │   ├── commands/    # Command implementations
+│   ├── cli/             # Command-line interface
+│   │   ├── commands/    # Command implementations (new, init, deps, doctor, etc.)
 │   │   ├── config/      # Configuration management
-│   │   ├── metadata/    # YAML metadata handling
-│   │   ├── prerequisites/ # Tool checking
+│   │   ├── metadata/    # YAML metadata handling (specledger.yaml)
+│   │   ├── dependencies/# Dependency management
+│   │   ├── framework/   # SDD framework integration
+│   │   ├── playbooks/   # Framework-specific workflows
+│   │   ├── prerequisites/# Tool checking (mise, bd, perles, etc.)
 │   │   ├── tui/         # Terminal UI utilities
+│   │   ├── logger/      # Logging utilities
 │   │   └── ui/          # Color and formatting utilities
-│   └── ...
+│   ├── embedded/        # Embedded templates for project initialization
+│   │   └── templates/   # Project template files
+│   └── models/          # Data models
 ├── scripts/
-│   └── install.sh       # Installation script
+│   ├── install.sh       # Unix installation script
+│   └── install.ps1      # Windows installation script
 ├── homebrew/            # Homebrew formula
+├── .specledger/         # SpecLedger framework templates
+│   ├── templates/       # Feature templates (spec, plan, tasks)
+│   └── scripts/         # Framework scripts
 ├── Makefile             # Build automation
+├── go.mod              # Go module definition
 └── .goreleaser.yaml     # Release configuration
 ```
 
@@ -483,15 +581,20 @@ specledger/
 
 We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-1. Fork the repository
-2. Create a feature branch
+**Quick Start**:
+1. Fork the repository at [https://github.com/specledger/specledger](https://github.com/specledger/specledger)
+2. Create a feature branch: `git checkout -b my-feature`
 3. Make your changes
 4. Run tests: `make test`
-5. Submit a pull request
+5. Run linting: `make fmt && make lint`
+6. Submit a pull request
+
+**Contributor Guide**: See [Contributor Setup](https://specledger.io/docs/contributor/setup) for development environment setup.
 
 ## Documentation
 
-- **Documentation**: [https://specledger.io/docs](https://specledger.io/docs)
+- **Documentation**: [https://specledger.io/docs](https://specledger.io/docs) - User and contributor guides
+- **Main Website**: [https://specledger.io](https://specledger.io) - Project landing page
 - **Spec Kit**: [https://github.com/github/spec-kit](https://github.com/github/spec-kit)
 - **OpenSpec**: [https://github.com/fission-ai/openspec](https://github.com/fission-ai/openspec)
 
@@ -501,9 +604,11 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Support
 
-- **Issues**: [GitHub Issues](https://github.com/specledger/specledger/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/specledger/specledger/discussions)
-- **Website**: [https://specledger.io](https://specledger.io)
+- **Issues**: [GitHub Issues](https://github.com/specledger/specledger/issues) - Bug reports and feature requests
+- **Discussions**: [GitHub Discussions](https://github.com/specledger/specledger/discussions) - Community Q&A
+- **Security**: Report vulnerabilities per [SECURITY.md](SECURITY.md)
+- **Documentation**: [https://specledger.io/docs](https://specledger.io/docs) - Full user and contributor guides
+- **Website**: [https://specledger.io](https://specledger.io) - Project landing page
 
 ## Changelog
 
