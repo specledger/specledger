@@ -9,15 +9,17 @@ import (
 )
 
 // applyEmbeddedPlaybooks copies embedded playbooks to the project directory.
-func applyEmbeddedPlaybooks(projectPath string) error {
+// Returns the playbook name, version, and structure for metadata storage.
+func applyEmbeddedPlaybooks(projectPath string) (string, string, []string, error) {
 	ui.PrintSection("Copying Playbooks")
 	fmt.Printf("Applying SpecLedger playbooks...\n")
 
-	if err := playbooks.ApplyToProject(projectPath, ""); err != nil {
+	playbookName, playbookVersion, playbookStructure, err := playbooks.ApplyToProject(projectPath, "")
+	if err != nil {
 		// Playbooks are helpful but not critical - log warning and continue
 		ui.PrintWarning(fmt.Sprintf("Playbook copying failed: %v", err))
 		ui.PrintWarning("Project will be created without playbooks")
-		return nil
+		return "", "", nil, nil
 	}
 
 	fmt.Printf("%s Playbooks applied\n", ui.Checkmark())
@@ -25,7 +27,7 @@ func applyEmbeddedPlaybooks(projectPath string) error {
 	// Trust mise.toml if it exists
 	trustMiseConfig(projectPath)
 
-	return nil
+	return playbookName, playbookVersion, playbookStructure, nil
 }
 
 // trustMiseConfig runs `mise trust` on the project's mise.toml file.

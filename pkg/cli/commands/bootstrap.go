@@ -144,21 +144,17 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 		return fmt.Errorf("failed to create project directory: %w", err)
 	}
 
-	// Copy template files
-	if err := copyTemplates(projectPath, shortCode, projectName); err != nil {
-		return fmt.Errorf("failed to copy templates: %w", err)
-	}
-
-	// Create YAML metadata (no framework)
-	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, metadata.FrameworkNone)
-	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
-		return fmt.Errorf("failed to create project metadata: %w", err)
-	}
-
 	// Apply embedded playbooks
-	if err := applyEmbeddedPlaybooks(projectPath); err != nil {
+	playbookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath)
+	if err != nil {
 		// Playbook application failure is not fatal - log and continue
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
+	}
+
+	// Create YAML metadata with playbook info
+	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, playbookName, playbookVersion, playbookStructure)
+	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
+		return fmt.Errorf("failed to create project metadata: %w", err)
 	}
 
 	// Initialize git repo (but don't commit - user might bootstrap into existing repo)
@@ -223,13 +219,14 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 	}
 
 	// Apply embedded playbooks
-	if err := applyEmbeddedPlaybooks(projectPath); err != nil {
+	playbookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath)
+	if err != nil {
 		// Playbook application failure is not fatal - log and continue
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
 	}
 
-	// Create YAML metadata (no framework)
-	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, metadata.FrameworkNone)
+	// Create YAML metadata with playbook info
+	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, playbookName, playbookVersion, playbookStructure)
 	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
 		return fmt.Errorf("failed to create project metadata: %w", err)
 	}
@@ -295,21 +292,17 @@ func runInit(l *logger.Logger) error {
 	fmt.Printf("  Short Code: %s\n", ui.Bold(shortCode))
 	fmt.Println()
 
-	// Copy templates (excluding specledger/FORK.md which is for new projects)
-	if err := copyInitTemplates(projectPath, shortCode, projectName); err != nil {
-		return fmt.Errorf("failed to copy templates: %w", err)
-	}
-
-	// Create YAML metadata (no framework)
-	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, metadata.FrameworkNone)
-	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
-		return fmt.Errorf("failed to create project metadata: %w", err)
-	}
-
 	// Apply embedded playbooks
-	if err := applyEmbeddedPlaybooks(projectPath); err != nil {
+	playbookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath)
+	if err != nil {
 		// Playbook application failure is not fatal - log and continue
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
+	}
+
+	// Create YAML metadata with playbook info
+	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, playbookName, playbookVersion, playbookStructure)
+	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
+		return fmt.Errorf("failed to create project metadata: %w", err)
 	}
 
 	// Success message

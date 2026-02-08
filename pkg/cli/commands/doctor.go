@@ -152,24 +152,15 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 				versionInfo = ui.Dim(fmt.Sprintf("(%s)", result.Version))
 			}
 
-			// Check if framework is initialized in current project
-			fwName := result.Tool.Name
+			// Check if playbook is applied in current project
 			projectDir, _ := os.Getwd()
 			if metadata.HasYAMLMetadata(projectDir) {
 				if meta, _ := metadata.LoadFromProject(projectDir); meta != nil {
-					var chosen bool
-					switch fwName {
-					case "specify":
-						chosen = meta.Framework.Choice == metadata.FrameworkSpecKit || meta.Framework.Choice == metadata.FrameworkBoth
-					case "openspec":
-						chosen = meta.Framework.Choice == metadata.FrameworkOpenSpec || meta.Framework.Choice == metadata.FrameworkBoth
-					}
-					if chosen {
-						if isFrameworkInitialized(fwName) {
-							fwStatus = ui.Dim("(initialized)")
-						} else {
-							fwStatus = ui.Yellow("(not initialized)")
-						}
+					// Show playbook name instead of framework choice
+					if meta.Playbook.Name != "" {
+						fwStatus = fmt.Sprintf("(playbook: %s)", meta.Playbook.Name)
+					} else {
+						fwStatus = ui.Yellow("(no playbook)")
 					}
 				}
 			}
@@ -204,61 +195,9 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 
 // showFrameworkInitCommands shows commands to initialize frameworks that need it
 func showFrameworkInitCommands(check prerequisites.PrerequisiteCheck, meta *metadata.ProjectMetadata) {
-	commandsToShow := []struct {
-		framework    string
-		fwName       string
-		initCmd      string
-		installCmd   string
-	}{
-		{"Spec Kit", "specify", "specify init --here --ai claude --force --script sh --no-git", "mise install pipx:git+https://github.com/github/spec-kit.git"},
-		{"OpenSpec", "openspec", "openspec init --force --tools claude", "mise install npm:@fission-ai/openspec"},
-	}
-
-	anyNeeded := false
-	for _, fc := range commandsToShow {
-		var installed, chosen bool
-
-		// Check if framework was chosen
-		switch fc.framework {
-		case "Spec Kit":
-			chosen = meta.Framework.Choice == metadata.FrameworkSpecKit || meta.Framework.Choice == metadata.FrameworkBoth
-		case "OpenSpec":
-			chosen = meta.Framework.Choice == metadata.FrameworkOpenSpec || meta.Framework.Choice == metadata.FrameworkBoth
-		}
-
-		if !chosen {
-			continue
-		}
-
-		// Check if installed
-		for _, result := range check.FrameworkResults {
-			if result.Tool.Name == fc.fwName {
-				installed = result.Installed
-				break
-			}
-		}
-
-		// Show different sections based on state
-		if !installed {
-			if !anyNeeded {
-				fmt.Println(ui.Bold("Framework Installation"))
-				fmt.Println(ui.Cyan("─────────────────────"))
-				anyNeeded = true
-			}
-			fmt.Printf("  %s: %s\n", ui.Bold(fc.framework), ui.Dim(fc.installCmd))
-		} else if installed && !isFrameworkInitialized(fc.fwName) {
-			if !anyNeeded {
-				fmt.Println(ui.Bold("Framework Initialization"))
-				fmt.Println(ui.Cyan("─────────────────────"))
-				anyNeeded = true
-			}
-			fmt.Printf("  %s: %s\n", ui.Bold(fc.framework), ui.Yellow(fc.initCmd))
-		}
-	}
-
-	if anyNeeded {
-		fmt.Println()
-	}
+	// Framework initialization commands are no longer needed
+	// as we use playbooks instead of frameworks
+	return
 }
 
 // isFrameworkInitialized checks if a framework is already initialized in the project

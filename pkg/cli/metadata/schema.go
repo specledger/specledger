@@ -10,7 +10,7 @@ import (
 type ProjectMetadata struct {
 	Version      string           `yaml:"version"`
 	Project      ProjectInfo      `yaml:"project"`
-	Framework    FrameworkInfo    `yaml:"framework"`
+	Playbook     PlaybookInfo     `yaml:"playbook"`
 	TaskTracker  TaskTrackerInfo  `yaml:"task_tracker,omitempty"`
 	Dependencies []Dependency     `yaml:"dependencies,omitempty"`
 }
@@ -24,19 +24,27 @@ type ProjectInfo struct {
 	Version   string    `yaml:"version"`
 }
 
-// FrameworkInfo records SDD framework choice
-type FrameworkInfo struct {
-	Choice      FrameworkChoice `yaml:"choice"`
-	InstalledAt *time.Time      `yaml:"installed_at,omitempty"`
-}
-
 // TaskTrackerInfo records task/issue tracker choice
 type TaskTrackerInfo struct {
 	Choice      TaskTrackerChoice `yaml:"choice"`
 	EnabledAt   *time.Time        `yaml:"enabled_at,omitempty"`
 }
 
-// FrameworkChoice is an enum
+// PlaybookInfo records the playbook applied to this project
+type PlaybookInfo struct {
+	Name        string     `yaml:"name"`        // Name of the playbook (e.g., "specledger")
+	Version     string     `yaml:"version"`     // Version of the playbook that was applied
+	AppliedAt   *time.Time `yaml:"applied_at,omitempty"`   // When the playbook was applied
+	Structure   []string   `yaml:"structure,omitempty"`    // Folder structure created by the playbook
+}
+
+// FrameworkInfo records SDD framework choice (deprecated, kept for migration compatibility)
+type FrameworkInfo struct {
+	Choice      FrameworkChoice `yaml:"choice"`
+	InstalledAt *time.Time      `yaml:"installed_at,omitempty"`
+}
+
+// FrameworkChoice is an enum (deprecated)
 type FrameworkChoice string
 
 const (
@@ -154,14 +162,9 @@ func (m *ProjectMetadata) Validate() error {
 		return errors.New("modified timestamp must be after created timestamp")
 	}
 
-	validChoices := map[FrameworkChoice]bool{
-		FrameworkSpecKit:  true,
-		FrameworkOpenSpec: true,
-		FrameworkBoth:     true,
-		FrameworkNone:     true,
-	}
-	if !validChoices[m.Framework.Choice] {
-		return errors.New("framework choice must be one of: speckit, openspec, both, none")
+	// Validate playbook name is present
+	if m.Playbook.Name == "" {
+		return errors.New("playbook name is required")
 	}
 
 	for i, dep := range m.Dependencies {

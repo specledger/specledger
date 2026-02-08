@@ -38,6 +38,10 @@ type Playbook struct {
 	// Patterns are glob patterns for files to include (optional, defaults to all files)
 	// If empty, all files in Path are included.
 	Patterns []string `yaml:"patterns,omitempty"`
+
+	// Structure describes the folder structure that this playbook creates
+	// This is informational only, used to document what the playbook provides
+	Structure []string `yaml:"structure,omitempty"`
 }
 
 // PlaybookManifest represents the manifest file that lists available playbooks.

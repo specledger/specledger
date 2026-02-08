@@ -76,7 +76,7 @@ func SaveToProject(metadata *ProjectMetadata, projectRoot string) error {
 }
 
 // NewProjectMetadata creates a new ProjectMetadata with default values
-func NewProjectMetadata(name, shortCode string, framework FrameworkChoice) *ProjectMetadata {
+func NewProjectMetadata(name, shortCode string, playbookName string, playbookVersion string, playbookStructure []string) *ProjectMetadata {
 	now := time.Now()
 	metadata := &ProjectMetadata{
 		Version: MetadataVersion,
@@ -87,18 +87,17 @@ func NewProjectMetadata(name, shortCode string, framework FrameworkChoice) *Proj
 			Modified:  now,
 			Version:   "0.1.0",
 		},
-		Framework: FrameworkInfo{
-			Choice: framework,
+		Playbook: PlaybookInfo{
+			Name:      playbookName,
+			Version:   playbookVersion,
+			AppliedAt: &now,
+			Structure: playbookStructure,
 		},
 		TaskTracker: TaskTrackerInfo{
 			Choice:    TaskTrackerBeads,
 			EnabledAt: &now,
 		},
 		Dependencies: []Dependency{},
-	}
-
-	if framework != FrameworkNone {
-		metadata.Framework.InstalledAt = &now
 	}
 
 	return metadata

@@ -100,13 +100,12 @@ func runMigrate(cmd *cobra.Command, args []string) error {
 
 	fmt.Println()
 	ui.PrintSuccess("Migration Complete!")
-	fmt.Printf("  Project:     %s (short code: %s)\n", ui.Bold(meta.Project.Name), ui.Bold(meta.Project.ShortCode))
-	fmt.Printf("  Framework:   %s\n", ui.Bold(string(meta.Framework.Choice)))
+	fmt.Printf("  Project:   %s (short code: %s)\n", ui.Bold(meta.Project.Name), ui.Bold(meta.Project.ShortCode))
+	fmt.Printf("  Playbook:  %s\n", ui.Bold(meta.Playbook.Name))
 	fmt.Println()
 	fmt.Println(ui.Bold("Next steps:"))
 	fmt.Println("  1. Review the generated specledger.yaml")
-	fmt.Println("  2. Edit framework choice if desired (none/speckit/openspec/both)")
-	fmt.Printf("  3. Optionally remove the backup file: %s\n", ui.Cyan("rm specledger.spec.mod.backup"))
+	fmt.Printf("  2. Optionally remove the backup file: %s\n", ui.Cyan("rm specledger.spec.mod.backup"))
 	fmt.Println()
 
 	return nil

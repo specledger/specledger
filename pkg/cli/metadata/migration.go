@@ -104,8 +104,9 @@ func MigrateModToYAML(projectRoot string) (*ProjectMetadata, error) {
 			Modified:  now,
 			Version:   "0.1.0",
 		},
-		Framework: FrameworkInfo{
-			Choice: FrameworkNone, // Default for migrated projects
+		Playbook: PlaybookInfo{
+			Name:    "specledger", // Default playbook for migrated projects
+			Version: "unknown",    // Version unknown for migrated projects
 		},
 		Dependencies: []Dependency{},
 	}

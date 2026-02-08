@@ -6,3 +6,10 @@ playbooks:
     path: "specledger"
     patterns:
       - "**"
+    structure:
+      - ".beads/"
+      - ".claude/"
+      - ".gitattributes"
+      - "AGENTS.md"
+      - "mise.toml"
+      - "specledger/"
