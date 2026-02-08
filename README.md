@@ -1,5 +1,11 @@
 # SpecLedger
 
+[![Build Status](https://img.shields.io/github/actions/workflow/status/specledger/specledger/ci.yml?branch=main)](https://github.com/specledger/specledger/actions)
+[![Go Report Card](https://goreportcard.com/badge/github.com/specledger/specledger)](https://goreportcard.com/report/github.com/specledger/specledger)
+[![Coverage](https://img.shields.io/codecov/c/github/specledger/specledger)](https://codecov.io/gh/specledger/specledger)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Version](https://img.shields.io/github/v/release/specledger/specledger)](https://github.com/specledger/specledger/releases)
+
 > Platform-agnostic CLI for project bootstrap and SDD framework setup
 
 SpecLedger (`sl`) is a lightweight CLI that helps you create new projects and set up Specification-Driven Development frameworks like [Spec Kit](https://github.com/github/spec-kit) or [OpenSpec](https://github.com/fission-ai/openspec).

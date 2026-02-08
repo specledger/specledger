@@ -1,0 +1,11 @@
+SpecLedger
+Copyright 2025 SpecLedger Contributors
+
+This project includes third-party software:
+
+- Cobra (Apache 2.0) - https://github.com/spf13/cobra
+- Bubble Tea (MIT) - https://github.com/charmbracelet/bubbletea
+- go-git (Apache 2.0) - https://github.com/go-git/go-git
+- YAML v3 (Apache 2.0) - https://github.com/go-yaml/yaml
+
+See full dependency list in go.mod and go.sum.
