@@ -130,22 +130,6 @@ func repeat(s string, count int) string {
 	return result
 }
 
-// visibleLen returns the visible length of a string, excluding ANSI color codes
-func visibleLen(s string) int {
-	len := 0
-	inEscape := false
-	for _, c := range s {
-		if c == '\x1b' {
-			inEscape = true
-		} else if inEscape && c == 'm' {
-			inEscape = false
-		} else if !inEscape {
-			len++
-		}
-	}
-	return len
-}
-
 // PrintHeader prints a header without box
 func PrintHeader(title, subtitle string, width int) {
 	fmt.Println()

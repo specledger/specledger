@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"path/filepath"
 
 	"github.com/spf13/cobra"
 	"specledger/pkg/cli/metadata"
@@ -197,31 +196,4 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 func showFrameworkInitCommands(check prerequisites.PrerequisiteCheck, meta *metadata.ProjectMetadata) {
 	// Framework initialization commands are no longer needed
 	// as we use playbooks instead of frameworks
-	return
-}
-
-// isFrameworkInitialized checks if a framework is already initialized in the project
-func isFrameworkInitialized(framework string) bool {
-	dir, err := os.Getwd()
-	if err != nil {
-		return false
-	}
-
-	switch framework {
-	case "specify":
-		// Check for .specify directory or specify.yaml
-		specifyDir := filepath.Join(dir, ".specify")
-		specifyYaml := filepath.Join(dir, "specify.yaml")
-		_, err1 := os.Stat(specifyDir)
-		_, err2 := os.Stat(specifyYaml)
-		return err1 == nil || err2 == nil
-	case "openspec":
-		// Check for .openspec directory or openspec.yaml
-		openspecDir := filepath.Join(dir, ".openspec")
-		openspecYaml := filepath.Join(dir, "openspec.yaml")
-		_, err1 := os.Stat(openspecDir)
-		_, err2 := os.Stat(openspecYaml)
-		return err1 == nil || err2 == nil
-	}
-	return false
 }

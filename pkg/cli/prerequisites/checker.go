@@ -91,6 +91,7 @@ func CheckTool(tool Tool) ToolCheckResult {
 
 	// Try to get version
 	if tool.VersionFlag != "" {
+		// #nosec G204 -- tool name and flag are from constants, not user input
 		cmd := exec.Command(tool.Name, tool.VersionFlag)
 		output, err := cmd.CombinedOutput()
 		if err == nil {

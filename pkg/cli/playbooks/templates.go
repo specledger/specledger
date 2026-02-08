@@ -102,11 +102,11 @@ func FormatJSON(playbooks []Playbook) string {
 		if i > 0 {
 			sb.WriteString(",\n")
 		}
-		sb.WriteString(fmt.Sprintf("  {\n"))
+		sb.WriteString("  {\n")
 		sb.WriteString(fmt.Sprintf("    \"name\": \"%s\",\n", pb.Name))
 		sb.WriteString(fmt.Sprintf("    \"description\": \"%s\",\n", pb.Description))
 		sb.WriteString(fmt.Sprintf("    \"version\": \"%s\"\n", pb.Version))
-		sb.WriteString(fmt.Sprintf("  }"))
+		sb.WriteString("  }")
 	}
 	sb.WriteString("\n]\n")
 

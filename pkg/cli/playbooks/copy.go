@@ -2,7 +2,6 @@ package playbooks
 
 import (
 	"fmt"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -171,23 +170,6 @@ func copyEmbeddedFile(src, dest string) error {
 	}
 
 	// Write to destination
+	// #nosec G306 -- playbook files need to be readable, 0644 is appropriate
 	return os.WriteFile(dest, srcFile, 0644)
-}
-
-// copyFile copies a single file from src to dest (for future remote support).
-func copyFile(src, dest string) error {
-	srcFile, err := os.Open(src)
-	if err != nil {
-		return err
-	}
-	defer srcFile.Close()
-
-	destFile, err := os.Create(dest)
-	if err != nil {
-		return err
-	}
-	defer destFile.Close()
-
-	_, err = io.Copy(destFile, srcFile)
-	return err
 }

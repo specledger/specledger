@@ -11,13 +11,10 @@ import (
 
 // Colors and styles
 var (
-	colorPrimary    = lipgloss.NewStyle().Foreground(lipgloss.Color("13")) // Gold
-	colorSuccess    = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))  // Green
-	colorWarning    = lipgloss.NewStyle().Foreground(lipgloss.Color("11")) // Yellow
-	colorError      = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))  // Red
-	colorSubtle     = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
-	colorBackground = lipgloss.NewStyle().Background(lipgloss.Color("235"))
-	colorBorder     = lipgloss.NewStyle().Foreground(lipgloss.Color("13"))
+	colorPrimary = lipgloss.NewStyle().Foreground(lipgloss.Color("13")) // Gold
+	colorSuccess = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))  // Green
+	colorError   = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))  // Red
+	colorSubtle  = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 
 	titleStyle      = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("13"))
 	selectedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("13")).Bold(true)

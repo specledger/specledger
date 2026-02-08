@@ -4,7 +4,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"specledger/pkg/cli/metadata"
@@ -184,12 +183,7 @@ func TestBootstrapPrerequisiteChecking(t *testing.T) {
 	}
 
 	// Output should contain prerequisite check messages
-	outputStr := string(output)
-	if strings.Contains(outputStr, "Checking prerequisites") || strings.Contains(outputStr, "All prerequisites installed") {
-		// Prerequisite check was performed
-	} else {
-		// Check may have been silent - this is OK in CI mode
-	}
+	_ = string(output) // Check may have been silent - this is OK in CI mode
 
 	// Verify project was created successfully
 	if _, err := os.Stat(projectPath); os.IsNotExist(err) {

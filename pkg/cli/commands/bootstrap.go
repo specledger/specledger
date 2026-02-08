@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,7 +13,6 @@ import (
 	"specledger/pkg/cli/prerequisites"
 	"specledger/pkg/cli/tui"
 	"specledger/pkg/cli/ui"
-	"specledger/pkg/embedded"
 )
 
 var (
@@ -292,78 +290,6 @@ func runInit(l *logger.Logger) error {
 	return nil
 }
 
-// copyInitTemplates copies SpecLedger templates for init (excludes new-project specific files)
-func copyInitTemplates(projectPath, shortCode, projectName string) error {
-	// Files and directories to exclude from init
-	excludePaths := map[string]bool{
-		"specledger/FORK.md":          true, // FORK.md is for new projects
-		"specledger/memory":           true,
-		"specledger/scripts":          true,
-		"spec-kit-version":            true,
-		"specledger/spec-kit-version": true,
-		"specledger/templates":        true,
-		"AGENTS.md":                   true, // Don't overwrite existing AGENTS.md if present
-	}
-
-	// Walk through the embedded filesystem
-	err := fs.WalkDir(embedded.TemplatesFS, "templates", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Calculate relative path (remove "templates/" prefix)
-		relPath := strings.TrimPrefix(path, "templates/")
-		if relPath == "" || relPath == "." {
-			return nil
-		}
-
-		// Check if this path should be excluded
-		if excludePaths[relPath] {
-			if d.IsDir() {
-				return fs.SkipDir
-			}
-			return nil
-		}
-
-		destPath := filepath.Join(projectPath, relPath)
-
-		// For files that already exist, skip them
-		if _, err := os.Stat(destPath); err == nil {
-			// File exists, skip it
-			return nil
-		}
-
-		if d.IsDir() {
-			return os.MkdirAll(destPath, 0755)
-		}
-
-		// Read file from embedded FS
-		data, err := embedded.TemplatesFS.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("failed to read embedded file %s: %w", path, err)
-		}
-
-		if err := os.WriteFile(destPath, data, 0644); err != nil {
-			return fmt.Errorf("failed to write file %s: %w", destPath, err)
-		}
-
-		// If we just copied mise.toml, run mise trust
-		if filepath.Base(path) == "mise.toml" {
-			cmd := exec.Command("mise", "trust")
-			cmd.Dir = projectPath
-			_ = cmd.Run() // Ignore errors if mise is not installed
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to walk embedded templates: %w", err)
-	}
-
-	return nil
-}
-
 func init() {
 	// Flags for 'new' command
 	VarBootstrapCmd.PersistentFlags().StringVarP(&projectNameFlag, "project-name", "n", "", "Project name")
@@ -375,74 +301,6 @@ func init() {
 	VarInitCmd.PersistentFlags().StringVarP(&initShortCodeFlag, "short-code", "s", "", "Short code for issue IDs (2-4 letters)")
 	VarInitCmd.PersistentFlags().StringVarP(&initPlaybookFlag, "playbook", "p", "", "Playbook to apply (default: specledger)")
 	VarInitCmd.PersistentFlags().BoolVarP(&initForceFlag, "force", "", false, "Force initialize even if SpecLedger files exist")
-}
-
-// copyTemplates copies SpecLedger template files to the new project using embedded templates
-func copyTemplates(projectPath, shortCode, projectName string) error {
-	// Files and directories to exclude from copying
-	excludePaths := map[string]bool{
-		"specledger/FORK.md":          true,
-		"specledger/memory":           true,
-		"specledger/scripts":          true,
-		"spec-kit-version":            true,
-		"specledger/spec-kit-version": true,
-		"specledger/templates":        true,
-		// Don't exclude specledger directory itself - we want it!
-	}
-
-	// Walk through the embedded filesystem
-	err := fs.WalkDir(embedded.TemplatesFS, "templates", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Calculate relative path (remove "templates/" prefix)
-		relPath := strings.TrimPrefix(path, "templates/")
-		if relPath == "" || relPath == "." {
-			return nil
-		}
-
-		// Check if this path should be excluded
-		if excludePaths[relPath] {
-			if d.IsDir() {
-				return fs.SkipDir
-			}
-			return nil
-		}
-
-		destPath := filepath.Join(projectPath, relPath)
-
-		if d.IsDir() {
-			return os.MkdirAll(destPath, 0755)
-		}
-
-		// Read file from embedded FS
-		data, err := embedded.TemplatesFS.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("failed to read embedded file %s: %w", path, err)
-		}
-
-		if err := os.WriteFile(destPath, data, 0644); err != nil {
-			return fmt.Errorf("failed to write file %s: %w", destPath, err)
-		}
-
-		// If we just copied mise.toml, run mise trust
-		if filepath.Base(path) == "mise.toml" {
-			cmd := exec.Command("mise", "trust")
-			cmd.Dir = projectPath
-			_ = cmd.Run() // Ignore errors if mise is not installed
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to walk embedded templates: %w", err)
-	}
-
-	// Note: specledger.yaml is now created separately via metadata.SaveToProject()
-	// No longer creating .mod file here
-	return nil
 }
 
 // initializeGitRepo initializes a git repository in the project directory

@@ -434,10 +434,7 @@ func cloneOrUpdateRepository(dep metadata.Dependency, targetDir string) error {
 		cmd = exec.Command("git", "-C", targetDir, "pull", "origin", branch)
 		cmd.Stdout = nil
 		cmd.Stderr = nil
-		if err := cmd.Run(); err != nil {
-			// Pull might fail if no tracking branch, ignore
-			// This is okay for read-only access
-		}
+		_ = cmd.Run() // Pull might fail if no tracking branch, ignore for read-only access
 	}
 
 	return nil

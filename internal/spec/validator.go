@@ -164,12 +164,8 @@ func isValidSpecPath(path string) bool {
 // isValidAlias checks if an alias is valid
 func isValidAlias(alias string) bool {
 	// Can start with # or . for special purposes
-	if strings.HasPrefix(alias, "#") {
-		alias = alias[1:]
-	}
-	if strings.HasPrefix(alias, ".") {
-		alias = alias[1:]
-	}
+	alias = strings.TrimPrefix(alias, "#")
+	alias = strings.TrimPrefix(alias, ".")
 
 	// Alphanumeric, hyphens, underscores, periods only, 1-50 chars
 	return len(alias) > 0 && len(alias) <= 50 &&

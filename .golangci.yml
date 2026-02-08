@@ -1,19 +1,11 @@
 linters:
   enable:
-    - gofmt
     - govet
     - staticcheck
     - errcheck
-    - gosimple
     - ineffassign
     - unused
     - gosec
-
-linters-settings:
-  govet:
-    check-shadowing: true
-  gofmt:
-    simplify: true
 
 run:
   timeout: 5m

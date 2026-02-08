@@ -213,6 +213,12 @@ func TestDoctorInProjectDirectory(t *testing.T) {
 
 	slBinary := buildSLBinary(t, tempDir)
 
+	// Skip test if prerequisites are not installed (CI environment)
+	// sl new --ci requires all prerequisites to be installed
+	if !toolExists("mise") || !toolExists("bd") || !toolExists("perles") {
+		t.Skip("Skipping test: prerequisites (mise, bd, perles) not installed")
+	}
+
 	// Create a SpecLedger project first
 	projectPath := filepath.Join(tempDir, "test-project")
 	cmd := exec.Command(slBinary, "new", "--ci",

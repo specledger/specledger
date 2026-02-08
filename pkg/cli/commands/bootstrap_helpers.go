@@ -88,6 +88,7 @@ func applyEmbeddedSkills(projectPath string) error {
 		}
 
 		// Write to destination
+		// #nosec G306 -- skill files need to be readable, 0644 is appropriate
 		if err := os.WriteFile(destPath, data, 0644); err != nil {
 			return fmt.Errorf("failed to write file %s: %w", destPath, err)
 		}
@@ -184,6 +185,7 @@ func runPostInitScript(projectPath string, projectMetadata *metadata.ProjectMeta
 	}
 
 	// Execute the script with environment variables
+	// #nosec G204 -- tmpFile.Name() is from os.CreateTemp, safe path
 	cmd := exec.Command(tmpFile.Name())
 	cmd.Dir = projectPath
 

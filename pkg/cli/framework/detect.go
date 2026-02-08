@@ -63,11 +63,7 @@ func hasSpecKitMarkers(repoPath string) bool {
 
 	// Check for SPECKIT.md or similar documentation
 	matches, _ := filepath.Glob(filepath.Join(repoPath, "*[Ss][Pp][Ee][Cc][Kk][Ii][Tt]*.md"))
-	if len(matches) > 0 {
-		return true
-	}
-
-	return false
+	return len(matches) > 0
 }
 
 // hasOpenSpecMarkers checks if a repository uses OpenSpec
@@ -86,11 +82,7 @@ func hasOpenSpecMarkers(repoPath string) bool {
 
 	// Check for OPENSPEC.md or similar documentation
 	matches, _ := filepath.Glob(filepath.Join(repoPath, "*[Oo][Pp][Ee][Nn][Ss][Pp][Ee][Cc]*.md"))
-	if len(matches) > 0 {
-		return true
-	}
-
-	return false
+	return len(matches) > 0
 }
 
 // DetectFrameworkFromContent detects framework from raw content (without cloning)

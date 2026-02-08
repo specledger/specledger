@@ -26,7 +26,7 @@ Quick start:
   sl deps add <url>    # Add a dependency`,
 	Version: "1.0.0",
 	Run: func(cmd *cobra.Command, args []string) {
-		cmd.Help()
+		_ = cmd.Help()
 	},
 }
 
