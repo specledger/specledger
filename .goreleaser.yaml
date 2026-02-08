@@ -51,7 +51,6 @@ archives:
     files:
       - LICENSE
       - README.md
-    strip_parent_directory: true
 
 nfpms:
   - vendor: specledger
