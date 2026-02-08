@@ -29,8 +29,8 @@ This command verifies that:
 Use --json flag for machine-readable output suitable for CI/CD pipelines.`,
 	Example: `  sl doctor           # Human-readable output
   sl doctor --json    # JSON output for CI/CD`,
-	RunE:         runDoctor,
-	SilenceUsage: true, // Don't print usage on error
+	RunE:          runDoctor,
+	SilenceUsage:  true, // Don't print usage on error
 	SilenceErrors: true, // Don't print error message from return (we handle it in UI)
 }
 

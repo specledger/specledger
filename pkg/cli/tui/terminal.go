@@ -19,7 +19,7 @@ const (
 
 // ModeDetector detects the terminal mode
 type ModeDetector struct {
-	termState TerminalMode
+	termState    TerminalMode
 	gumAvailable bool
 }
 
@@ -29,7 +29,7 @@ func NewModeDetector() *ModeDetector {
 	checkGum := checkGum()
 
 	return &ModeDetector{
-		termState: detectMode,
+		termState:    detectMode,
 		gumAvailable: checkGum,
 	}
 }

@@ -10,12 +10,12 @@ import (
 
 // Tool represents a required or optional tool
 type Tool struct {
-	Name         string
-	DisplayName  string
-	Category     metadata.ToolCategory
-	VersionFlag  string // Flag to get version (usually --version or -v)
-	InstallCmd   string // Command to install via mise
-	InstallURL   string // URL for manual installation instructions
+	Name        string
+	DisplayName string
+	Category    metadata.ToolCategory
+	VersionFlag string // Flag to get version (usually --version or -v)
+	InstallCmd  string // Command to install via mise
+	InstallURL  string // URL for manual installation instructions
 }
 
 // ToolCheckResult contains the result of checking a tool's installation status

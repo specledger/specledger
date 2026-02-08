@@ -8,12 +8,12 @@ import (
 
 // Reference represents an external reference in a specification
 type Reference struct {
-	Text      string // The full text of the reference
-	Markdown  string // The markdown link text
-	URL       string // The resolved URL
-	Line      int    // Line number where reference was found
-	Column    int    // Column number where reference was found
-	Type      string // Type of reference: "markdown", "image", "code", "link"
+	Text     string // The full text of the reference
+	Markdown string // The markdown link text
+	URL      string // The resolved URL
+	Line     int    // Line number where reference was found
+	Column   int    // Column number where reference was found
+	Type     string // Type of reference: "markdown", "image", "code", "link"
 }
 
 // ReferenceResolver resolves external references in specifications
@@ -45,30 +45,30 @@ func (r *ReferenceResolver) ParseSpec(content string) ([]Reference, error) {
 	// Add markdown links
 	for _, link := range markdownLinks {
 		references = append(references, Reference{
-			Text:      link.text,
-			Markdown:  link.markdown,
-			URL:       link.url,
-			Type:      "markdown",
+			Text:     link.text,
+			Markdown: link.markdown,
+			URL:      link.url,
+			Type:     "markdown",
 		})
 	}
 
 	// Add image links
 	for _, img := range imageLinks {
 		references = append(references, Reference{
-			Text:    img.text,
+			Text:     img.text,
 			Markdown: img.markdown,
-			URL:     img.url,
-			Type:    "image",
+			URL:      img.url,
+			Type:     "image",
 		})
 	}
 
 	// Add inline references
 	for _, ref := range inlineRefs {
 		references = append(references, Reference{
-			Text:    ref.text,
+			Text:     ref.text,
 			Markdown: ref.markdown,
-			URL:     ref.url,
-			Type:    "inline",
+			URL:      ref.url,
+			Type:     "inline",
 		})
 	}
 

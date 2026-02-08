@@ -53,9 +53,9 @@ func (f *DefaultFormatter) Format(level Level, timestamp time.Time, message stri
 
 // Logger is the main logger struct
 type Logger struct {
-	level   Level
+	level     Level
 	formatter Formatter
-	output   *os.File
+	output    *os.File
 }
 
 // New creates a new logger

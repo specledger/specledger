@@ -10,10 +10,10 @@ import (
 
 // DoctorOutput represents the JSON output structure from sl doctor
 type DoctorOutput struct {
-	Status              string         `json:"status"`
-	Tools               []DoctorTool   `json:"tools"`
-	Missing             []string       `json:"missing,omitempty"`
-	InstallInstructions string         `json:"install_instructions,omitempty"`
+	Status              string       `json:"status"`
+	Tools               []DoctorTool `json:"tools"`
+	Missing             []string     `json:"missing,omitempty"`
+	InstallInstructions string       `json:"install_instructions,omitempty"`
 }
 
 type DoctorTool struct {

@@ -14,7 +14,7 @@ import (
 // - Playbook caching at ~/.specledger/playbook-cache/
 // - Authentication for private repositories
 type RemoteSource struct {
-	baseURL string
+	baseURL  string
 	cacheDir string
 }
 

@@ -19,7 +19,7 @@ NOTE: This feature is coming soon. For now, use 'sl deps list' to see dependenci
 var VarShowCmd = &cobra.Command{
 	Use:   "show",
 	Short: "Show dependency graph (coming soon)",
-	Long:  `Display the complete dependency graph with all nodes and edges.
+	Long: `Display the complete dependency graph with all nodes and edges.
 
 This will show how specifications depend on each other.`,
 	Example: "  sl graph show",
@@ -30,7 +30,7 @@ This will show how specifications depend on each other.`,
 var VarExportCmd = &cobra.Command{
 	Use:   "export --format <format> --output <file>",
 	Short: "Export graph to file (coming soon)",
-	Long:  `Export the dependency graph to a file for visualization.
+	Long: `Export the dependency graph to a file for visualization.
 
 Supported formats will include: JSON, SVG, DOT (Graphviz)`,
 	Example: "  sl graph export --format svg --output deps.svg",
@@ -41,7 +41,7 @@ Supported formats will include: JSON, SVG, DOT (Graphviz)`,
 var VarTransitiveCmd = &cobra.Command{
 	Use:   "transitive",
 	Short: "Show transitive dependencies (coming soon)",
-	Long:  `Show all transitive dependencies up to a specified depth.
+	Long: `Show all transitive dependencies up to a specified depth.
 
 This helps understand the full dependency tree.`,
 	Example: "  sl graph transitive --depth 3",

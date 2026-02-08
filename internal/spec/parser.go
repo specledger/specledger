@@ -146,9 +146,9 @@ func WriteManifest(path string, manifest *Manifest) error {
 
 // Manifest represents the parsed spec.mod file
 type Manifest struct {
-	Version      string
-	Dependecies  []models.Dependency
-	ID           string
-	Path         string
-	UpdatedAt    time.Time
+	Version     string
+	Dependecies []models.Dependency
+	ID          string
+	Path        string
+	UpdatedAt   time.Time
 }

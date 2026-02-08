@@ -87,7 +87,7 @@ func Gray(text string) string {
 
 // ANSI color codes for use in fmt.Println and string concatenation
 const (
-	Reset   = "\033[0m"
+	Reset    = "\033[0m"
 	BoldCode = "\033[1m"
 	DimCode  = "\033[90m"
 )

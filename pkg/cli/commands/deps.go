@@ -30,9 +30,9 @@ Examples:
 
 // VarAddCmd represents the add command
 var VarAddCmd = &cobra.Command{
-	Use:     "add <repo-url> [branch] [spec-path]",
-	Short:   "Add a dependency",
-	Long:    `Add an external specification dependency to your project. The dependency will be tracked in specledger.yaml and cached locally for offline use.`,
+	Use:   "add <repo-url> [branch] [spec-path]",
+	Short: "Add a dependency",
+	Long:  `Add an external specification dependency to your project. The dependency will be tracked in specledger.yaml and cached locally for offline use.`,
 	Example: `  sl deps add git@github.com:org/api-spec
   sl deps add git@github.com:org/api-spec v1.0 specledger/api.md
   sl deps add git@github.com:org/api-spec main spec.md --alias api`,
@@ -70,12 +70,12 @@ var VarResolveCmd = &cobra.Command{
 
 // VarDepsUpdateCmd represents the update command
 var VarDepsUpdateCmd = &cobra.Command{
-	Use:     "update [repo-url]",
-	Short:   "Update dependencies to latest versions",
-	Long:    `Update dependencies to their latest versions. If no URL is given, updates all dependencies.`,
+	Use:   "update [repo-url]",
+	Short: "Update dependencies to latest versions",
+	Long:  `Update dependencies to their latest versions. If no URL is given, updates all dependencies.`,
 	Example: `  sl deps update                    # Update all
   sl deps update git@github.com:org/spec # Update one`,
-	RunE:    runUpdateDependencies,
+	RunE: runUpdateDependencies,
 }
 
 func init() {

@@ -10,27 +10,27 @@ import (
 
 // Config represents the CLI configuration
 type Config struct {
-	DefaultProjectDir string `yaml:"default_project_dir" json:"default_project_dir"`
-	PreferredShell    string `yaml:"preferred_shell" json:"preferred_shell"`
-	TUIEnabled        bool   `yaml:"tui_enabled" json:"tui_enabled"`
-	AutoInstallDeps   bool   `yaml:"auto_install_deps" json:"auto_install_deps"`
+	DefaultProjectDir  string `yaml:"default_project_dir" json:"default_project_dir"`
+	PreferredShell     string `yaml:"preferred_shell" json:"preferred_shell"`
+	TUIEnabled         bool   `yaml:"tui_enabled" json:"tui_enabled"`
+	AutoInstallDeps    bool   `yaml:"auto_install_deps" json:"auto_install_deps"`
 	FallbackToPlainCLI bool   `yaml:"fallback_to_plain_cli" json:"fallback_to_plain_cli"`
-	LogLevel          string `yaml:"log_level" json:"log_level"`
-	Theme             string `yaml:"theme" json:"theme"`
-	Language          string `yaml:"language" json:"language"`
+	LogLevel           string `yaml:"log_level" json:"log_level"`
+	Theme              string `yaml:"theme" json:"theme"`
+	Language           string `yaml:"language" json:"language"`
 }
 
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
-		DefaultProjectDir:   filepath.Join(os.Getenv("HOME"), "demos"),
-		PreferredShell:      "zsh",
-		TUIEnabled:          true,
-		AutoInstallDeps:     false,
-		FallbackToPlainCLI:  true,
-		LogLevel:            "debug",
-		Theme:               "default",
-		Language:            "en",
+		DefaultProjectDir:  filepath.Join(os.Getenv("HOME"), "demos"),
+		PreferredShell:     "zsh",
+		TUIEnabled:         true,
+		AutoInstallDeps:    false,
+		FallbackToPlainCLI: true,
+		LogLevel:           "debug",
+		Theme:              "default",
+		Language:           "en",
 	}
 }
 

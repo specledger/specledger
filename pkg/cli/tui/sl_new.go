@@ -11,10 +11,10 @@ import (
 
 // Colors and styles
 var (
-	colorPrimary    = lipgloss.NewStyle().Foreground(lipgloss.Color("13"))  // Gold
-	colorSuccess    = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))   // Green
-	colorWarning    = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))  // Yellow
-	colorError      = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))   // Red
+	colorPrimary    = lipgloss.NewStyle().Foreground(lipgloss.Color("13")) // Gold
+	colorSuccess    = lipgloss.NewStyle().Foreground(lipgloss.Color("2"))  // Green
+	colorWarning    = lipgloss.NewStyle().Foreground(lipgloss.Color("11")) // Yellow
+	colorError      = lipgloss.NewStyle().Foreground(lipgloss.Color("1"))  // Red
 	colorSubtle     = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 	colorBackground = lipgloss.NewStyle().Background(lipgloss.Color("235"))
 	colorBorder     = lipgloss.NewStyle().Foreground(lipgloss.Color("13"))
@@ -55,12 +55,12 @@ func InitialModel(defaultDir string) Model {
 	ti.Width = 50
 
 	return Model{
-		step:       stepProjectName,
-		textInput:  ti,
-		answers:    make(map[string]string),
-		width:      80,
+		step:        stepProjectName,
+		textInput:   ti,
+		answers:     make(map[string]string),
+		width:       80,
 		selectedIdx: 0,
-		defaultDir: defaultDir,
+		defaultDir:  defaultDir,
 	}
 }
 

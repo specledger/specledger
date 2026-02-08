@@ -7,11 +7,11 @@ import (
 
 // Dependency represents a single external specification dependency declaration
 type Dependency struct {
-	RepositoryURL string   // Git repository URL (HTTPS or SSH)
-	Version       string   // Version constraint (branch, tag, commit hash, or semver)
-	SpecPath      string   // Path to the specification file within the repository
-	Alias         string   // Optional short alias for the dependency
-	Pinned        bool     // Whether the dependency is pinned to a specific commit
+	RepositoryURL string       // Git repository URL (HTTPS or SSH)
+	Version       string       // Version constraint (branch, tag, commit hash, or semver)
+	SpecPath      string       // Path to the specification file within the repository
+	Alias         string       // Optional short alias for the dependency
+	Pinned        bool         // Whether the dependency is pinned to a specific commit
 	Transitive    []Dependency // Transitive dependencies discovered from external spec.mod
 }
 
@@ -70,24 +70,24 @@ func isValidAlias(alias string) bool {
 
 // DependencyManifest represents the dependency manifest file (spec.mod)
 type DependencyManifest struct {
-	Version     string           // Version of the manifest format
-	Dependencies []Dependency   // List of declared dependencies
-	ID          string           // Unique identifier for this spec (for external references)
-	Path        string           // File path to this spec (relative to repo root)
-	CreatedAt   time.Time        // When the manifest was created
-	UpdatedAt   time.Time        // When the manifest was last updated
+	Version      string       // Version of the manifest format
+	Dependencies []Dependency // List of declared dependencies
+	ID           string       // Unique identifier for this spec (for external references)
+	Path         string       // File path to this spec (relative to repo root)
+	CreatedAt    time.Time    // When the manifest was created
+	UpdatedAt    time.Time    // When the manifest was last updated
 }
 
 // NewDependencyManifest creates a new dependency manifest
 func NewDependencyManifest(version, id, path string) *DependencyManifest {
 	now := time.Now()
 	return &DependencyManifest{
-		Version:    version,
+		Version:      version,
 		Dependencies: make([]Dependency, 0),
-		ID:         id,
-		Path:       path,
-		CreatedAt:  now,
-		UpdatedAt:  now,
+		ID:           id,
+		Path:         path,
+		CreatedAt:    now,
+		UpdatedAt:    now,
 	}
 }
 
@@ -123,21 +123,21 @@ func (m *DependencyManifest) RemoveDependency(repoURL, specPath string) bool {
 
 // LockfileEntry represents a single resolved dependency entry in the lockfile
 type LockfileEntry struct {
-	RepositoryURL  string
-	CommitHash     string
-	ContentHash    string // SHA-256 hash of the spec file content
-	SpecPath       string
-	Branch         string
-	Size           int64
-	FetchedAt      time.Time
+	RepositoryURL string
+	CommitHash    string
+	ContentHash   string // SHA-256 hash of the spec file content
+	SpecPath      string
+	Branch        string
+	Size          int64
+	FetchedAt     time.Time
 }
 
 // Lockfile represents the lockfile file (spec.sum) with cryptographic verification
 type Lockfile struct {
-	Version    string
-	Entries    []LockfileEntry
-	Timestamp  time.Time
-	TotalSize  int64
+	Version   string
+	Entries   []LockfileEntry
+	Timestamp time.Time
+	TotalSize int64
 }
 
 // NewLockfile creates a new lockfile

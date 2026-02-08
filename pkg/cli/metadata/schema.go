@@ -8,11 +8,11 @@ import (
 
 // ProjectMetadata represents specledger.yaml
 type ProjectMetadata struct {
-	Version      string           `yaml:"version"`
-	Project      ProjectInfo      `yaml:"project"`
-	Playbook     PlaybookInfo     `yaml:"playbook"`
-	TaskTracker  TaskTrackerInfo  `yaml:"task_tracker,omitempty"`
-	Dependencies []Dependency     `yaml:"dependencies,omitempty"`
+	Version      string          `yaml:"version"`
+	Project      ProjectInfo     `yaml:"project"`
+	Playbook     PlaybookInfo    `yaml:"playbook"`
+	TaskTracker  TaskTrackerInfo `yaml:"task_tracker,omitempty"`
+	Dependencies []Dependency    `yaml:"dependencies,omitempty"`
 }
 
 // ProjectInfo contains project identification
@@ -26,16 +26,16 @@ type ProjectInfo struct {
 
 // TaskTrackerInfo records task/issue tracker choice
 type TaskTrackerInfo struct {
-	Choice      TaskTrackerChoice `yaml:"choice"`
-	EnabledAt   *time.Time        `yaml:"enabled_at,omitempty"`
+	Choice    TaskTrackerChoice `yaml:"choice"`
+	EnabledAt *time.Time        `yaml:"enabled_at,omitempty"`
 }
 
 // PlaybookInfo records the playbook applied to this project
 type PlaybookInfo struct {
-	Name        string     `yaml:"name"`        // Name of the playbook (e.g., "specledger")
-	Version     string     `yaml:"version"`     // Version of the playbook that was applied
-	AppliedAt   *time.Time `yaml:"applied_at,omitempty"`   // When the playbook was applied
-	Structure   []string   `yaml:"structure,omitempty"`    // Folder structure created by the playbook
+	Name      string     `yaml:"name"`                 // Name of the playbook (e.g., "specledger")
+	Version   string     `yaml:"version"`              // Version of the playbook that was applied
+	AppliedAt *time.Time `yaml:"applied_at,omitempty"` // When the playbook was applied
+	Structure []string   `yaml:"structure,omitempty"`  // Folder structure created by the playbook
 }
 
 // FrameworkInfo records SDD framework choice (deprecated, kept for migration compatibility)
@@ -64,13 +64,13 @@ const (
 
 // Dependency represents an external spec dependency
 type Dependency struct {
-	URL            string            `yaml:"url"`
-	Branch         string            `yaml:"branch,omitempty"`
-	Path           string            `yaml:"path,omitempty"`
-	Alias          string            `yaml:"alias,omitempty"`
-	ResolvedCommit string            `yaml:"resolved_commit,omitempty"`
-	Framework      FrameworkChoice  `yaml:"framework,omitempty"` // speckit, openspec, both, none
-	ImportPath     string            `yaml:"import_path,omitempty"`   // @alias/spec format for AI imports
+	URL            string          `yaml:"url"`
+	Branch         string          `yaml:"branch,omitempty"`
+	Path           string          `yaml:"path,omitempty"`
+	Alias          string          `yaml:"alias,omitempty"`
+	ResolvedCommit string          `yaml:"resolved_commit,omitempty"`
+	Framework      FrameworkChoice `yaml:"framework,omitempty"`   // speckit, openspec, both, none
+	ImportPath     string          `yaml:"import_path,omitempty"` // @alias/spec format for AI imports
 }
 
 // ToolStatus represents runtime tool detection (not persisted)
