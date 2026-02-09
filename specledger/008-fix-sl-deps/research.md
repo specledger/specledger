@@ -37,8 +37,9 @@ This document consolidates research findings for implementing the SpecLedger dep
 2. **--artifact-path flag** - Not available on `sl deps add` for non-SpecLedger repos
 3. **Auto-discovery** - No logic to read dependency's specledger.yaml for artifact_path
 4. **Reference resolution** - No system to combine artifact_paths for cross-repo references
-5. **update-deps.md** - Missing from `.claude/commands/`
+5. **Auto-download on add** - `sl deps add` doesn't automatically download dependencies
 6. **sl new/init** - Don't configure artifact_path field
+7. **`--alias` not required** - Should be required, not optional
 
 ---
 
@@ -83,8 +84,9 @@ type Dependency struct {
 
 **Reference Resolution Formula**:
 ```
-Full path = project.artifact_path + dependency.path + ":" + artifact_name
+Full path = project.artifact_path + dependency.alias + ":" + artifact_name
 ```
+(Note: The `dependency.path` field has been removed in favor of using `alias` as the reference path)
 
 **Example**:
 ```yaml
@@ -194,11 +196,14 @@ func DetectArtifactPathFromRemote(repoURL, branch, cacheDir string) (string, err
 ```
 
 2. **Update sl deps add**:
+- Make `--alias` required (no longer optional)
+- Remove third argument for path (use alias instead)
 - Add `--artifact-path` flag for manual specification
 - Auto-detect for SpecLedger repos (check if specledger.yaml exists)
+- Auto-download/cache dependency on add (like `go mod`)
 - Store result in dependency's artifact_path field
 
-### Phase 3: Complete Resolve Implementation
+### Phase 3: Complete Resolve Implementation (for manual refresh)
 
 1. **Migrate deps.go to use go-git/v5**:
 - Replace `exec.Command("git", ...)` with go-git API calls
@@ -208,12 +213,13 @@ func DetectArtifactPathFromRemote(repoURL, branch, cacheDir string) (string, err
 - Ensure it downloads to `~/.specledger/cache/`
 - Handle partial downloads and resume
 - Update resolved commit in metadata
+- Note: This is for manual refresh (like `go mod download`), auto-download happens on add
 
-### Phase 4: Reference Resolution (Future)
+### Phase 4: Reference Resolution
 
 1. **Create pkg/deps/reference.go**:
 ```go
-// ResolveReference combines artifact_paths to find files
+// ResolveReference uses alias to find files
 func ResolveReference(projectMeta *ProjectMetadata, depAlias, artifactName string) (string, error)
 ```
 
@@ -223,10 +229,11 @@ func ResolveReference(projectMeta *ProjectMetadata, depAlias, artifactName strin
 
 ### Phase 5: Claude Code Integration
 
-1. **Create specledger.update-deps.md**
-2. **Update specledger.resolve-deps.md** (fix cache location)
-3. **Update specledger.add-deps.md** (add artifact-path flag)
-4. **Update specledger-deps/SKILL.md** (add artifact_path docs)
+1. **Update specledger.add-deps.md** (add artifact-path flag, make alias required, note auto-download)
+2. **Update specledger.remove-deps.md** (ensure it's current)
+3. **Update specledger-deps/SKILL.md** (comprehensive docs for all commands: add, remove, list, update, resolve)
+
+Note: Only `add-deps.md` and `remove-deps.md` command files are needed. Other operations (list, update, resolve) are documented in the skill for reference.
 
 ---
 
@@ -306,14 +313,14 @@ func (m *ProjectMetadata) GetArtifactPath() string {
 
 | Priority | Component | Change | Files |
 |----------|-----------|--------|-------|
-| P1 | Metadata schema | Add ArtifactPath to ProjectMetadata and Dependency | pkg/cli/metadata/schema.go |
-| P1 | deps add | Add --artifact-path flag, auto-discovery | pkg/cli/commands/deps.go |
-| P1 | deps resolve | Complete implementation, use go-git | pkg/cli/commands/deps.go |
+| P1 | Metadata schema | Add ArtifactPath to ProjectMetadata, remove Path from Dependency | pkg/cli/metadata/schema.go |
+| P1 | deps add | Make --alias required, add --artifact-path flag, auto-download | pkg/cli/commands/deps.go |
+| P1 | deps resolve | Complete for manual refresh, use go-git | pkg/cli/commands/deps.go |
 | P1 | sl new/init | Configure artifact_path | pkg/cli/commands/new.go, init.go |
-| P1 | Claude commands | Create update-deps.md, fix resolve-deps.md | .claude/commands/ |
-| P1 | Skill docs | Update with artifact_path concept | .claude/skills/specledger-deps/ |
+| P1 | Claude commands | Update add-deps.md, keep remove-deps.md (no new command files) | .claude/commands/ |
+| P1 | Skill docs | Comprehensive docs for all commands (add, remove, list, update, resolve) | .claude/skills/specledger-deps/ |
 | P2 | Artifact discovery | Create resolver package | pkg/deps/resolver.go |
-| P2 | Reference resolution | Create reference package (deferred?) | pkg/deps/reference.go |
+| P2 | Reference resolution | Create reference package | pkg/deps/reference.go |
 
 ---
 
@@ -336,6 +343,22 @@ func (m *ProjectMetadata) GetArtifactPath() string {
 **Approach**: Require explicit artifact_path in every project
 
 **Rejected Because**: Breaks backward compatibility, less convenient for standard projects
+
+### Alternative 4: Separate `path` and `alias` fields
+
+**Approach**: Keep both `path` (for reference location) and `alias` (for short name) as separate fields
+
+**Rejected Because**: Unnecessary complexity - `alias` can serve both purposes. The `path` field was redundant since it defaulted to the `alias` value in most cases.
+
+**Decision**: Remove `dependency.path` field and use `alias` as the reference path within the project's artifact_path. This simplifies the data model and reduces user confusion.
+
+### Alternative 5: Separate command file for each deps operation
+
+**Approach**: Create `.claude/commands/` files for all 5 deps operations (add, remove, list, resolve, update)
+
+**Rejected Because**: Only `add` and `remove` are core operations that AI agents need explicit guidance for. `list`, `update`, and `resolve` are simple commands that can be documented in the skill file for reference.
+
+**Decision**: Keep only `add-deps.md` and `remove-deps.md` command files. Document other operations in the `specledger-deps` skill.
 
 ---
 
