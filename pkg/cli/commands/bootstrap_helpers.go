@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"specledger/pkg/cli/metadata"
-	"specledger/pkg/cli/playbooks"
-	"specledger/pkg/cli/ui"
-	"specledger/pkg/embedded"
+	"github.com/specledger/specledger/pkg/cli/metadata"
+	"github.com/specledger/specledger/pkg/cli/playbooks"
+	"github.com/specledger/specledger/pkg/cli/ui"
+	"github.com/specledger/specledger/pkg/embedded"
 )
 
 // applyEmbeddedPlaybooks copies embedded playbooks to the project directory.

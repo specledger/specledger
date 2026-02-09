@@ -11,7 +11,7 @@ import (
 // Future implementation will support:
 // - Git repositories (git@github.com:org/playbook.git)
 // - HTTPS URLs to playbook archives
-// - Playbook caching at ~/.specledger/playbook-cache/
+// - Playbook caching at ~/.github.com/specledger/specledger/playbook-cache/
 // - Authentication for private repositories
 type RemoteSource struct {
 	baseURL string

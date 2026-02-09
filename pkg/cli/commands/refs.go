@@ -5,9 +5,8 @@ import (
 	"os"
 	"strings"
 
-	"specledger/internal/ref"
-	"specledger/internal/spec"
-
+	"github.com/specledger/specledger/internal/ref"
+	"github.com/specledger/specledger/internal/spec"
 	"github.com/spf13/cobra"
 )
 
@@ -52,7 +51,7 @@ func runValidateReferences(cmd *cobra.Command, args []string) error {
 	}
 
 	// Read lockfile
-	lockfile, err := spec.ReadLockfile("specledger/spec.sum")
+	lockfile, err := spec.ReadLockfile("github.com/specledger/specledger/spec.sum")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("no lockfile found. Run 'sl deps resolve' first")
@@ -73,7 +72,7 @@ func runValidateReferences(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create resolver and set dependencies
-	resolver := ref.NewResolver("specledger/spec.sum")
+	resolver := ref.NewResolver("github.com/specledger/specledger/spec.sum")
 	_ = resolver.SetDependencies(dependencies)
 
 	// Parse references
@@ -115,7 +114,7 @@ func runListReferences(cmd *cobra.Command, args []string) error {
 	}
 
 	// Read lockfile
-	lockfile, err := spec.ReadLockfile("specledger/spec.sum")
+	lockfile, err := spec.ReadLockfile("github.com/specledger/specledger/spec.sum")
 	if err != nil {
 		if os.IsNotExist(err) {
 			return fmt.Errorf("no lockfile found. Run 'sl deps resolve' first")
@@ -135,7 +134,7 @@ func runListReferences(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create resolver and set dependencies
-	resolver := ref.NewResolver("specledger/spec.sum")
+	resolver := ref.NewResolver("github.com/specledger/specledger/spec.sum")
 	_ = resolver.SetDependencies(dependencies)
 
 	// Parse references

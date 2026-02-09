@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"specledger/pkg/cli/metadata"
+	"github.com/specledger/specledger/pkg/cli/metadata"
 )
 
 // DetectFramework detects which SDD framework a remote repository uses

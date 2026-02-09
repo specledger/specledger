@@ -13,7 +13,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
 
-	"specledger/pkg/models"
+	"github.com/specledger/specledger/pkg/models"
 )
 
 // ResolveResult represents the result of a dependency resolution
@@ -33,7 +33,7 @@ type Resolver struct {
 
 // NewResolver creates a new resolver with global cache directory
 func NewResolver(projectCacheDir string) *Resolver {
-	// Use ~/.specledger/cache for dependency caching
+	// Use ~/.github.com/specledger/specledger/cache for dependency caching
 	homeDir := os.Getenv("HOME")
 	if homeDir == "" {
 		if u, err := user.Current(); err == nil {
@@ -161,7 +161,7 @@ func (r *Resolver) fetchFromGit(ctx context.Context, dep models.Dependency) ([]b
 }
 
 // getRepoCachePath converts a repo URL to a cache path
-// Example: git@github.com:org/repo -> ~/.cache/specledger/github.com/org/repo
+// Example: git@github.com:org/repo -> ~/.cache/github.com/specledger/specledger/github.com/org/repo
 func (r *Resolver) getRepoCachePath(repoURL string) string {
 	// Remove git@ prefix and .git suffix
 	url := strings.TrimPrefix(repoURL, "git@")

@@ -1,8 +1,8 @@
 package playbooks
 
 import (
+	"github.com/specledger/specledger/pkg/embedded"
 	"io/fs"
-	"specledger/pkg/embedded"
 )
 
 var TemplatesFS = embedded.TemplatesFS

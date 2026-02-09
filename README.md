@@ -39,10 +39,19 @@ SpecLedger is an **all-in-one SDD playbook** that provides:
 ### Quick Install (Recommended)
 
 ```bash
-# Install via one-line script
+# Install via one-line script (auto-detects Intel/Apple Silicon)
 curl -fsSL https://raw.githubusercontent.com/specledger/specledger/main/scripts/install.sh | bash
+```
 
-# Or install via Homebrew
+The install script will:
+- Auto-detect your architecture (Intel/AMD64 or Apple Silicon/ARM64)
+- Download the correct binary for macOS
+- Verify the checksum before installation
+- Install to `~/.local/bin` (or `/usr/local/bin` with sudo)
+
+### Homebrew (macOS)
+
+```bash
 brew tap specledger/homebrew-specledger
 brew install specledger
 ```
@@ -58,8 +67,30 @@ make install
 ### Go Install
 
 ```bash
-go install github.com/specledger/specledger/cmd/sl@latest
+go install github.com/specledger/specledger/cmd@latest
 ```
+
+### Binary Download
+
+Download the latest release from [GitHub Releases](https://github.com/specledger/specledger/releases/latest).
+
+Available binaries:
+- `specledger_VERSION_darwin_amd64.tar.gz` - macOS Intel
+- `specledger_VERSION_darwin_arm64.tar.gz` - macOS Apple Silicon
+
+### Troubleshooting
+
+**Installation script fails?**
+- Make sure you have `curl` or `wget` installed
+- Check that `~/.local/bin` is writable or install with sudo
+
+**Binary not found after installation?**
+- Add `~/.local/bin` to your PATH or start a new shell
+- For Homebrew: `brew info specledger` to see installation location
+
+**Go install fails?**
+- Make sure you have Go 1.24+ installed
+- Check that `$GOPATH/bin` or `$GOBIN` is in your PATH
 
 ## Quick Start
 

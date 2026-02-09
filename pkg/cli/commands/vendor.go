@@ -7,8 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"specledger/internal/spec"
-
+	"github.com/specledger/specledger/internal/spec"
 	"github.com/spf13/cobra"
 )
 
@@ -44,8 +43,8 @@ var VarCleanCmd = &cobra.Command{
 func init() {
 	VarVendorCmd.AddCommand(VarVendorAllCmd, VarVendorUpdateCmd, VarCleanCmd)
 
-	VarVendorAllCmd.Flags().StringP("output", "o", "specledger/vendor", "Output vendor directory path")
-	VarVendorUpdateCmd.Flags().StringP("vendor-path", "p", "specledger/vendor", "Vendor directory path")
+	VarVendorAllCmd.Flags().StringP("output", "o", "github.com/specledger/specledger/vendor", "Output vendor directory path")
+	VarVendorUpdateCmd.Flags().StringP("vendor-path", "p", "github.com/specledger/specledger/vendor", "Vendor directory path")
 	VarVendorUpdateCmd.Flags().BoolP("force", "f", false, "Force update all vendored specs")
 }
 
@@ -54,7 +53,7 @@ func runVendorAll(cmd *cobra.Command, args []string) error {
 	force, _ := cmd.Flags().GetBool("force")
 
 	// Read lockfile
-	lockfile, err := spec.ReadLockfile("specledger/spec.sum")
+	lockfile, err := spec.ReadLockfile("github.com/specledger/specledger/spec.sum")
 	if err != nil {
 		return fmt.Errorf("failed to read lockfile: %w", err)
 	}
@@ -86,7 +85,7 @@ func runVendorUpdate(cmd *cobra.Command, args []string) error {
 	force, _ := cmd.Flags().GetBool("force")
 
 	// Read lockfile
-	lockfile, err := spec.ReadLockfile("specledger/spec.sum")
+	lockfile, err := spec.ReadLockfile("github.com/specledger/specledger/spec.sum")
 	if err != nil {
 		return fmt.Errorf("failed to read lockfile: %w", err)
 	}

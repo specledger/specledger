@@ -5,7 +5,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"specledger/pkg/cli/metadata"
+	"github.com/specledger/specledger/pkg/cli/metadata"
 )
 
 // Tool represents a required or optional tool

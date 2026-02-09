@@ -28,6 +28,6 @@ func runUpdateSelf(cmd *cobra.Command, args []string) error {
 	fmt.Println("Self-update functionality is not yet implemented.")
 	fmt.Println("To update dependencies, use: sl deps update")
 	fmt.Println("To update the CLI manually, download the latest binary from:")
-	fmt.Println("  https://github.com/your-org/specledger/releases/latest")
+	fmt.Println("  https://github.com/your-org/github.com/specledger/specledger/releases/latest")
 	return nil
 }

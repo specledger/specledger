@@ -7,10 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"specledger/pkg/cli/framework"
-	"specledger/pkg/cli/metadata"
-	"specledger/pkg/cli/ui"
-
+	"github.com/specledger/specledger/pkg/cli/framework"
+	"github.com/specledger/specledger/pkg/cli/metadata"
+	"github.com/specledger/specledger/pkg/cli/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +19,7 @@ var VarDepsCmd = &cobra.Command{
 	Short: "Manage specification dependencies",
 	Long: `Manage external specification dependencies for your project.
 
-Dependencies are stored in specledger/specledger.yaml and cached locally for offline use.
+Dependencies are stored in github.com/specledger/specledger/specledger.yaml and cached locally for offline use.
 
 Examples:
   sl deps list                           # List all dependencies
@@ -34,7 +33,7 @@ var VarAddCmd = &cobra.Command{
 	Short: "Add a dependency",
 	Long:  `Add an external specification dependency to your project. The dependency will be tracked in specledger.yaml and cached locally for offline use.`,
 	Example: `  sl deps add git@github.com:org/api-spec
-  sl deps add git@github.com:org/api-spec v1.0 specledger/api.md
+  sl deps add git@github.com:org/api-spec v1.0 github.com/specledger/specledger/api.md
   sl deps add git@github.com:org/api-spec main spec.md --alias api`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: runAddDependency,
@@ -63,7 +62,7 @@ var VarRemoveCmd = &cobra.Command{
 var VarResolveCmd = &cobra.Command{
 	Use:     "resolve",
 	Short:   "Download and cache dependencies",
-	Long:    `Download all dependencies from specledger.yaml and cache them locally at ~/.specledger/cache/.`,
+	Long:    `Download all dependencies from specledger.yaml and cache them locally at ~/.github.com/specledger/specledger/cache/.`,
 	Example: `  sl deps resolve`,
 	RunE:    runResolveDependencies,
 }
@@ -320,7 +319,7 @@ func runResolveDependencies(cmd *cobra.Command, args []string) error {
 			dirName = generateDirName(dep.URL)
 		}
 
-		// Determine cache location: project-local specledger/deps/ or global cache
+		// Determine cache location: project-local github.com/specledger/specledger/deps/ or global cache
 		var cacheDir string
 		if noCache {
 			// Use project-local cache
@@ -518,7 +517,7 @@ func findProjectRoot() (string, error) {
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			// Reached root
-			return "", fmt.Errorf("not in a SpecLedger project (no specledger/specledger.yaml found)")
+			return "", fmt.Errorf("not in a SpecLedger project (no github.com/specledger/specledger/specledger.yaml found)")
 		}
 		dir = parent
 

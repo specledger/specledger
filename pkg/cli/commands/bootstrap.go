@@ -7,12 +7,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/specledger/specledger/pkg/cli/config"
+	"github.com/specledger/specledger/pkg/cli/logger"
+	"github.com/specledger/specledger/pkg/cli/prerequisites"
+	"github.com/specledger/specledger/pkg/cli/tui"
+	"github.com/specledger/specledger/pkg/cli/ui"
 	"github.com/spf13/cobra"
-	"specledger/pkg/cli/config"
-	"specledger/pkg/cli/logger"
-	"specledger/pkg/cli/prerequisites"
-	"specledger/pkg/cli/tui"
-	"specledger/pkg/cli/ui"
 )
 
 var (
@@ -41,8 +41,8 @@ Non-interactive mode (for CI/CD):
 The bootstrap creates:
 - .claude/ directory with skills and commands
 - .beads/ directory for issue tracking
-- specledger/ directory for specifications
-- specledger/specledger.yaml file for project metadata`,
+- github.com/specledger/specledger/ directory for specifications
+- github.com/specledger/specledger/specledger.yaml file for project metadata`,
 
 	// RunE is called when the command is executed
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -81,8 +81,8 @@ Usage:
 The init creates:
 - .claude/ directory with skills
 - .beads/ directory for issue tracking
-- specledger/ directory for specifications
-- specledger/specledger.yaml file for project metadata`,
+- github.com/specledger/specledger/ directory for specifications
+- github.com/specledger/specledger/specledger.yaml file for project metadata`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		l := logger.New(logger.Debug)
 		return runInit(l)
@@ -239,7 +239,7 @@ func runInit(l *logger.Logger) error {
 	// Check if already initialized
 	if !initForceFlag {
 		if _, err := os.Stat(filepath.Join(projectPath, "specledger", "specledger.yaml")); err == nil {
-			return fmt.Errorf("already initialized (specledger/specledger.yaml exists). Use --force to re-initialize")
+			return fmt.Errorf("already initialized (github.com/specledger/specledger/specledger.yaml exists). Use --force to re-initialize")
 		}
 	}
 
@@ -279,7 +279,7 @@ func runInit(l *logger.Logger) error {
 	ui.PrintHeader("SpecLedger Initialized", "", 60)
 	fmt.Printf("  Directory:  %s\n", ui.Bold(projectPath))
 	fmt.Printf("  Beads:      %s\n", ui.Bold(shortCode))
-	fmt.Printf("  Metadata:   %s\n", ui.Bold("specledger/specledger.yaml"))
+	fmt.Printf("  Metadata:   %s\n", ui.Bold("github.com/specledger/specledger/specledger.yaml"))
 	fmt.Println()
 	ui.PrintSuccess("SpecLedger is ready to use!")
 	fmt.Println(ui.Bold("Next steps:"))

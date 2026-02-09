@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"specledger/pkg/cli/metadata"
+	"github.com/specledger/specledger/pkg/cli/metadata"
 )
 
 func TestCheckTool(t *testing.T) {

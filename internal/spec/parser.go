@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"specledger/pkg/models"
+	"github.com/specledger/specledger/pkg/models"
 )
 
 // Format version constants

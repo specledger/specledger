@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"specledger/pkg/cli/metadata"
+	"github.com/specledger/specledger/pkg/cli/metadata"
 )
 
 // TestDepsAddCommand tests adding dependencies via sl deps add

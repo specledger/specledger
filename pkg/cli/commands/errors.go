@@ -116,7 +116,7 @@ func ErrNotAProject() *CLIError {
 		"This command requires running from within a SpecLedger project",
 		[]string{
 			"Navigate to a SpecLedger project directory",
-			"Run this command from a directory containing .specledger/",
+			"Run this command from a directory containing .github.com/specledger/specledger/",
 		},
 		2,
 	)

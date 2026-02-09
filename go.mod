@@ -1,4 +1,4 @@
-module specledger
+module github.com/specledger/specledger
 
 go 1.24.2
 

@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"specledger/pkg/cli/metadata"
+	"github.com/specledger/specledger/pkg/cli/metadata"
 )
 
 // TestBootstrapNewInteractive tests the sl new command in simulated interactive mode

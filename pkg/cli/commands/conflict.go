@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"specledger/internal/spec"
-	"specledger/pkg/models"
-
+	"github.com/specledger/specledger/internal/spec"
+	"github.com/specledger/specledger/pkg/models"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +35,7 @@ func init() {
 }
 
 func runCheckConflicts(cmd *cobra.Command, args []string) error {
-	manifestPath := "specledger/spec.mod"
+	manifestPath := "github.com/specledger/specledger/spec.mod"
 
 	// Read manifest
 	manifest, err := spec.ParseManifest(manifestPath)
@@ -100,7 +99,7 @@ func runCheckConflicts(cmd *cobra.Command, args []string) error {
 }
 
 func runDetectConflicts(cmd *cobra.Command, args []string) error {
-	manifestPath := "specledger/spec.mod"
+	manifestPath := "github.com/specledger/specledger/spec.mod"
 
 	// Read manifest
 	manifest, err := spec.ParseManifest(manifestPath)

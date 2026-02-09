@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	"specledger/pkg/models"
+	"github.com/specledger/specledger/pkg/models"
 )
 
 // ValidationError represents a validation error

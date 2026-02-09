@@ -143,7 +143,7 @@ func matchesPattern(path string, patterns []string) bool {
 		if err == nil && matched {
 			return true
 		}
-		// Check for directory patterns (e.g., "specledger/**")
+		// Check for directory patterns (e.g., "github.com/specledger/specledger/**")
 		if strings.Contains(pattern, "**") {
 			prefix := strings.TrimSuffix(pattern, "/**")
 			if strings.HasPrefix(path, prefix) {

@@ -26,10 +26,13 @@ jobs:
       - name: Run coverage
         run: make test-coverage
 
-      - name: Upload coverage
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
           file: ./coverage.out
+          fail_on_error: true
+          verbose: true
+          display_name: codecov-umbrella
 
   lint:
     runs-on: ubuntu-latest

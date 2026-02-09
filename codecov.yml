@@ -1,0 +1,33 @@
+# Codecov Configuration
+# https://docs.codecov.com/docs/codecov-yaml
+
+coverage:
+  status:
+    project:
+      default:
+        target: 70%
+        threshold: 1%
+        informational: true
+    patch:
+      default:
+        target: 70%
+        threshold: 1%
+        informational: true
+
+comment:
+  layout: "reach,diff,flags,files,footer"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+
+ignore:
+  - "**/*.mock.go"
+  - "**/*_mock.go"
+  - "**/*_test.go"
+  - "tests/**"
+  - "cmd/**"
+  - "**/generated/**"
+
+github_checks:
+  annotations: true
