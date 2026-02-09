@@ -36,6 +36,7 @@ func init() {
 	rootCmd.AddCommand(commands.VarInitCmd)
 	rootCmd.AddCommand(commands.VarDepsCmd)
 	rootCmd.AddCommand(commands.VarGraphCmd)
+	rootCmd.AddCommand(commands.VarAuthCmd)
 
 	// Disable default command completion (sl specledger alias)
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
