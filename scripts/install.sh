@@ -109,18 +109,23 @@ get_download_url() {
     local version="$1"
     local arch="$2"
 
-    # Add 'v' prefix if not present
-    [[ ! "$version" =~ ^v ]] && version="v${version}"
+    # Add 'v' prefix for GitHub release URL
+    local url_version="$version"
+    [[ ! "$url_version" =~ ^v ]] && url_version="v${url_version}"
+
+    # Strip 'v' prefix for filename (GoReleaser doesn't include it in archive names)
+    local file_version="$version"
+    [[ "$file_version" =~ ^v ]] && file_version="${file_version#v}"
 
     case "$OS" in
         darwin)
-            echo "https://github.com/specledger/specledger/releases/download/${version}/specledger_${version}_darwin_${arch}.tar.gz"
+            echo "https://github.com/specledger/specledger/releases/download/${url_version}/specledger_${file_version}_darwin_${arch}.tar.gz"
             ;;
         linux)
-            echo "https://github.com/specledger/specledger/releases/download/${version}/specledger_${version}_linux_${arch}.tar.gz"
+            echo "https://github.com/specledger/specledger/releases/download/${url_version}/specledger_${file_version}_linux_${arch}.tar.gz"
             ;;
         windows)
-            echo "https://github.com/specledger/specledger/releases/download/${version}/specledger_${version}_windows_${arch}.zip"
+            echo "https://github.com/specledger/specledger/releases/download/${url_version}/specledger_${file_version}_windows_${arch}.zip"
             ;;
         *)
             echo -e "${RED}Error: Unsupported operating system: $OS${NC}" >&2
