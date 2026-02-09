@@ -14,6 +14,36 @@ import (
 	"github.com/specledger/specledger/pkg/embedded"
 )
 
+// detectArtifactPath detects the artifact path from existing directories in the project.
+// It checks for common artifact directory names and returns the first match.
+// If no match is found, returns the default "specledger/".
+func detectArtifactPath(projectPath string) string {
+	// Common artifact directory names to check, in priority order
+	candidatePaths := []string{
+		"specledger/",
+		"specs/",
+		"spec/",
+		"docs/",
+		"documentation/",
+		"api/",
+	}
+
+	// Check if any candidate directory exists
+	for _, candidate := range candidatePaths {
+		candidateDir := filepath.Join(projectPath, strings.TrimSuffix(candidate, "/"))
+		if info, err := os.Stat(candidateDir); err == nil && info.IsDir() {
+			// Check if directory has any files (not empty)
+			entries, err := os.ReadDir(candidateDir)
+			if err == nil && len(entries) > 0 {
+				return candidate
+			}
+		}
+	}
+
+	// Default if no existing directory found
+	return "specledger/"
+}
+
 // applyEmbeddedPlaybooks copies embedded playbooks to the project directory.
 // If playbookName is empty, uses the default playbook.
 // Returns the playbook name, version, and structure for metadata storage.

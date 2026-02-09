@@ -9,6 +9,7 @@ import (
 
 	"github.com/specledger/specledger/pkg/cli/config"
 	"github.com/specledger/specledger/pkg/cli/logger"
+	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/prerequisites"
 	"github.com/specledger/specledger/pkg/cli/tui"
 	"github.com/specledger/specledger/pkg/cli/ui"
@@ -273,6 +274,19 @@ func runInit(l *logger.Logger) error {
 	_, _, _, err = setupSpecLedgerProject(projectPath, projectName, shortCode, initPlaybookFlag, false)
 	if err != nil {
 		return err
+	}
+
+	// Detect and update artifact_path if existing directories found
+	projectMetadata, err := metadata.LoadFromProject(projectPath)
+	if err == nil {
+		detectedPath := detectArtifactPath(projectPath)
+		if detectedPath != "specledger/" && detectedPath != projectMetadata.ArtifactPath {
+			// Update metadata with detected artifact path
+			projectMetadata.ArtifactPath = detectedPath
+			if err := metadata.SaveToProject(projectMetadata, projectPath); err == nil {
+				fmt.Printf("  Artifact Path: %s (detected)\n", ui.Bold(detectedPath))
+			}
+		}
 	}
 
 	// Success message
