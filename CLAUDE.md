@@ -8,6 +8,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-05
 - GitHub repository (https://github.com/specledger/specledger), Documentation hosted separately (006-opensource-readiness)
 - Go 1.24+ + GoReleaser v2, GitHub Actions, Homebrew (007-release-delivery-fix)
 - N/A (release artifacts stored in GitHub Releases) (007-release-delivery-fix)
+- Go 1.24+ + Cobra (CLI), go-git v5 (Git operations), YAML v3 (config parsing) (008-fix-sl-deps)
+- File-based (specledger.yaml for metadata, ~/.specledger/cache/ for dependencies) (008-fix-sl-deps)
 
 - Go 1.24+ (004-thin-wrapper-redesign)
 
@@ -27,9 +29,9 @@ tests/
 Go 1.24+: Follow standard conventions
 
 ## Recent Changes
+- 008-fix-sl-deps: Added Go 1.24+ + Cobra (CLI), go-git v5 (Git operations), YAML v3 (config parsing)
 - 007-release-delivery-fix: Added Go 1.24+ + GoReleaser v2, GitHub Actions, Homebrew
 - 006-opensource-readiness: Added Go 1.24+ (current: 1.24.2) + Cobra (CLI), Bubble Tea (TUI), go-git (v5), YAML v3, GoReleaser
-- 001-embedded-templates: Added Go 1.24+
 
 
 <!-- MANUAL ADDITIONS START -->
