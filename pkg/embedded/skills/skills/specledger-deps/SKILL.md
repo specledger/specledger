@@ -9,13 +9,54 @@ description: Manage specification dependencies with sl deps commands. Use when a
 
 `sl deps` commands manage external specification dependencies stored in `specledger/specledger.yaml`. Dependencies are Git repositories containing specification documents that this project references or depends on.
 
+## Key Concepts
+
+### artifact_path
+
+The `artifact_path` is a fundamental concept in SpecLedger dependencies. It specifies where specification artifacts are stored within a repository.
+
+**Two types of artifact_path:**
+
+1. **Project artifact_path**: Where YOUR project stores its artifacts (configured in your project's specledger.yaml)
+   - Example: `artifact_path: specledger/`
+   - Default for new projects: `specledger/`
+
+2. **Dependency artifact_path**: Where a DEPENDENCY stores its artifacts (auto-discovered or manually specified)
+   - Example: `artifact_path: specs/`
+   - Auto-discovered for SpecLedger repos (read from their specledger.yaml)
+   - Manually specified via `--artifact-path` flag for non-SpecLedger repos
+
+### Reference Resolution
+
+When you reference an artifact from a dependency, the path is resolved as:
+
+```
+<project.artifact_path> + <dependency.alias> + "/" + <artifact_name>
+```
+
+**Example:**
+```
+Project artifact_path: specledger/
+Dependency alias: platform
+Artifact name: api.md
+
+Resolved path: specledger/platform/api.md
+```
+
+### Auto-Download
+
+Dependencies are **automatically downloaded** when you add them:
+- Cached to `~/.specledger/cache/<alias>/`
+- Current commit SHA is resolved and stored
+- No separate `sl deps resolve` command needed (resolve is for manual refresh only)
+
 ## When to Use
 
 Use `sl deps` when you need to:
 - **Add a dependency** on an external specification
 - **List current dependencies** to see what specs are referenced
 - **Remove a dependency** that's no longer needed
-- **Resolve/checkout dependencies** to work with them locally
+- **Resolve/checkout dependencies** to refresh them manually
 - **View dependency graph** to understand relationships
 
 ## Project Context
@@ -45,9 +86,10 @@ sl deps list
 **Output includes:**
 - Dependency URL
 - Branch name
-- File path (within the dependency)
 - Alias (short name for reference)
-- Current status (resolved/unresolved)
+- Artifact Path (where artifacts are located in the dependency)
+- Framework type (SpecKit, OpenSpec, Both, None)
+- Current status (resolved with commit SHA)
 
 **When to use:**
 - Check what dependencies exist before adding new ones
@@ -59,13 +101,13 @@ sl deps list
 Add a new specification dependency.
 
 ```bash
-# Full syntax
-sl deps add <git-url> [<branch>] [<path>] [--alias <name>]
+# Full syntax (alias is required)
+sl deps add <git-url> [<branch>] --alias <name> [--artifact-path <path>]
 
 # Examples
-sl deps add git@github.com:org/specs main specledger/api.md
-sl deps add https://github.com/org/specs.git --alias api-specs
-sl deps add git@github.com:user/repo main docs/spec.md --alias user-repo-spec
+sl deps add git@github.com:org/platform-specs --alias platform
+sl deps add https://github.com:org/api-docs --alias api --artifact-path docs/openapi/
+sl deps add git@github.com:user/repo develop --alias user-repo
 ```
 
 **Parameters:**
@@ -73,8 +115,16 @@ sl deps add git@github.com:user/repo main docs/spec.md --alias user-repo-spec
   - SSH: `git@github.com:org/repo.git`
   - HTTPS: `https://github.com/org/repo.git`
 - `<branch>`: Branch name (default: `main`)
-- `<path>`: Path to spec file within repo (default: root)
-- `--alias <name>`: Short reference name (optional)
+- `--alias <name>`: Short reference name (**required**)
+- `--artifact-path <path>`: Path to artifacts within dependency repo (optional, auto-detected for SpecLedger repos)
+
+**Behavior:**
+1. Validates the Git URL
+2. Detects framework type (SpecKit, OpenSpec, Both, None)
+3. Auto-detects artifact_path for SpecLedger repos
+4. Automatically downloads/clones the dependency to cache
+5. Resolves and stores current commit SHA
+6. Adds dependency to specledger.yaml
 
 **When to use:**
 - This project needs to reference another specification
@@ -98,21 +148,38 @@ sl deps remove api-specs  # Using alias
 
 ### sl deps resolve
 
-Checkout/update dependencies locally for offline access.
+Manually refresh all dependencies (like `go mod download`).
 
 ```bash
 sl deps resolve
 ```
 
 **What it does:**
-- Clones dependencies to `specledger/deps/` directory
+- Refreshes dependencies in `~/.specledger/cache/`
+- Updates to latest commits on configured branches
 - Resolves commit SHAs for reproducibility
-- Stores resolved commit in metadata
+- Stores resolved commits in metadata
+
+**Note:** This is typically only needed after cloning a project or for manual refresh. The `sl deps add` command automatically downloads dependencies.
 
 **When to use:**
 - Need offline access to dependencies
-- Want to pin specific commits for reproducibility
+- Want to refresh to latest commits
 - Preparing for work without internet access
+
+### sl deps update
+
+Check for and apply updates to dependencies.
+
+```bash
+sl deps update              # Check all dependencies
+sl deps update <alias>      # Update specific dependency
+```
+
+**When to use:**
+- Want to see if dependencies have new commits
+- Updating to latest versions of dependencies
+- Preparing for a dependency update cycle
 
 ### sl deps graph
 
@@ -132,48 +199,63 @@ sl deps graph
 Dependencies are stored in `specledger/specledger.yaml`:
 
 ```yaml
+artifact_path: specledger/  # Where this project stores its artifacts
 dependencies:
-  - url: git@github.com:org/specs.git
+  - url: git@github.com:org/platform-specs
     branch: main
-    path: spec.md
-    alias: org-spec
+    alias: platform
+    artifact_path: specs/    # Where the dependency stores its artifacts (auto-detected)
     resolved_commit: abc123...
+    framework: both
+    import_path: @platform/spec
 ```
 
 ## Common Patterns
 
-### Pattern 1: Adding API Dependencies
+### Pattern 1: Adding SpecLedger Repository Dependencies
 
-When your service depends on an API specification:
+When adding a SpecLedger repository, artifact_path is auto-detected:
 
 ```bash
-sl deps add git@github.com:api-team/api-specs main openapi.yaml --alias api-spec
+sl deps add git@github.com:org/platform-specs --alias platform
 ```
 
-This allows Claude to read the API spec when implementing your service.
+The system will:
+1. Detect SpecLedger framework
+2. Clone the repo temporarily
+3. Read artifact_path from its specledger.yaml
+4. Store the detected artifact_path
 
-### Pattern 2: Cross-Project References
+### Pattern 2: Adding Non-SpecLedger Repository Dependencies
+
+For non-SpecLedger repos, manually specify artifact_path:
+
+```bash
+sl deps add https://github.com/org/api-docs --alias api --artifact-path docs/openapi/
+```
+
+### Pattern 3: Cross-Project References
 
 When multiple projects reference shared specs:
 
 ```bash
 # In project-a
-sl deps add git@github.com:org/shared-specs main common.yaml --alias shared
+sl deps add git@github.com:org/shared-specs --alias shared
 
 # In project-b
-sl deps add git@github.com:org/shared-specs main common.yaml --alias shared
+sl deps add git@github.com:org/shared-specs --alias shared
 ```
 
 Both projects now reference the same source of truth.
 
-### Pattern 3: Hierarchical Specs
+### Pattern 4: Hierarchical Specs
 
 When building on top of platform specs:
 
 ```bash
 # Platform team creates core spec
 # Service teams add dependency on platform spec
-sl deps add git@github.com:org/platform-specs main core.yaml --alias platform
+sl deps add git@github.com:org/platform-specs --alias platform
 ```
 
 ## Session Start Checklist
@@ -196,43 +278,54 @@ Error: failed to find project root: not in a SpecLedger project (no specledger/s
 ```
 Solution: Navigate to your SpecLedger project directory first.
 
+**Missing --alias flag:**
+```
+Error: required flag(s) "alias" not set
+```
+Solution: Add the `--alias` flag when adding dependencies.
+
+**Invalid artifact-path:**
+```
+Error: invalid artifact-path: must be a relative path
+```
+Solution: Use a relative path without `../` or leading `/`.
+
 **Dependency already exists:**
 ```
-Error: dependency already exists
+Error: dependency already exists: git@github.com:org/specs
 ```
-Solution: Use `sl deps remove` first, or check if you meant to add a different dependency.
+Solution: Use `sl deps remove` first if replacing, or check if you meant a different dependency.
 
-**Invalid Git URL:**
+**Failed to clone repository:**
 ```
-Error: invalid git URL format
+Warning: Failed to clone git@github.com:org/private-specs: authentication failed
 ```
-Solution: Use proper SSH or HTTPS Git URL format.
+Solution:
+- Set up SSH keys for private repositories
+- Or use HTTPS with a personal access token
+- Verify you have access to the repository
 
-## Integration with Other Commands
+## Best Practices
 
-The `sl deps` commands work with:
-- `sl doctor` - Shows dependency status
-- `sl new` - Initializes empty dependency list
-- `sl init` - Initializes empty dependency list
+1. **Use meaningful aliases**: `sl deps add git@github.com:org/platform-auth --alias auth` (not `--alias specs`)
+2. **Pin branches for production**: `sl deps add git@github.com:org/specs v1.0 --alias prod-specs`
+3. **Commit resolved commits**: After `sl deps resolve`, commit the updated specledger.yaml
+4. **Run resolve before offline work**: `sl deps resolve` ensures all dependencies are cached locally
+5. **Use reference format**: Instead of hardcoding paths, use `alias:artifact` format in documentation
 
-Claude can read dependencies using the metadata when:
-- Implementing features that reference external specs
-- Checking compatibility with dependent specs
-- Understanding project context and relationships
+## Integration with Claude Code
 
-## Troubleshooting
+The `sl deps` commands integrate with Claude Code to help AI assistants understand your project's dependency structure. When you add dependencies:
 
-**Dependencies not resolving:**
-- Check Git URL is accessible
-- Verify you have authentication for private repos
-- Check network connectivity
+1. Claude can read specifications from dependencies
+2. Cross-references between specs are automatically resolved
+3. AI assistants can trace API contracts and requirements across projects
 
-**Dependencies disappeared:**
-- Check `specledger/specledger.yaml` still exists
-- Verify YAML format is correct
-- Run `sl deps list` to confirm current state
+## Cache Location
 
-**Need to update dependency:**
-- Remove and re-add with new parameters
-- Or edit `specledger/specledger.yaml` directly
-- Run `sl deps resolve` to update commit SHAs
+Dependencies are cached globally at:
+```
+~/.specledger/cache/<alias>/
+```
+
+This cache is shared across all SpecLedger projects on your machine, making dependency management efficient.
