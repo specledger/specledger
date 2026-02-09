@@ -175,9 +175,7 @@ func runAddDependency(cmd *cobra.Command, args []string) error {
 			fmt.Println()
 		}
 	} else if artifactPath == "" {
-		ui.PrintWarning("No artifact_path specified and no SpecLedger framework detected.")
-		ui.PrintWarning("Use --artifact-path to specify manually if this is a non-SpecLedger repository.")
-		fmt.Println()
+		return fmt.Errorf("artifact_path must be specified for non-SpecLedger repositories (use --artifact-path <path>)")
 	}
 
 	// Create dependency
@@ -289,6 +287,9 @@ func runListDependencies(cmd *cobra.Command, args []string) error {
 		}
 		if dep.Alias != "" {
 			fmt.Printf("   Alias:   %s\n", ui.Cyan(dep.Alias))
+		}
+		if dep.ArtifactPath != "" {
+			fmt.Printf("   Artifact Path: %s\n", ui.Cyan(dep.ArtifactPath))
 		}
 		if dep.Framework != "" && dep.Framework != metadata.FrameworkNone {
 			frameworkDisplay := string(dep.Framework)
