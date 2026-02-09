@@ -222,3 +222,38 @@ func TestPlaybookValidation(t *testing.T) {
 		}
 	})
 }
+
+func TestValidateArtifactPath(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr bool
+	}{
+		{"empty is valid", "", false},
+		{"valid relative path", "specledger/", false},
+		{"valid nested path", "docs/specs/", false},
+		{"valid without trailing slash", "specs", false},
+		{"valid deep path", "a/b/c/d/e/", false},
+		{"absolute path rejected", "/absolute/path", true},
+		{"absolute path with leading slash rejected", "/specs", true},
+		{"parent directory reference rejected", "../specs", true},
+		{"parent directory in middle rejected", "specs/../other", true},
+		{"double parent reference rejected", "../../specs", true},
+		{"whitespace only rejected", "   ", true},
+		{"whitespace trimmed is valid", "  specs  ", false},
+		{"invalid characters rejected", "specs<test>", true},
+		{"null character rejected", "specs\x00", true},
+		{"valid with dots in name", "specs.v1/", false},
+		{"valid with underscore", "my_specs/", false},
+		{"valid with multiple segments", "path/to/specs/", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateArtifactPath(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateArtifactPath(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			}
+		})
+	}
+}

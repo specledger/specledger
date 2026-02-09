@@ -2,7 +2,10 @@ package metadata
 
 import (
 	"errors"
+	"fmt"
+	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -153,6 +156,41 @@ func ValidateCommitSHA(sha string) error {
 	return nil
 }
 
+// ValidateArtifactPath validates artifact path format (relative, no parent directory references)
+func ValidateArtifactPath(path string) error {
+	if path == "" {
+		return nil // empty is valid (will use default)
+	}
+
+	// Trim whitespace
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return errors.New("artifact_path cannot be only whitespace")
+	}
+
+	// Must be relative (not absolute)
+	if filepath.IsAbs(path) {
+		return errors.New("artifact_path must be a relative path, not absolute")
+	}
+
+	// Must not contain parent directory references for security
+	if strings.Contains(path, "..") {
+		return errors.New("artifact_path must not contain parent directory references (..)")
+	}
+
+	// Must not start with a slash (already caught by IsAbs, but being explicit)
+	if strings.HasPrefix(path, "/") {
+		return errors.New("artifact_path must not start with /")
+	}
+
+	// Check for invalid characters (basic check)
+	if regexp.MustCompile(`[<>:"|?*\x00-\x1f]`).MatchString(path) {
+		return errors.New("artifact_path contains invalid characters")
+	}
+
+	return nil
+}
+
 // Validate validates the entire ProjectMetadata structure
 func (m *ProjectMetadata) Validate() error {
 	if m.Version != "1.0.0" {
@@ -176,14 +214,23 @@ func (m *ProjectMetadata) Validate() error {
 		return errors.New("playbook name is required")
 	}
 
+	// Validate artifact_path if present
+	if err := ValidateArtifactPath(m.ArtifactPath); err != nil {
+		return err
+	}
+
 	for i, dep := range m.Dependencies {
 		if err := ValidateGitURL(dep.URL); err != nil {
-			return errors.New("dependency " + string(rune(i)) + ": " + err.Error())
+			return fmt.Errorf("dependency %d: %w", i, err)
 		}
 		if dep.ResolvedCommit != "" {
 			if err := ValidateCommitSHA(dep.ResolvedCommit); err != nil {
-				return errors.New("dependency " + string(rune(i)) + ": " + err.Error())
+				return fmt.Errorf("dependency %d: %w", i, err)
 			}
+		}
+		// Validate artifact_path if present
+		if err := ValidateArtifactPath(dep.ArtifactPath); err != nil {
+			return fmt.Errorf("dependency %d (%s): %w", i, dep.URL, err)
 		}
 	}
 
