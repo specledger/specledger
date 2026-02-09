@@ -38,7 +38,7 @@ func buildSLBinary(t testing.TB, tempDir string) string {
 	}
 
 	slBinary := filepath.Join(tempDir, "sl")
-	buildCmd := exec.Command("go", "build", "-o", slBinary, filepath.Join(repoRoot, "cmd", "main.go"))
+	buildCmd := exec.Command("go", "build", "-o", slBinary, filepath.Join(repoRoot, "cmd", "sl", "main.go"))
 	if output, err := buildCmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to build sl binary: %v\nOutput: %s", err, string(output))
 	}

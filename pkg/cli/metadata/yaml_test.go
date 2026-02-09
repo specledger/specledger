@@ -76,7 +76,6 @@ func TestSaveAndLoad(t *testing.T) {
 			{
 				URL:    "git@github.com:org/repo.git",
 				Branch: "main",
-				Path:   "spec.md",
 				Alias:  "test",
 			},
 		},

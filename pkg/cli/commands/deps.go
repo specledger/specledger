@@ -29,12 +29,12 @@ Examples:
 
 // VarAddCmd represents the add command
 var VarAddCmd = &cobra.Command{
-	Use:   "add <repo-url> [branch] [spec-path]",
+	Use:   "add <repo-url> [branch]",
 	Short: "Add a dependency",
 	Long:  `Add an external specification dependency to your project. The dependency will be tracked in specledger.yaml and cached locally for offline use.`,
 	Example: `  sl deps add git@github.com:org/api-spec
-  sl deps add git@github.com:org/api-spec v1.0 github.com/specledger/specledger/api.md
-  sl deps add git@github.com:org/api-spec main spec.md --alias api`,
+  sl deps add git@github.com:org/api-spec --alias api
+  sl deps add git@github.com:org/api-spec v1.0 --alias api`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: runAddDependency,
 }
@@ -103,13 +103,9 @@ func runAddDependency(cmd *cobra.Command, args []string) error {
 	// Parse arguments
 	repoURL := args[0]
 	branch := "main" // default
-	specPath := "spec.md"
 
 	if len(args) >= 2 {
 		branch = args[1]
-	}
-	if len(args) >= 3 {
-		specPath = args[2]
 	}
 
 	// Validate URL
@@ -147,7 +143,6 @@ func runAddDependency(cmd *cobra.Command, args []string) error {
 	dep := metadata.Dependency{
 		URL:       repoURL,
 		Branch:    branch,
-		Path:      specPath,
 		Alias:     alias,
 		Framework: frameworkType,
 	}
@@ -180,7 +175,6 @@ func runAddDependency(cmd *cobra.Command, args []string) error {
 		fmt.Printf("  Alias:       %s\n", ui.Bold(alias))
 	}
 	fmt.Printf("  Branch:      %s\n", ui.Bold(branch))
-	fmt.Printf("  Path:        %s\n", ui.Bold(specPath))
 	fmt.Printf("  Framework:   %s\n", frameworkDisplay)
 	fmt.Printf("  Import Path: %s\n", ui.Cyan(importPath))
 	fmt.Println()
@@ -218,9 +212,6 @@ func runListDependencies(cmd *cobra.Command, args []string) error {
 		fmt.Printf("%s. %s\n", ui.Bold(fmt.Sprintf("%d", i+1)), ui.Bold(dep.URL))
 		if dep.Branch != "" && dep.Branch != "main" {
 			fmt.Printf("   Branch:  %s\n", ui.Cyan(dep.Branch))
-		}
-		if dep.Path != "" && dep.Path != "spec.md" {
-			fmt.Printf("   Path:    %s\n", ui.Cyan(dep.Path))
 		}
 		if dep.Alias != "" {
 			fmt.Printf("   Alias:   %s\n", ui.Cyan(dep.Alias))

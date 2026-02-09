@@ -12,6 +12,7 @@ type ProjectMetadata struct {
 	Project      ProjectInfo     `yaml:"project"`
 	Playbook     PlaybookInfo    `yaml:"playbook"`
 	TaskTracker  TaskTrackerInfo `yaml:"task_tracker,omitempty"`
+	ArtifactPath string          `yaml:"artifact_path,omitempty"` // Path to artifacts directory
 	Dependencies []Dependency    `yaml:"dependencies,omitempty"`
 }
 
@@ -66,8 +67,8 @@ const (
 type Dependency struct {
 	URL            string          `yaml:"url"`
 	Branch         string          `yaml:"branch,omitempty"`
-	Path           string          `yaml:"path,omitempty"`
 	Alias          string          `yaml:"alias,omitempty"`
+	ArtifactPath   string          `yaml:"artifact_path,omitempty"` // Path to artifacts within dependency repo
 	ResolvedCommit string          `yaml:"resolved_commit,omitempty"`
 	Framework      FrameworkChoice `yaml:"framework,omitempty"`   // speckit, openspec, both, none
 	ImportPath     string          `yaml:"import_path,omitempty"` // @alias/spec format for AI imports
@@ -131,6 +132,14 @@ func ValidateGitURL(url string) error {
 	}
 
 	return errors.New("url must be valid git SSH, HTTPS URL, or local file path")
+}
+
+// GetArtifactPath returns the artifact path, with default fallback
+func (m *ProjectMetadata) GetArtifactPath() string {
+	if m.ArtifactPath != "" {
+		return m.ArtifactPath
+	}
+	return "specledger/"
 }
 
 // ValidateCommitSHA validates commit SHA format (40-character hex)

@@ -61,10 +61,6 @@ func TestDepsAddCommand(t *testing.T) {
 		t.Errorf("Expected branch 'main', got '%s'", dep.Branch)
 	}
 
-	if dep.Path != "spec.md" {
-		t.Errorf("Expected path 'spec.md', got '%s'", dep.Path)
-	}
-
 	if dep.Alias != "test" {
 		t.Errorf("Expected alias 'test', got '%s'", dep.Alias)
 	}
