@@ -148,12 +148,15 @@ Dependencies allow you to reference external specifications from other teams or 
 | `sl deps resolve` | Download and cache dependencies |
 | `sl deps update` | Update dependencies to latest versions |
 | `sl deps link` | Manually create symlinks (auto-linked on add/resolve) |
+| `sl deps unlink [alias]` | Remove symlinks for dependencies |
 
 **Artifact Path**: For SpecLedger repositories, the `artifact_path` is auto-detected from the dependency's `specledger.yaml`. For non-SpecLedger repositories, use `--artifact-path` to specify where specifications are located (e.g., `docs/openapi/`).
 
 **Reference Format**: Dependencies can be referenced using the `alias:artifact` syntax in specifications. For example, if you add a dependency with `--alias api`, you can reference its artifacts as `api:spec.md` or `api:contracts/user-api.proto`.
 
-**Auto-Linking**: Dependencies are automatically linked when added or resolved. Symlinks are created from `~/.specledger/cache/<alias>/` to `specledger/<alias>/` making files available for Claude Code. If a conflict exists (non-empty directory), linking is skipped to avoid data loss - use `sl deps link --force` to override.
+**Auto-Linking**: Dependencies are automatically linked when added or resolved. Symlinks are created from `~/.specledger/cache/<alias>/` to `specledger/deps/<alias>/` making files available for Claude Code. If a conflict exists (non-empty directory), linking is skipped to avoid data loss.
+
+**Unlinking**: Use `sl deps unlink [alias]` to remove symlinks. Useful for cleaning up or re-linking dependencies.
 
 ### Workflows
 

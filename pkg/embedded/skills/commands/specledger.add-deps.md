@@ -65,7 +65,7 @@ sl deps add git@github.com:user/repo develop --alias platform
 
 7. **Auto-link dependency**:
    - Automatically creates symlink from cache to project directory
-   - Makes dependency files available at `specledger/<alias>/` for Claude Code
+   - Makes dependency files available at `specledger/deps/<alias>/` for Claude Code
    - If target directory exists and is not empty, linking is skipped (to avoid conflicts)
 
 ## Examples

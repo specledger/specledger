@@ -31,7 +31,7 @@ The `artifact_path` is a fundamental concept in SpecLedger dependencies. It spec
 When you reference an artifact from a dependency, the path is resolved as:
 
 ```
-<project.artifact_path> + <dependency.alias> + "/" + <artifact_name>
+<project.artifact_path> + "deps/" + <dependency.alias> + "/" + <artifact_name>
 ```
 
 **Example:**
@@ -40,7 +40,7 @@ Project artifact_path: specledger/
 Dependency alias: platform
 Artifact name: api.md
 
-Resolved path: specledger/platform/api.md
+Resolved path: specledger/deps/platform/api.md
 ```
 
 ### Auto-Download

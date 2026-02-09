@@ -13,13 +13,13 @@ import (
 // The reference format is: <alias>:<artifact-name>
 //
 // Resolution formula:
-// <project.artifact_path> + <dependency.alias> + "/" + <artifact-name>
+// <project.artifact_path> + "deps/" + <dependency.alias> + "/" + <artifact-name>
 //
 // Example:
 //   project.artifact_path: specledger/
 //   dependency.alias: platform
 //   artifact_name: api.md
-//   Result: specledger/platform/api.md
+//   Result: specledger/deps/platform/api.md
 //
 // Parameters:
 //   - projectArtifactPath: The artifact_path from the project's specledger.yaml
@@ -78,7 +78,7 @@ func ResolveReference(projectArtifactPath, depAlias, artifactName, projectRoot s
 //   - cachePath: The cache directory where the dependency is cloned
 //
 // Returns:
-//   - The project-local resolved path
+//   - The project-local resolved path (specledger/deps/<alias>/<artifact>)
 //   - The cache-resolved path (in the dependency's clone)
 //   - An error if resolution fails
 func ResolveReferenceWithCache(projectArtifactPath, depAlias, depArtifactPath, artifactName, projectRoot, cachePath string) (string, string, error) {
