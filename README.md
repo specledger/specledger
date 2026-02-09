@@ -136,14 +136,21 @@ sl deps resolve
 
 ### Dependencies
 
+Dependencies allow you to reference external specifications from other teams or projects. When you add a dependency, SpecLedger automatically downloads and caches the specifications for offline use and AI reference.
+
 | Command | Description |
 |---------|-------------|
 | `sl deps list` | List all dependencies |
-| `sl deps add <url>` | Add a dependency |
-| `sl deps add <url> --alias <name>` | Add with alias for AI import paths |
+| `sl deps add <url>` | Add a dependency (auto-detects SpecLedger repos) |
+| `sl deps add <url> --alias <name>` | Add with alias for AI reference paths |
+| `sl deps add <url> --artifact-path <path>` | Add with manual artifact path for non-SpecLedger repos |
 | `sl deps remove <url>` | Remove a dependency |
 | `sl deps resolve` | Download and cache dependencies |
 | `sl deps update` | Update dependencies to latest versions |
+
+**Artifact Path**: For SpecLedger repositories, the `artifact_path` is auto-detected from the dependency's `specledger.yaml`. For non-SpecLedger repositories, use `--artifact-path` to specify where specifications are located (e.g., `docs/openapi/`).
+
+**Reference Format**: Dependencies can be referenced using the `alias:artifact` syntax in specifications. For example, if you add a dependency with `--alias api`, you can reference its artifacts as `api:spec.md` or `api:contracts/user-api.proto`.
 
 ### Workflows
 

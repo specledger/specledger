@@ -541,16 +541,125 @@ func runUpdateDependencies(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Checking %s dependencies for updates...\n", ui.Bold(fmt.Sprintf("%d", len(meta.Dependencies))))
 	fmt.Println()
 
-	for _, dep := range meta.Dependencies {
-		// TODO: Implement actual update checking
-		if dep.ResolvedCommit != "" {
-			fmt.Printf("  %s: at %s\n", ui.Bold(dep.URL), ui.Gray(dep.ResolvedCommit[:8]))
-		} else {
-			fmt.Printf("  %s: %s\n", ui.Bold(dep.URL), ui.Yellow("not resolved yet"))
+	updatesAvailable := 0
+
+	for i, dep := range meta.Dependencies {
+		// Filter to specific dependency if URL provided
+		if len(args) > 0 && dep.URL != args[0] && dep.Alias != args[0] {
+			continue
 		}
+
+		fmt.Printf("%s. %s\n", ui.Bold(fmt.Sprintf("%d", i+1)), ui.Bold(dep.URL))
+		if dep.Alias != "" {
+			fmt.Printf("   Alias:  %s\n", ui.Cyan(dep.Alias))
+		}
+
+		// Get cache directory for this dependency
+		dirName := dep.Alias
+		if dirName == "" {
+			dirName = generateDirName(dep.URL)
+		}
+		homeDir, _ := os.UserHomeDir()
+		cacheDir := filepath.Join(homeDir, ".specledger", "cache", dirName)
+
+		// If dependency hasn't been resolved yet, skip
+		if dep.ResolvedCommit == "" {
+			fmt.Printf("   Status: %s\n", ui.Yellow("not resolved yet (run 'sl deps resolve' first)"))
+			fmt.Println()
+			continue
+		}
+
+		// Fetch latest changes from remote
+		fmt.Printf("   Current: %s\n", ui.Gray(dep.ResolvedCommit[:8]))
+		fmt.Printf("   Checking: %s...\n", ui.Yellow("fetching latest"))
+
+		// Fetch remote changes
+		gitCmd := exec.Command("git", "-C", cacheDir, "fetch", "origin")
+		if err := gitCmd.Run(); err != nil {
+			ui.PrintWarning(fmt.Sprintf("Failed to fetch updates: %v", err))
+			fmt.Println()
+			continue
+		}
+
+		// Get the remote branch name
+		remoteBranch := "origin/" + dep.Branch
+		if dep.Branch == "" {
+			remoteBranch = "origin/main"
+		}
+
+		// Get the latest commit SHA on the remote branch
+		gitCmd = exec.Command("git", "-C", cacheDir, "rev-parse", remoteBranch)
+		output, err := gitCmd.CombinedOutput()
+		if err != nil {
+			ui.PrintWarning(fmt.Sprintf("Failed to get remote commit: %v", err))
+			fmt.Println()
+			continue
+		}
+
+		latestCommit := strings.TrimSpace(string(output))
+
+		// Compare with current resolved commit
+		if latestCommit == dep.ResolvedCommit {
+			fmt.Printf("   Status: %s\n", ui.Green("already up to date"))
+			fmt.Println()
+			continue
+		}
+
+		// Update available
+		updatesAvailable++
+		fmt.Printf("   Latest:  %s\n", ui.Green(latestCommit[:8]))
+
+		// Show commit log between current and latest
+		gitCmd = exec.Command("git", "-C", cacheDir, "log", "--oneline", dep.ResolvedCommit+".."+latestCommit)
+		output, _ = gitCmd.CombinedOutput()
+		commits := strings.TrimSpace(string(output))
+		if commits != "" {
+			lines := strings.Split(commits, "\n")
+			// Show up to 5 commits
+			if len(lines) > 5 {
+				lines = lines[:5]
+				fmt.Printf("   Changes:\n")
+				for _, line := range lines {
+					fmt.Printf("     %s\n", line)
+				}
+				fmt.Printf("     ... and %d more\n", len(strings.Split(commits, "\n"))-5)
+			} else {
+				fmt.Printf("   Changes:\n")
+				for _, line := range lines {
+					fmt.Printf("     %s\n", line)
+				}
+			}
+		}
+
+		// Prompt for update (or auto-apply if --yes flag exists)
+		// For now, automatically apply updates
+		fmt.Printf("   Status: %s\n", ui.Yellow("updating"))
+
+		// Checkout the latest commit
+		gitCmd = exec.Command("git", "-C", cacheDir, "checkout", latestCommit)
+		if err := gitCmd.Run(); err != nil {
+			ui.PrintWarning(fmt.Sprintf("Failed to checkout latest commit: %v", err))
+			fmt.Println()
+			continue
+		}
+
+		// Update the resolved commit in metadata
+		meta.Dependencies[i].ResolvedCommit = latestCommit
+
+		fmt.Printf("   Status: %s\n", ui.Green("updated"))
+		fmt.Println()
 	}
-	fmt.Println()
-	ui.PrintWarning("Dependency updates not yet implemented")
+
+	// Save updated metadata
+	if updatesAvailable > 0 {
+		if err := metadata.SaveToProject(meta, projectDir); err != nil {
+			return fmt.Errorf("failed to save metadata: %w", err)
+		}
+
+		ui.PrintSuccess(fmt.Sprintf("Updated %d dependencies", updatesAvailable))
+	} else {
+		ui.PrintSuccess("All dependencies are up to date")
+	}
 	fmt.Println()
 
 	return nil
