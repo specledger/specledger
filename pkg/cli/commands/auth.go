@@ -93,14 +93,20 @@ func init() {
 	VarAuthCmd.AddCommand(VarAuthLoginCmd, VarAuthLogoutCmd, VarAuthStatusCmd, VarAuthRefreshCmd)
 
 	VarAuthLoginCmd.Flags().Bool("dev", false, "Use development server (localhost:3000)")
-	VarAuthLoginCmd.Flags().String("token", "", "Authenticate with a refresh token (for CI/headless environments)")
+	VarAuthLoginCmd.Flags().String("token", "", "Authenticate with an access token (for CI/headless environments)")
+	VarAuthLoginCmd.Flags().String("refresh", "", "Authenticate with a refresh token (exchanges for access token)")
 }
 
 func runLogin(cmd *cobra.Command, args []string) error {
 	// Check for token-based authentication (CI/headless)
-	token, _ := cmd.Flags().GetString("token")
-	if token != "" {
-		return runTokenLogin(token)
+	accessToken, _ := cmd.Flags().GetString("token")
+	if accessToken != "" {
+		return runAccessTokenLogin(accessToken)
+	}
+
+	refreshToken, _ := cmd.Flags().GetString("refresh")
+	if refreshToken != "" {
+		return runRefreshTokenLogin(refreshToken)
 	}
 
 	// Check if already authenticated - inform user but proceed with re-auth
@@ -160,10 +166,19 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	fmt.Println("Waiting for authentication...")
 	fmt.Printf("(timeout: %s)\n", AuthTimeout)
 	fmt.Println()
+	fmt.Println("If callback fails, you can manually authenticate with:")
+	fmt.Println("  sl auth login --token <access_token>")
+	fmt.Println("  sl auth login --refresh <refresh_token>")
+	fmt.Println()
 
 	// Wait for callback
 	result, err := server.WaitForCallback(AuthTimeout)
 	if err != nil {
+		fmt.Println()
+		fmt.Println("Callback failed. You can try manual authentication:")
+		fmt.Println("  1. Copy the token from the browser")
+		fmt.Println("  2. Run: sl auth login --token <your_token>")
+		fmt.Println()
 		return fmt.Errorf("authentication failed: %w", err)
 	}
 
@@ -188,13 +203,35 @@ func runLogin(cmd *cobra.Command, args []string) error {
 
 	fmt.Println("Authentication successful!")
 	fmt.Printf("Signed in as: %s\n", result.UserEmail)
+	fmt.Printf("Credentials stored at: %s\n", auth.GetCredentialsPath())
 
 	return nil
 }
 
-// runTokenLogin handles authentication via refresh token (for CI/headless environments)
-func runTokenLogin(refreshToken string) error {
-	fmt.Println("Authenticating with token...")
+// runAccessTokenLogin handles authentication via access token (for CI/headless environments)
+func runAccessTokenLogin(accessToken string) error {
+	fmt.Println("Authenticating with access token...")
+
+	// Save credentials with the provided access token
+	credentials := &auth.Credentials{
+		AccessToken: accessToken,
+		ExpiresIn:   3600, // Default 1 hour, will be refreshed on next use if expired
+		CreatedAt:   time.Now().Unix(),
+	}
+
+	if err := auth.SaveCredentials(credentials); err != nil {
+		return fmt.Errorf("failed to save credentials: %w", err)
+	}
+
+	fmt.Println("Authentication successful!")
+	fmt.Printf("Credentials stored at: %s\n", auth.GetCredentialsPath())
+
+	return nil
+}
+
+// runRefreshTokenLogin handles authentication via refresh token (exchanges for access token)
+func runRefreshTokenLogin(refreshToken string) error {
+	fmt.Println("Authenticating with refresh token...")
 
 	// Use refresh token to get valid credentials
 	creds, err := auth.RefreshAccessToken(refreshToken)
@@ -211,6 +248,7 @@ func runTokenLogin(refreshToken string) error {
 	if creds.UserEmail != "" {
 		fmt.Printf("Signed in as: %s\n", creds.UserEmail)
 	}
+	fmt.Printf("Credentials stored at: %s\n", auth.GetCredentialsPath())
 
 	return nil
 }
@@ -260,6 +298,7 @@ func runStatus(cmd *cobra.Command, args []string) error {
 	} else {
 		remaining := time.Until(creds.ExpiresAt()).Round(time.Minute)
 		fmt.Printf("Token:  Valid (expires in %s)\n", remaining)
+		fmt.Printf("Credentials: %s\n", auth.GetCredentialsPath())
 	}
 
 	return nil
