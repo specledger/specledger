@@ -177,6 +177,7 @@ func runAddDependency(cmd *cobra.Command, args []string) error {
 	}
 
 	// Add dependency
+	dependencyIndex := len(meta.Dependencies)
 	meta.Dependencies = append(meta.Dependencies, dep)
 
 	// Save metadata
@@ -184,14 +185,47 @@ func runAddDependency(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to save metadata: %w", err)
 	}
 
+	// Auto-download the dependency
+	ui.PrintSection("Downloading Dependency")
+	dirName := alias
+	homeDir, _ := os.UserHomeDir()
+	cacheDir := filepath.Join(homeDir, ".specledger", "cache", dirName)
+
+	fmt.Printf("Cache: %s\n", ui.Cyan(cacheDir))
+	fmt.Printf("Status: %s...\n", ui.Yellow("cloning"))
+
+	if err := cloneOrUpdateRepository(dep, cacheDir); err != nil {
+		ui.PrintWarning(fmt.Sprintf("Failed to clone repository: %v", err))
+		ui.PrintWarning("Dependency was added but not downloaded. Run 'sl deps resolve' to retry.")
+		fmt.Println()
+		return nil
+	}
+
+	// Resolve current commit SHA
+	gitCmd := exec.Command("git", "-C", cacheDir, "rev-parse", "HEAD")
+	output, err := gitCmd.CombinedOutput()
+	if err != nil {
+		ui.PrintWarning(fmt.Sprintf("Failed to resolve commit: %v", err))
+	} else {
+		commitSHA := strings.TrimSpace(string(output))
+		meta.Dependencies[dependencyIndex].ResolvedCommit = commitSHA
+		// Save updated metadata with commit SHA
+		if err := metadata.SaveToProject(meta, projectDir); err != nil {
+			ui.PrintWarning(fmt.Sprintf("Failed to save commit SHA: %v", err))
+		}
+		fmt.Printf("Status: %s %s\n", ui.Green("✓"), ui.Gray(commitSHA[:8]))
+	}
+	fmt.Println()
+
 	ui.PrintSuccess("Dependency added")
 	fmt.Printf("  Repository:  %s\n", ui.Bold(repoURL))
 	fmt.Printf("  Alias:       %s\n", ui.Bold(alias))
 	fmt.Printf("  Branch:      %s\n", ui.Bold(branch))
+	if dep.ArtifactPath != "" {
+		fmt.Printf("  Artifact Path: %s\n", ui.Bold(dep.ArtifactPath))
+	}
 	fmt.Printf("  Framework:   %s\n", frameworkDisplay)
 	fmt.Printf("  Import Path: %s\n", ui.Cyan(importPath))
-	fmt.Println()
-	fmt.Printf("Next: %s\n", ui.Cyan("sl deps resolve"))
 	fmt.Println()
 
 	return nil
