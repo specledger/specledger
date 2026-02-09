@@ -66,6 +66,8 @@ make install
 
 ### Go Install
 
+**Requires v1.0.3 or later** (earlier versions had incorrect module paths):
+
 ```bash
 go install github.com/specledger/specledger/cmd@latest
 ```
@@ -91,6 +93,8 @@ Available binaries:
 **Go install fails?**
 - Make sure you have Go 1.24+ installed
 - Check that `$GOPATH/bin` or `$GOBIN` is in your PATH
+- Ensure you're using v1.0.3 or later: `go install github.com/specledger/specledger/cmd@v1.0.3`
+- Older versions (v1.0.1-v1.0.2) had incorrect module paths and won't install correctly
 
 ## Quick Start
 

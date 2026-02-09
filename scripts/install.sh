@@ -15,10 +15,35 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
 # Default variables
-VERSION="${VERSION:-latest}"
+VERSION="${VERSION:-}"
 DOWNLOAD_URL="${DOWNLOAD_URL:-}"
 INSTALL_DIR="${INSTALL_DIR:-$HOME/.local/bin}"
 USE_SUDO="${USE_SUDO:-}"
+
+# Get latest version from GitHub API
+get_latest_version() {
+    local api_url="https://api.github.com/repos/specledger/specledger/releases/latest"
+    local latest_version=""
+
+    if command -v curl > /dev/null 2>&1; then
+        latest_version=$(curl -sf "$api_url" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+    elif command -v wget > /dev/null 2>&1; then
+        latest_version=$(wget -qO- "$api_url" | grep '"tag_name"' | sed -E 's/.*"([^"]+)".*/\1/' | sed 's/^v//')
+    fi
+
+    if [[ -z "$latest_version" ]]; then
+        # Fallback to known version if API fails
+        echo "1.0.3"
+    else
+        echo "$latest_version"
+    fi
+}
+
+# If VERSION not set, fetch latest
+if [[ -z "$VERSION" ]]; then
+    VERSION=$(get_latest_version)
+    echo "Detected latest version: $VERSION"
+fi
 
 # Detect OS
 detect_os() {
@@ -84,6 +109,9 @@ get_download_url() {
     local version="$1"
     local arch="$2"
 
+    # Add 'v' prefix if not present
+    [[ ! "$version" =~ ^v ]] && version="v${version}"
+
     case "$OS" in
         darwin)
             echo "https://github.com/specledger/specledger/releases/download/${version}/specledger_${version}_darwin_${arch}.tar.gz"
@@ -104,6 +132,8 @@ get_download_url() {
 # Get checksum URL
 get_checksum_url() {
     local version="$1"
+    # Add 'v' prefix if not present
+    [[ ! "$version" =~ ^v ]] && version="v${version}"
     echo "https://github.com/specledger/specledger/releases/download/${version}/checksums.txt"
 }
 
