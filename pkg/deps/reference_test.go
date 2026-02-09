@@ -108,7 +108,7 @@ func TestResolveReferenceWithProjectRoot(t *testing.T) {
 
 	// Create a test artifact file
 	artifactFile := filepath.Join(artifactDir, "api.md")
-	if err := os.WriteFile(artifactFile, []byte("# API Spec"), 0644); err != nil {
+	if err := os.WriteFile(artifactFile, []byte("# API Spec"), 0600); err != nil {
 		t.Fatalf("failed to create test file: %v", err)
 	}
 

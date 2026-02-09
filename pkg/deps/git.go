@@ -37,11 +37,11 @@ func Clone(opts CloneOptions) (*git.Repository, string, error) {
 
 	// Clone options
 	cloneOpts := &git.CloneOptions{
-		URL:           opts.URL,
-		Progress:      nil,
-		Tags:          git.NoTags,
-		NoCheckout:    false,
-		SingleBranch:  true,
+		URL:          opts.URL,
+		Progress:     nil,
+		Tags:         git.NoTags,
+		NoCheckout:   false,
+		SingleBranch: true,
 	}
 
 	// Set shallow clone option
@@ -102,11 +102,6 @@ func OpenRepository(path string) (*git.Repository, error) {
 
 // Fetch fetches the latest changes from a repository.
 func Fetch(repo *git.Repository, branch string) error {
-	// Determine branch
-	if branch == "" {
-		branch = "main"
-	}
-
 	// Get the remote
 	remotes, err := repo.Remotes()
 	if err != nil || len(remotes) == 0 {

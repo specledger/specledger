@@ -32,7 +32,7 @@ Examples:
 var VarAddCmd = &cobra.Command{
 	Use:   "add <repo-url> [branch] --alias <name> [--artifact-path <path>]",
 	Short: "Add a dependency",
-	Long:  `Add an external specification dependency to your project. The dependency will be tracked in specledger.yaml and cached locally for offline use.
+	Long: `Add an external specification dependency to your project. The dependency will be tracked in specledger.yaml and cached locally for offline use.
 
 The --alias flag is required and will be used as the reference path when accessing artifacts from this dependency.
 
@@ -86,7 +86,7 @@ var VarDepsUpdateCmd = &cobra.Command{
 var VarLinkCmd = &cobra.Command{
 	Use:   "link",
 	Short: "Create symlinks from cached dependencies to project artifacts directory",
-	Long:  `Create symlinks from cached dependencies to the project's artifacts directory, making them available for Claude Code and other tools.
+	Long: `Create symlinks from cached dependencies to the project's artifacts directory, making them available for Claude Code and other tools.
 
 This command creates symlinks from ~/.specledger/cache/<alias>/ to <project.artifact_path>/<alias>/, allowing reference paths like "alias:artifact.md" to resolve to actual files.
 
@@ -98,7 +98,7 @@ func init() {
 	VarDepsCmd.AddCommand(VarAddCmd, VarDepsListCmd, VarResolveCmd, VarDepsUpdateCmd, VarLinkCmd, VarRemoveCmd)
 
 	VarAddCmd.Flags().StringP("alias", "a", "", "Required alias for the dependency (used as reference path)")
-	VarAddCmd.MarkFlagRequired("alias")
+	_ = VarAddCmd.MarkFlagRequired("alias")
 	VarAddCmd.Flags().String("artifact-path", "", "Path to artifacts within dependency repository (auto-detected for SpecLedger repos)")
 	VarResolveCmd.Flags().BoolP("no-cache", "n", false, "Ignore cached specifications")
 }
