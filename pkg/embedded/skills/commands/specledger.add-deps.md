@@ -63,9 +63,10 @@ sl deps add git@github.com:user/repo develop --alias platform
    - Show what was added
    - Display resolved commit SHA
 
-7. **Link dependencies** (recommended):
-   - Run `sl deps link` to create symlinks from cache to project directory
+7. **Auto-link dependency**:
+   - Automatically creates symlink from cache to project directory
    - Makes dependency files available at `specledger/<alias>/` for Claude Code
+   - If target directory exists and is not empty, linking is skipped (to avoid conflicts)
 
 ## Examples
 

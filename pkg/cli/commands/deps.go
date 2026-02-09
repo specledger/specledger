@@ -265,6 +265,12 @@ func runAddDependency(cmd *cobra.Command, args []string) error {
 	fmt.Printf("  Import Path: %s\n", ui.Cyan(importPath))
 	fmt.Println()
 
+	// Auto-link the dependency
+	if err := linkDependency(projectDir, meta, dep); err != nil {
+		ui.PrintWarning(fmt.Sprintf("Failed to create symlink: %v", err))
+		ui.PrintWarning("Dependency was added but not linked. Run 'sl deps link' to manually link.")
+	}
+
 	return nil
 }
 
@@ -468,6 +474,27 @@ func runResolveDependencies(cmd *cobra.Command, args []string) error {
 		ui.PrintWarning("Some dependencies failed to resolve")
 	}
 	fmt.Println()
+
+	// Auto-link all resolved dependencies
+	if resolvedCount > 0 {
+		ui.PrintSection("Linking Dependencies")
+		linkedCount := 0
+		for _, dep := range meta.Dependencies {
+			if dep.ResolvedCommit == "" {
+				continue // Skip unresolved dependencies
+			}
+			if err := linkDependency(projectDir, meta, dep); err != nil {
+				ui.PrintWarning(fmt.Sprintf("Failed to link %s: %v", dep.Alias, err))
+			} else {
+				linkedCount++
+			}
+		}
+		if linkedCount > 0 {
+			ui.PrintSuccess(fmt.Sprintf("Linked %d dependencies", linkedCount))
+			fmt.Printf("  Dependencies are now available at: %s/<alias>/\n", meta.GetArtifactPath())
+		}
+		fmt.Println()
+	}
 
 	return nil
 }
@@ -736,6 +763,83 @@ func runLinkDependencies(cmd *cobra.Command, args []string) error {
 		ui.PrintWarning("No dependencies were linked")
 	}
 	fmt.Println()
+
+	return nil
+}
+
+// linkDependency creates a symlink for a single dependency
+// This is called automatically after adding or resolving dependencies
+func linkDependency(projectDir string, meta *metadata.ProjectMetadata, dep metadata.Dependency) error {
+	// Skip if alias or artifact_path is empty
+	if dep.Alias == "" {
+		return nil // Skip silently
+	}
+	if dep.ArtifactPath == "" {
+		return fmt.Errorf("dependency has no artifact_path")
+	}
+
+	// Get project's artifact path
+	projectArtifactPath := meta.GetArtifactPath()
+	if projectArtifactPath == "" {
+		return fmt.Errorf("project artifact_path is not set")
+	}
+
+	homeDir, _ := os.UserHomeDir()
+
+	// Get cache directory
+	cacheDir := filepath.Join(homeDir, ".specledger", "cache", dep.Alias)
+
+	// Check if dependency is cached
+	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
+		return fmt.Errorf("dependency is not cached")
+	}
+
+	// Source: cache_dir/dep_artifact_path
+	sourceDir := filepath.Join(cacheDir, dep.ArtifactPath)
+
+	// Check if source exists
+	if _, err := os.Stat(sourceDir); os.IsNotExist(err) {
+		return fmt.Errorf("artifact path not found in cache: %s", sourceDir)
+	}
+
+	// Target: project_dir/project_artifact_path/alias
+	targetDir := filepath.Join(projectDir, projectArtifactPath, dep.Alias)
+
+	// Create parent directory if it doesn't exist
+	if err := os.MkdirAll(filepath.Dir(targetDir), 0755); err != nil {
+		return fmt.Errorf("failed to create parent directory: %w", err)
+	}
+
+	// Check if target already exists
+	targetInfo, err := os.Lstat(targetDir)
+	if err == nil {
+		// Target exists - check if it's a symlink
+		if targetInfo.Mode()&os.ModeSymlink != 0 {
+			// It's a symlink, check if it points to the right place
+			existingTarget, _ := os.Readlink(targetDir)
+			if existingTarget == sourceDir {
+				// Already pointing to the right place, skip
+				return nil
+			}
+			// Pointing elsewhere, remove and recreate
+			os.Remove(targetDir)
+		} else {
+			// It's a real directory or file - don't delete user data!
+			// Check if it's empty
+			entries, _ := os.ReadDir(targetDir)
+			if len(entries) > 0 {
+				// Directory has content, skip to avoid data loss
+				return fmt.Errorf("target directory exists and is not empty: %s", targetDir)
+			}
+			// Empty directory, safe to remove
+			os.Remove(targetDir)
+		}
+	}
+
+	// Create symlink
+	if err := os.Symlink(sourceDir, targetDir); err != nil {
+		return fmt.Errorf("failed to create symlink: %w", err)
+	}
 
 	return nil
 }
