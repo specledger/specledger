@@ -29,7 +29,7 @@ changelog:
 
 builds:
   - id: sl
-    main: ./cmd/main.go
+    main: ./cmd/sl/main.go
     binary: sl
     env:
       - CGO_ENABLED=0
@@ -83,7 +83,7 @@ release:
 
     ### From source
     ```bash
-    go install github.com/specledger/specledger/cmd@latest
+    go install github.com/specledger/specledger/cmd/sl@latest
     ```
 
     ## 📚 Documentation
