@@ -56,10 +56,10 @@ brews:
     license: MIT
     repository:
       owner: specledger
-      name: homebrew-specledger
-    skip_upload: true
-    # Note: Requires GitHub token with write access to homebrew-specledger repo
-    # TODO: Configure PAT or update repository permissions
+      name: specledger
+      branch: main
+      folder: homebrew
+    skip_upload: false
 
 release:
   github:
