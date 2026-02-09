@@ -2,7 +2,7 @@
 
 # Build the CLI binary (produces bin/sl)
 build:
-	go build -o bin/sl cmd/main.go
+	go build -o bin/sl cmd/sl/main.go
 
 # Run the CLI
 run: build
@@ -35,11 +35,11 @@ lint:
 
 # Build for all platforms
 build-all:
-	GOOS=linux GOARCH=amd64 go build -o bin/sl-linux cmd/main.go
-	GOOS=darwin GOARCH=amd64 go build -o bin/sl-darwin cmd/main.go
-	GOOS=windows GOARCH=amd64 go build -o bin/sl-windows.exe cmd/main.go
-	GOOS=linux GOARCH=arm64 go build -o bin/sl-linux-arm64 cmd/main.go
-	GOOS=darwin GOARCH=arm64 go build -o bin/sl-darwin-arm64 cmd/main.go
+	GOOS=linux GOARCH=amd64 go build -o bin/sl-linux cmd/sl/main.go
+	GOOS=darwin GOARCH=amd64 go build -o bin/sl-darwin cmd/sl/main.go
+	GOOS=windows GOARCH=amd64 go build -o bin/sl-windows.exe cmd/sl/main.go
+	GOOS=linux GOARCH=arm64 go build -o bin/sl-linux-arm64 cmd/sl/main.go
+	GOOS=darwin GOARCH=arm64 go build -o bin/sl-darwin-arm64 cmd/sl/main.go
 
 # Clean build artifacts
 clean:
@@ -78,4 +78,4 @@ help:
 	@echo ""
 	@echo "Installation:"
 	@echo "  make install        - Install from source"
-	@echo "  go install ./cmd/main.go@latest - Install with go toolchain"
+	@echo "  go install github.com/specledger/specledger/cmd/sl@latest - Install with go toolchain"
