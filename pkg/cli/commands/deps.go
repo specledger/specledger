@@ -29,12 +29,14 @@ Examples:
 
 // VarAddCmd represents the add command
 var VarAddCmd = &cobra.Command{
-	Use:   "add <repo-url> [branch]",
+	Use:   "add <repo-url> [branch] --alias <name>",
 	Short: "Add a dependency",
-	Long:  `Add an external specification dependency to your project. The dependency will be tracked in specledger.yaml and cached locally for offline use.`,
-	Example: `  sl deps add git@github.com:org/api-spec
-  sl deps add git@github.com:org/api-spec --alias api
-  sl deps add git@github.com:org/api-spec v1.0 --alias api`,
+	Long:  `Add an external specification dependency to your project. The dependency will be tracked in specledger.yaml and cached locally for offline use.
+
+The --alias flag is required and will be used as the reference path when accessing artifacts from this dependency.`,
+	Example: `  sl deps add git@github.com:org/api-spec --alias api
+  sl deps add git@github.com:org/api-spec develop --alias api
+  sl deps add https://github.com/org/api-spec --alias api`,
 	Args: cobra.MinimumNArgs(1),
 	RunE: runAddDependency,
 }
@@ -80,7 +82,8 @@ var VarDepsUpdateCmd = &cobra.Command{
 func init() {
 	VarDepsCmd.AddCommand(VarAddCmd, VarDepsListCmd, VarResolveCmd, VarDepsUpdateCmd, VarRemoveCmd)
 
-	VarAddCmd.Flags().StringP("alias", "a", "", "Optional alias for the dependency")
+	VarAddCmd.Flags().StringP("alias", "a", "", "Required alias for the dependency (used as reference path)")
+	VarAddCmd.MarkFlagRequired("alias")
 	VarResolveCmd.Flags().BoolP("no-cache", "n", false, "Ignore cached specifications")
 }
 
@@ -156,7 +159,7 @@ func runAddDependency(cmd *cobra.Command, args []string) error {
 		if existing.URL == repoURL {
 			return fmt.Errorf("dependency already exists: %s", repoURL)
 		}
-		if alias != "" && existing.Alias == alias {
+		if existing.Alias == alias {
 			return fmt.Errorf("alias already exists: %s", alias)
 		}
 	}
@@ -171,9 +174,7 @@ func runAddDependency(cmd *cobra.Command, args []string) error {
 
 	ui.PrintSuccess("Dependency added")
 	fmt.Printf("  Repository:  %s\n", ui.Bold(repoURL))
-	if alias != "" {
-		fmt.Printf("  Alias:       %s\n", ui.Bold(alias))
-	}
+	fmt.Printf("  Alias:       %s\n", ui.Bold(alias))
 	fmt.Printf("  Branch:      %s\n", ui.Bold(branch))
 	fmt.Printf("  Framework:   %s\n", frameworkDisplay)
 	fmt.Printf("  Import Path: %s\n", ui.Cyan(importPath))
