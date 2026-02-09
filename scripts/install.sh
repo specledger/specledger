@@ -33,7 +33,30 @@ detect_os() {
     fi
 }
 
+# Detect architecture
+detect_arch() {
+    local arch=$(uname -m)
+    case "$arch" in
+        x86_64)
+            echo "amd64"
+            ;;
+        aarch64|arm64)
+            echo "arm64"
+            ;;
+        armv7l)
+            echo "arm"
+            ;;
+        i386|i686)
+            echo "386"
+            ;;
+        *)
+            echo "unknown"
+            ;;
+    esac
+}
+
 OS="$(detect_os)"
+ARCH="${ARCH:-$(detect_arch)}"
 
 # Download function
 download_file() {
@@ -59,7 +82,7 @@ download_file() {
 # Extract OS-specific download URL
 get_download_url() {
     local version="$1"
-    local arch="${ARCH:-amd64}"
+    local arch="$2"
 
     case "$OS" in
         darwin)
@@ -76,6 +99,52 @@ get_download_url() {
             exit 1
             ;;
     esac
+}
+
+# Get checksum URL
+get_checksum_url() {
+    local version="$1"
+    echo "https://github.com/specledger/specledger/releases/download/${version}/checksums.txt"
+}
+
+# Verify checksum
+verify_checksum() {
+    local archive_file="$1"
+    local checksum_file="$2"
+    local archive_name=$(basename "$archive_file")
+
+    if [[ ! -f "$checksum_file" ]]; then
+        echo -e "${YELLOW}Warning: Checksum file not found, skipping verification${NC}" >&2
+        return 0
+    fi
+
+    echo "Verifying checksum..."
+
+    # Extract the expected checksum for our archive
+    local expected_checksum=$(grep "$archive_name" "$checksum_file" | awk '{print $1}')
+
+    if [[ -z "$expected_checksum" ]]; then
+        echo -e "${YELLOW}Warning: No checksum found for $archive_name, skipping verification${NC}" >&2
+        return 0
+    fi
+
+    # Calculate actual checksum
+    if command -v shasum > /dev/null 2>&1; then
+        local actual_checksum=$(shasum -a 256 "$archive_file" | awk '{print $1}')
+        if [[ "$actual_checksum" == "$expected_checksum" ]]; then
+            echo -e "${GREEN}✓ Checksum verified${NC}"
+            return 0
+        else
+            echo -e "${RED}Error: Checksum mismatch!${NC}" >&2
+            echo "Expected: $expected_checksum" >&2
+            echo "Actual:   $actual_checksum" >&2
+            rm -f "$archive_file"
+            exit 1
+        fi
+    else
+        echo -e "${YELLOW}shasum not available, skipping checksum verification${NC}" >&2
+        return 0
+    fi
 }
 
 # Create install directory if it doesn't exist
@@ -112,58 +181,64 @@ install_on_unix() {
     local version="$1"
     local url="$2"
     local temp_file=$(mktemp)
+    local checksum_file=$(mktemp)
     local extract_dir=$(mktemp -d)
 
-    echo "Downloading SpecLedger $version for $OS..."
+    echo "Downloading SpecLedger $version for $OS ($ARCH)..."
 
+    # Download archive
     download_file "$url" "$temp_file"
 
+    # Download checksums
+    download_file "$(get_checksum_url "$version")" "$checksum_file"
+
+    # Verify checksum
+    verify_checksum "$temp_file" "$checksum_file"
+
     echo "Extracting..."
+    tar -xzf "$temp_file" -C "$extract_dir"
 
-    if [[ "$OS" == "windows" ]]; then
-        unzip -q "$temp_file" -d "$extract_dir"
-    else
-        tar -xzf "$temp_file" -C "$extract_dir"
-    fi
-
-    # Find the extracted binary
-    local binary_path=""
-    if [[ "$OS" == "windows" ]]; then
-        binary_path="$extract_dir/specledger_${version}_windows_${ARCH}/sl.exe"
-    else
-        binary_path="$extract_dir/sl"
-    fi
+    # Find the extracted binary - GoReleaser puts 'sl' at the root
+    local binary_path="$extract_dir/sl"
 
     if [[ ! -f "$binary_path" ]]; then
         echo -e "${RED}Error: Binary not found at $binary_path${NC}" >&2
-        rm -rf "$temp_file" "$extract_dir"
+        echo "Looking for files in extract directory:" >&2
+        ls -la "$extract_dir" >&2
+        rm -rf "$temp_file" "$checksum_file" "$extract_dir"
         exit 1
     fi
 
-    # Determine if we need sudo
+    # Install binary
     if [[ -w "$INSTALL_DIR" ]]; then
         cp "$binary_path" "$INSTALL_DIR/sl"
         chmod +x "$INSTALL_DIR/sl"
     else
         if [[ -z "$USE_SUDO" ]]; then
-            echo -e "${YELLOW}You may need to run with sudo for system-wide install${NC}"
-            USE_SUDO="true"
+            echo -e "${YELLOW}Install directory not writable. You may need to run with sudo for system-wide install${NC}"
         fi
-        if [[ "$USE_SUDO" == "true" ]]; then
-            sudo cp "$binary_path" "/usr/local/bin/sl"
-            sudo chmod +x "/usr/local/bin/sl"
+
+        # Try with sudo if available and directory is not writable
+        if command -v sudo > /dev/null 2>&1 && [[ "$USE_SUDO" != "false" ]]; then
+            if [[ "$INSTALL_DIR" == "/usr/local/bin" ]]; then
+                sudo cp "$binary_path" "$INSTALL_DIR/sl"
+                sudo chmod +x "$INSTALL_DIR/sl"
+                echo -e "${GREEN}✓ Installed SpecLedger $version to $INSTALL_DIR/sl${NC}"
+            else
+                echo -e "${RED}Error: Cannot write to $INSTALL_DIR and sudo install only supports /usr/local/bin${NC}" >&2
+                echo "Please set INSTALL_DIR to a writable location or run with sudo." >&2
+                rm -rf "$temp_file" "$checksum_file" "$extract_dir"
+                exit 1
+            fi
         else
-            cp "$binary_path" "$INSTALL_DIR/sl"
-            chmod +x "$INSTALL_DIR/sl"
+            echo -e "${RED}Error: Cannot write to $INSTALL_DIR${NC}" >&2
+            rm -rf "$temp_file" "$checksum_file" "$extract_dir"
+            exit 1
         fi
     fi
 
-    echo -e "${GREEN}✓ Installed SpecLedger $version to $INSTALL_DIR/sl${NC}"
-    echo -e "${YELLOW}Please ensure $INSTALL_DIR is in your PATH${NC}"
-    echo ""
-
     # Cleanup
-    rm -rf "$temp_file" "$extract_dir"
+    rm -rf "$temp_file" "$checksum_file" "$extract_dir"
 }
 
 # Install on Windows
@@ -174,26 +249,36 @@ install_on_windows() {
     echo "Installing SpecLedger $version on Windows..."
 
     local temp_file="$HOME/AppData/Local/Temp/specledger-install.zip"
+    local extract_dir="$HOME/AppData/Local/Temp/specledger-install"
 
     download_file "$url" "$temp_file"
 
+    mkdir -p "$extract_dir"
+    unzip -q "$temp_file" -d "$extract_dir"
+
+    # Find the extracted binary
+    local binary_path="$extract_dir/sl.exe"
+
+    if [[ ! -f "$binary_path" ]]; then
+        echo -e "${RED}Error: Binary not found at $binary_path${NC}" >&2
+        rm -f "$temp_file"
+        exit 1
+    fi
+
     # Install to Program Files if possible, else AppData
-    if [[ -d "C:/Program Files/SpecLedger" ]]; then
+    if [[ -w "C:/Program Files" ]]; then
         local target_dir="C:/Program Files/SpecLedger"
     else
         local target_dir="$HOME/AppData/Local/SpecLedger"
     fi
 
     mkdir -p "$target_dir"
-    unzip -q "$temp_file" -d "$target_dir"
-
-    # Copy sl.exe to directory
-    cp "$target_dir/specledger_${version}_windows_${ARCH}/sl.exe" "$target_dir/sl.exe"
-    rm "$temp_file"
+    cp "$binary_path" "$target_dir/sl.exe"
+    rm -f "$temp_file"
+    rm -rf "$extract_dir"
 
     echo -e "${GREEN}✓ Installed SpecLedger $version to $target_dir/sl.exe${NC}"
     echo -e "${YELLOW}Please add $target_dir to your PATH${NC}"
-    echo ""
 }
 
 # Verify installation
@@ -215,14 +300,23 @@ main() {
     echo "=============================="
     echo ""
 
+    # Auto-detect architecture if not set
+    if [[ -z "$ARCH" || "$ARCH" == "unknown" ]]; then
+        ARCH=$(detect_arch)
+        if [[ "$ARCH" == "unknown" ]]; then
+            echo -e "${RED}Error: Unable to detect system architecture${NC}" >&2
+            exit 1
+        fi
+    fi
+
     # Get download URL
     if [[ -z "$DOWNLOAD_URL" ]]; then
-        DOWNLOAD_URL=$(get_download_url "$VERSION")
+        DOWNLOAD_URL=$(get_download_url "$VERSION" "$ARCH")
     fi
 
     echo "Installing SpecLedger $VERSION"
     echo "Platform: $OS"
-    echo "Architecture: ${ARCH:-amd64}"
+    echo "Architecture: $ARCH"
     echo "Install Directory: $INSTALL_DIR"
     echo ""
 
@@ -243,6 +337,13 @@ main() {
     # Verify
     if verify_installation; then
         echo -e "${GREEN}✓ Installation verified successfully${NC}"
+        echo ""
+        echo "To get started, run:"
+        echo "  sl --help"
+    else
+        echo ""
+        echo -e "${YELLOW}Note: $INSTALL_DIR may not be in your PATH yet.${NC}"
+        echo "Start a new shell or add $INSTALL_DIR to your PATH."
     fi
 }
 

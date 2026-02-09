@@ -34,53 +34,20 @@ builds:
     env:
       - CGO_ENABLED=0
     goos:
-      - linux
       - darwin
     goarch:
       - amd64
       - arm64
-      - arm
-    goarm:
-      - '7'
     ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
-  - id: sl-windows
-    main: ./cmd/main.go
-    binary: sl
-    env:
-      - CGO_ENABLED=0
-    goos:
-      - windows
-    goarch:
-      - amd64
-      - arm64
-    ldflags:
-      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}}
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}} -X main.date={{.Date}} -X main.buildType=release
 
 archives:
   - formats:
       - tar.gz
-    format_overrides:
-      - goos: windows
-        formats:
-          - zip
     name_template: 'specledger_{{ .Version }}_{{ .Os }}_{{ .Arch }}'
     files:
       - LICENSE
       - README.md
-
-nfpms:
-  - vendor: specledger
-    maintainer: 'SpecLedger Team <contact@specledger.dev>'
-    homepage: 'https://github.com/specledger/specledger'
-    description: 'Unified CLI for project bootstrap and specification dependency management'
-    license: MIT
-    bindir: /usr/bin
-    formats:
-      - deb
-      - rpm
-    dependencies:
-      - glibc (>= 2.17)
 
 brews:
   - name: specledger
@@ -109,12 +76,13 @@ release:
 
     ### Homebrew
     ```bash
+    brew tap specledger/homebrew-specledger
     brew install specledger
     ```
 
     ### From source
     ```bash
-    go install github.com/specledger/specledger/cmd/sl@latest
+    go install github.com/specledger/specledger/cmd@latest
     ```
 
     ## 📚 Documentation

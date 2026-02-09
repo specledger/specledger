@@ -1,11 +1,20 @@
 package main
 
 import (
+	"fmt"
 	"os"
 
 	"specledger/pkg/cli/commands"
 
 	"github.com/spf13/cobra"
+)
+
+// Version variables set by GoReleaser during build
+var (
+	version   = "dev"
+	commit    = "unknown"
+	date      = "unknown"
+	buildType = "development"
 )
 
 var rootCmd = &cobra.Command{
@@ -20,11 +29,11 @@ var rootCmd = &cobra.Command{
 5. View dependency graphs and relationships
 
 Quick start:
-  sl new              # Create a new project (interactive)
-  sl init             # Initialize in existing repository
-  sl deps list         # List dependencies
-  sl deps add <url>    # Add a dependency`,
-	Version: "1.0.0",
+ sl new              # Create a new project (interactive)
+ sl init             # Initialize in existing repository
+ sl deps list        # List dependencies
+ sl deps add <url>   # Add a dependency`,
+	Version: version,
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 	},
@@ -38,6 +47,20 @@ func init() {
 	rootCmd.AddCommand(commands.VarGraphCmd)
 	rootCmd.AddCommand(commands.VarDoctorCmd)
 	rootCmd.AddCommand(commands.VarPlaybookCmd)
+
+	// Add version command
+	rootCmd.AddCommand(&cobra.Command{
+		Use:   "version",
+		Short: "Show version information",
+		Long:  "Display the version, commit, and build date of SpecLedger",
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("SpecLedger CLI (sl)\n")
+			fmt.Printf("Version:  %s\n", version)
+			fmt.Printf("Commit:   %s\n", commit)
+			fmt.Printf("Built:    %s\n", date)
+			fmt.Printf("Type:     %s\n", buildType)
+		},
+	})
 
 	// Disable default command completion (sl specledger alias)
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
