@@ -10,6 +10,7 @@ import (
 	"github.com/specledger/specledger/pkg/cli/framework"
 	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/ui"
+	"github.com/specledger/specledger/pkg/deps"
 	"github.com/spf13/cobra"
 )
 
@@ -152,6 +153,32 @@ func runAddDependency(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("  Framework:  %s\n", frameworkDisplay)
 	fmt.Println()
+
+	// Auto-detect artifact_path if not manually specified and framework detected
+	if artifactPath == "" && frameworkType != metadata.FrameworkNone {
+		ui.PrintSection("Detecting Artifact Path")
+		fmt.Printf("Checking %s for specledger.yaml...\n", ui.Bold(repoURL))
+
+		// Create temporary directory for detection
+		tempDir := filepath.Join(os.TempDir(), "specledger-detect-"+alias)
+		defer os.RemoveAll(tempDir) // Clean up after detection
+
+		detectedPath, err := deps.DetectArtifactPathFromRemote(repoURL, branch, tempDir)
+		if err != nil {
+			ui.PrintWarning(fmt.Sprintf("Could not auto-detect artifact_path: %v", err))
+			ui.PrintWarning("This may not be a SpecLedger repository.")
+			ui.PrintWarning("Use --artifact-path to specify manually.")
+			fmt.Println()
+		} else {
+			artifactPath = detectedPath
+			fmt.Printf("  Found: %s\n", ui.Cyan(artifactPath))
+			fmt.Println()
+		}
+	} else if artifactPath == "" {
+		ui.PrintWarning("No artifact_path specified and no SpecLedger framework detected.")
+		ui.PrintWarning("Use --artifact-path to specify manually if this is a non-SpecLedger repository.")
+		fmt.Println()
+	}
 
 	// Create dependency
 	dep := metadata.Dependency{
