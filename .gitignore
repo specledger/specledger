@@ -42,6 +42,10 @@ specledger/vendor/
 .spec-config/auth.json
 .cache/
 
+# SpecLedger CLI credentials (FR-014: never commit tokens)
+.specledger/credentials.json
+**/credentials.json
+
 # Build outputs
 dist/
 build/

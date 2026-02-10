@@ -153,6 +153,58 @@ sl deps resolve
 | `sl graph show` | Show dependency graph |
 | `sl graph export` | Export dependency graph |
 
+### Authentication
+
+| Command | Description |
+|---------|-------------|
+| `sl auth login` | Sign in via browser (OAuth) |
+| `sl auth logout` | Sign out and clear tokens |
+| `sl auth status` | Check authentication status |
+| `sl auth token` | Print access token (for scripts, auto-refreshes) |
+| `sl auth supabase` | Show Supabase URL and anon key |
+
+
+## Claude Code Slash Commands
+
+SpecLedger provides slash commands for [Claude Code](https://claude.ai/claude-code) integration:
+
+### Authentication
+
+| Command | Description |
+|---------|-------------|
+| `/specledger.login` | Authenticate with SpecLedger via CLI |
+| `/specledger.logout` | Sign out from SpecLedger |
+
+### Comments
+
+| Command | Description |
+|---------|-------------|
+| `/specledger.fetch-comments` | View comments on current spec (uses git branch as spec-key) |
+| `/specledger.fetch-comments --spec <name>` | View comments for a specific spec |
+| `/specledger.resolve-comment -c <id>` | Delete an issue comment (integer ID) |
+| `/specledger.resolve-comment -r <id>` | Resolve a review comment (UUID) |
+
+### Specification Workflow
+
+| Command | Description |
+|---------|-------------|
+| `/specledger.adopt` | Create/update spec from feature description |
+| `/specledger.specify` | Create/update feature specification |
+| `/specledger.clarify` | Ask clarification questions for spec |
+| `/specledger.plan` | Generate implementation plan |
+| `/specledger.tasks` | Generate actionable tasks from plan |
+| `/specledger.implement` | Execute tasks from tasks.md |
+| `/specledger.analyze` | Cross-artifact consistency analysis |
+
+### Dependencies
+
+| Command | Description |
+|---------|-------------|
+| `/specledger.add-deps` | Add a new spec dependency |
+| `/specledger.list-deps` | List all spec dependencies |
+| `/specledger.remove-deps` | Remove a spec dependency |
+| `/specledger.resolve-deps` | Resolve and checkout dependencies locally |
+
 ## Documentation
 
 Full documentation is available at [https://specledger.io/docs](https://specledger.io/docs)

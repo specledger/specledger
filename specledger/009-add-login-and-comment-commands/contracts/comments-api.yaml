@@ -1,0 +1,226 @@
+# Comments API Contract (Supabase PostgREST)
+# Feature: 009-add-login-and-comment-commands
+# This defines the expected API contract for comment operations
+
+openapi: 3.0.3
+info:
+  title: Specledger Comments API
+  description: |
+    REST API for managing comments on specification files.
+    This API is provided by Supabase PostgREST.
+  version: 1.0.0
+
+servers:
+  - url: https://specledger.supabase.co/rest/v1
+    description: Production Supabase
+
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []
+
+paths:
+  /comments:
+    get:
+      summary: List comments
+      description: Retrieve comments for a specific file or all comments
+      operationId: listComments
+      parameters:
+        - name: select
+          in: query
+          required: true
+          schema:
+            type: string
+            default: "*"
+          description: Fields to select
+        - name: file_path
+          in: query
+          schema:
+            type: string
+            example: "eq.auth.md"
+          description: Filter by file path (PostgREST syntax)
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: ["eq.open", "eq.resolved"]
+          description: Filter by status (PostgREST syntax)
+        - name: order
+          in: query
+          schema:
+            type: string
+            default: "created_at.desc"
+          description: Sort order
+      responses:
+        '200':
+          description: List of comments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+              example:
+                - id: "123e4567-e89b-12d3-a456-426614174000"
+                  file_path: "auth.md"
+                  content: "Thiếu error case cho expired token"
+                  type: "critical"
+                  status: "open"
+                  author_id: "550e8400-e29b-41d4-a716-446655440000"
+                  author_name: "Nam"
+                  created_at: "2026-02-10T10:00:00Z"
+        '401':
+          description: Unauthorized - invalid or missing token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    patch:
+      summary: Update comment
+      description: Update a comment (typically to resolve it)
+      operationId: updateComment
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "eq.123e4567-e89b-12d3-a456-426614174000"
+          description: Comment ID to update (PostgREST syntax)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CommentUpdate'
+            example:
+              status: "resolved"
+              resolved_by: "550e8400-e29b-41d4-a716-446655440000"
+      responses:
+        '204':
+          description: Comment updated successfully (with Prefer: return=minimal)
+        '200':
+          description: Comment updated successfully (with Prefer: return=representation)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Comment'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Forbidden - RLS policy violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Comment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: apikey
+      description: Supabase public anon key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: User access token from session
+
+  schemas:
+    Comment:
+      type: object
+      required:
+        - id
+        - file_path
+        - content
+        - type
+        - status
+        - author_id
+        - author_name
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier
+        file_path:
+          type: string
+          description: Path to the spec file
+          example: "auth.md"
+        content:
+          type: string
+          description: Comment text
+          example: "Thiếu error case cho expired token"
+        type:
+          type: string
+          enum: [critical, suggestion]
+          description: Comment type
+        status:
+          type: string
+          enum: [open, resolved]
+          description: Comment status
+        author_id:
+          type: string
+          format: uuid
+          description: UUID of comment author
+        author_name:
+          type: string
+          description: Display name of author
+          example: "Nam"
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        resolved_by:
+          type: string
+          format: uuid
+          nullable: true
+          description: UUID of resolver (if resolved)
+        resolved_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Resolution timestamp (if resolved)
+        project_id:
+          type: string
+          format: uuid
+          description: Project identifier
+
+    CommentUpdate:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [resolved]
+          description: New status
+        resolved_by:
+          type: string
+          format: uuid
+          description: User ID of resolver
+
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+          description: Error message
+        code:
+          type: string
+          description: Error code
+        hint:
+          type: string
+          nullable: true
+          description: Hint for resolution

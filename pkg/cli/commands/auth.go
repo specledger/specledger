@@ -89,8 +89,35 @@ var VarAuthRefreshCmd = &cobra.Command{
 	RunE:  runRefresh,
 }
 
+// VarAuthSupabaseCmd represents the supabase config command
+var VarAuthSupabaseCmd = &cobra.Command{
+	Use:   "supabase",
+	Short: "Show Supabase configuration",
+	Long:  `Display Supabase URL and anon key for API access.`,
+	RunE:  runSupabase,
+}
+
+// VarAuthTokenCmd represents the token command (for scripts)
+var VarAuthTokenCmd = &cobra.Command{
+	Use:   "token",
+	Short: "Print access token (for scripts)",
+	Long: `Print the current access token to stdout.
+
+This command is designed for use in scripts and automation.
+It outputs only the token with no other text, making it easy
+to capture in a variable:
+
+  ACCESS_TOKEN=$(sl auth token)
+
+The token is automatically refreshed if expired.`,
+	RunE: runToken,
+}
+
 func init() {
-	VarAuthCmd.AddCommand(VarAuthLoginCmd, VarAuthLogoutCmd, VarAuthStatusCmd, VarAuthRefreshCmd)
+	VarAuthCmd.AddCommand(VarAuthLoginCmd, VarAuthLogoutCmd, VarAuthStatusCmd, VarAuthRefreshCmd, VarAuthSupabaseCmd, VarAuthTokenCmd)
+
+	VarAuthSupabaseCmd.Flags().Bool("url", false, "Print only the Supabase URL")
+	VarAuthSupabaseCmd.Flags().Bool("key", false, "Print only the Supabase anon key")
 
 	VarAuthLoginCmd.Flags().Bool("dev", false, "Use development server (localhost:3000)")
 	VarAuthLoginCmd.Flags().String("token", "", "Authenticate with an access token (for CI/headless environments)")
@@ -323,5 +350,39 @@ func runRefresh(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Token refreshed (length: %d)\n", len(token))
 	}
 
+	return nil
+}
+
+func runSupabase(cmd *cobra.Command, args []string) error {
+	urlOnly, _ := cmd.Flags().GetBool("url")
+	keyOnly, _ := cmd.Flags().GetBool("key")
+
+	supabaseURL := auth.GetSupabaseURL()
+	supabaseKey := auth.GetSupabaseAnonKey()
+
+	if urlOnly {
+		fmt.Println(supabaseURL)
+		return nil
+	}
+
+	if keyOnly {
+		fmt.Println(supabaseKey)
+		return nil
+	}
+
+	// Print both
+	fmt.Printf("SUPABASE_URL=%s\n", supabaseURL)
+	fmt.Printf("SUPABASE_ANON_KEY=%s\n", supabaseKey)
+	return nil
+}
+
+func runToken(cmd *cobra.Command, args []string) error {
+	token, err := auth.GetValidAccessToken()
+	if err != nil {
+		return fmt.Errorf("failed to get access token: %w", err)
+	}
+
+	// Output only the token, no other text (for use in scripts)
+	fmt.Print(token)
 	return nil
 }

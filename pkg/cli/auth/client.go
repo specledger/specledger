@@ -15,7 +15,28 @@ const (
 	ProductionAPIURL = "https://app.specledger.io"
 	// DevAPIURL is the development API base URL
 	DevAPIURL = "http://localhost:3000"
+
+	// SupabaseURL is the Supabase project URL
+	SupabaseURL = "https://iituikpbiesgofuraclk.supabase.co"
+	// SupabaseAnonKey is the public anon key for Supabase (safe to expose)
+	SupabaseAnonKey = "sb_publishable_KpaZ2lKPu6eJ5WLqheu9_A_J9dYhGQb"
 )
+
+// GetSupabaseURL returns the Supabase project URL
+func GetSupabaseURL() string {
+	if envURL := os.Getenv("SPECLEDGER_SUPABASE_URL"); envURL != "" {
+		return envURL
+	}
+	return SupabaseURL
+}
+
+// GetSupabaseAnonKey returns the Supabase anon key
+func GetSupabaseAnonKey() string {
+	if envKey := os.Getenv("SPECLEDGER_SUPABASE_ANON_KEY"); envKey != "" {
+		return envKey
+	}
+	return SupabaseAnonKey
+}
 
 // getAPIURL returns the API URL based on environment
 func getAPIURL() string {

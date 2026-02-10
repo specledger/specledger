@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://specledger.io/schemas/session.json",
+  "title": "Specledger Session",
+  "description": "Local session file format for Claude Code slash commands",
+  "type": "object",
+  "required": ["access_token", "refresh_token", "expires_at", "user_id"],
+  "additionalProperties": false,
+  "properties": {
+    "access_token": {
+      "type": "string",
+      "description": "JWT access token for API authorization",
+      "minLength": 1,
+      "pattern": "^[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]+\\.[A-Za-z0-9-_]*$"
+    },
+    "refresh_token": {
+      "type": "string",
+      "description": "JWT refresh token for obtaining new access tokens",
+      "minLength": 1
+    },
+    "expires_at": {
+      "type": "integer",
+      "description": "Unix timestamp (seconds) when access_token expires",
+      "minimum": 0
+    },
+    "user_id": {
+      "type": "string",
+      "description": "UUID of the authenticated user",
+      "format": "uuid"
+    }
+  },
+  "examples": [
+    {
+      "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U",
+      "refresh_token": "v1.MRjvlQ9Mz_example_refresh_token",
+      "expires_at": 1712345678,
+      "user_id": "550e8400-e29b-41d4-a716-446655440000"
+    }
+  ]
+}
