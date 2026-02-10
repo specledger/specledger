@@ -14,6 +14,12 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Purpose
+
+Create or update the project constitution that defines non-negotiable principles and coding standards. The constitution guides all spec generation and ensures consistency across features.
+
+**When to use**: At project setup or when adding new principles.
+
 ## Outline
 
 You are updating the project constitution at `.specledger/memory/constitution.md`. This file is a TEMPLATE containing placeholder tokens in square brackets (e.g. `[PROJECT_NAME]`, `[PRINCIPLE_1_NAME]`). Your job is to (a) collect/derive concrete values, (b) fill the template precisely, and (c) propagate any amendments across dependent artifacts.

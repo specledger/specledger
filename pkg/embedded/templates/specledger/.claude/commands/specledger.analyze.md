@@ -10,6 +10,12 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Purpose
+
+Perform cross-artifact consistency and quality analysis to identify gaps before implementation. This command validates that spec.md, plan.md, and tasks.md are aligned and complete.
+
+**When to use**: After `/specledger.tasks` completes successfully, before starting implementation.
+
 ## Goal
 
 Identify inconsistencies, duplications, ambiguities, and underspecified items across the three core artifacts (`spec.md`, `plan.md`, `tasks.md`) before implementation. This command MUST run only after `/specledger.tasks` has successfully produced a complete `tasks.md`.

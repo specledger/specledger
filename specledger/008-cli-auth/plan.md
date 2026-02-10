@@ -23,7 +23,7 @@ Add browser-based OAuth authentication to the SpecLedger CLI, enabling users to 
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-Verify compliance with principles from `.specify/memory/constitution.md`:
+Verify compliance with principles from `.specledger/memory/constitution.md`:
 
 - [x] **Specification-First**: Spec.md complete with prioritized user stories (5 user stories with P1-P3 priorities)
 - [x] **Test-First**: Test strategy defined (integration tests for auth flow, unit tests for credential management)

@@ -138,12 +138,16 @@ func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) 
 // matchesPattern checks if a path matches any of the given patterns.
 func matchesPattern(path string, patterns []string) bool {
 	for _, pattern := range patterns {
+		// Special case: "**" matches all files
+		if pattern == "**" {
+			return true
+		}
 		// Simple glob matching
 		matched, err := filepath.Match(pattern, filepath.Base(path))
 		if err == nil && matched {
 			return true
 		}
-		// Check for directory patterns (e.g., "github.com/specledger/specledger/**")
+		// Check for directory patterns (e.g., "specledger/**")
 		if strings.Contains(pattern, "**") {
 			prefix := strings.TrimSuffix(pattern, "/**")
 			if strings.HasPrefix(path, prefix) {

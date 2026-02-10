@@ -3,7 +3,7 @@
 **Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
 **Input**: Feature specification from `/specledger/[###-feature-name]/spec.md`
 
-**Note**: This template is filled in by the `/specledger.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
+**Note**: This template is filled in by the `/specledger.plan` command. See `.specledger/templates/commands/plan.md` for the execution workflow.
 
 ## Summary
 
@@ -31,7 +31,7 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-Verify compliance with principles from `.specify/memory/constitution.md`:
+Verify compliance with principles from `.specledger/memory/constitution.md`:
 
 - [ ] **Specification-First**: Spec.md complete with prioritized user stories
 - [ ] **Test-First**: Test strategy defined (contract + integration tests planned)

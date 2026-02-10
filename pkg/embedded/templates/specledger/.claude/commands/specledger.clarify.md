@@ -14,6 +14,12 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Purpose
+
+Identify underspecified areas in the feature spec through targeted clarification questions. This command improves spec quality by resolving ambiguities before planning begins.
+
+**When to use**: After `/specledger.specify` and before `/specledger.plan`.
+
 ## Outline
 
 Goal: Detect and reduce ambiguity or missing decision points in the active feature specification and record the clarifications directly in the spec file.

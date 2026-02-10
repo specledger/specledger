@@ -16,12 +16,13 @@ import (
 
 // applyEmbeddedPlaybooks copies embedded playbooks to the project directory.
 // If playbookName is empty, uses the default playbook.
+// If force is true, existing files will be overwritten.
 // Returns the playbook name, version, and structure for metadata storage.
-func applyEmbeddedPlaybooks(projectPath string, playbookName string) (string, string, []string, error) {
+func applyEmbeddedPlaybooks(projectPath string, playbookName string, force bool) (string, string, []string, error) {
 	ui.PrintSection("Copying Playbooks")
 	fmt.Printf("Applying SpecLedger playbooks...\n")
 
-	pbName, pbVersion, pbStructure, err := playbooks.ApplyToProject(projectPath, playbookName)
+	pbName, pbVersion, pbStructure, err := playbooks.ApplyToProject(projectPath, playbookName, force)
 	if err != nil {
 		// Playbooks are helpful but not critical - log warning and continue
 		ui.PrintWarning(fmt.Sprintf("Playbook copying failed: %v", err))
@@ -105,10 +106,11 @@ func applyEmbeddedSkills(projectPath string) error {
 
 // setupSpecLedgerProject applies playbooks, skills, and creates metadata.
 // Optionally initializes git based on flags.
+// If force is true, existing files will be overwritten.
 // Returns the playbook name, version, and structure for metadata storage.
-func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName string, initGit bool) (string, string, []string, error) {
+func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName string, initGit bool, force bool) (string, string, []string, error) {
 	// Apply embedded playbooks
-	selectedPlaybookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath, playbookName)
+	selectedPlaybookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath, playbookName, force)
 	if err != nil {
 		// Playbook application failure is not fatal - log warning and continue
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
