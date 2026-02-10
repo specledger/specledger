@@ -3,11 +3,11 @@
 Beads Issue Graph Index into the tasks and phases for this feature implementation.
 This index does **not contain tasks directly**—those are fully managed through Beads CLI.
 
-**Status**: ✅ All tasks completed (existing changes documented)
+**Status**: CLOSED (all tasks completed - documents existing changes)
 
 ## Feature Tracking
 
-* **Beads Epic ID**: `SL-31n`
+* **Beads Epic ID**: `SL-13u`
 * **User Stories Source**: `specledger/009-command-system-enhancements/spec.md`
 * **Research Inputs**: N/A (documents existing changes)
 * **Planning Details**: `specledger/009-command-system-enhancements/plan.md`
@@ -20,13 +20,13 @@ Use the `bd` CLI to query and manipulate the issue graph:
 
 ```bash
 # Find all tasks for this feature
-bd list --label spec:009-command-system-enhancements --limit 20
+bd list --label spec:009-command-system-enhancements --limit 30
 
 # Find tasks by story
 bd list --label spec:009-command-system-enhancements --label story:US1
 
 # See dependencies for epic
-bd dep tree SL-31n
+bd dep tree SL-13u
 
 # View issues by component
 bd list --label component:commands --label spec:009-command-system-enhancements
@@ -38,53 +38,53 @@ bd list --type feature --label spec:009-command-system-enhancements
 ## Tasks and Phases Structure
 
 ```
-Epic: SL-31n (Command System Enhancements) ✅ CLOSED
-├── Feature: SL-nid (Setup: Path Standardization) ✅ CLOSED
-│   ├── Task: SL-bhr (Update adopt-feature-branch.sh) ✅ CLOSED
-│   ├── Task: SL-qqk (Update create-new-feature.sh) ✅ CLOSED
-│   ├── Task: SL-p3l (Update common.sh) ✅ CLOSED
-│   ├── Task: SL-9j2 (Update setup-plan.sh) ✅ CLOSED
-│   └── Task: SL-k0r (Update update-agent-context.sh) ✅ CLOSED
-├── Feature: SL-irz (US1: Help Command) ✅ CLOSED
-│   └── Task: SL-qlo (Create specledger.help.md) ✅ CLOSED
-├── Feature: SL-s7x (US2: Audit Command) ✅ CLOSED
-│   └── Task: SL-cu2 (Create specledger.audit.md) ✅ CLOSED
-├── Feature: SL-cq8 (US3: Revise Command) ✅ CLOSED
-│   └── Task: SL-vxp (Create specledger.revise.md) ✅ CLOSED
-├── Feature: SL-5lx (US4: Implement Sync) ✅ CLOSED
-│   └── Task: SL-2h2 (Add Supabase sync) ✅ CLOSED
-├── Feature: SL-jrt (US5: Adopt from Audit) ✅ CLOSED
-│   └── Task: SL-b73 (Add --from-audit mode) ✅ CLOSED
-├── Feature: SL-gg1 (Enhanced Commands) ✅ CLOSED
-│   └── Task: SL-2hw (Add Purpose sections) ✅ CLOSED
-├── Feature: SL-3kq (Utility Scripts) ✅ CLOSED
-│   ├── Task: SL-f88 (Create pull-issues.js) ✅ CLOSED
-│   └── Task: SL-agk (Create review-comments.js) ✅ CLOSED
-└── Task: SL-6tp (Simplify AGENTS.md) ✅ CLOSED
+Epic: SL-13u (Command System Enhancements) CLOSED
+├── Feature: SL-if7 (Setup: Path Standardization) CLOSED
+│   ├── Task: SL-ftu (Update adopt-feature-branch.sh paths) CLOSED
+│   ├── Task: SL-awv (Update create-new-feature.sh paths) CLOSED
+│   ├── Task: SL-dnd (Update common.sh paths) CLOSED
+│   ├── Task: SL-7pi (Update setup-plan.sh paths) CLOSED
+│   └── Task: SL-eak (Update update-agent-context.sh paths) CLOSED
+├── Feature: SL-96v (US1: Help Command) CLOSED
+│   └── Task: SL-ttc (Create specledger.help.md) CLOSED
+├── Feature: SL-ky5 (US2: Audit Command) CLOSED
+│   └── Task: SL-c1n (Create specledger.audit.md) CLOSED
+├── Feature: SL-2x9 (US3: Revise Command) CLOSED
+│   └── Task: SL-zig (Create specledger.revise.md) CLOSED
+├── Feature: SL-mye (US4: Implement Sync) CLOSED
+│   └── Task: SL-0tv (Add Supabase sync) CLOSED
+├── Feature: SL-7o3 (US5: Adopt from Audit) CLOSED
+│   └── Task: SL-tku (Add --from-audit mode) CLOSED
+├── Feature: SL-6t7 (Enhanced: Purpose Sections) CLOSED
+│   └── Task: SL-7kz (Add Purpose sections to 8 commands) CLOSED
+├── Feature: SL-4v4 (Utility Scripts) CLOSED
+│   ├── Task: SL-b5g (Create pull-issues.js) CLOSED
+│   └── Task: SL-abo (Create review-comments.js) CLOSED
+└── Task: SL-pl5 (Simplify AGENTS.md) CLOSED
 ```
 
 ## Phase Summary
 
 | Phase | Feature ID | Description | Tasks | Status |
 |-------|------------|-------------|-------|--------|
-| Setup | SL-nid | Path Standardization | 5 | ✅ Done |
-| US1 (P1) | SL-irz | Help Command | 1 | ✅ Done |
-| US2 (P1) | SL-s7x | Audit Command | 1 | ✅ Done |
-| US3 (P2) | SL-cq8 | Revise Command | 1 | ✅ Done |
-| US4 (P2) | SL-5lx | Implement Sync | 1 | ✅ Done |
-| US5 (P3) | SL-jrt | Adopt from Audit | 1 | ✅ Done |
-| Enhanced | SL-gg1 | Purpose Sections | 1 | ✅ Done |
-| Scripts | SL-3kq | Utility Scripts | 2 | ✅ Done |
+| Setup | SL-if7 | Path Standardization | 5 | CLOSED |
+| US1 (P1) | SL-96v | Help Command | 1 | CLOSED |
+| US2 (P1) | SL-ky5 | Audit Command | 1 | CLOSED |
+| US3 (P2) | SL-2x9 | Revise Command | 1 | CLOSED |
+| US4 (P2) | SL-mye | Implement Sync | 1 | CLOSED |
+| US5 (P3) | SL-7o3 | Adopt from Audit | 1 | CLOSED |
+| Enhanced | SL-6t7 | Purpose Sections | 1 | CLOSED |
+| Scripts | SL-4v4 | Utility Scripts | 2 | CLOSED |
 
 ## User Story Mapping
 
 | Story | Priority | Feature ID | Requirements | Status |
 |-------|----------|------------|--------------|--------|
-| US1: Help Command | P1 | SL-irz | FR-001 | ✅ Done |
-| US2: Audit Command | P1 | SL-s7x | FR-002 | ✅ Done |
-| US3: Revise Command | P2 | SL-cq8 | FR-003 | ✅ Done |
-| US4: Implement Sync | P2 | SL-5lx | FR-004 | ✅ Done |
-| US5: Adopt from Audit | P3 | SL-jrt | FR-005 | ✅ Done |
+| US1: Help Command | P1 | SL-96v | FR-001 | CLOSED |
+| US2: Audit Command | P1 | SL-ky5 | FR-002 | CLOSED |
+| US3: Revise Command | P2 | SL-2x9 | FR-003 | CLOSED |
+| US4: Implement Sync | P2 | SL-mye | FR-004 | CLOSED |
+| US5: Adopt from Audit | P3 | SL-7o3 | FR-005 | CLOSED |
 
 ## Implementation Statistics
 
@@ -100,10 +100,10 @@ Epic: SL-31n (Command System Enhancements) ✅ CLOSED
 
 Since this documents **existing changes**, all work is already complete:
 
-- ✅ **MVP (US1+US2)**: Help and Audit commands
-- ✅ **P2 Stories (US3+US4)**: Revise command and Implement sync
-- ✅ **P3 Stories (US5)**: Adopt from audit mode
-- ✅ **Supporting Work**: Purpose sections, utility scripts, path fixes
+- CLOSED **MVP (US1+US2)**: Help and Audit commands
+- CLOSED **P2 Stories (US3+US4)**: Revise command and Implement sync
+- CLOSED **P3 Stories (US5)**: Adopt from audit mode
+- CLOSED **Supporting Work**: Purpose sections, utility scripts, path fixes
 
 ## Verification Checklist
 
