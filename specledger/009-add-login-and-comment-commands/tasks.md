@@ -126,54 +126,15 @@ This feature follows Beads' 2-level graph structure:
 
 ```mermaid
 flowchart TD
-    subgraph P1["Phase 1: Setup"]
-        sl-d1o["sl-d1o: .gitignore"]
-        sl-4w5["sl-4w5: Validate commands"]
-    end
-
-    subgraph P2["Phase 2: Foundational"]
-        sl-z74["sl-z74: Session validation"]
-        sl-2aj["sl-2aj: Supabase config"]
-    end
-
-    P1 --> P2
-
-    subgraph US["User Stories (parallel after Phase 2)"]
-        subgraph P3["Phase 3: US1 - Login 🎯 MVP"]
-            sl-8tr["sl-8tr: Browser open"] --> sl-f43["sl-f43: Token paste"] --> sl-m9y["sl-m9y: Session file"]
-        end
-
-        subgraph P4["Phase 4: US2 - View Comments"]
-            sl-sik["sl-sik: Auth check"] --> sl-cqh["sl-cqh: Fetch comments"] --> sl-qjw["sl-qjw: Display format"]
-        end
-
-        subgraph P5["Phase 5: US3 - Resolve Comment"]
-            sl-tq3["sl-tq3: Auth check"] --> sl-87q["sl-87q: Resolve API"]
-        end
-
-        subgraph P6["Phase 6: US4 - Logout"]
-            sl-11d["sl-11d: Remove session"]
-            sl-55y["sl-55y: Graceful handling"]
-        end
-    end
-
-    P2 --> P3
-    P2 --> P4
-    P2 --> P5
-    P2 --> P6
-
-    subgraph P7["Phase 7: Polish"]
-        sl-3qr["sl-3qr: No token logging"]
-        sl-bnr["sl-bnr: Error handling"]
-        sl-e8u["sl-e8u: Quickstart validation"]
-        sl-3qr --> sl-e8u
-        sl-bnr --> sl-e8u
-    end
-
-    P3 --> P7
-    P4 --> P7
-    P5 --> P7
-    P6 --> P7
+    P1[Phase 1: Setup] --> P2[Phase 2: Foundational]
+    P2 --> US1[US1: Login 🎯 MVP]
+    P2 --> US2[US2: View Comments]
+    P2 --> US3[US3: Resolve Comment]
+    P2 --> US4[US4: Logout]
+    US1 --> P7[Phase 7: Polish]
+    US2 --> P7
+    US3 --> P7
+    US4 --> P7
 ```
 
 ## MVP Scope
