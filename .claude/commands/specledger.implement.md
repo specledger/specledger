@@ -18,117 +18,41 @@ Execute the implementation plan by processing all tasks in tasks.md (Beads). Thi
 
 ## Outline
 
-1. **Sync issues from Supabase before starting** (required):
+1. **Sync issues before starting** (required):
 
-   ### Step 1.1: Check Authentication
+   **Option A: Git-based sync (team already pushed latest JSONL):**
    ```bash
-   sl auth status
-   ```
-   If not logged in → **STOP** and prompt user to run `sl auth login` first.
-
-   ### Step 1.2: Get Credentials
-
-   **Option A: Use CLI commands (preferred):**
-   ```bash
-   ACCESS_TOKEN=$(sl auth token)
+   git pull --rebase origin $(git branch --show-current)
+   bd sync --import --rename-on-import
+   bd ready
    ```
 
-   **Option B: Fallback - extract from credentials file:**
-   ```bash
-   ACCESS_TOKEN=$(python3 -c "import json; print(json.load(open('$HOME/.specledger/credentials.json'))['access_token'])")
-   ```
+   **Option B: Supabase sync (fetch fresh data from server):**
 
-   **Beads Supabase config:**
    ```bash
-   BEADS_SUPABASE_URL="https://lmjpnzplurfnojfqtqly.supabase.co"
-   ```
-
-   ### Step 1.3: Detect Repository Info
-   ```bash
+   # Detect repo info
    remoteUrl=$(git remote get-url origin)
-   # Parse owner/repo from URL (e.g., github.com/owner/repo.git)
    if [[ "$remoteUrl" =~ github\.com[:/]([^/]+)/([^/.]+) ]]; then
-       REPO_OWNER="${BASH_REMATCH[1]}"
-       REPO_NAME="${BASH_REMATCH[2]%.git}"
+       repoOwner="${BASH_REMATCH[1]}"
+       repoName="${BASH_REMATCH[2]%.git}"
    fi
+
+   # Pull from Supabase (requires Node.js)
+   node scripts/pull-issues.js --repo-owner "$repoOwner" --repo-name "$repoName"
+
+   # Import to database
+   bd sync --import --rename-on-import
+   bd ready
    ```
 
-   ### Step 1.4: Fetch Project ID
-   ```bash
-   curl -s "${BEADS_SUPABASE_URL}/rest/v1/projects?select=id&repo_owner=eq.${REPO_OWNER}&repo_name=eq.${REPO_NAME}" \
-     -H "apikey: ${ACCESS_TOKEN}" \
-     -H "Authorization: Bearer ${ACCESS_TOKEN}"
-   ```
+   **When to use which:**
+   - **Option A** (recommended): Git-based sync - no dependencies, team already pushed JSONL
+   - **Option B**: Supabase direct sync - requires Node.js, fetches fresh data from server
 
-   If project not found → **STOP** and show error: "Project not found: {REPO_OWNER}/{REPO_NAME}"
-
-   ### Step 1.5: Fetch Issues, Dependencies, and Comments
-
-   **Fetch Issues:**
-   ```bash
-   curl -s "${BEADS_SUPABASE_URL}/rest/v1/bd_issues?select=*&project_id=eq.${PROJECT_ID}&order=created_at.asc" \
-     -H "apikey: ${ACCESS_TOKEN}" \
-     -H "Authorization: Bearer ${ACCESS_TOKEN}"
-   ```
-
-   **Fetch Dependencies:**
-   ```bash
-   curl -s "${BEADS_SUPABASE_URL}/rest/v1/bd_dependencies?select=*&project_id=eq.${PROJECT_ID}" \
-     -H "apikey: ${ACCESS_TOKEN}" \
-     -H "Authorization: Bearer ${ACCESS_TOKEN}"
-   ```
-
-   **Fetch Comments:**
-   ```bash
-   curl -s "${BEADS_SUPABASE_URL}/rest/v1/bd_comments?select=*&project_id=eq.${PROJECT_ID}" \
-     -H "apikey: ${ACCESS_TOKEN}" \
-     -H "Authorization: Bearer ${ACCESS_TOKEN}"
-   ```
-
-   ### Step 1.6: Build and Write JSONL
-
-   For each issue, build a JSON object:
-   ```json
-   {
-     "id": "issue.id",
-     "title": "issue.title",
-     "status": "issue.status",
-     "priority": "issue.priority",
-     "issue_type": "issue.issue_type",
-     "created_at": "issue.created_at",
-     "updated_at": "issue.updated_at",
-     "description": "issue.description (if exists)",
-     "design": "issue.design (if exists)",
-     "acceptance_criteria": "issue.acceptance_criteria (if exists)",
-     "closed_at": "issue.closed_at (if exists)",
-     "labels": ["issue.labels (if exists)"],
-     "dependencies": [{"issue_id": "...", "depends_on_id": "...", "type": "..."}],
-     "comments": [{"id": "...", "author": "...", "text": "...", "created_at": "..."}]
-   }
-   ```
-
-   Write to `.beads/issues.jsonl` (one JSON object per line).
-
-   ### Step 1.7: Display Sync Summary
-
-   ```text
-   🔄 Syncing beads issues from Supabase...
-
-   ✓ Found project: {REPO_OWNER}/{REPO_NAME} ({PROJECT_ID})
-   ✓ Fetched {n} issues
-   ✓ Fetched {m} dependencies
-   ✓ Fetched {k} comments
-   ✓ Wrote {n} issues to .beads/issues.jsonl
-
-   📊 Summary:
-      - Issues: {n}
-      - With dependencies: {count}
-      - With comments: {count}
-
-   ✅ Sync complete! Beads daemon will auto-import changes.
-   ```
-
-   If sync fails (network error, API error) → **STOP** and show error with details.
+   **Error handling:**
+   - If merge conflict in `.beads/issues.jsonl` → run `bd sync --resolve`
+   - If `bd sync --import` fails → check `.beads/issues.jsonl` format
+   - If script fails → check `sl auth status` and credentials
 
    This ensures you see latest issue status from other team members and prevents working on issues already claimed by others
 
@@ -247,15 +171,12 @@ Note: This command assumes a complete task breakdown exists in tasks.md. If task
 
 ---
 
-## Supabase Sync Error Handling
+## Beads Sync Error Handling
 
 | Error | Cause | Solution |
 |-------|-------|----------|
-| JWT expired / PGRST303 | Access token expired | Run `sl auth login` to refresh token |
-| 401 Unauthorized | Session expired | Run `sl auth login` again |
-| 403 Forbidden | No permission | Check access rights for the project |
-| Project not found | Repo not registered | Ensure project is registered in SpecLedger |
-| Credentials file not found | Not logged in | Run `sl auth login` first |
-| Network error | Connection issue | Check internet connection and retry |
-
-**Note:** If CLI commands fail in TUI mode, use the fallback method to extract credentials directly from the JSON file.
+| Merge conflict in issues.jsonl | Concurrent edits | Run `bd sync --resolve` |
+| Prefix mismatch | Different ID prefixes | Use `--rename-on-import` flag |
+| Import failed | Invalid JSONL format | Check `.beads/issues.jsonl` syntax |
+| No issues found | Empty JSONL or wrong project | Run `bd list --status=all` to verify |
+| Git pull failed | Uncommitted changes | Commit or stash changes first |

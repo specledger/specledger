@@ -1,6 +1,7 @@
 {
   "name": "@specledger/cli",
   "version": "1.0.0",
+  "type": "module",
   "description": "Unified CLI for project bootstrap and specification dependency management",
   "license": "MIT",
   "repository": {
