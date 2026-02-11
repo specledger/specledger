@@ -19,24 +19,118 @@ Execute the implementation plan by processing all tasks in tasks.md (Beads). Thi
 ## Outline
 
 1. **Sync issues from Supabase before starting** (required):
-   - Detect repository owner and name from git remote:
-     ```bash
-     remoteUrl=$(git remote get-url origin)
-     # Parse owner/repo from URL (e.g., github.com/owner/repo.git)
-     if [[ "$remoteUrl" =~ github\.com[:/]([^/]+)/([^/.]+) ]]; then
-         repoOwner="${BASH_REMATCH[1]}"
-         repoName="${BASH_REMATCH[2]}"
-     fi
-     ```
-   - Run sync (uses access token from `~/.specledger/credentials.json`):
-     ```bash
-     node scripts/pull-issues.js --repo-owner "$repoOwner" --repo-name "$repoName"
-     ```
-   - Show sync summary: issues fetched, status counts
-   - If not logged in: **STOP** and prompt user to run `sl login`
-   - If sync fails (project not found, network error): **STOP** and show error
-   - This ensures you see latest issue status from other team members
-   - Prevents working on issues already claimed by others
+
+   ### Step 1.1: Check Authentication
+   ```bash
+   sl auth status
+   ```
+   If not logged in → **STOP** and prompt user to run `sl auth login` first.
+
+   ### Step 1.2: Get Credentials
+
+   **Option A: Use CLI commands (preferred):**
+   ```bash
+   ACCESS_TOKEN=$(sl auth token)
+   ```
+
+   **Option B: Fallback - extract from credentials file:**
+   ```bash
+   ACCESS_TOKEN=$(python3 -c "import json; print(json.load(open('$HOME/.specledger/credentials.json'))['access_token'])")
+   ```
+
+   **Beads Supabase config:**
+   ```bash
+   BEADS_SUPABASE_URL="https://lmjpnzplurfnojfqtqly.supabase.co"
+   ```
+
+   ### Step 1.3: Detect Repository Info
+   ```bash
+   remoteUrl=$(git remote get-url origin)
+   # Parse owner/repo from URL (e.g., github.com/owner/repo.git)
+   if [[ "$remoteUrl" =~ github\.com[:/]([^/]+)/([^/.]+) ]]; then
+       REPO_OWNER="${BASH_REMATCH[1]}"
+       REPO_NAME="${BASH_REMATCH[2]%.git}"
+   fi
+   ```
+
+   ### Step 1.4: Fetch Project ID
+   ```bash
+   curl -s "${BEADS_SUPABASE_URL}/rest/v1/projects?select=id&repo_owner=eq.${REPO_OWNER}&repo_name=eq.${REPO_NAME}" \
+     -H "apikey: ${ACCESS_TOKEN}" \
+     -H "Authorization: Bearer ${ACCESS_TOKEN}"
+   ```
+
+   If project not found → **STOP** and show error: "Project not found: {REPO_OWNER}/{REPO_NAME}"
+
+   ### Step 1.5: Fetch Issues, Dependencies, and Comments
+
+   **Fetch Issues:**
+   ```bash
+   curl -s "${BEADS_SUPABASE_URL}/rest/v1/bd_issues?select=*&project_id=eq.${PROJECT_ID}&order=created_at.asc" \
+     -H "apikey: ${ACCESS_TOKEN}" \
+     -H "Authorization: Bearer ${ACCESS_TOKEN}"
+   ```
+
+   **Fetch Dependencies:**
+   ```bash
+   curl -s "${BEADS_SUPABASE_URL}/rest/v1/bd_dependencies?select=*&project_id=eq.${PROJECT_ID}" \
+     -H "apikey: ${ACCESS_TOKEN}" \
+     -H "Authorization: Bearer ${ACCESS_TOKEN}"
+   ```
+
+   **Fetch Comments:**
+   ```bash
+   curl -s "${BEADS_SUPABASE_URL}/rest/v1/bd_comments?select=*&project_id=eq.${PROJECT_ID}" \
+     -H "apikey: ${ACCESS_TOKEN}" \
+     -H "Authorization: Bearer ${ACCESS_TOKEN}"
+   ```
+
+   ### Step 1.6: Build and Write JSONL
+
+   For each issue, build a JSON object:
+   ```json
+   {
+     "id": "issue.id",
+     "title": "issue.title",
+     "status": "issue.status",
+     "priority": "issue.priority",
+     "issue_type": "issue.issue_type",
+     "created_at": "issue.created_at",
+     "updated_at": "issue.updated_at",
+     "description": "issue.description (if exists)",
+     "design": "issue.design (if exists)",
+     "acceptance_criteria": "issue.acceptance_criteria (if exists)",
+     "closed_at": "issue.closed_at (if exists)",
+     "labels": ["issue.labels (if exists)"],
+     "dependencies": [{"issue_id": "...", "depends_on_id": "...", "type": "..."}],
+     "comments": [{"id": "...", "author": "...", "text": "...", "created_at": "..."}]
+   }
+   ```
+
+   Write to `.beads/issues.jsonl` (one JSON object per line).
+
+   ### Step 1.7: Display Sync Summary
+
+   ```text
+   🔄 Syncing beads issues from Supabase...
+
+   ✓ Found project: {REPO_OWNER}/{REPO_NAME} ({PROJECT_ID})
+   ✓ Fetched {n} issues
+   ✓ Fetched {m} dependencies
+   ✓ Fetched {k} comments
+   ✓ Wrote {n} issues to .beads/issues.jsonl
+
+   📊 Summary:
+      - Issues: {n}
+      - With dependencies: {count}
+      - With comments: {count}
+
+   ✅ Sync complete! Beads daemon will auto-import changes.
+   ```
+
+   If sync fails (network error, API error) → **STOP** and show error with details.
+
+   This ensures you see latest issue status from other team members and prevents working on issues already claimed by others
 
 2. Run `.specledger/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
@@ -150,3 +244,18 @@ Execute the implementation plan by processing all tasks in tasks.md (Beads). Thi
    - Report final status with summary of completed work
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/specledger.tasks` first to regenerate the task list.
+
+---
+
+## Supabase Sync Error Handling
+
+| Error | Cause | Solution |
+|-------|-------|----------|
+| JWT expired / PGRST303 | Access token expired | Run `sl auth login` to refresh token |
+| 401 Unauthorized | Session expired | Run `sl auth login` again |
+| 403 Forbidden | No permission | Check access rights for the project |
+| Project not found | Repo not registered | Ensure project is registered in SpecLedger |
+| Credentials file not found | Not logged in | Run `sl auth login` first |
+| Network error | Connection issue | Check internet connection and retry |
+
+**Note:** If CLI commands fail in TUI mode, use the fallback method to extract credentials directly from the JSON file.

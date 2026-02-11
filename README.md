@@ -176,14 +176,50 @@ SpecLedger provides slash commands for [Claude Code](https://claude.ai/claude-co
 | `/specledger.login` | Authenticate with SpecLedger via CLI |
 | `/specledger.logout` | Sign out from SpecLedger |
 
-### Comments
+### Review Comments
+
+The `/specledger.revise` command is the unified way to manage review comments. It combines fetch, resolve, and post functionality.
 
 | Command | Description |
 |---------|-------------|
-| `/specledger.fetch-comments` | View comments on current spec (uses git branch as spec-key) |
-| `/specledger.fetch-comments --spec <name>` | View comments for a specific spec |
-| `/specledger.resolve-comment -c <id>` | Delete an issue comment (integer ID) |
-| `/specledger.resolve-comment -r <id>` | Resolve a review comment (UUID) |
+| `/specledger.revise` | Fetch and process all unresolved comments (auto-detect spec from branch) |
+| `/specledger.revise <spec-key>` | Fetch comments for a specific spec |
+| `/specledger.revise --resolve <id>` | Resolve a specific comment by ID |
+| `/specledger.revise --post -f <file> -m <msg>` | Post a new comment on a file |
+
+#### Revise Workflow
+
+When you run `/specledger.revise`, it will:
+
+1. **Fetch** all comments from Supabase (issue comments + review comments)
+2. **Display** a summary of all comments
+3. **Process** each unresolved comment interactively:
+   - Read the file and find the selected text
+   - Analyze the feedback
+   - Propose changes with options
+   - Apply edits after user confirmation
+   - Mark as resolved
+4. **Commit** changes (optional)
+
+Example output:
+```
+📄 Spec: 009-feature-name
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📋 ISSUE COMMENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+(No issue comments)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📝 REVIEW COMMENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+#343b1721 | author | 2026-02-10 | ⏳ unresolved
+    📁 File: specledger/009-feature/spec.md
+    📍 Line: 42
+    💬 Comment: "Need more details here"
+
+📊 Total: 0 issue comments, 1 review comment
+```
 
 ### Specification Workflow
 
