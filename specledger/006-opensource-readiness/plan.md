@@ -24,7 +24,7 @@ This feature prepares the SpecLedger project for open source release by establis
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-Verify compliance with principles from `.specify/memory/constitution.md`:
+Verify compliance with principles from `.specledger/memory/constitution.md`:
 
 - [x] **Specification-First**: Spec.md complete with prioritized user stories (6 stories, P1-P3)
 - [x] **Test-First**: Test strategy defined - go test with integration tests, 70%+ coverage target

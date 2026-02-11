@@ -19,6 +19,12 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Purpose
+
+Generate actionable, dependency-ordered tasks from the implementation plan. Tasks are created in Beads format for tracking through implementation.
+
+**When to use**: After `/specledger.plan` completes successfully.
+
 ## Outline
 
 1. **Setup**: Run `.specledger/scripts/bash/check-prerequisites.sh --json` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").

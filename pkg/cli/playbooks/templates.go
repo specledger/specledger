@@ -8,8 +8,9 @@ import (
 // ApplyToProject applies playbooks to a project.
 // This is the main entry point for playbook copying during project creation.
 // If playbookName is empty, it uses the default playbook (currently "specledger").
+// If force is true, existing files will be overwritten.
 // Returns the playbook name, version, and structure.
-func ApplyToProject(projectPath, playbookName string) (string, string, []string, error) {
+func ApplyToProject(projectPath, playbookName string, force bool) (string, string, []string, error) {
 	source, err := NewEmbeddedSource()
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to initialize playbook source: %w", err)
@@ -36,7 +37,8 @@ func ApplyToProject(projectPath, playbookName string) (string, string, []string,
 
 	// Copy playbooks
 	opts := CopyOptions{
-		SkipExisting: true,
+		SkipExisting: !force,
+		Overwrite:    force,
 		Verbose:      false,
 		DryRun:       false,
 	}

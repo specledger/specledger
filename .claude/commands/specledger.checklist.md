@@ -2,6 +2,12 @@
 description: Generate a custom checklist for the current feature based on user requirements.
 ---
 
+## Purpose
+
+Generate custom validation checklists for feature requirements. Checklists serve as "unit tests for requirements writing" - validating quality, clarity, and completeness before implementation.
+
+**When to use**: After spec creation to validate requirement quality.
+
 ## Checklist Purpose: "Unit Tests for English"
 
 **CRITICAL CONCEPT**: Checklists are **UNIT TESTS FOR REQUIREMENTS WRITING** - they validate the quality, clarity, and completeness of requirements in a given domain.

@@ -33,6 +33,7 @@ SpecLedger is an **all-in-one SDD playbook** that provides:
 - **Local Caching**: Dependencies are cached locally at `~/.specledger/cache` for offline use
 - **LLM Integration**: Cached specs can be easily referenced by AI agents
 - **Cross-Platform**: Works on Linux, macOS, and Windows
+- **Browser-Based Auth**: Secure OAuth authentication via browser with automatic token refresh
 
 ## Installation
 
@@ -204,6 +205,42 @@ SpecLedger provides slash commands for [Claude Code](https://claude.ai/claude-co
 | `/specledger.list-deps` | List all spec dependencies |
 | `/specledger.remove-deps` | Remove a spec dependency |
 | `/specledger.resolve-deps` | Resolve and checkout dependencies locally |
+
+### Authentication
+
+| Command | Description |
+|---------|-------------|
+| `sl auth login` | Sign in via browser (opens OAuth flow) |
+| `sl auth login --token <token>` | Authenticate with access token (CI/headless) |
+| `sl auth login --refresh <token>` | Authenticate with refresh token |
+| `sl auth logout` | Sign out and clear stored credentials |
+| `sl auth status` | Check authentication status and token expiry |
+| `sl auth refresh` | Manually refresh the access token |
+
+#### Authentication Flow
+
+The CLI uses browser-based OAuth authentication:
+
+1. Run `sl auth login` to start the authentication flow
+2. Your browser opens to the SpecLedger sign-in page
+3. Complete authentication in the browser
+4. Credentials are automatically saved to `~/.specledger/credentials.json`
+
+For CI/CD or headless environments, use token-based authentication:
+```bash
+# Using an access token
+sl auth login --token "$SPECLEDGER_ACCESS_TOKEN"
+
+# Using a refresh token (exchanges for access token)
+sl auth login --refresh "$SPECLEDGER_REFRESH_TOKEN"
+```
+
+#### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `SPECLEDGER_AUTH_URL` | Override the authentication URL |
+| `SPECLEDGER_ENV` | Set to `dev` or `development` for local development |
 
 ## Documentation
 
