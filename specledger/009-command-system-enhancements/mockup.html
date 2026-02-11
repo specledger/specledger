@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SpecLedger Command System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="flex h-screen">
+        <!-- Sidebar Navigation -->
+        <aside class="w-64 bg-gray-800 border-r border-gray-700 flex flex-col">
+            <div class="p-4 border-b border-gray-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-500 rounded-lg flex items-center justify-center">
+                        <i class="fas fa-terminal text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-lg">SpecLedger</h1>
+                        <p class="text-xs text-gray-400">Command System v1.0</p>
+                    </div>
+                </div>
+            </div>
+            
+            <nav class="flex-1 p-4 space-y-2">
+                <button class="nav-btn active w-full flex items-center gap-3 px-4 py-3 rounded-lg bg-purple-600/20 text-purple-400 border border-purple-500/30">
+                    <i class="fas fa-th-large w-5"></i>
+                    <span>Dashboard</span>
+                </button>
+                <button class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700/50 text-gray-300 transition-colors">
+                    <i class="fas fa-book w-5"></i>
+                    <span>Command Reference</span>
+                </button>
+                <button class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700/50 text-gray-300 transition-colors">
+                    <i class="fas fa-search w-5"></i>
+                    <span>Audit Codebase</span>
+                </button>
+                <button class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700/50 text-gray-300 transition-colors">
+                    <i class="fas fa-comments w-5"></i>
+                    <span>Review Comments</span>
+                </button>
+                <button class="nav-btn w-full flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-700/50 text-gray-300 transition-colors">
+                    <i class="fas fa-code-branch w-5"></i>
+                    <span>Implementation</span>
+                </button>
+            </nav>
+            
+            <div class="p-4 border-t border-gray-700">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 bg-green-500 rounded-full flex items-center justify-center">
+                        <i class="fas fa-check text-sm"></i>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm font-medium">Authenticated</p>
+                        <p class="text-xs text-gray-400">sl login active</p>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-auto">
+            <!-- Header -->
+            <header class="bg-gray-800/50 border-b border-gray-700 px-6 py-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-xl font-semibold">Command Dashboard</h2>
+                        <p class="text-sm text-gray-400">Manage your specification workflow</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button class="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm flex items-center gap-2 transition-colors">
+                            <i class="fas fa-sync-alt"></i>
+                            Sync Issues
+                        </button>
+                        <button class="px-4 py-2 bg-purple-600 hover:bg-purple-700 rounded-lg text-sm flex items-center gap-2 transition-colors">
+                            <i class="fas fa-plus"></i>
+                            New Feature
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <div class="p-6 space-y-6">
+                <!-- Quick Stats -->
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-gray-400 text-sm">Total Commands</span>
+                            <i class="fas fa-terminal text-blue-400"></i>
+                        </div>
+                        <p class="text-2xl font-bold">12</p>
+                        <p class="text-xs text-green-400 mt-1">3 new this release</p>
+                    </div>
+                    <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-gray-400 text-sm">Active Features</span>
+                            <i class="fas fa-code-branch text-green-400"></i>
+                        </div>
+                        <p class="text-2xl font-bold">8</p>
+                        <p class="text-xs text-green-400 mt-1">All up to date</p>
+                    </div>
+                    <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-gray-400 text-sm">Review Comments</span>
+                            <i class="fas fa-comments text-yellow-400"></i>
+                        </div>
+                        <p class="text-2xl font-bold">5</p>
+                        <p class="text-xs text-yellow-400 mt-1">2 unresolved</p>
+                    </div>
+                    <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-gray-400 text-sm">Audit Status</span>
+                            <i class="fas fa-search text-purple-400"></i>
+                        </div>
+                        <p class="text-2xl font-bold">Ready</p>
+                        <p class="text-xs text-gray-400 mt-1">Cache updated</p>
+                    </div>
+                </div>
+
+                <!-- Command Categories -->
+                <div class="grid grid-cols-2 gap-6">
+                    <!-- Core Workflow -->
+                    <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                        <div class="bg-gradient-to-r from-blue-600/20 to-blue-500/10 px-4 py-3 border-b border-blue-500/20">
+                            <h3 class="font-semibold flex items-center gap-2">
+                                <i class="fas fa-route text-blue-400"></i>
+                                Core Workflow
+                            </h3>
+                            <p class="text-xs text-gray-400 mt-1">Primary commands for specification lifecycle</p>
+                        </div>
+                        <div class="p-4 space-y-3">
+                            <div class="command-item flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-lightbulb text-blue-400 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-sm">specledger.specify</p>
+                                        <p class="text-xs text-gray-400">Create new specification</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs bg-blue-500/20 text-blue-400 px-2 py-1 rounded">New</span>
+                            </div>
+                            <div class="command-item flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-clipboard-list text-green-400 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-sm">specledger.plan</p>
+                                        <p class="text-xs text-gray-400">Create implementation plan</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="command-item flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-orange-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-cogs text-orange-400 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-sm">specledger.implement</p>
+                                        <p class="text-xs text-gray-400">Begin implementation work</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">Updated</span>
+                            </div>
+                            <div class="command-item flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-paw text-purple-400 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-sm">specledger.adopt</p>
+                                        <p class="text-xs text-gray-400">Create spec from existing code</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">Updated</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analysis & Validation -->
+                    <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                        <div class="bg-gradient-to-r from-purple-600/20 to-purple-500/10 px-4 py-3 border-b border-purple-500/20">
+                            <h3 class="font-semibold flex items-center gap-2">
+                                <i class="fas fa-microscope text-purple-400"></i>
+                                Analysis & Validation
+                            </h3>
+                            <p class="text-xs text-gray-400 mt-1">Inspect and analyze your codebase</p>
+                        </div>
+                        <div class="p-4 space-y-3">
+                            <div class="command-item flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors border-2 border-purple-500/30">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-search text-purple-400 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-sm">specledger.audit</p>
+                                        <p class="text-xs text-gray-400">Analyze codebase structure</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs bg-purple-500/20 text-purple-400 px-2 py-1 rounded">NEW</span>
+                            </div>
+                            <div class="command-item flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-cyan-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-tasks text-cyan-400 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-sm">specledger.analyze</p>
+                                        <p class="text-xs text-gray-400">Deep specification analysis</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="command-item flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-pink-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-check-double text-pink-400 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-sm">specledger.checklist</p>
+                                        <p class="text-xs text-gray-400">Quality validation checklist</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="command-item flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-question-circle text-yellow-400 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-sm">specledger.clarify</p>
+                                        <p class="text-xs text-gray-400">Resolve unclear requirements</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Setup & Configuration -->
+                    <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                        <div class="bg-gradient-to-r from-green-600/20 to-green-500/10 px-4 py-3 border-b border-green-500/20">
+                            <h3 class="font-semibold flex items-center gap-2">
+                                <i class="fas fa-cog text-green-400"></i>
+                                Setup & Configuration
+                            </h3>
+                            <p class="text-xs text-gray-400 mt-1">Initialize and configure your project</p>
+                        </div>
+                        <div class="p-4 space-y-3">
+                            <div class="command-item flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors border-2 border-green-500/30">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-book text-green-400 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-sm">specledger.help</p>
+                                        <p class="text-xs text-gray-400">Command quick reference</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs bg-green-500/20 text-green-400 px-2 py-1 rounded">NEW</span>
+                            </div>
+                            <div class="command-item flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-indigo-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-balance-scale text-indigo-400 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-sm">specledger.constitution</p>
+                                        <p class="text-xs text-gray-400">Review project principles</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="command-item flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-teal-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-list-ol text-teal-400 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-sm">specledger.tasks</p>
+                                        <p class="text-xs text-gray-400">View task breakdown</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Collaboration -->
+                    <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                        <div class="bg-gradient-to-r from-yellow-600/20 to-yellow-500/10 px-4 py-3 border-b border-yellow-500/20">
+                            <h3 class="font-semibold flex items-center gap-2">
+                                <i class="fas fa-users text-yellow-400"></i>
+                                Collaboration
+                            </h3>
+                            <p class="text-xs text-gray-400 mt-1">Work with team and handle reviews</p>
+                        </div>
+                        <div class="p-4 space-y-3">
+                            <div class="command-item flex items-center justify-between p-3 bg-gray-700/30 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors border-2 border-yellow-500/30">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-8 h-8 bg-yellow-500/20 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-edit text-yellow-400 text-sm"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-sm">specledger.revise</p>
+                                        <p class="text-xs text-gray-400">Address review comments</p>
+                                    </div>
+                                </div>
+                                <span class="text-xs bg-yellow-500/20 text-yellow-400 px-2 py-1 rounded">NEW</span>
+                            </div>
+                        </div>
+                        <!-- Review Comments Preview -->
+                        <div class="px-4 pb-4">
+                            <div class="bg-gray-700/30 rounded-lg p-3">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs font-medium text-gray-300">Recent Comments</span>
+                                    <span class="text-xs text-yellow-400">2 unresolved</span>
+                                </div>
+                                <div class="space-y-2">
+                                    <div class="flex items-center gap-2 text-sm">
+                                        <div class="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                                        <span class="text-gray-300 truncate">spec.md line 45 - Add more detail...</span>
+                                    </div>
+                                    <div class="flex items-center gap-2 text-sm">
+                                        <div class="w-2 h-2 bg-yellow-400 rounded-full"></div>
+                                        <span class="text-gray-300 truncate">plan.md line 12 - Timeline unclear</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Audit Status Panel -->
+                <div class="bg-gray-800 rounded-xl border border-gray-700 overflow-hidden">
+                    <div class="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
+                        <h3 class="font-semibold flex items-center gap-2">
+                            <i class="fas fa-chart-line text-purple-400"></i>
+                            Audit Cache Status
+                        </h3>
+                        <button class="text-xs px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded transition-colors">
+                            <i class="fas fa-sync-alt mr-1"></i> Re-run Audit
+                        </button>
+                    </div>
+                    <div class="p-4">
+                        <div class="grid grid-cols-4 gap-4">
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-blue-400">Go</p>
+                                <p class="text-xs text-gray-400">Language</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-green-400">8</p>
+                                <p class="text-xs text-gray-400">Modules</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-purple-400">45</p>
+                                <p class="text-xs text-gray-400">Functions</p>
+                            </div>
+                            <div class="text-center">
+                                <p class="text-2xl font-bold text-orange-400">12</p>
+                                <p class="text-xs text-gray-400">Data Models</p>
+                            </div>
+                        </div>
+                        <div class="mt-4 p-3 bg-gray-700/30 rounded-lg">
+                            <div class="flex items-center gap-2 text-sm">
+                                <i class="fas fa-clock text-gray-400"></i>
+                                <span class="text-gray-300">Last updated: 2 hours ago</span>
+                                <span class="text-green-400 text-xs ml-auto">Cache valid</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Simple interactivity for navigation
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.nav-btn').forEach(b => {
+                    b.classList.remove('active', 'bg-purple-600/20', 'text-purple-400', 'border', 'border-purple-500/30');
+                    b.classList.add('text-gray-300');
+                });
+                this.classList.add('active', 'bg-purple-600/20', 'text-purple-400', 'border', 'border-purple-500/30');
+                this.classList.remove('text-gray-300');
+            });
+        });
+
+        // Command item hover effects
+        document.querySelectorAll('.command-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const cmdName = this.querySelector('.font-medium').textContent;
+                alert(`Running command: ${cmdName}`);
+            });
+        });
+    </script>
+</body>
+</html>
