@@ -4,30 +4,30 @@ description: Authenticate with Specledger using the CLI.
 
 ## Execution
 
-Khi user gọi `/specledger.login`, chạy lệnh CLI:
+When user calls `/specledger.login`, run the CLI command:
 
 ```bash
 sl auth login
 ```
 
-CLI sẽ tự động:
-1. Mở browser đến trang đăng nhập
-2. Khởi động callback server để nhận token
-3. Lưu credentials vào `~/.specledger/credentials.json`
+The CLI will automatically:
+1. Open browser to the login page
+2. Start callback server to receive token
+3. Save credentials to `~/.specledger/credentials.json`
 
-**Nếu `sl` chưa được cài đặt**, chạy:
+**If `sl` is not installed**, run:
 ```bash
 go run ./cmd/sl auth login
 ```
 
-### Xác nhận thành công
+### Verify success
 
-Sau khi CLI hoàn tất, verify credentials:
+After CLI completes, verify credentials:
 ```bash
 sl auth status
 ```
 
-Hoặc:
+Or:
 ```bash
 cat ~/.specledger/credentials.json
 ```

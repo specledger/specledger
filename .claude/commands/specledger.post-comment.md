@@ -12,7 +12,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Execution
 
-Khi user gọi `/specledger.post-comment`, thực hiện các bước sau:
+When user calls `/specledger.post-comment`, follow these steps:
 
 ### Step 1: Check authentication
 
@@ -20,20 +20,20 @@ Khi user gọi `/specledger.post-comment`, thực hiện các bước sau:
 sl auth status
 ```
 
-Nếu chưa login → chạy `sl auth login` trước.
+If not logged in → run `sl auth login` first.
 
 ### Step 2: Parse arguments
 
-Từ `$ARGUMENTS`, extract:
-- `--file` hoặc `-f`: File path (relative to repo root)
-- `--line` hoặc `-l`: Line number (optional)
-- `--message` hoặc `-m`: Comment content (required)
-- `--selected` hoặc `-s`: Selected text (optional, for context)
+From `$ARGUMENTS`, extract:
+- `--file` or `-f`: File path (relative to repo root)
+- `--line` or `-l`: Line number (optional)
+- `--message` or `-m`: Comment content (required)
+- `--selected` or `-s`: Selected text (optional, for context)
 
-Nếu thiếu `--file` hoặc `--message`:
-- Thông báo: "Vui lòng chỉ định file và message"
-- Hiển thị example usage
-- Dừng lại.
+If missing `--file` or `--message`:
+- Notify: "Please specify file and message"
+- Show example usage
+- Stop.
 
 ### Step 3: Get spec-key and change_id
 
@@ -41,7 +41,7 @@ Nếu thiếu `--file` hoặc `--message`:
 SPEC_KEY=$(git branch --show-current)
 ```
 
-**Lấy change_id cho spec này:**
+**Get change_id for this spec:**
 ```bash
 SUPABASE_URL="https://iituikpbiesgofuraclk.supabase.co"
 SUPABASE_ANON_KEY="sb_publishable_KpaZ2lKPu6eJ5WLqheu9_A_J9dYhGQb"
@@ -53,9 +53,9 @@ curl -s "${SUPABASE_URL}/rest/v1/changes?spec_key=eq.${SPEC_KEY}&select=id&order
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
-Nếu không có change_id:
-- Thông báo: "Không tìm thấy change cho spec này. Vui lòng tạo review trên web trước."
-- Dừng lại.
+If no change_id:
+- Notify: "No change found for this spec. Please create a review on the web first."
+- Stop.
 
 ### Step 4: Get user info from credentials
 
@@ -64,7 +64,7 @@ USER_EMAIL=$(python3 -c "import json; print(json.load(open('$HOME/.specledger/cr
 USER_ID=$(python3 -c "import json; print(json.load(open('$HOME/.specledger/credentials.json'))['user_id'])")
 ```
 
-Extract user name from JWT (hoặc dùng email prefix):
+Extract user name from JWT (or use email prefix):
 ```bash
 USER_NAME=$(echo $USER_EMAIL | cut -d'@' -f1)
 ```
@@ -92,7 +92,7 @@ curl -s -X POST "${SUPABASE_URL}/rest/v1/review_comments" \
 
 ### Step 6: Handle response
 
-**Nếu success (HTTP 201):**
+**If success (HTTP 201):**
 
 ```text
 ✅ Comment posted successfully!
@@ -104,16 +104,16 @@ curl -s -X POST "${SUPABASE_URL}/rest/v1/review_comments" \
 Comment ID: [returned_id]
 ```
 
-**Nếu error:**
-- 401: "Phiên đăng nhập hết hạn. Chạy `sl auth login` lại."
-- 403: "Bạn không có quyền post comment."
+**If error:**
+- 401: "Session expired. Run `sl auth login` again."
+- 403: "You don't have permission to post comments."
 - 400: "Invalid request. Check file path and message."
 
 ### Step 7: Show next actions
 
 ```text
-Tiếp theo:
-- /specledger.fetch-comments để xem danh sách comments
+Next steps:
+- /specledger.fetch-comments to view comment list
 ```
 
 ## Example Usage

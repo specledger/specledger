@@ -12,7 +12,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Execution
 
-Khi user gọi `/specledger.resolve-comment`, thực hiện các bước sau:
+When user calls `/specledger.resolve-comment`, follow these steps:
 
 ### Step 1: Check authentication
 
@@ -20,60 +20,60 @@ Khi user gọi `/specledger.resolve-comment`, thực hiện các bước sau:
 sl auth status
 ```
 
-Nếu chưa login → chạy `sl auth login` trước.
+If not logged in → run `sl auth login` first.
 
 ### Step 2: Parse arguments
 
-Từ `$ARGUMENTS`, extract:
-- `--comment_id` hoặc `-c`: ID của issue comment (integer)
-- `--review_id` hoặc `-r`: ID của review comment (UUID)
-- `--skip` hoặc `-s`: Bỏ qua việc xử lý, chỉ mark as resolved
+From `$ARGUMENTS`, extract:
+- `--comment_id` or `-c`: ID of issue comment (integer)
+- `--review_id` or `-r`: ID of review comment (UUID)
+- `--skip` or `-s`: Skip processing, just mark as resolved
 
-**Auto-detect**: Nếu ID chứa chữ cái → là UUID (review comment), ngược lại → integer (issue comment)
+**Auto-detect**: If ID contains letters → UUID (review comment), otherwise → integer (issue comment)
 
-Nếu thiếu ID:
-- Thông báo: "Vui lòng chỉ định comment ID"
-- Hiển thị example usage
-- Dừng lại.
+If missing ID:
+- Notify: "Please specify a comment ID"
+- Show example usage
+- Stop.
 
 ### Step 3: Fetch comment details
 
-**Lấy credentials:**
+**Get credentials:**
 ```bash
 SUPABASE_URL="https://iituikpbiesgofuraclk.supabase.co"
 SUPABASE_ANON_KEY="sb_publishable_KpaZ2lKPu6eJ5WLqheu9_A_J9dYhGQb"
 ACCESS_TOKEN=$(cat ~/.specledger/credentials.json | grep -o '"access_token": *"[^"]*"' | cut -d'"' -f4)
 ```
 
-#### Nếu là Review Comment (UUID):
+#### If Review Comment (UUID):
 ```bash
 curl -s "${SUPABASE_URL}/rest/v1/review_comments?id=eq.${REVIEW_ID}&select=*" \
   -H "apikey: ${SUPABASE_ANON_KEY}" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
-Lấy thông tin:
-- `file_path`: File được review
-- `selected_text`: Đoạn text được chọn
-- `content`: Nội dung comment/feedback
-- `is_resolved`: Trạng thái hiện tại
+Get information:
+- `file_path`: File being reviewed
+- `selected_text`: Selected text snippet
+- `content`: Comment/feedback content
+- `is_resolved`: Current status
 
-### Step 4: Analyze and address the review (QUAN TRỌNG)
+### Step 4: Analyze and address the review (IMPORTANT)
 
-**Đây là bước chính - KHÔNG được bỏ qua trừ khi có flag `--skip`**
+**This is the main step - DO NOT skip unless `--skip` flag is provided**
 
-1. **Đọc file được review:**
+1. **Read the reviewed file:**
    ```
-   Read file_path từ comment
+   Read file_path from comment
    ```
 
-2. **Hiểu review feedback:**
-   - Phân tích `content` (nội dung comment)
-   - Xem `selected_text` để hiểu context
-   - Xác định reviewer muốn gì: clarify? fix? add? remove?
+2. **Understand review feedback:**
+   - Analyze `content` (comment content)
+   - Look at `selected_text` for context
+   - Determine what reviewer wants: clarify? fix? add? remove?
 
-3. **Đề xuất thay đổi:**
-   Hiển thị cho user:
+3. **Propose changes:**
+   Display to user:
    ```
    📝 Review Comment Analysis
    ━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -81,25 +81,25 @@ Lấy thông tin:
    📌 Selected: "[selected_text]"
    💬 Feedback: "[content]"
 
-   🔍 Phân tích:
-   [Giải thích reviewer muốn gì]
+   🔍 Analysis:
+   [Explain what the reviewer wants]
 
-   ✏️ Đề xuất thay đổi:
-   [Mô tả những gì cần edit]
+   ✏️ Proposed changes:
+   [Describe what needs to be edited]
    ```
 
-4. **Thực hiện edit (nếu cần):**
-   - Sử dụng Edit tool để sửa file
-   - Hoặc hỏi user nếu không chắc chắn cách xử lý
+4. **Perform edit (if needed):**
+   - Use Edit tool to modify the file
+   - Or ask user if unsure how to handle
 
-5. **Confirm với user:**
+5. **Confirm with user:**
    ```
-   Bạn có muốn mark comment này là resolved? (Y/n)
+   Do you want to mark this comment as resolved? (Y/n)
    ```
 
 ### Step 5: Mark as resolved
 
-#### 5a. Nếu là Issue Comment (integer ID) → DELETE
+#### 5a. If Issue Comment (integer ID) → DELETE
 
 ```bash
 curl -s -X DELETE "${SUPABASE_URL}/rest/v1/comments?id=eq.${COMMENT_ID}" \
@@ -107,7 +107,7 @@ curl -s -X DELETE "${SUPABASE_URL}/rest/v1/comments?id=eq.${COMMENT_ID}" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
-#### 5b. Nếu là Review Comment (UUID) → UPDATE is_resolved = true
+#### 5b. If Review Comment (UUID) → UPDATE is_resolved = true
 
 ```bash
 curl -s -X PATCH "${SUPABASE_URL}/rest/v1/review_comments?id=eq.${REVIEW_ID}" \
@@ -120,39 +120,39 @@ curl -s -X PATCH "${SUPABASE_URL}/rest/v1/review_comments?id=eq.${REVIEW_ID}" \
 
 ### Step 6: Handle response
 
-**Nếu success (HTTP 200/204):**
+**If success (HTTP 200/204):**
 
 ```text
-✅ Review comment #[id] đã được xử lý và đánh dấu resolved.
+✅ Review comment #[id] has been processed and marked as resolved.
 
-Thay đổi đã thực hiện:
-- [Liệt kê các edit đã làm]
+Changes made:
+- [List edits performed]
 ```
 
-**Nếu error:**
-- 401: "Phiên đăng nhập hết hạn. Chạy `sl auth login` lại."
-- 403: "Bạn không có quyền resolve comment này."
-- 404: "Comment không tồn tại."
+**If error:**
+- 401: "Session expired. Run `sl auth login` again."
+- 403: "You don't have permission to resolve this comment."
+- 404: "Comment not found."
 
 ### Step 7: Show next actions
 
 ```text
-Tiếp theo:
-- /specledger.fetch-comments để xem danh sách comments còn lại
+Next steps:
+- /specledger.fetch-comments to view remaining comments
 ```
 
 ## Example Usage
 
 ```text
-# Resolve và xử lý review feedback (default behavior)
+# Resolve and process review feedback (default behavior)
 /specledger.resolve-comment #54181d3b
 /specledger.resolve-comment f030526a-1234-5678-9abc-def012345678
 
-# Chỉ mark as resolved, không xử lý content
+# Just mark as resolved, don't process content
 /specledger.resolve-comment #54181d3b --skip
 /specledger.resolve-comment -r f030526a -s
 
-# Issue comments (sẽ DELETE)
+# Issue comments (will DELETE)
 /specledger.resolve-comment -c 35
 ```
 
@@ -174,5 +174,5 @@ Tiếp theo:
 
 | Table | ID Type | Resolve Action |
 |-------|---------|----------------|
-| `comments` | integer | DELETE (không có is_resolved column) |
+| `comments` | integer | DELETE (no is_resolved column) |
 | `review_comments` | UUID | UPDATE is_resolved = true |

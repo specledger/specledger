@@ -12,14 +12,14 @@ $ARGUMENTS
 
 ### Step 1: Get spec-key
 
-**Nếu có argument `--spec`**: dùng giá trị đó
+**If `--spec` argument provided**: use that value
 
-**Nếu không có argument**: lấy từ git branch
+**If no argument**: get from git branch
 ```bash
 SPEC_KEY=$(git branch --show-current)
 ```
 
-Spec-key = tên branch = tên folder trong `specledger/`
+Spec-key = branch name = folder name in `specledger/`
 
 ### Step 2: Check authentication
 
@@ -27,13 +27,13 @@ Spec-key = tên branch = tên folder trong `specledger/`
 sl auth status
 ```
 
-Nếu chưa login → chạy `sl auth login` trước.
+If not logged in → run `sl auth login` first.
 
-### Step 3: Fetch comments từ Supabase
+### Step 3: Fetch comments from Supabase
 
-Fetch từ **2 tables**:
+Fetch from **2 tables**:
 
-**Lấy credentials (KHÔNG đọc file trực tiếp):**
+**Get credentials (DO NOT read file directly):**
 ```bash
 SUPABASE_URL=$(sl auth supabase --url)
 SUPABASE_ANON_KEY=$(sl auth supabase --key)
@@ -54,7 +54,7 @@ curl -s "${SUPABASE_URL}/rest/v1/review_comments?select=*&file_path=like.*${SPEC
   -H "Authorization: Bearer ${ACCESS_TOKEN}"
 ```
 
-**Lưu ý**: Sử dụng `sl auth token` thay vì đọc file `~/.specledger/credentials.json` để bảo mật token.
+**Note**: Use `sl auth token` instead of reading `~/.specledger/credentials.json` file for token security.
 
 ### Step 4: Render comment list
 
@@ -74,8 +74,8 @@ curl -s "${SUPABASE_URL}/rest/v1/review_comments?select=*&file_path=like.*${SPEC
 
 #f030526a | Son Vo | 2026-02-09 | ⏳ unresolved
     📁 File: specs/008-xxx/spec.md
-    📌 Selected: "Refactor và cải thiện..."
-    💬 Comment: "Sai dự án"
+    📌 Selected: "Refactor and improve..."
+    💬 Comment: "Wrong project"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📊 Total: 1 issue comment, 2 review comments
@@ -84,8 +84,8 @@ curl -s "${SUPABASE_URL}/rest/v1/review_comments?select=*&file_path=like.*${SPEC
 ## Example Usage
 
 ```text
-/specledger.fetch-comments                    # Dùng branch hiện tại
-/specledger.fetch-comments --spec other-spec  # Chỉ định spec khác (optional)
+/specledger.fetch-comments                    # Use current branch
+/specledger.fetch-comments --spec other-spec  # Specify different spec (optional)
 ```
 
 ## Table Schemas

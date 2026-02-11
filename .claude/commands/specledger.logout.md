@@ -4,18 +4,18 @@ description: Logout from Specledger using the CLI.
 
 ## Execution
 
-Khi user gọi `/specledger.logout`, chạy lệnh CLI:
+When user calls `/specledger.logout`, run the CLI command:
 
 ```bash
 sl auth logout
 ```
 
-**Nếu `sl` chưa được cài đặt**, chạy:
+**If `sl` is not installed**, run:
 ```bash
 go run ./cmd/sl auth logout
 ```
 
-### Xác nhận
+### Verify
 
 ```bash
 sl auth status
