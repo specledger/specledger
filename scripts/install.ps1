@@ -21,15 +21,32 @@ if ($PathEnv -notlike "*$InstallDir*") {
     [Environment]::SetEnvironmentVariable("Path", "$PathEnv;$InstallDir", "User")
 }
 
+# Get latest version from GitHub API
+function Get-LatestVersion {
+    try {
+        $response = Invoke-RestMethod -Uri "https://api.github.com/repos/specledger/specledger/releases/latest" -ErrorAction Stop
+        return $response.tag_name -replace '^v', ''
+    } catch {
+        return "1.0.12"  # Fallback version
+    }
+}
+
+# Get version if "latest"
+if ($Version -eq "latest") {
+    $Version = Get-LatestVersion
+    Write-Host "Detected latest version: $Version" -ForegroundColor Cyan
+}
+
+# Strip 'v' prefix for filename
+$FileVersion = $Version -replace '^v', ''
+$Arch = if ($env:ARCH) { $env:ARCH } else { "amd64" }
+
 # Get download URL
 if ([string]::IsNullOrWhiteSpace($DownloadUrl)) {
-    $Arch = if ($env:ARCH) { $env:ARCH } else { "amd64" }
-    switch ($PSVersionTable.PSVersion.Major) {
-        5 { $OsSuffix = "windows-386" }
-        default { $OsSuffix = "windows-amd64" }
-    }
+    # Add 'v' prefix for URL path
+    $UrlVersion = if ($Version -match '^v') { $Version } else { "v$Version" }
 
-    $DownloadUrl = "https://github.com/specledger/specledger/releases/download/$Version/specledger_$Version_windows_$Arch.zip"
+    $DownloadUrl = "https://github.com/specledger/specledger/releases/download/$UrlVersion/specledger_${FileVersion}_windows_$Arch.zip"
 }
 
 Write-Host "Installing SpecLedger $Version" -ForegroundColor Cyan
@@ -66,15 +83,24 @@ try {
     exit 1
 }
 
-# Find the binary
-$binaryPath = Join-Path $tempExtract "specledger_$Version_windows_$Arch\sl.exe"
+# Find the binary - GoReleaser puts sl.exe at the root of the archive
+$binaryPath = Join-Path $tempExtract "sl.exe"
 if (-not (Test-Path -Path $binaryPath)) {
-    # Try alternative path
-    $binaryPath = Join-Path $tempExtract "specledger_$Version_windows_amd64\sl.exe"
+    # Try alternative paths
+    $altPaths = @(
+        (Join-Path $tempExtract "specledger_${FileVersion}_windows_$Arch\sl.exe"),
+        (Join-Path $tempExtract "specledger_${FileVersion}_windows_amd64\sl.exe")
+    )
+    foreach ($altPath in $altPaths) {
+        if (Test-Path -Path $altPath) {
+            $binaryPath = $altPath
+            break
+        }
+    }
 }
 
 if (-not (Test-Path -Path $binaryPath)) {
-    Write-Host "Error: Binary not found at $binaryPath" -ForegroundColor Red
+    Write-Host "Error: Binary not found" -ForegroundColor Red
     Write-Host "Contents of extract directory:" -ForegroundColor Yellow
     Get-ChildItem -Path $tempExtract -Recurse | Select-Object FullName
     Remove-Item -Path $tempFile, $tempExtract -Recurse -Force
