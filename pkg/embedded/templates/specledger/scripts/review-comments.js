@@ -17,7 +17,13 @@ import path from 'path'
 import os from 'os'
 
 const CREDENTIALS_FILE = path.join(os.homedir(), '.specledger', 'credentials.json')
-const SUPABASE_URL = 'https://lmjpnzplurfnojfqtqly.supabase.co'
+
+// Get Supabase config - uses same env vars as sl CLI (see pkg/cli/auth/client.go)
+function getSupabaseConfig() {
+  const url = process.env.SPECLEDGER_SUPABASE_URL || 'https://iituikpbiesgofuraclk.supabase.co'
+  const key = process.env.SPECLEDGER_SUPABASE_ANON_KEY || 'sb_publishable_KpaZ2lKPu6eJ5WLqheu9_A_J9dYhGQb'
+  return { url, key }
+}
 
 // Load access token from credentials file
 function loadAccessToken() {
@@ -42,6 +48,7 @@ function loadAccessToken() {
 }
 
 const accessToken = loadAccessToken()
+const { url: SUPABASE_URL } = getSupabaseConfig()
 const supabase = createClient(SUPABASE_URL, accessToken)
 
 async function getReviewComments(specPath) {

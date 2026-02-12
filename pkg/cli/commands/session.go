@@ -229,26 +229,22 @@ func runSessionGet(cmd *cobra.Command, args []string) error {
 	metaClient := session.NewMetadataClient()
 	var sessionMeta *session.SessionMetadata
 
-	// Try as UUID first
-	sessionMeta, err = metaClient.GetByID(accessToken, identifier)
-	if err != nil {
-		return fmt.Errorf("failed to query session: %w", err)
+	// Check if identifier looks like a UUID (36 chars with dashes)
+	isUUID := len(identifier) == 36 && identifier[8] == '-' && identifier[13] == '-'
+
+	// Try as UUID if it looks like one
+	if isUUID {
+		sessionMeta, _ = metaClient.GetByID(accessToken, identifier)
 	}
 
 	// Try as commit hash
 	if sessionMeta == nil {
-		sessionMeta, err = metaClient.GetByCommitHash(accessToken, projectID, identifier)
-		if err != nil {
-			return fmt.Errorf("failed to query session: %w", err)
-		}
+		sessionMeta, _ = metaClient.GetByCommitHash(accessToken, projectID, identifier)
 	}
 
 	// Try as task ID
 	if sessionMeta == nil {
-		sessionMeta, err = metaClient.GetByTaskID(accessToken, projectID, identifier)
-		if err != nil {
-			return fmt.Errorf("failed to query session: %w", err)
-		}
+		sessionMeta, _ = metaClient.GetByTaskID(accessToken, projectID, identifier)
 	}
 
 	if sessionMeta == nil {

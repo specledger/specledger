@@ -132,7 +132,12 @@ func (m *MetadataClient) Query(accessToken string, opts *QueryOptions) ([]Sessio
 		params.Set("feature_branch", "eq."+opts.FeatureBranch)
 	}
 	if opts.CommitHash != "" {
-		params.Set("commit_hash", "eq."+opts.CommitHash)
+		// Use like for partial commit hash (prefix match)
+		if len(opts.CommitHash) < 40 {
+			params.Set("commit_hash", "like."+opts.CommitHash+"*")
+		} else {
+			params.Set("commit_hash", "eq."+opts.CommitHash)
+		}
 	}
 	if opts.TaskID != "" {
 		params.Set("task_id", "eq."+opts.TaskID)
