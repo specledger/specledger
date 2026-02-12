@@ -54,11 +54,11 @@ brews:
     homepage: 'https://github.com/specledger/specledger'
     description: 'Unified CLI for project bootstrap and specification dependency management'
     license: MIT
-    folder: Formula
     repository:
       owner: specledger
       name: homebrew-specledger
       token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+      directory: Formula
     skip_upload: auto
 
 release:
