@@ -1,7 +1,7 @@
 {
-  "pid": 79034,
-  "parent_pid": 79017,
-  "database": "/home/trung/projects/specledger/.beads/beads.db",
-  "version": "0.49.0",
-  "started_at": "2026-02-09T07:56:47.603519809Z"
+  "pid": 17805,
+  "parent_pid": 17798,
+  "database": "/Users/ngoc/src/specLedger/.beads/beads.db",
+  "version": "0.38.0",
+  "started_at": "2026-02-11T23:59:55.951248Z"
 }
