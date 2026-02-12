@@ -52,6 +52,7 @@ func (s *StorageClient) Upload(accessToken string, storagePath string, data []by
 	req.Header.Set("Content-Type", "application/gzip")
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 	req.Header.Set("apikey", s.anonKey)
+	req.Header.Set("x-upsert", "true") // Replace if exists
 
 	resp, err := s.client.Do(req)
 	if err != nil {
