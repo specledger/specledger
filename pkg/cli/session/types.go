@@ -1,0 +1,121 @@
+// Package session provides checkpoint session capture functionality
+// for storing AI conversation segments linked to git commits and beads tasks.
+package session
+
+import (
+	"time"
+)
+
+// MaxSessionSize is the maximum uncompressed session size (10 MB)
+const MaxSessionSize = 10 * 1024 * 1024
+
+// SessionStatus represents the completion status of a session
+type SessionStatus string
+
+const (
+	StatusComplete  SessionStatus = "complete"
+	StatusRejected  SessionStatus = "rejected"
+	StatusAbandoned SessionStatus = "abandoned"
+)
+
+// Message represents a single message in the conversation
+type Message struct {
+	Role      string    `json:"role"`      // "user" or "assistant"
+	Content   string    `json:"content"`   // message content
+	Timestamp time.Time `json:"timestamp"` // when the message was sent
+}
+
+// SessionContent represents the full session data stored in Supabase Storage
+type SessionContent struct {
+	Version       string    `json:"version"`        // schema version (e.g., "1.0")
+	SessionID     string    `json:"session_id"`     // unique identifier
+	FeatureBranch string    `json:"feature_branch"` // e.g., "010-checkpoint-session-capture"
+	CommitHash    string    `json:"commit_hash"`    // git commit hash (nullable for task sessions)
+	TaskID        string    `json:"task_id"`        // beads task ID (nullable for commit sessions)
+	Author        string    `json:"author"`         // user email
+	CapturedAt    time.Time `json:"captured_at"`    // when captured
+	Messages      []Message `json:"messages"`       // conversation messages
+}
+
+// SessionMetadata represents the queryable metadata stored in the database
+type SessionMetadata struct {
+	ID            string        `json:"id"`
+	ProjectID     string        `json:"project_id"`
+	FeatureBranch string        `json:"feature_branch"`
+	CommitHash    *string       `json:"commit_hash,omitempty"`
+	TaskID        *string       `json:"task_id,omitempty"`
+	AuthorID      string        `json:"author_id"`
+	StoragePath   string        `json:"storage_path"`
+	Status        SessionStatus `json:"status"`
+	SizeBytes     int64         `json:"size_bytes"`     // compressed size
+	RawSizeBytes  int64         `json:"raw_size_bytes"` // uncompressed size
+	MessageCount  int           `json:"message_count"`
+	CreatedAt     time.Time     `json:"created_at"`
+}
+
+// HookInput represents the JSON input from Claude Code hooks
+type HookInput struct {
+	SessionID       string `json:"session_id"`
+	TranscriptPath  string `json:"transcript_path"`
+	Cwd             string `json:"cwd"`
+	HookEventName   string `json:"hook_event_name"`
+	ToolName        string `json:"tool_name"`
+	ToolInput       string `json:"tool_input"`        // the command that was run
+	ToolOutput      string `json:"tool_output"`       // output from the tool
+	ToolDurationMs  int64  `json:"tool_duration_ms"`  // how long the tool took
+	ToolSuccess     bool   `json:"tool_success"`      // whether the tool succeeded
+}
+
+// SessionState represents the local tracking state for delta computation
+type SessionState struct {
+	Sessions map[string]*SessionOffsetInfo `json:"sessions"`
+}
+
+// SessionOffsetInfo tracks the last captured position in the transcript
+type SessionOffsetInfo struct {
+	LastOffset     int64  `json:"last_offset"`     // byte offset in transcript file
+	LastCommit     string `json:"last_commit"`     // last commit hash captured
+	TranscriptPath string `json:"transcript_path"` // path to the transcript file
+}
+
+// QueueEntry represents a session queued for upload
+type QueueEntry struct {
+	SessionID     string        `json:"session_id"`
+	ProjectID     string        `json:"project_id"`
+	FeatureBranch string        `json:"feature_branch"`
+	CommitHash    *string       `json:"commit_hash,omitempty"`
+	TaskID        *string       `json:"task_id,omitempty"`
+	AuthorID      string        `json:"author_id"`
+	Status        SessionStatus `json:"status"`
+	CreatedAt     time.Time     `json:"created_at"`
+	RetryCount    int           `json:"retry_count"`
+	LastRetry     *time.Time    `json:"last_retry,omitempty"`
+}
+
+// TranscriptLine represents a single line from the Claude Code transcript JSONL
+type TranscriptLine struct {
+	Type      string           `json:"type"`               // "user", "assistant", "tool_use", etc.
+	Message   *TranscriptMsg   `json:"message,omitempty"`  // nested message object
+	Content   string           `json:"content,omitempty"`  // direct content (fallback)
+	Timestamp time.Time        `json:"timestamp"`          // when recorded
+	UUID      string           `json:"uuid,omitempty"`     // message UUID
+	Role      string           `json:"role,omitempty"`     // alternative to type
+}
+
+// TranscriptMsg represents the nested message in Claude Code transcripts
+type TranscriptMsg struct {
+	Role    string      `json:"role"`              // "user" or "assistant"
+	Content interface{} `json:"content,omitempty"` // string or array of content blocks
+}
+
+// CaptureResult represents the outcome of a capture operation
+type CaptureResult struct {
+	Captured     bool   // whether a session was captured
+	SessionID    string // the session ID if captured
+	StoragePath  string // path in storage
+	MessageCount int    // number of messages in the session
+	SizeBytes    int64  // compressed size
+	RawSizeBytes int64  // uncompressed size
+	Queued       bool   // whether it was queued for later upload
+	Error        error  // any error that occurred
+}
