@@ -14,22 +14,71 @@ if (-not (Test-Path -Path $InstallDir)) {
     New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 }
 
-# Add to PATH if not already there
-$PathEnv = [Environment]::GetEnvironmentVariable("Path", "User")
-if ($PathEnv -notlike "*$InstallDir*") {
-    Write-Host "Adding $InstallDir to PATH" -ForegroundColor Yellow
-    [Environment]::SetEnvironmentVariable("Path", "$PathEnv;$InstallDir", "User")
+# Function to add directory to PATH (Machine level = global)
+function Add-ToPath {
+    param([string]$Directory)
+
+    $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
+    $MachinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
+
+    # Check if already in PATH (User or Machine) - skip if exists
+    if ($UserPath -like "*$Directory*" -or $MachinePath -like "*$Directory*") {
+        Write-Host "✓ $Directory is already in PATH" -ForegroundColor Green
+        return
+    }
+
+    # Try to add to Machine PATH (global) - requires admin
+    $isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+
+    if ($isAdmin) {
+        Write-Host "Appending $Directory to System PATH (global)..." -ForegroundColor Yellow
+        $NewPath = "$MachinePath;$Directory"
+        [Environment]::SetEnvironmentVariable("Path", $NewPath, "Machine")
+        Write-Host "✓ Appended to System PATH (existing paths preserved)" -ForegroundColor Green
+    } else {
+        # Try elevated prompt for Machine PATH
+        Write-Host "Appending $Directory to System PATH (requires admin)..." -ForegroundColor Yellow
+        try {
+            $escapedDir = $Directory -replace "'", "''"
+            Start-Process powershell -Verb RunAs -ArgumentList "-Command", "`$current = [Environment]::GetEnvironmentVariable('Path','Machine'); `$newPath = `"`$current;$escapedDir`"; [Environment]::SetEnvironmentVariable('Path', `$newPath, 'Machine'); Write-Host 'PATH updated' -ForegroundColor Green; Start-Sleep 1" -Wait
+            Write-Host "✓ Appended to System PATH (existing paths preserved)" -ForegroundColor Green
+        } catch {
+            # Fallback to User PATH
+            Write-Host "Admin denied, appending to User PATH instead..." -ForegroundColor Yellow
+            $NewPath = "$UserPath;$Directory"
+            [Environment]::SetEnvironmentVariable("Path", $NewPath, "User")
+            Write-Host "✓ Appended to User PATH (existing paths preserved)" -ForegroundColor Green
+        }
+    }
+    Write-Host "  (Restart terminal to apply changes)" -ForegroundColor Cyan
 }
+
+# Get latest version from GitHub API
+function Get-LatestVersion {
+    try {
+        $response = Invoke-RestMethod -Uri "https://api.github.com/repos/specledger/specledger/releases/latest" -ErrorAction Stop
+        return $response.tag_name -replace '^v', ''
+    } catch {
+        return "1.0.12"  # Fallback version
+    }
+}
+
+# Get version if "latest"
+if ($Version -eq "latest") {
+    $Version = Get-LatestVersion
+    Write-Host "Detected latest version: $Version" -ForegroundColor Cyan
+}
+
+# Strip 'v' prefix for filename
+$FileVersion = $Version -replace '^v', ''
+$Arch = if ($env:ARCH) { $env:ARCH } else { "amd64" }
 
 # Get download URL
 if ([string]::IsNullOrWhiteSpace($DownloadUrl)) {
-    $Arch = if ($env:ARCH) { $env:ARCH } else { "amd64" }
-    switch ($PSVersionTable.PSVersion.Major) {
-        5 { $OsSuffix = "windows-386" }
-        default { $OsSuffix = "windows-amd64" }
-    }
+    # Add 'v' prefix for URL path
+    $UrlVersion = if ($Version -match '^v') { $Version } else { "v$Version" }
 
-    $DownloadUrl = "https://github.com/specledger/specledger/releases/download/$Version/specledger_$Version_windows_$Arch.zip"
+    $DownloadUrl = "https://github.com/specledger/specledger/releases/download/$UrlVersion/specledger_${FileVersion}_windows_$Arch.zip"
 }
 
 Write-Host "Installing SpecLedger $Version" -ForegroundColor Cyan
@@ -66,15 +115,24 @@ try {
     exit 1
 }
 
-# Find the binary
-$binaryPath = Join-Path $tempExtract "specledger_$Version_windows_$Arch\sl.exe"
+# Find the binary - GoReleaser puts sl.exe at the root of the archive
+$binaryPath = Join-Path $tempExtract "sl.exe"
 if (-not (Test-Path -Path $binaryPath)) {
-    # Try alternative path
-    $binaryPath = Join-Path $tempExtract "specledger_$Version_windows_amd64\sl.exe"
+    # Try alternative paths
+    $altPaths = @(
+        (Join-Path $tempExtract "specledger_${FileVersion}_windows_$Arch\sl.exe"),
+        (Join-Path $tempExtract "specledger_${FileVersion}_windows_amd64\sl.exe")
+    )
+    foreach ($altPath in $altPaths) {
+        if (Test-Path -Path $altPath) {
+            $binaryPath = $altPath
+            break
+        }
+    }
 }
 
 if (-not (Test-Path -Path $binaryPath)) {
-    Write-Host "Error: Binary not found at $binaryPath" -ForegroundColor Red
+    Write-Host "Error: Binary not found" -ForegroundColor Red
     Write-Host "Contents of extract directory:" -ForegroundColor Yellow
     Get-ChildItem -Path $tempExtract -Recurse | Select-Object FullName
     Remove-Item -Path $tempFile, $tempExtract -Recurse -Force
@@ -98,8 +156,8 @@ if (-not $UseAdmin) {
 
 if ($UseAdmin) {
     try {
-        Start-Process powershell -Verb RunAs -ArgumentList "-Command", "Copy-Item -Path `"$binaryPath`" -Destination `"$targetBinary`"; Set-Content -Path `"$targetBinary`" -Value (Get-Content `"$targetBinary`" -Raw) -Encoding UTF8; Write-Host 'Installation complete' -ForegroundColor Green"
-        Write-Host "Please close and reopen your terminal" -ForegroundColor Green
+        Start-Process powershell -Verb RunAs -ArgumentList "-Command", "Copy-Item -Path `"$binaryPath`" -Destination `"$targetBinary`" -Force; Write-Host 'Binary copied' -ForegroundColor Green" -Wait
+        Write-Host "✓ Installed SpecLedger $Version to $targetBinary" -ForegroundColor Green
     } catch {
         Write-Host "Error: Failed to install with elevated privileges" -ForegroundColor Red
         Write-Host $_.Exception.Message -ForegroundColor Red
@@ -108,8 +166,11 @@ if ($UseAdmin) {
     }
 } else {
     Copy-Item -Path $binaryPath -Destination $targetBinary -Force
-    Write-Host "✓ Installed SpecLedger $Version to $InstallDir/sl.exe" -ForegroundColor Green
+    Write-Host "✓ Installed SpecLedger $Version to $targetBinary" -ForegroundColor Green
 }
+
+# Add install directory to PATH
+Add-ToPath -Directory $InstallDir
 
 # Cleanup
 Remove-Item -Path $tempFile, $tempExtract -Recurse -Force
