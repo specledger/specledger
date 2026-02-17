@@ -32,6 +32,8 @@
 ## Notes
 
 - All items pass validation. Spec is ready for `/specledger.clarify` or `/specledger.plan`.
+- Updated 2026-02-17: Constitution integration added — `sl new` always creates constitution, `sl init` checks for existing or analyzes codebase to propose principles.
 - The spec mentions "Claude Code, Cursor, Windsurf" as example agents but correctly keeps agent options as a business decision rather than implementation detail.
-- Success criteria are fully technology-agnostic (measured in prompts, commands, and behavior guarantees).
-- Assumptions section documents reasonable defaults (Claude Code as initial agent, specledger.yaml for persistence).
+- Success criteria are fully technology-agnostic (measured in steps, commands, and behavior guarantees).
+- Assumptions section documents reasonable defaults (Claude Code as initial agent, CONSTITUTION.md for persistence).
+- SC-007 references "detected characteristics" which is appropriately abstract — does not prescribe how detection works.
