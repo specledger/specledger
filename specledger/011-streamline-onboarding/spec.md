@@ -94,6 +94,31 @@ When a user selects their preferred coding agent during onboarding, that prefere
 
 ---
 
+### User Story 6 - Standardized Commits with `specledger.commit` (Priority: P2)
+
+When a user completes a feature implementation and wants to commit their changes, they can use the `/specledger.commit` command to create a standardized, well-formatted commit message. The command automatically generates a commit message that includes:
+
+- A clear summary line (max 72 characters)
+- A detailed description of changes made
+- Reference to the feature specification (if available)
+- Automatic coauthor attribution with SpecLedger fingerprint
+
+The coauthor line includes the SpecLedger AI assistant as a coauthor with the standardized fingerprint: `SpecLedger <specledger@noreply.github.com>`. This ensures that AI-assisted work is properly attributed while maintaining a clear audit trail of human-AI collaboration.
+
+**Why this priority**: Standardized commits improve project history readability and ensure consistent attribution of AI-assisted work. This is P2 because it enhances workflow quality but is not critical to the core onboarding experience.
+
+**Independent Test**: Can be tested by running `/specledger.commit` after completing a feature implementation, verifying the generated commit message includes proper formatting, feature reference, and coauthor attribution with the correct fingerprint.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user who has completed feature implementation, **When** they run `/specledger.commit`, **Then** the system generates a commit message with a clear summary, detailed description, and coauthor line.
+2. **Given** a feature specification exists for the completed work, **When** `/specledger.commit` is executed, **Then** the commit message includes a reference to the specification file (e.g., "Implements spec.md").
+3. **Given** a user running `/specledger.commit`, **When** the commit message is generated, **Then** the coauthor line includes the fingerprint `SpecLedger <specledger@noreply.github.com>`.
+4. **Given** a user who wants to customize the commit message, **When** they provide feedback on the generated message, **Then** the agent updates it before committing.
+5. **Given** a user running `/specledger.commit` in a repository with no staged changes, **When** the command executes, **Then** the system prompts the user to stage changes first or offers to stage all changes.
+
+---
+
 ### Edge Cases
 
 - What happens when the preferred coding agent is not installed on the user's system?
@@ -106,6 +131,10 @@ When a user selects their preferred coding agent during onboarding, that prefere
   - The project setup is still complete. The user can manually re-launch the agent at any time.
 - What happens when `sl start` is run in a directory with no code files?
   - The system generates a default constitution based on the project structure and offers to create a starter template.
+- What happens when `/specledger.commit` is run without a git repository?
+  - The system displays an error message indicating that git is required and suggests initializing a repository first.
+- What happens when `/specledger.commit` is run with no staged changes?
+  - The system prompts the user to stage changes or offers to automatically stage all modified files.
 
 ## Requirements *(mandatory)*
 
@@ -130,6 +159,12 @@ When a user selects their preferred coding agent during onboarding, that prefere
 - **FR-017**: `sl start` MUST support `--no-agent` flag to skip agent launch and only generate/update the constitution.
 - **FR-018**: `sl start` MUST work in directories without prior SpecLedger initialization.
 - **FR-019**: `sl start` MUST offer to initialize git if the directory is not a git repository.
+- **FR-020**: `/specledger.commit` MUST generate a standardized commit message with summary, description, and coauthor attribution.
+- **FR-021**: `/specledger.commit` MUST include the coauthor fingerprint `SpecLedger <specledger@noreply.github.com>` in the commit message.
+- **FR-022**: `/specledger.commit` MUST reference the feature specification file if one exists in the project.
+- **FR-023**: `/specledger.commit` MUST verify that changes are staged before attempting to commit.
+- **FR-024**: `/specledger.commit` MUST allow the user to review and customize the generated commit message before finalizing.
+- **FR-025**: `/specledger.commit` MUST work only in git repositories and display an appropriate error message if git is not initialized.
 
 ### Key Entities
 
@@ -137,6 +172,8 @@ When a user selects their preferred coding agent during onboarding, that prefere
 - **Onboarding Prompt**: A structured message passed to the coding agent at launch time that guides the user through the SpecLedger workflow steps in order.
 - **Codebase Analysis**: Automated detection of project structure, languages, frameworks, dependencies, and conventions to inform constitution generation.
 - **Constitution Generation**: Automatic creation of CONSTITUTION.md with tailored guiding principles based on codebase analysis and project metadata.
+- **Standardized Commit Message**: A formatted commit message that includes summary, description, specification reference, and coauthor attribution with the SpecLedger fingerprint.
+- **Coauthor Fingerprint**: The standardized identifier `SpecLedger <specledger@noreply.github.com>` used to attribute AI-assisted work in git commits.
 
 ## Success Criteria *(mandatory)*
 
@@ -149,6 +186,9 @@ When a user selects their preferred coding agent during onboarding, that prefere
 - **SC-005**: The guided workflow pauses for user review before implementation in every session — zero cases of auto-running implementation without explicit user approval.
 - **SC-006**: Users who have already configured their project are never re-prompted for settings they already provided, unless using `--force`.
 - **SC-007**: `sl start` generates a CONSTITUTION.md that reflects the detected project technologies and conventions in 100% of cases.
+- **SC-008**: 100% of commits generated via `/specledger.commit` include the coauthor fingerprint `SpecLedger <specledger@noreply.github.com>`.
+- **SC-009**: Commit messages generated via `/specledger.commit` follow a consistent format with summary (≤72 chars), description, and specification reference.
+- **SC-010**: Users can review and customize generated commit messages before finalizing in 100% of cases.
 
 ### Previous work
 
@@ -165,3 +205,5 @@ When a user selects their preferred coding agent during onboarding, that prefere
 - The existing Bubble Tea TUI used by `sl new` can be extended with additional prompts without a major rewrite.
 - Project metadata (specledger.yaml) is the appropriate place to persist agent preference alongside existing project configuration.
 - Codebase analysis can be performed using language detection libraries and dependency file parsing (package.json, go.mod, requirements.txt, etc.).
+- The coauthor fingerprint `SpecLedger <specledger@noreply.github.com>` is the standardized identifier for SpecLedger AI assistance in git commits.
+- Git commit coauthor lines follow the GitHub standard format: `Co-authored-by: Name <email@example.com>`.
