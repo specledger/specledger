@@ -40,6 +40,11 @@
 [SECTION_3_CONTENT]
 <!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
 
+## Agent Preferences
+
+- **Preferred Agent**: [PREFERRED_AGENT]
+<!-- Example: Claude Code, None -->
+
 ## Governance
 <!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 

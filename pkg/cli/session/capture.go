@@ -114,7 +114,7 @@ func Capture(input *HookInput) *CaptureResult {
 	result := &CaptureResult{Captured: false}
 
 	// Check if this is a git commit
-	if !IsGitCommit(input.ToolInput) {
+	if !IsGitCommit(input.ToolInput.Command()) {
 		return result // Not a commit, nothing to capture
 	}
 

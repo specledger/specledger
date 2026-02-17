@@ -16,6 +16,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-05
 - File-based (`~/.specledger/credentials.json`, `.beads/issues.jsonl`, `scripts/audit-cache.json`) (009-command-system-enhancements)
 - Go 1.24.2 + Cobra (CLI), net/http (Supabase REST + Storage API), compress/gzip (compression), encoding/json (serialization), go-git/v5 (commit detection) (010-checkpoint-session-capture)
 - Supabase Storage (session content as gzip JSON) + Supabase PostgreSQL (session metadata via PostgREST) + local filesystem (offline queue, delta state) (010-checkpoint-session-capture)
+- Go 1.24.2 + Cobra (CLI), Bubble Tea + Bubbles + Lipgloss (TUI), go-git v5, YAML v3 (011-streamline-onboarding)
+- File-based (`.specledger/memory/constitution.md`, `specledger/specledger.yaml`) (011-streamline-onboarding)
 
 - Go 1.24+ (004-thin-wrapper-redesign)
 
@@ -35,9 +37,9 @@ tests/
 Go 1.24+: Follow standard conventions
 
 ## Recent Changes
+- 011-streamline-onboarding: Added Go 1.24.2 + Cobra (CLI), Bubble Tea + Bubbles + Lipgloss (TUI), go-git v5, YAML v3
 - 010-checkpoint-session-capture: Added Go 1.24.2 + Cobra (CLI), net/http (Supabase REST + Storage API), compress/gzip (compression), encoding/json (serialization), go-git/v5 (commit detection)
 - 009-command-system-enhancements: Added Go 1.24+ (CLI), JavaScript/Node.js (utility scripts), Bash (shell scripts) + Cobra (CLI), @supabase/supabase-js (Node.js scripts)
-- 008-cli-auth: Added Go 1.24.2 + Cobra (CLI framework), net/http (callback server), encoding/json (credential storage)
 
 
 <!-- MANUAL ADDITIONS START -->
