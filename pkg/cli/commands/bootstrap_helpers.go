@@ -121,9 +121,16 @@ func applyEmbeddedSkills(projectPath string) error {
 			return fmt.Errorf("failed to read embedded file %s: %w", path, err)
 		}
 
-		// Write to destination
-		// #nosec G306 -- skill files need to be readable, 0644 is appropriate
-		if err := os.WriteFile(destPath, data, 0644); err != nil {
+		// Determine permissions based on file type
+		var perms fs.FileMode
+		if playbooks.IsExecutableFile(filepath.Base(destPath), data) {
+			perms = 0755 // Executable: rwxr-xr-x
+		} else {
+			perms = 0644 // Regular: rw-r--r--
+		}
+
+		// Write to destination with appropriate permissions
+		if err := os.WriteFile(destPath, data, perms); err != nil {
 			return fmt.Errorf("failed to write file %s: %w", destPath, err)
 		}
 

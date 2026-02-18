@@ -19,6 +19,7 @@ Auto-generated from all feature plans. Last updated: 2026-02-05
 - Go 1.24.2 + Cobra (CLI), Bubble Tea + Bubbles + Lipgloss (TUI), go-git v5, YAML v3 (011-streamline-onboarding)
 - File-based (`.specledger/memory/constitution.md`, `specledger/specledger.yaml`) (011-streamline-onboarding)
 
+
 - Go 1.24+ (004-thin-wrapper-redesign)
 
 ## Project Structure
@@ -38,6 +39,7 @@ Go 1.24+: Follow standard conventions
 
 ## Recent Changes
 - 011-streamline-onboarding: Added Go 1.24.2 + Cobra (CLI), Bubble Tea + Bubbles + Lipgloss (TUI), go-git v5, YAML v3
+- 135-fix-missing-chmod-x: Added Go 1.24+ + Existing: Cobra (CLI), embedded FS
 - 010-checkpoint-session-capture: Added Go 1.24.2 + Cobra (CLI), net/http (Supabase REST + Storage API), compress/gzip (compression), encoding/json (serialization), go-git/v5 (commit detection)
 - 009-command-system-enhancements: Added Go 1.24+ (CLI), JavaScript/Node.js (utility scripts), Bash (shell scripts) + Cobra (CLI), @supabase/supabase-js (Node.js scripts)
 
