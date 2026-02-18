@@ -15,7 +15,7 @@
 - Q: Should issue IDs be scoped per spec or globally unique? → A: Globally unique across the repository using SHA-256 hash of (spec_context + title + created_at) to generate deterministic, collision-resistant IDs
 - Q: What length should issue IDs be? → A: 6 characters (first 6 hex characters of SHA-256 digest) balancing brevity with collision resistance; collision probability < 0.01% for up to 100,000 issues
 - Q: Should duplicate issues be detected when creating new issues? → A: Yes, `sl issue create` MUST check for semantically similar issues across all specs and warn user before creating; user can override with --force flag
-- Q: Should definition of done be checked before closing issues? → A: Yes, `sl issue close` MUST check for a `.specledger/definition-of-done.md` file and verify all criteria are met before allowing closure; user can override with --force flag
+- Q: Should definition of done be checked before closing issues? → A: Yes, definition of done is an optional field in the issue JSONL record. The `sl issue close` command and implement skills/command prompt MUST check this field before allowing closure; user can override with --force flag
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -29,7 +29,7 @@ As a developer using SpecLedger, I want to create, list, and manage issues direc
 
 **Acceptance Scenarios**:
 
-1. **Given** a spec directory exists at `specledger/010-my-feature/`, **When** I run `sl issue create --title "Add validation" --type task`, **Then** a new issue is created with a globally unique SHA-based ID (e.g., `SL-a3f5d8`) and stored in `specledger/010-my-feature/.sl/issues.jsonl`
+1. **Given** a spec directory exists at `specledger/010-my-feature/`, **When** I run `sl issue create --title "Add validation" --type task`, **Then** a new issue is created with a globally unique SHA-based ID (e.g., `SL-a3f5d8`) and stored in `specledger/010-my-feature/issues.jsonl`
 2. **Given** issues exist in a spec directory, **When** I run `sl issue list`, **Then** all issues for the current spec are displayed in a readable table format
 3. **Given** an issue exists with status "open", **When** I run `sl issue close ISSUE-ID`, **Then** the issue status changes to "closed" with a closed_at timestamp
 
@@ -106,13 +106,46 @@ As a developer, I want the system to check definition of done criteria before al
 
 **Why this priority**: Enforcing definition of done prevents incomplete work from being marked as done.
 
-**Independent Test**: Can be tested by creating a definition-of-done.md file and attempting to close an issue without meeting criteria.
+**Independent Test**: Can be tested by creating an issue with definition_of_done criteria and attempting to close it without meeting criteria.
 
 **Acceptance Scenarios**:
 
-1. **Given** a `.specledger/definition-of-done.md` file exists with criteria, **When** I run `sl issue close ISSUE-ID`, **Then** the system checks each criterion and fails if any are not met
+1. **Given** an issue has a `definition_of_done` field with criteria, **When** I run `sl issue close ISSUE-ID`, **Then** the system checks each criterion and fails if any are not met
 2. **Given** definition of done criteria are not met, **When** I run `sl issue close ISSUE-ID --force`, **Then** the issue is closed without checking criteria
 3. **Given** all definition of done criteria are met, **When** I run `sl issue close ISSUE-ID`, **Then** the issue closes successfully with a note about which criteria were verified
+
+---
+
+### User Story 7 - Update Implement and Plan Skills/Prompts (Priority: P2)
+
+As a SpecLedger maintainer, I want to update the implement and plan command prompts and skills to be aware of the issue tracking system so that developers can manage issues as part of their implementation workflow.
+
+**Why this priority**: Integration with implement and plan commands ensures issues are checked before closing, enforcing quality standards and preventing incomplete work from being marked as done.
+
+**Independent Test**: Can be tested by updating the implement and plan skill definitions to include issue tracking awareness, then verifying that the commands properly check definition_of_done fields and prevent closure of issues with unmet criteria.
+
+**Acceptance Scenarios**:
+
+1. **Given** the implement skill is updated with issue tracking awareness, **When** a developer attempts to close an issue via the implement command, **Then** the system checks the issue's `definition_of_done` field and prevents closure if criteria are not met
+2. **Given** the plan command prompt is updated with issue context, **When** a developer runs `sl plan` in a spec with open issues, **Then** the prompt displays relevant open issues and their status
+3. **Given** implement and plan skills are updated, **When** a developer uses these commands, **Then** they receive guidance on managing issues as part of their workflow without requiring external tools
+
+---
+
+### User Story 8 - Remove Beads and Perles Dependencies (Priority: P1)
+
+As a SpecLedger maintainer, I want to remove all dependencies on Beads and Perles from the sl init bootstrap, prerequisite checks, and initialization logic so that SpecLedger operates as a standalone tool without external daemon dependencies.
+
+**Why this priority**: Removing Beads and Perles dependencies is critical to achieving the core goal of eliminating slow daemon processes and external tool coupling. This is a prerequisite for the new issue tracking system to be the primary solution.
+
+**Independent Test**: Can be tested by verifying that `sl init` completes successfully without requiring Beads or Perles to be installed, that prerequisite checks no longer reference these tools, and that all initialization logic uses only built-in functionality.
+
+**Acceptance Scenarios**:
+
+1. **Given** a fresh SpecLedger installation, **When** I run `sl init` in a new repository, **Then** the initialization completes successfully without checking for or requiring Beads or Perles installation
+2. **Given** the sl CLI is running, **When** I check prerequisite validation, **Then** no checks reference Beads daemon status or Perles availability
+3. **Given** existing bootstrap scripts reference Beads or Perles, **When** I review the codebase, **Then** all references are removed and replaced with native sl CLI functionality
+4. **Given** a developer runs any sl command, **When** the command executes, **Then** no background Beads daemon is spawned or required for operation
 
 ---
 
@@ -127,15 +160,15 @@ As a developer, I want the system to check definition of done criteria before al
 - How are duplicate issues detected across different specs? Since issue IDs are globally unique and deterministic, identical issues in different specs will have the same ID. `sl issue create` checks for semantically similar issues using title/description hashing and warns user; `sl issue list --all --check-duplicates` can identify all potential duplicates for manual review.
 - What happens if an issue in one spec conflicts with an issue in another spec? Since each spec has its own isolated issues.jsonl file and IDs are deterministically generated, there are no automatic conflicts between specs. Cross-spec issue conflicts must be manually resolved by the developer (e.g., merging duplicate issues, updating dependencies). The `sl issue list --all --check-duplicates` command helps identify such cases.
 - What if two issues have identical (spec_context + title + created_at)? This is extremely unlikely due to timestamp precision (nanoseconds), but if it occurs, the system treats them as the same issue. Users should ensure unique titles or timestamps to avoid this edge case.
-- What if definition-of-done.md doesn't exist? The system skips definition of done checks and allows issue closure without warnings.
-- What if definition-of-done.md is malformed? The system logs a warning and skips checks, allowing issue closure.
+- What if an issue doesn't have a definition_of_done field? The system skips definition of done checks and allows issue closure without warnings.
+- What if definition_of_done field is malformed? The system logs a warning and skips checks, allowing issue closure.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: System MUST store issues in JSONL format at `specledger/<spec-dir>/.sl/issues.jsonl` (per-spec storage)
-- **FR-002**: System MUST support creating issues with fields: id, title, description, status, priority, issue_type, created_at, updated_at, spec_context
+- **FR-001**: System MUST store issues in JSONL format at `specledger/<spec-dir>/issues.jsonl` (per-spec storage)
+- **FR-002**: System MUST support creating issues with fields: id, title, description, status, priority, issue_type, created_at, updated_at, spec_context, and optional definition_of_done
 - **FR-003**: System MUST generate globally unique issue IDs using SHA-256 hash of (spec_context + title + created_at), formatted as `SL-<6-char-hex>` (first 6 characters of hex digest)
 - **FR-004**: System MUST support issue types: epic, feature, task, bug
 - **FR-005**: System MUST support issue statuses: open, in_progress, closed
@@ -157,14 +190,20 @@ As a developer, I want the system to check definition of done criteria before al
 - **FR-021**: System MUST support `--spec <spec-name>` flag on `sl issue list` to filter issues from a specific spec directory
 - **FR-022**: System MUST provide `sl issue list --all --check-duplicates` command to identify semantically similar issues across specs using title and description hashing
 - **FR-023**: System MUST check for semantically similar issues when creating new issues and warn user; user can override with --force flag
-- **FR-024**: System MUST read `.specledger/definition-of-done.md` file and verify all criteria before allowing issue closure; user can override with --force flag
-- **FR-025**: System MUST support definition-of-done.md format with checklist items that can be verified programmatically or manually
+- **FR-024**: System MUST read optional `definition_of_done` field from issue JSONL record and verify all criteria before allowing issue closure; user can override with --force flag
+- **FR-025**: System MUST support definition_of_done field format with checklist items that can be verified programmatically or manually
+- **FR-026**: Implement skills and command prompt MUST check definition_of_done field before closing issues and prevent closure if criteria are not met
+- **FR-027**: Implement skill MUST be updated to include issue tracking awareness and enforce definition_of_done checks during issue closure
+- **FR-028**: Plan command prompt MUST be updated to display relevant open issues and their status for the current spec context
+- **FR-029**: `sl init` bootstrap MUST NOT check for or require Beads or Perles installation
+- **FR-030**: All prerequisite validation checks MUST be updated to remove references to Beads daemon status and Perles availability
+- **FR-031**: All initialization logic MUST use only native sl CLI functionality without spawning or requiring external Beads daemon processes
 
 ### Key Entities
 
-- **Issue**: Core tracking unit with globally unique SHA-based ID, title, description, type (epic/feature/task/bug), status (open/in_progress/closed), priority (0-5, where 0=highest), spec_context, timestamps, and optional dependencies
-- **IssueStore**: JSONL file at `specledger/<spec>/.sl/issues.jsonl` containing all issues for that spec
-- **DefinitionOfDone**: Markdown file at `.specledger/definition-of-done.md` containing checklist criteria for issue closure
+- **Issue**: Core tracking unit with globally unique SHA-based ID, title, description, type (epic/feature/task/bug), status (open/in_progress/closed), priority (0-5, where 0=highest), spec_context, timestamps, optional definition_of_done field, and optional dependencies
+- **IssueStore**: JSONL file at `specledger/<spec>/issues.jsonl` containing all issues for that spec
+- **DefinitionOfDone**: Optional field within issue JSONL record containing checklist criteria for issue closure
 - **Dependency**: Relationship between issues with type (blocks/blocked_by/parent-child) and direction
 
 ## Success Criteria *(mandatory)*
@@ -180,6 +219,9 @@ As a developer, I want the system to check definition of done criteria before al
 - **SC-007**: Issue IDs are deterministically generated with < 0.01% collision probability for up to 100,000 issues
 - **SC-008**: Duplicate detection catches > 90% of semantically similar issues (title/description similarity)
 - **SC-009**: Definition of done checks prevent closure of issues that don't meet criteria (100% enforcement with --force override)
+- **SC-010**: Implement and plan commands are aware of issue tracking and guide developers through issue management workflows
+- **SC-011**: `sl init` completes successfully without Beads or Perles dependencies, reducing setup time by eliminating daemon startup
+- **SC-012**: All prerequisite checks pass on systems without Beads or Perles installed, confirming standalone operation
 
 ### Previous work
 
@@ -194,6 +236,7 @@ As a developer, I want the system to check definition of done criteria before al
 - Git for branch detection (existing)
 - SHA-256 hashing (standard library)
 - String similarity algorithm for duplicate detection (e.g., Levenshtein distance or Jaro-Winkler)
+- Implement and plan skill system (existing)
 
 ### Assumptions
 
@@ -204,8 +247,12 @@ As a developer, I want the system to check definition of done criteria before al
 - SHA-256 based IDs provide better collision resistance and determinism than sequential counters
 - Timestamp precision (nanoseconds) is sufficient to prevent ID collisions for issues with identical spec_context and title
 - 6-character hex IDs (16.7 million possible values) provide acceptable collision resistance for typical issue volumes
-- Definition of done is optional; if not present, no checks are performed
-- Users will maintain definition-of-done.md in a consistent format for reliable parsing
+- Definition of done is optional; if not present in an issue record, no checks are performed
+- Users will maintain definition_of_done field in a consistent format for reliable parsing
+- Implement skills and command prompt will integrate definition_of_done checks before allowing issue closure
+- Implement and plan skills can be updated to include issue tracking awareness without breaking existing functionality
+- Beads and Perles are no longer required for SpecLedger operation after this feature is implemented
+- Existing codebases using Beads can migrate to the new issue tracking system via `sl issue migrate`
 
 ### Out of Scope
 
@@ -215,3 +262,4 @@ As a developer, I want the system to check definition of done criteria before al
 - Integration with external issue trackers (Jira, Linear, GitHub Issues)
 - Web UI for issue management
 - Automatic definition of done criteria generation (must be manually created by team)
+- Maintaining Beads/Perles compatibility beyond migration support
