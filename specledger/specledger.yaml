@@ -2,13 +2,13 @@ version: 1.0.0
 project:
     name: specledger
     short_code: sl
-    created: 2026-02-19T16:17:33.168548+07:00
-    modified: 2026-02-19T16:17:33.168549+07:00
+    created: 2026-02-19T16:21:23.101843+07:00
+    modified: 2026-02-19T16:21:23.101844+07:00
     version: 0.1.0
 playbook:
     name: specledger
     version: 1.0.0
-    applied_at: 2026-02-19T16:17:33.168548+07:00
+    applied_at: 2026-02-19T16:21:23.101843+07:00
     structure:
         - .claude/
         - .gitattributes
@@ -17,5 +17,5 @@ playbook:
         - .specledger/
 task_tracker:
     choice: builtin
-    enabled_at: 2026-02-19T16:17:33.168548+07:00
+    enabled_at: 2026-02-19T16:21:23.101843+07:00
 artifact_path: specledger/
