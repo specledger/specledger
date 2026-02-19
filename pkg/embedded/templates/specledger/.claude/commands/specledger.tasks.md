@@ -1,6 +1,6 @@
 ---
 description: Generate an actionable, dependency-ordered tasks.md for the feature based on available design artifacts.
-handoffs: 
+handoffs:
   - label: Analyze For Consistency
     agent: specledger.analyze
     prompt: Run a project analysis for consistency
@@ -21,7 +21,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Purpose
 
-Generate actionable, dependency-ordered tasks from the implementation plan. Tasks are created in Beads format for tracking through implementation.
+Generate actionable, dependency-ordered tasks from the implementation plan. Tasks are created using the built-in issue tracking system for tracking through implementation.
 
 **When to use**: After `/specledger.plan` completes successfully.
 
@@ -34,23 +34,22 @@ Generate actionable, dependency-ordered tasks from the implementation plan. Task
    - **Optional**: data-model.md (entities), contracts/ (API endpoints), research.md (decisions), quickstart.md (test scenarios)
    - Note: Not all projects have all documents. Generate tasks based on what's available.
 
-3. *** Epic Creation**: From spec.md, create an epic using bd (beads) issue tracking for the feature using the feature name from plan.md.
-   - Use the Beads CLI `bd create` to create one top-level issue of type `epic`
+3. *** Epic Creation**: From spec.md, create an epic using `sl issue` for the feature using the feature name from plan.md.
+   - Use the CLI `sl issue create` to create one top-level issue of type `epic`
    - Title: pulled from plan.md or feature folder name
    - Description: summarize from plan.md + top of spec.md
    - Labels:
-
      - `spec:<feature-slug>` from feature folder name (e.g. `spec:006-authz-authn-rbac`)
      - `component:<primary-components>` from plan.md (e.g. `component:webapp`)
-   - Let Beads auto-generate the ID (`id` parameter omitted)
+   - The system auto-generates the ID in format `SL-xxxxxx`
 
-4. **Execute task generation workflow using Beads Tools** (follow the template structure):
+4. **Execute task generation workflow** (follow the template structure):
    - Load plan.md and extract tech stack, libraries, project structure
    - **Load spec.md and extract user stories with their priorities (P1, P2, P3, etc.)**
    - If data-model.md exists: Extract entities → map to user stories
    - If contracts/ exists: Each file → map endpoints to user stories
    - If research.md exists: Extract decisions → generate setup tasks
-   - **Generate tasks ORGANIZED BY USER STORY using beads tools**:
+   - **Generate tasks ORGANIZED BY USER STORY**:
      - Setup tasks (shared infrastructure needed by all stories)
      - **Foundational tasks (prerequisites that must complete before ANY user story can start)**
      - For each user story (in priority order P1, P2, P3...):
@@ -69,19 +68,19 @@ Generate actionable, dependency-ordered tasks from the implementation plan. Task
    - Create parallel execution examples per user story
    - Validate task completeness (each user story has all needed tasks, independently testable)
 
-5. **Generate tasks.md**: Use `.specledger.specledger/templates/tasks-template.md` as structure, fill with:
+5. **Generate tasks.md**: Use `.specledger/templates/tasks-template.md` as structure, fill with:
    - Correct feature name from plan.md
-   - Correct Beads Epic ID and Labels
+   - Correct Epic ID and Labels
    - Correct User stories source, research input reference, planning details, data model and contracts paths (if available)
    This file does **not** list every task.
-   - tasks.md acts as an index for querying Beads
-   - For each phase and task described below also create corresponding use beads as shown in Phase 1 example
-   - Phase 1: Setup tasks (project initialization) create a `feature`-type issue using the CLI `bd create` command.
-      - Set `--parent <epic-id>` from the epic created above
+   - tasks.md acts as an index for querying issues
+   - For each phase and task described below also create corresponding issues:
+   - Phase 1: Setup tasks (project initialization) create a `feature`-type issue:
+      - Use `sl issue create --type feature`
       - Labels:
          - `phase:<phase-name>` (e.g. `phase:setup`, `phase:us1`, `phase:foundational`)
          - All carry the `spec:<feature-slug>` label
-      - For each task, use `bd create` with `--type task` and `--parent <feature-id>`
+      - For each task, create with `--type task`
       - Tasks must include:
          - `title` (short summary)
          - `description` Problem statement (WHY this matters) - immutable (what to implement, where, inputs/outputs)
@@ -102,21 +101,21 @@ Generate actionable, dependency-ordered tasks from the implementation plan. Task
    - Structure:
      - Top-level Epic ID + description
      - List of features (setup, foundational, stories)
-     - Beads commands to filter each group:
+     - Commands to filter each group:
        ```bash
-       bd list --label "spec:<slug>" -n 10
-       bd ready --label "spec:<slug>" -n 5
+       sl issue list --label "spec:<slug>"
+       sl issue list --status open
        ```
      - MVP and incremental delivery summary
      - Links back to spec.md and plan.md
    - Final Phase: Polish & cross-cutting concerns
-   - Review Beads priorities for execution order
-   - Review Beads ensuring clear file paths for each task
-   - Review Beads task dependencies
+   - Review priorities for execution order
+   - Review ensuring clear file paths for each task
+   - Review task dependencies
    - Implementation strategy section (MVP first, incremental delivery)
    - Suggested MVP scope (typically just User Story 1)
 
-6. **Report**: Beads tracks task execution and provides a summary:
+6. **Report**: Provide a summary:
    - Total tasks created
    - Breakdown per user story
    - Story testability (is each story independently verifiable?)
@@ -135,23 +134,23 @@ The tasks.md should be immediately executable - each task must be specific enoug
 **CRITICAL**: Tasks MUST be organized by user story to enable independent implementation and testing.
 
 1. **From User Stories (spec.md)** - PRIMARY ORGANIZATION:
-   - Each user story (P1, P2, P3...) gets its own phase (beads feature)
+   - Each user story (P1, P2, P3...) gets its own phase (feature issue)
    - Map all related components to their story:
      - Models needed for that story
      - Services needed for that story
      - Endpoints/UI needed for that story
      - If tests requested: Tests specific to that story
    - Mark story dependencies (most stories should be independent)
-   
+
 2. **From Contracts**:
    - Map each contract/endpoint → to the user story it serves
    - If tests requested: Each contract → contract test task [P] before implementation in that story's phase
-   
+
 3. **From Data Model**:
    - Map each entity → to the user story(ies) that need it
    - If entity serves multiple stories: Put in earliest story or Setup phase
    - Relationships → service layer tasks in appropriate story phase
-   
+
 4. **From Setup/Infrastructure**:
    - Shared infrastructure → Setup phase (Phase 1)
    - Foundational/blocking tasks → Foundational phase (Phase 2)
@@ -165,7 +164,7 @@ The tasks.md should be immediately executable - each task must be specific enoug
    - Phase 3+: User Stories in priority order (P1, P2, P3...)
      - Within each story: Tests (if requested) → Models → Services → Endpoints → Integration
    - Final Phase: Polish & Cross-Cutting Concerns
-   - **DO NOT generate a linear checklist** — use Beads CLI to build a **task graph**
+   - **DO NOT generate a linear checklist** — build a **task graph** using dependencies
    - Each user story phase should be a complete, independently testable increment
 
 ## Label Conventions
@@ -179,47 +178,42 @@ The tasks.md should be immediately executable - each task must be specific enoug
 | `component:<area>`   | Mapping to plan-defined modules     |
 | `test:<type>`        | Test-related tasks                  |
 
-## Example Beads CLI Calls
+## Example CLI Calls
 
 ### Epic
 
 ```bash
-bd create "Login Feature" --description "..." --type "epic" --labels "spec:006-login-auth,component:webapp" --priority 1
+sl issue create "Login Feature" --description "..." --type epic --labels "spec:006-login-auth,component:webapp" --priority 1
 ```
 
-### Feature
+### Feature (Phase)
 
 ```bash
-bd create "Setup Phase" --description "..." --type "feature" --deps "parent-child:sl-epic-id" --labels "spec:006-login-auth,phase:setup,component:infra" --priority 1
+sl issue create "Setup Phase" --description "..." --type feature --labels "spec:006-login-auth,phase:setup,component:infra" --priority 1
 ```
-
-**Use --design flag for:**
-- Implementation approach decisions
-- Architecture notes
-- Trade-offs considered
-
-**Use --acceptance flag for:**
-- Definition of done
-- Testing requirements
-- Success metrics
-
 
 ### Task
 
 ```bash
-bd create "Add React LoginForm" --description "..." --type "task" --deps "parent-child:sl-feature-id" --labels "spec:006-login-auth,story:US1,component:webapp" --priority 2
+sl issue create "Add React LoginForm" --description "..." --type task --labels "spec:006-login-auth,story:US1,component:webapp" --priority 2
 ```
 
-**Use --design flag for:**
+### Add Dependencies
+
+```bash
+sl issue link SL-xxxxx blocks SL-yyyyy
+```
+
+**Use description for:**
+- Problem statement (WHY this matters)
+- What to implement, where, inputs/outputs
+
+**Use design field for:**
 - Implementation approach decisions
 - HOW to build
 - WHERE to build (which files, which modules to depend on)
 
-**Use --acceptance flag for:**
+**Use acceptance criteria for:**
 - Definition of done
-- Acceptance: WHAT success looks like (stays stable)
+- WHAT success looks like (stays stable)
 - Testing mechanism
-
-**Use --notes flag for:**
-- Additional context
-- References to research or design docs
