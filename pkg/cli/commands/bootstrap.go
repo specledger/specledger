@@ -151,16 +151,48 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 		return err
 	}
 
+	// Write populated constitution with selected principles
+	constitutionPath := filepath.Join(projectPath, ".specledger", "memory", "constitution.md")
+	agentPref := answers["agent_preference"]
+	if agentPref == "" {
+		agentPref = "None"
+	}
+
+	// Parse selected principles from TUI
+	selectedPrinciples := DefaultPrinciples()
+	if principleNames, ok := answers["constitution_principles"]; ok && principleNames != "" {
+		selected := make(map[string]bool)
+		for _, name := range strings.Split(principleNames, ",") {
+			selected[name] = true
+		}
+		for i := range selectedPrinciples {
+			selectedPrinciples[i].Selected = selected[selectedPrinciples[i].Name]
+		}
+	}
+
+	if err := WriteDefaultConstitution(constitutionPath, selectedPrinciples, agentPref); err != nil {
+		ui.PrintWarning(fmt.Sprintf("Failed to write constitution: %v", err))
+	} else {
+		fmt.Printf("%s Constitution created\n", ui.Checkmark())
+	}
+
 	// Success message
 	ui.PrintHeader("Project Created Successfully", "", 60)
 	fmt.Printf("  Path:        %s\n", ui.Bold(projectPath))
 	fmt.Printf("  Short Code:  %s\n", ui.Bold(shortCode))
 	fmt.Println()
-	fmt.Println(ui.Bold("Next steps:"))
-	fmt.Printf("  %s    %s\n", ui.Cyan("cd"), projectPath)
-	fmt.Printf("  %s  %s\n", ui.Cyan("sl doctor"), ui.Dim("# Check tool installation status"))
-	fmt.Printf("  %s       %s\n", ui.Cyan("sl issue"), ui.Dim("# Issue tracking"))
-	fmt.Println()
+
+	// Launch agent if selected and in interactive mode
+	if shouldLaunchAgent() && !ciFlag {
+		if err := launchAgent(projectPath, agentPref); err != nil {
+			ui.PrintWarning(fmt.Sprintf("Agent launch issue: %v", err))
+		}
+	} else if agentPref != "None" && agentPref != "" {
+		fmt.Println(ui.Bold("Next steps:"))
+		fmt.Printf("  %s    %s\n", ui.Cyan("cd"), projectPath)
+		fmt.Printf("  %s %s\n", ui.Cyan(agentPref), ui.Dim("# Launch your coding agent"))
+		fmt.Println()
+	}
 
 	return nil
 }
@@ -214,6 +246,12 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 		return err
 	}
 
+	// Write default constitution in CI mode (all principles selected, no agent)
+	constitutionPath := filepath.Join(projectPath, ".specledger", "memory", "constitution.md")
+	if err := WriteDefaultConstitution(constitutionPath, DefaultPrinciples(), "None"); err != nil {
+		ui.PrintWarning(fmt.Sprintf("Failed to write constitution: %v", err))
+	}
+
 	// Success message
 	ui.PrintHeader("Project Created Successfully", "", 60)
 	fmt.Printf("  Path:       %s\n", ui.Bold(projectPath))
@@ -241,22 +279,69 @@ func runInit(l *logger.Logger) error {
 	// Check if already initialized
 	if !initForceFlag {
 		if _, err := os.Stat(filepath.Join(projectPath, "specledger", "specledger.yaml")); err == nil {
-			return fmt.Errorf("already initialized (github.com/specledger/specledger/specledger.yaml exists). Use --force to re-initialize")
+			fmt.Println("SpecLedger is already initialized in this directory.")
+			fmt.Println(ui.Dim("  Use --force to re-initialize."))
+			return nil
 		}
 	}
 
-	// Determine short code
+	// Check for existing populated constitution
+	constitutionPath := filepath.Join(projectPath, ".specledger", "memory", "constitution.md")
+	hasConstitution := IsConstitutionPopulated(constitutionPath)
+
+	// Read existing agent preference if constitution exists
+	var existingAgentPref string
+	if hasConstitution {
+		existingAgentPref, _ = ReadAgentPreference(constitutionPath)
+	}
+
+	// Determine what config is missing
 	shortCode := initShortCodeFlag
+	playbookName := initPlaybookFlag
+	agentPref := existingAgentPref
+
+	// Check if interactive mode
+	modeDetector := tui.NewModeDetector()
+	isInteractive := modeDetector.IsInteractive() && !ciFlag
+
+	if isInteractive {
+		// Build missing config
+		missingConfig := tui.MissingConfig{
+			NeedsShortCode:       shortCode == "",
+			NeedsPlaybook:        playbookName == "",
+			NeedsAgentPreference: existingAgentPref == "",
+			ExistingAgentPref:    existingAgentPref,
+		}
+
+		// Only show TUI if there's something to ask
+		if missingConfig.NeedsShortCode || missingConfig.NeedsPlaybook || missingConfig.NeedsAgentPreference {
+			initProgram := tui.NewInitProgram(missingConfig, projectName)
+			answers, err := initProgram.Run()
+			if err != nil {
+				return fmt.Errorf("TUI exited with error: %w", err)
+			}
+
+			// Apply TUI answers
+			if v, ok := answers["short_code"]; ok && v != "" {
+				shortCode = v
+			}
+			if v, ok := answers["playbook"]; ok && v != "" {
+				playbookName = v
+			}
+			if v, ok := answers["agent_preference"]; ok && v != "" {
+				agentPref = v
+			}
+		}
+	}
+
+	// Default short code if still empty
 	if shortCode == "" {
-		// Try to derive from project name
 		if len(projectName) >= 2 {
 			shortCode = strings.ToLower(projectName[:2])
 		} else {
 			shortCode = "sl"
 		}
 	}
-
-	// Limit short code to 4 characters
 	if len(shortCode) > 4 {
 		shortCode = shortCode[:4]
 	}
@@ -265,14 +350,18 @@ func runInit(l *logger.Logger) error {
 	fmt.Printf("  Directory:  %s\n", ui.Bold(projectPath))
 	fmt.Printf("  Project:    %s\n", ui.Bold(projectName))
 	fmt.Printf("  Short Code: %s\n", ui.Bold(shortCode))
-	if initPlaybookFlag != "" {
-		fmt.Printf("  Playbook:   %s\n", ui.Bold(initPlaybookFlag))
+	if playbookName != "" {
+		fmt.Printf("  Playbook:   %s\n", ui.Bold(playbookName))
+	}
+	if hasConstitution {
+		fmt.Printf("  Constitution: %s\n", ui.Bold("exists (preserved)"))
+	} else {
+		fmt.Printf("  Constitution: %s\n", ui.Dim("not found (will be created by AI agent)"))
 	}
 	fmt.Println()
 
 	// Setup SpecLedger project (playbooks, skills, metadata, no git)
-	// Note: initGit=false because we're in an existing repo
-	_, _, _, err = setupSpecLedgerProject(projectPath, projectName, shortCode, initPlaybookFlag, false, initForceFlag)
+	_, _, _, err = setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName, false, initForceFlag)
 	if err != nil {
 		return err
 	}
@@ -282,7 +371,6 @@ func runInit(l *logger.Logger) error {
 	if err == nil {
 		detectedPath := detectArtifactPath(projectPath)
 		if detectedPath != "specledger/" && detectedPath != projectMetadata.ArtifactPath {
-			// Update metadata with detected artifact path
 			projectMetadata.ArtifactPath = detectedPath
 			if err := metadata.SaveToProject(projectMetadata, projectPath); err == nil {
 				fmt.Printf("  Artifact Path: %s (detected)\n", ui.Bold(detectedPath))
@@ -301,6 +389,15 @@ func runInit(l *logger.Logger) error {
 	fmt.Printf("  %s             %s\n", ui.Cyan("sl deps list"), ui.Dim("# List dependencies"))
 	fmt.Printf("  %s <repo-url> %s\n", ui.Cyan("sl deps add"), ui.Dim("# Add a dependency"))
 	fmt.Println()
+
+	// Launch agent if selected and in interactive mode
+	if isInteractive && shouldLaunchAgent() {
+		if err := launchAgent(projectPath, agentPref); err != nil {
+			ui.PrintWarning(fmt.Sprintf("Agent launch issue: %v", err))
+		}
+	} else {
+		ui.PrintSuccess("SpecLedger is ready to use!")
+	}
 
 	return nil
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/specledger/specledger/pkg/cli/launcher"
 )
 
 // Colors and styles
@@ -27,9 +28,31 @@ const (
 	stepDirectory
 	stepShortCode
 	stepPlaybook
+	stepConstitution
+	stepAgentPreference
 	stepConfirm
 	stepComplete
 )
+
+const totalSteps = 7
+
+// ConstitutionPrinciple represents a toggleable principle in the TUI.
+type ConstitutionPrinciple struct {
+	Name        string
+	Description string
+	Selected    bool
+}
+
+// DefaultPrinciples returns the default set of constitution principles.
+func DefaultPrinciples() []ConstitutionPrinciple {
+	return []ConstitutionPrinciple{
+		{Name: "Specification-First", Description: "Every feature starts with a spec before code", Selected: true},
+		{Name: "Test-First", Description: "Tests written before implementation; TDD enforced", Selected: true},
+		{Name: "Code Quality", Description: "Consistent formatting, linting, and review standards", Selected: true},
+		{Name: "Simplicity", Description: "Start simple; avoid premature abstraction (YAGNI)", Selected: true},
+		{Name: "Observability", Description: "Structured logging and metrics for debuggability", Selected: true},
+	}
+}
 
 // TUI model for sl new command
 type Model struct {
@@ -41,6 +64,14 @@ type Model struct {
 	selectedIdx  int
 	quitting     bool
 	defaultDir   string
+
+	// Constitution principles (step 5)
+	principles    []ConstitutionPrinciple
+	principleCursor int
+
+	// Agent preference (step 6)
+	agentOptions    []launcher.AgentOption
+	selectedAgentIdx int
 }
 
 // InitialModel creates initial model with default directory
@@ -52,12 +83,16 @@ func InitialModel(defaultDir string) Model {
 	ti.Width = 50
 
 	return Model{
-		step:        stepProjectName,
-		textInput:   ti,
-		answers:     make(map[string]string),
-		width:       80,
-		selectedIdx: 0,
-		defaultDir:  defaultDir,
+		step:             stepProjectName,
+		textInput:        ti,
+		answers:          make(map[string]string),
+		width:            80,
+		selectedIdx:      0,
+		defaultDir:       defaultDir,
+		principles:       DefaultPrinciples(),
+		principleCursor:  0,
+		agentOptions:     launcher.DefaultAgents,
+		selectedAgentIdx: 0,
 	}
 }
 
@@ -72,8 +107,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
-		// Handle up/down for playbook selection
-		if m.step == stepPlaybook {
+		// Handle up/down for list selection steps
+		switch m.step {
+		case stepPlaybook:
 			switch msg.String() {
 			case "up", "k":
 				if m.selectedIdx > 0 {
@@ -84,6 +120,38 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				playbooks := getAvailablePlaybooks()
 				if m.selectedIdx < len(playbooks)-1 {
 					m.selectedIdx++
+				}
+				return m, nil
+			}
+
+		case stepConstitution:
+			switch msg.String() {
+			case "up", "k":
+				if m.principleCursor > 0 {
+					m.principleCursor--
+				}
+				return m, nil
+			case "down", "j":
+				if m.principleCursor < len(m.principles)-1 {
+					m.principleCursor++
+				}
+				return m, nil
+			case " ":
+				// Toggle selection
+				m.principles[m.principleCursor].Selected = !m.principles[m.principleCursor].Selected
+				return m, nil
+			}
+
+		case stepAgentPreference:
+			switch msg.String() {
+			case "up", "k":
+				if m.selectedAgentIdx > 0 {
+					m.selectedAgentIdx--
+				}
+				return m, nil
+			case "down", "j":
+				if m.selectedAgentIdx < len(m.agentOptions)-1 {
+					m.selectedAgentIdx++
 				}
 				return m, nil
 			}
@@ -169,6 +237,33 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		if m.selectedIdx >= 0 && m.selectedIdx < len(playbooks) {
 			m.answers["playbook"] = playbooks[m.selectedIdx]
 		}
+		m.step = stepConstitution
+		m.principleCursor = 0
+		return m, nil
+
+	case stepConstitution:
+		// Validate at least one principle is selected
+		hasSelected := false
+		var selectedNames []string
+		for _, p := range m.principles {
+			if p.Selected {
+				hasSelected = true
+				selectedNames = append(selectedNames, p.Name)
+			}
+		}
+		if !hasSelected {
+			m.showingError = "Select at least one guiding principle"
+			return m, nil
+		}
+		m.answers["constitution_principles"] = strings.Join(selectedNames, ",")
+		m.step = stepAgentPreference
+		m.selectedAgentIdx = 0
+		return m, nil
+
+	case stepAgentPreference:
+		if m.selectedAgentIdx >= 0 && m.selectedAgentIdx < len(m.agentOptions) {
+			m.answers["agent_preference"] = m.agentOptions[m.selectedAgentIdx].Name
+		}
 		m.step = stepConfirm
 		return m, nil
 
@@ -195,7 +290,7 @@ func (m Model) View() string {
 	s.WriteString("\n\n")
 
 	// Step indicator
-	s.WriteString(colorSubtle.Render(fmt.Sprintf("Step %d of 5", m.step+1)))
+	s.WriteString(colorSubtle.Render(fmt.Sprintf("Step %d of %d", m.step+1, totalSteps)))
 	s.WriteString("\n\n")
 
 	// Step content
@@ -208,6 +303,10 @@ func (m Model) View() string {
 		s.WriteString(m.viewShortCode())
 	case stepPlaybook:
 		s.WriteString(m.viewPlaybook())
+	case stepConstitution:
+		s.WriteString(m.viewConstitution())
+	case stepAgentPreference:
+		s.WriteString(m.viewAgentPreference())
 	case stepConfirm:
 		s.WriteString(m.viewConfirm())
 	}
@@ -220,9 +319,12 @@ func (m Model) View() string {
 
 	// Help text
 	s.WriteString("\n\n")
-	if m.step == stepPlaybook {
+	switch m.step {
+	case stepConstitution:
+		s.WriteString(colorSubtle.Render("↑/↓: Navigate • Space: Toggle • Enter: Confirm • Ctrl+C: Cancel"))
+	case stepPlaybook, stepAgentPreference:
 		s.WriteString(colorSubtle.Render("↑/↓: Select • Enter: Confirm • Ctrl+C: Cancel"))
-	} else {
+	default:
 		s.WriteString(colorSubtle.Render("Enter: Continue • Ctrl+C: Cancel"))
 	}
 	s.WriteString("\n")
@@ -295,6 +397,67 @@ func (m Model) viewPlaybook() string {
 	return s.String()
 }
 
+func (m Model) viewConstitution() string {
+	var s strings.Builder
+	s.WriteString(colorPrimary.Render("Project Constitution"))
+	s.WriteString("\n")
+	s.WriteString(colorSubtle.Render("Select guiding principles for your project (toggle with Space)"))
+	s.WriteString("\n\n")
+
+	for i, p := range m.principles {
+		cursor := " "
+		style := unselectedStyle
+
+		if i == m.principleCursor {
+			cursor = "›"
+			style = selectedStyle
+		}
+
+		checkbox := "[ ]"
+		if p.Selected {
+			checkbox = "[x]"
+		}
+
+		s.WriteString(fmt.Sprintf("%s %s %s\n", cursor, checkbox, style.Render(p.Name)))
+
+		if i == m.principleCursor {
+			s.WriteString(colorSubtle.Render("    " + p.Description))
+			s.WriteString("\n")
+		}
+	}
+
+	return s.String()
+}
+
+func (m Model) viewAgentPreference() string {
+	var s strings.Builder
+	s.WriteString(colorPrimary.Render("AI Coding Agent"))
+	s.WriteString("\n")
+	s.WriteString(colorSubtle.Render("Choose an AI agent to launch after project setup"))
+	s.WriteString("\n\n")
+
+	for i, agent := range m.agentOptions {
+		cursor := " "
+		radio := "○"
+		style := unselectedStyle
+
+		if i == m.selectedAgentIdx {
+			cursor = "›"
+			style = selectedStyle
+			radio = "◉"
+		}
+
+		s.WriteString(fmt.Sprintf("%s %s %s\n", cursor, radio, style.Render(agent.Name)))
+
+		if i == m.selectedAgentIdx {
+			s.WriteString(colorSubtle.Render("  " + agent.Description))
+			s.WriteString("\n")
+		}
+	}
+
+	return s.String()
+}
+
 func (m Model) viewConfirm() string {
 	var s strings.Builder
 	s.WriteString(colorPrimary.Render("Confirm Configuration"))
@@ -307,6 +470,15 @@ func (m Model) viewConfirm() string {
 
 	if playbook, ok := m.answers["playbook"]; ok {
 		s.WriteString(colorSuccess.Render("✓ ") + "Playbook: " + playbook + "\n")
+	}
+
+	if principles, ok := m.answers["constitution_principles"]; ok {
+		names := strings.Split(principles, ",")
+		s.WriteString(colorSuccess.Render("✓ ") + fmt.Sprintf("Constitution: %d principles selected\n", len(names)))
+	}
+
+	if agent, ok := m.answers["agent_preference"]; ok {
+		s.WriteString(colorSuccess.Render("✓ ") + "Agent: " + agent + "\n")
 	}
 
 	s.WriteString("\n")

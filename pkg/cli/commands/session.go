@@ -38,6 +38,9 @@ This command is designed to be called by Claude Code hooks, not manually.
 It reads hook JSON from stdin, detects git commits, and captures the
 conversation delta since the last commit.
 
+Test mode (for manual testing):
+  sl session capture --test-mode
+
 Exit codes:
   0 - Success (session captured/queued) or no-op (not a commit)
   1 - Fatal error (logged to stderr)`,
@@ -84,6 +87,9 @@ locally and can be uploaded later with this command.`,
 func init() {
 	VarSessionCmd.AddCommand(VarSessionCaptureCmd, VarSessionListCmd, VarSessionGetCmd, VarSessionSyncCmd)
 
+	// Capture flags
+	VarSessionCaptureCmd.Flags().Bool("test-mode", false, "Run in test mode with simulated hook input")
+
 	// List flags
 	VarSessionListCmd.Flags().String("feature", "", "Feature branch to list sessions for (default: current branch)")
 	VarSessionListCmd.Flags().String("commit", "", "Filter by commit hash")
@@ -99,7 +105,18 @@ func init() {
 }
 
 func runSessionCapture(cmd *cobra.Command, args []string) error {
-	result := session.CaptureFromStdin()
+	testMode, _ := cmd.Flags().GetBool("test-mode")
+
+	var result *session.CaptureResult
+
+	if testMode {
+		// Run in test mode with simulated input
+		fmt.Fprintln(os.Stderr, "Running in test mode...")
+		result = session.CaptureTestMode()
+	} else {
+		// Normal mode: read from stdin
+		result = session.CaptureFromStdin()
+	}
 
 	if result.Error != nil {
 		// Log error but exit 0 to not block commits

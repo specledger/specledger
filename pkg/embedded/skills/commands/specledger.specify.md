@@ -42,9 +42,17 @@ Given that feature description, do this:
      - "Create a dashboard for analytics" → "analytics-dashboard"
      - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
-2. **Check for existing branches before creating new one**:
+2. **Check current branch and existing branches before creating new one**:
 
-   a. Find the highest feature number for the short-name across specs directories: Check for directories matching `specledger/[0-9]+-<short-name>`
+   a. **Check if already on a feature branch**:
+      - Get current branch name: `git rev-parse --abbrev-ref HEAD`
+      - Check if it matches feature branch pattern: `^\d{3}-`
+      - If already on a feature branch:
+        - Ask user to confirm before proceeding: "You are currently on branch `<CURRENT_BRANCH>`. Do you want to create a new feature branch? (y/n)"
+        - If user responds 'n' or 'no': ERROR "Cancelled - already on a feature branch. Please switch to a non-feature branch (e.g., main) before creating a new feature."
+        - If user responds 'y' or 'yes': Proceed with creating new feature branch
+
+   b. Find the highest feature number for the short-name across specs directories: Check for directories matching `specledger/[0-9]+-<short-name>`
 
    b. Determine the next available number:
       - Extract all numbers from specs directory

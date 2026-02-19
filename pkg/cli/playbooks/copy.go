@@ -165,8 +165,24 @@ func matchesPattern(path string, patterns []string) bool {
 	return false // Default: exclude files that don't match any pattern
 }
 
+// IsExecutableFile determines if a file should have execute permissions.
+// Returns true if the file has a .sh extension or starts with a shebang (#!).
+func IsExecutableFile(filename string, content []byte) bool {
+	// Check for .sh extension
+	if strings.HasSuffix(filename, ".sh") {
+		return true
+	}
+
+	// Check for shebang in first line
+	if len(content) > 2 && content[0] == '#' && content[1] == '!' {
+		return true
+	}
+
+	return false
+}
+
 // copyEmbeddedFile copies a single file from embedded FS to dest.
-// Shell scripts (.sh files) are made executable.
+// Sets executable permissions (0755) for scripts, regular permissions (0644) for others.
 func copyEmbeddedFile(src, dest string) error {
 	// Read from embedded filesystem
 	srcFile, err := ReadFile(src)
@@ -175,12 +191,13 @@ func copyEmbeddedFile(src, dest string) error {
 	}
 
 	// Determine permissions based on file type
-	perm := os.FileMode(0644) // Default: readable by all
-	if strings.HasSuffix(dest, ".sh") {
-		perm = 0755 // Shell scripts: executable
+	var perms fs.FileMode
+	if IsExecutableFile(filepath.Base(dest), srcFile) {
+		perms = 0755 // Executable: rwxr-xr-x
+	} else {
+		perms = 0644 // Regular: rw-r--r--
 	}
 
-	// Write to destination
-	// #nosec G306 -- permissions are set based on file type above
-	return os.WriteFile(dest, srcFile, perm)
+	// Write to destination with appropriate permissions
+	return os.WriteFile(dest, srcFile, perms)
 }

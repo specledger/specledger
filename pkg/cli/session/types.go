@@ -3,6 +3,7 @@
 package session
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -53,17 +54,50 @@ type SessionMetadata struct {
 	CreatedAt     time.Time     `json:"created_at"`
 }
 
+// ToolInput represents the tool_input field from Claude Code hooks.
+// For Bash tools, this is {"command": "..."}.
+// We use json.RawMessage to handle both object and string formats.
+type ToolInput struct {
+	Raw json.RawMessage
+}
+
+func (t *ToolInput) UnmarshalJSON(data []byte) error {
+	t.Raw = data
+	return nil
+}
+
+// Command extracts the command string from the tool input.
+// Handles both object format {"command": "..."} and plain string format.
+func (t *ToolInput) Command() string {
+	if len(t.Raw) == 0 {
+		return ""
+	}
+	// Try object format: {"command": "..."}
+	var obj struct {
+		Command string `json:"command"`
+	}
+	if err := json.Unmarshal(t.Raw, &obj); err == nil && obj.Command != "" {
+		return obj.Command
+	}
+	// Try plain string format
+	var s string
+	if err := json.Unmarshal(t.Raw, &s); err == nil {
+		return s
+	}
+	return string(t.Raw)
+}
+
 // HookInput represents the JSON input from Claude Code hooks
 type HookInput struct {
-	SessionID       string `json:"session_id"`
-	TranscriptPath  string `json:"transcript_path"`
-	Cwd             string `json:"cwd"`
-	HookEventName   string `json:"hook_event_name"`
-	ToolName        string `json:"tool_name"`
-	ToolInput       string `json:"tool_input"`        // the command that was run
-	ToolOutput      string `json:"tool_output"`       // output from the tool
-	ToolDurationMs  int64  `json:"tool_duration_ms"`  // how long the tool took
-	ToolSuccess     bool   `json:"tool_success"`      // whether the tool succeeded
+	SessionID      string    `json:"session_id"`
+	TranscriptPath string    `json:"transcript_path"`
+	Cwd            string    `json:"cwd"`
+	HookEventName  string    `json:"hook_event_name"`
+	ToolName       string    `json:"tool_name"`
+	ToolInput      ToolInput `json:"tool_input"`       // the command that was run
+	ToolOutput     string    `json:"tool_output"`      // output from the tool
+	ToolDurationMs int64     `json:"tool_duration_ms"` // how long the tool took
+	ToolSuccess    bool      `json:"tool_success"`     // whether the tool succeeded
 }
 
 // SessionState represents the local tracking state for delta computation
@@ -94,12 +128,12 @@ type QueueEntry struct {
 
 // TranscriptLine represents a single line from the Claude Code transcript JSONL
 type TranscriptLine struct {
-	Type      string           `json:"type"`               // "user", "assistant", "tool_use", etc.
-	Message   *TranscriptMsg   `json:"message,omitempty"`  // nested message object
-	Content   string           `json:"content,omitempty"`  // direct content (fallback)
-	Timestamp time.Time        `json:"timestamp"`          // when recorded
-	UUID      string           `json:"uuid,omitempty"`     // message UUID
-	Role      string           `json:"role,omitempty"`     // alternative to type
+	Type      string         `json:"type"`              // "user", "assistant", "tool_use", etc.
+	Message   *TranscriptMsg `json:"message,omitempty"` // nested message object
+	Content   string         `json:"content,omitempty"` // direct content (fallback)
+	Timestamp time.Time      `json:"timestamp"`         // when recorded
+	UUID      string         `json:"uuid,omitempty"`    // message UUID
+	Role      string         `json:"role,omitempty"`    // alternative to type
 }
 
 // TranscriptMsg represents the nested message in Claude Code transcripts

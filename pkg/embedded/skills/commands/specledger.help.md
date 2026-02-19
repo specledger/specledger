@@ -26,6 +26,12 @@ Quick reference for all available SpecLedger commands, organized by workflow sta
 | `/specledger.clarify` | Identify and resolve spec ambiguities via targeted questions |
 | `/specledger.checklist` | Generate custom validation checklist for the feature |
 
+### Onboarding
+
+| Command | Description |
+|---------|-------------|
+| `/specledger.onboard` | Guided onboarding - walks through the full workflow from constitution to implementation |
+
 ### Setup & Configuration
 
 | Command | Description |

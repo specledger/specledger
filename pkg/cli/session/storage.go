@@ -20,9 +20,9 @@ const (
 
 // StorageClient handles Supabase Storage operations
 type StorageClient struct {
-	baseURL  string
-	anonKey  string
-	client   *http.Client
+	baseURL string
+	anonKey string
+	client  *http.Client
 }
 
 // NewStorageClient creates a new storage client

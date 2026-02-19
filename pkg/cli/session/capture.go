@@ -3,6 +3,7 @@ package session
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -114,7 +115,7 @@ func Capture(input *HookInput) *CaptureResult {
 	result := &CaptureResult{Captured: false}
 
 	// Check if this is a git commit
-	if !IsGitCommit(input.ToolInput) {
+	if !IsGitCommit(input.ToolInput.Command()) {
 		return result // Not a commit, nothing to capture
 	}
 
@@ -291,17 +292,198 @@ func queueSession(result *CaptureResult, compressed []byte, projectID, branch st
 
 // CaptureFromStdin reads hook input from stdin and captures the session
 func CaptureFromStdin() *CaptureResult {
-	// Read stdin
-	data, err := os.ReadFile("/dev/stdin")
+	// Check if stdin is available (not a terminal)
+	stat, err := os.Stdin.Stat()
 	if err != nil {
-		return &CaptureResult{Error: fmt.Errorf("failed to read stdin: %w", err)}
+		return &CaptureResult{Error: fmt.Errorf("failed to stat stdin: %w", err)}
 	}
 
-	// Parse hook input
-	input, err := ParseHookInput(data)
-	if err != nil {
-		return &CaptureResult{Error: err}
+	// Check if stdin is a pipe or has data available
+	if (stat.Mode() & os.ModeCharDevice) != 0 {
+		return &CaptureResult{
+			Error: fmt.Errorf("no input provided: this command reads hook JSON from stdin (use --test-mode for manual testing)"),
+		}
 	}
 
-	return Capture(input)
+	// Read stdin with timeout using a channel
+	type readResult struct {
+		data []byte
+		err  error
+	}
+
+	resultChan := make(chan readResult, 1)
+	go func() {
+		data, err := io.ReadAll(os.Stdin)
+		resultChan <- readResult{data: data, err: err}
+	}()
+
+	// Wait for read or timeout (5 seconds)
+	select {
+	case result := <-resultChan:
+		if result.err != nil {
+			return &CaptureResult{Error: fmt.Errorf("failed to read stdin: %w", result.err)}
+		}
+
+		if len(result.data) == 0 {
+			return &CaptureResult{Error: fmt.Errorf("no data received from stdin")}
+		}
+
+		// Parse hook input
+		input, err := ParseHookInput(result.data)
+		if err != nil {
+			return &CaptureResult{Error: err}
+		}
+
+		return Capture(input)
+
+	case <-time.After(5 * time.Second):
+		return &CaptureResult{Error: fmt.Errorf("timeout waiting for stdin input (waited 5 seconds)")}
+	}
+}
+
+// CaptureTestMode runs a test capture simulation for manual testing
+func CaptureTestMode() *CaptureResult {
+	// Get current working directory
+	cwd, err := os.Getwd()
+	if err != nil {
+		return &CaptureResult{Error: fmt.Errorf("failed to get working directory: %w", err)}
+	}
+
+	// Check if we're in a git repository
+	if _, err := GetCurrentBranch(cwd); err != nil {
+		return &CaptureResult{Error: fmt.Errorf("not in a git repository: %w", err)}
+	}
+
+	// Check if project has a project ID
+	projectID, err := GetProjectID(cwd)
+	if err != nil {
+		return &CaptureResult{Error: fmt.Errorf("project setup incomplete: %w\n\nTo use session capture, ensure specledger.yaml has a project.id field", err)}
+	}
+
+	fmt.Printf("✓ Git repository detected\n")
+	fmt.Printf("✓ Project ID found: %s\n", projectID)
+
+	// Check for authentication
+	creds, err := auth.LoadCredentials()
+	if err != nil || creds == nil {
+		return &CaptureResult{Error: fmt.Errorf("not authenticated. Run: sl auth login")}
+	}
+	fmt.Printf("✓ Authenticated as: %s\n", creds.UserEmail)
+
+	// Check for Claude Code transcript
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return &CaptureResult{Error: fmt.Errorf("failed to get home directory: %w", err)}
+	}
+
+	// Look for Claude Code session directory
+	claudeDir := filepath.Join(homeDir, ".claude", "sessions")
+	settingsPath := filepath.Join(homeDir, ".claude", "settings.json")
+
+	if _, err := os.Stat(claudeDir); os.IsNotExist(err) {
+		return &CaptureResult{
+			Error: fmt.Errorf(`Claude Code sessions directory not found at %s
+
+Session capture requires Claude Code to save transcripts.
+
+To enable:
+1. Add to %s:
+   {
+     "saveTranscripts": true,
+     "transcriptsDirectory": "%s"
+   }
+
+2. Create the directory:
+   mkdir -p %s
+
+3. Restart Claude Code
+
+4. Start a new conversation
+
+5. Run: sl session capture --test-mode
+
+More info: https://docs.claude.ai/session-capture`,
+				claudeDir, settingsPath, claudeDir, claudeDir),
+		}
+	}
+
+	fmt.Printf("✓ Claude Code sessions directory found\n")
+
+	// Find most recent transcript file
+	transcriptPath, sessionID, err := findMostRecentTranscript(claudeDir)
+	if err != nil {
+		return &CaptureResult{Error: fmt.Errorf("failed to find transcript: %w", err)}
+	}
+
+	fmt.Printf("✓ Found transcript: %s\n", transcriptPath)
+	fmt.Printf("✓ Session ID: %s\n", sessionID)
+
+	// Create simulated hook input
+	fmt.Println("\n📝 Simulating git commit hook...")
+	input := &HookInput{
+		SessionID:      sessionID,
+		TranscriptPath: transcriptPath,
+		Cwd:            cwd,
+		HookEventName:  "tool-post",
+		ToolName:       "Bash",
+		ToolInput:      ToolInput{Raw: json.RawMessage(`{"command":"git commit -m \"test\""}`)},
+		ToolSuccess:    true,
+	}
+
+	// Note: This won't actually capture because we need a real commit
+	// Instead, show what would happen
+	fmt.Println("\n⚠️  Test mode simulates the capture flow but won't create a real session.")
+	fmt.Println("To capture a real session, make a git commit while using Claude Code.")
+
+	// Validate the flow up to the commit check
+	if !IsGitCommit(input.ToolInput.Command()) {
+		return &CaptureResult{Error: fmt.Errorf("command validation failed (this is expected in test mode)")}
+	}
+
+	fmt.Println("✅ Session capture system is configured correctly!")
+	fmt.Println("\nNext steps:")
+	fmt.Println("  1. Work on your code with Claude Code")
+	fmt.Println("  2. Make a git commit")
+	fmt.Println("  3. Session will be automatically captured")
+	fmt.Println("\nTo view sessions: sl session list")
+
+	return &CaptureResult{Captured: false}
+}
+
+// findMostRecentTranscript finds the most recent Claude Code transcript
+func findMostRecentTranscript(claudeDir string) (string, string, error) {
+	entries, err := os.ReadDir(claudeDir)
+	if err != nil {
+		return "", "", err
+	}
+
+	var newestTranscript string
+	var newestSessionID string
+	var newestTime time.Time
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+
+		sessionID := entry.Name()
+		transcriptPath := filepath.Join(claudeDir, sessionID, "transcript.jsonl")
+
+		info, err := os.Stat(transcriptPath)
+		if err != nil {
+			continue
+		}
+
+		if newestTranscript == "" || info.ModTime().After(newestTime) {
+			newestTranscript = transcriptPath
+			newestSessionID = sessionID
+			newestTime = info.ModTime()
+		}
+	}
+
+	if newestTranscript == "" {
+		return "", "", fmt.Errorf("no transcript files found in %s", claudeDir)
+	}
+
+	return newestTranscript, newestSessionID, nil
 }

@@ -6,8 +6,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
+	"time"
 
+	"github.com/specledger/specledger/pkg/cli/launcher"
 	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/playbooks"
 	"github.com/specledger/specledger/pkg/cli/ui"
@@ -119,14 +122,15 @@ func applyEmbeddedSkills(projectPath string) error {
 		}
 
 		// Determine permissions based on file type
-		perm := os.FileMode(0644) // Default: readable by all
-		if strings.HasSuffix(destPath, ".sh") {
-			perm = 0755 // Shell scripts: executable
+		var perms fs.FileMode
+		if playbooks.IsExecutableFile(filepath.Base(destPath), data) {
+			perms = 0755 // Executable: rwxr-xr-x
+		} else {
+			perms = 0644 // Regular: rw-r--r--
 		}
 
-		// Write to destination
-		// #nosec G306 -- permissions are set based on file type above
-		if err := os.WriteFile(destPath, data, perm); err != nil {
+		// Write to destination with appropriate permissions
+		if err := os.WriteFile(destPath, data, perms); err != nil {
 			return fmt.Errorf("failed to write file %s: %w", destPath, err)
 		}
 
@@ -168,7 +172,7 @@ func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName st
 	runPostInitScript(projectPath, projectMetadata)
 
 	// Initialize git if requested (bootstrap only)
-	// This runs AFTER post-init so generated files are staged
+	// This runs AFTER post-init so generated files (like .beads/) are staged
 	if initGit {
 		if err := initializeGitRepo(projectPath); err != nil {
 			return "", "", nil, fmt.Errorf("failed to initialize git: %w", err)
@@ -178,8 +182,175 @@ func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName st
 	return selectedPlaybookName, playbookVersion, playbookStructure, nil
 }
 
+// ConstitutionPrinciple represents a selectable guiding principle for the project constitution.
+type ConstitutionPrinciple struct {
+	Name        string
+	Description string
+	Selected    bool
+}
+
+// DefaultPrinciples returns the default set of constitution principles presented during sl new.
+func DefaultPrinciples() []ConstitutionPrinciple {
+	return []ConstitutionPrinciple{
+		{Name: "Specification-First", Description: "Every feature starts with a spec before code", Selected: true},
+		{Name: "Test-First", Description: "Tests written before implementation; TDD enforced", Selected: true},
+		{Name: "Code Quality", Description: "Consistent formatting, linting, and review standards", Selected: true},
+		{Name: "Simplicity", Description: "Start simple; avoid premature abstraction (YAGNI)", Selected: true},
+		{Name: "Observability", Description: "Structured logging and metrics for debuggability", Selected: true},
+	}
+}
+
+// placeholderPattern matches [ALL_CAPS_IDENTIFIER] tokens in the constitution template.
+var placeholderPattern = regexp.MustCompile(`\[[A-Z_]{3,}\]`)
+
+// IsConstitutionPopulated checks if the constitution file exists and is populated
+// (no placeholder tokens remaining). Returns false if the file is missing, empty,
+// or still contains [PLACEHOLDER] style tokens.
+func IsConstitutionPopulated(path string) bool {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	if len(content) == 0 {
+		return false
+	}
+	return !placeholderPattern.Match(content)
+}
+
+// WriteDefaultConstitution writes a populated constitution file with the given principles
+// and agent preference, replacing template placeholders.
+func WriteDefaultConstitution(path string, principles []ConstitutionPrinciple, agentPref string) error {
+	// Ensure parent directory exists
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("failed to create constitution directory: %w", err)
+	}
+
+	// Get project name from path context
+	projectName := filepath.Base(filepath.Dir(filepath.Dir(filepath.Dir(path))))
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("# %s Constitution\n\n", projectName))
+	sb.WriteString("## Core Principles\n\n")
+
+	for i, p := range principles {
+		if !p.Selected {
+			continue
+		}
+		sb.WriteString(fmt.Sprintf("### %s. %s\n", romanNumeral(i+1), p.Name))
+		sb.WriteString(p.Description + "\n\n")
+	}
+
+	sb.WriteString("## Agent Preferences\n\n")
+	sb.WriteString(fmt.Sprintf("- **Preferred Agent**: %s\n\n", agentPref))
+
+	sb.WriteString("## Governance\n\n")
+	sb.WriteString("Constitution supersedes all other practices. Amendments require documentation and team approval.\n\n")
+
+	now := time.Now().Format("2006-01-02")
+	sb.WriteString(fmt.Sprintf("**Version**: 1.0.0 | **Ratified**: %s | **Last Amended**: %s\n", now, now))
+
+	// #nosec G306 -- constitution file needs to be readable, 0644 is appropriate
+	if err := os.WriteFile(path, []byte(sb.String()), 0644); err != nil {
+		return fmt.Errorf("failed to write constitution: %w", err)
+	}
+	return nil
+}
+
+// ReadAgentPreference extracts the preferred agent from a populated constitution file.
+// Returns empty string and nil error if the file exists but has no agent preference.
+func ReadAgentPreference(path string) (string, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+
+	for _, line := range strings.Split(string(content), "\n") {
+		if strings.Contains(line, "**Preferred Agent**:") {
+			// Extract value after the label
+			parts := strings.SplitN(line, "**Preferred Agent**:", 2)
+			if len(parts) == 2 {
+				pref := strings.TrimSpace(parts[1])
+				// Strip any placeholder tokens
+				if placeholderPattern.MatchString(pref) {
+					return "", nil
+				}
+				return pref, nil
+			}
+		}
+	}
+	return "", nil
+}
+
+// romanNumeral converts 1-10 to Roman numerals for principle numbering.
+func romanNumeral(n int) string {
+	numerals := []string{"", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"}
+	if n > 0 && n < len(numerals) {
+		return numerals[n]
+	}
+	return fmt.Sprintf("%d", n)
+}
+
+// launchAgent checks agent availability and launches the selected agent after project setup.
+// This is a non-fatal operation — project setup is still complete even if the agent
+// cannot be launched.
+func launchAgent(projectDir string, agentPref string) error {
+	// No agent selected
+	if agentPref == "" || agentPref == "None" {
+		fmt.Println()
+		ui.PrintSuccess("Project setup complete!")
+		fmt.Println(ui.Dim("  To start an AI coding session later, run your preferred agent in the project directory."))
+		return nil
+	}
+
+	// Find the matching agent option
+	var agent launcher.AgentOption
+	for _, a := range launcher.DefaultAgents {
+		if a.Name == agentPref {
+			agent = a
+			break
+		}
+	}
+	if agent.Command == "" {
+		ui.PrintWarning(fmt.Sprintf("Unknown agent '%s'. Skipping agent launch.", agentPref))
+		return nil
+	}
+
+	al := launcher.NewAgentLauncher(agent, projectDir)
+
+	// Check availability
+	if !al.IsAvailable() {
+		fmt.Println()
+		ui.PrintWarning(fmt.Sprintf("%s is not installed.", agent.Name))
+		fmt.Printf("  %s\n", al.InstallInstructions())
+		fmt.Println(ui.Dim("  Project setup is complete. You can launch the agent manually after installing."))
+		return nil
+	}
+
+	// Launch the agent
+	fmt.Println()
+	ui.PrintSection("Launching " + agent.Name)
+	fmt.Println(ui.Dim("  Type /specledger.onboard to start the guided workflow."))
+	fmt.Println()
+
+	if err := al.Launch(); err != nil {
+		// Agent exit is non-fatal — project is already set up
+		ui.PrintWarning(fmt.Sprintf("Agent exited: %v", err))
+	}
+
+	return nil
+}
+
+// shouldLaunchAgent returns true if agent launch is appropriate in the current environment.
+func shouldLaunchAgent() bool {
+	// Don't launch in CI environments
+	if os.Getenv("CI") == "true" || os.Getenv("CI") == "1" {
+		return false
+	}
+	return true
+}
+
 // runPostInitScript executes the template's init.sh script if it exists.
-// This allows templates to perform post-initialization tasks.
+// This allows templates to perform post-initialization tasks like setting up beads.
 // Passes specledger.yaml data as environment variables for use in scripts.
 // The init.sh script is read from embedded templates (not copied to target project).
 func runPostInitScript(projectPath string, projectMetadata *metadata.ProjectMetadata) {
