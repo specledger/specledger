@@ -7,7 +7,6 @@ playbooks:
     patterns:
       - "**"
     structure:
-      - ".beads/"
       - ".claude/"
       - ".gitattributes"
       - "AGENTS.md"

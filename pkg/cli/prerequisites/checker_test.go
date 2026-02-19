@@ -197,16 +197,6 @@ func TestGetInstallInstructions(t *testing.T) {
 			[]Tool{CoreTools[0]}, // mise
 			[]string{"mise", "https://mise.jdx.dev"},
 		},
-		{
-			"bd missing",
-			[]Tool{CoreTools[1]}, // bd
-			[]string{"beads", "mise install"},
-		},
-		{
-			"multiple tools missing",
-			[]Tool{CoreTools[1], CoreTools[2]}, // bd and perles
-			[]string{"beads", "perles", "mise install"},
-		},
 	}
 
 	for _, tt := range tests {

@@ -140,7 +140,8 @@ func TestDoctorToolDetection(t *testing.T) {
 	}
 
 	// Verify expected core tools are checked
-	expectedCoreTools := []string{"mise", "bd", "perles"}
+	// Note: bd and perles removed as we now use built-in sl issue tracking
+	expectedCoreTools := []string{"mise"}
 	expectedFrameworkTools := []string{"specify", "openspec"}
 
 	// Check that all expected tools are present in output
@@ -182,15 +183,12 @@ func TestDoctorExitCode(t *testing.T) {
 	err := cmd.Run()
 
 	// Check if core tools are installed
+	// Note: Only mise is required as core tool now (bd/perles removed)
 	miseInstalled := toolExists("mise")
-	bdInstalled := toolExists("bd")
-	perlesInstalled := toolExists("perles")
-
-	allCoreInstalled := miseInstalled && bdInstalled && perlesInstalled
 
 	// If all core tools are installed, command should succeed
 	// If any are missing, command should fail
-	if allCoreInstalled {
+	if miseInstalled {
 		if err != nil {
 			t.Errorf("Expected sl doctor to succeed when all core tools are installed, got: %v", err)
 		}
@@ -215,8 +213,9 @@ func TestDoctorInProjectDirectory(t *testing.T) {
 
 	// Skip test if prerequisites are not installed (CI environment)
 	// sl new --ci requires all prerequisites to be installed
-	if !toolExists("mise") || !toolExists("bd") || !toolExists("perles") {
-		t.Skip("Skipping test: prerequisites (mise, bd, perles) not installed")
+	// Note: Only mise is required now (bd/perles removed)
+	if !toolExists("mise") {
+		t.Skip("Skipping test: prerequisite (mise) not installed")
 	}
 
 	// Create a SpecLedger project first

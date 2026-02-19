@@ -66,11 +66,11 @@ type Model struct {
 	defaultDir   string
 
 	// Constitution principles (step 5)
-	principles    []ConstitutionPrinciple
+	principles      []ConstitutionPrinciple
 	principleCursor int
 
 	// Agent preference (step 6)
-	agentOptions    []launcher.AgentOption
+	agentOptions     []launcher.AgentOption
 	selectedAgentIdx int
 }
 

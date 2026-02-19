@@ -18,7 +18,7 @@ SpecLedger is an **all-in-one SDD playbook** that provides:
 
 - **Easy Bootstrap** - Create new projects with a single command
 - **Customizable Playbooks** - Support for multiple SDD playbook workflows
-- **Issue Tracking** - Built-in task tracking with Beads integration
+- **Issue Tracking** - Built-in task tracking with `sl issue` commands (no external dependencies)
 - **Spec Dependencies** - Manage and track specification dependencies across projects
 - **Tool Checking** - Ensures all required tools are installed and configured
 - **Workflow Orchestration** - End-to-end workflows from spec to deployment
@@ -27,7 +27,7 @@ SpecLedger is an **all-in-one SDD playbook** that provides:
 
 - **All-in-One SDD**: Complete Specification-Driven Development workflow built-in
 - **Interactive TUI**: Create projects with a beautiful terminal interface
-- **Prerequisites Checking**: Automatically detect and install required tools (mise, bd, perles)
+- **Prerequisites Checking**: Automatically detect and install required tools (mise)
 - **Dependency Management**: Add, remove, and list spec dependencies
 - **YAML Metadata**: Modern, human-readable project configuration with `specledger.yaml`
 - **Local Caching**: Dependencies are cached locally at `~/.specledger/cache` for offline use
@@ -165,6 +165,25 @@ sl deps resolve --link
 Or manually link all dependencies: `sl deps link`
 
 **Unlinking**: Use `sl deps unlink [alias]` to remove symlinks. Useful for cleaning up or re-linking dependencies.
+
+### Issue Tracking
+
+SpecLedger includes a built-in issue tracker for managing tasks within specs. Issues are stored per-spec in `specledger/<spec>/issues.jsonl`.
+
+| Command | Description |
+|---------|-------------|
+| `sl issue create --title "..." --type task` | Create a new issue |
+| `sl issue list` | List issues in current spec |
+| `sl issue list --all` | List issues across all specs |
+| `sl issue show <id>` | Show issue details |
+| `sl issue update <id> --status in_progress` | Update issue status |
+| `sl issue close <id> --reason "..."` | Close an issue |
+| `sl issue link <from> blocks <to>` | Add dependency |
+| `sl issue migrate` | Migrate from Beads format |
+
+**Issue IDs**: Issues use deterministic IDs in format `SL-xxxxxx` (6 hex characters derived from SHA-256 hash).
+
+**Spec Storage**: Issues are stored per-spec to avoid merge conflicts. Use `--all` flag to work across all specs.
 
 ### Workflows
 

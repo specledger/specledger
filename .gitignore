@@ -69,3 +69,4 @@ ledger.db
 bin/
 bin/main
 main
+/sl

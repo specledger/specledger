@@ -34,7 +34,8 @@ Generate an implementation plan from the feature specification. This includes te
    - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")
    - Fill Constitution Check section from constitution
    - Evaluate gates (ERROR if violations unjustified)
-   - Review Beads references in Previous work section
+   - Review issue tracker references in Previous work section
+   - Check External Dependencies: If spec references external specs/APIs, note deps should be added via `sl deps add`
    - Phase 0: Generate research.md (resolve all NEEDS CLARIFICATION)
    - Phase 1: Generate data-model.md, contracts/, quickstart.md
    - Phase 1: Update agent context by running the agent script
@@ -47,7 +48,7 @@ Generate an implementation plan from the feature specification. This includes te
 ### Phase 0: Outline & Research
 
 1. **Extract Previous Work** with "Explore" Agent:
-   - Identify Task overlap using Beads queries (use beads tools)
+   - Identify Task overlap using `sl issue list --all`
    - Summarize related features/tasks in Previous work section
 
 2. **Extract unknowns from Technical Context** above:

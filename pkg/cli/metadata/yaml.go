@@ -96,7 +96,7 @@ func NewProjectMetadata(name, shortCode string, playbookName string, playbookVer
 			Structure: playbookStructure,
 		},
 		TaskTracker: TaskTrackerInfo{
-			Choice:    TaskTrackerBeads,
+			Choice:    TaskTrackerBuiltin,
 			EnabledAt: &now,
 		},
 		Dependencies: []Dependency{},

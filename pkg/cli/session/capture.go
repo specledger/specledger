@@ -433,7 +433,7 @@ More info: https://docs.claude.ai/session-capture`,
 	// Note: This won't actually capture because we need a real commit
 	// Instead, show what would happen
 	fmt.Println("\n⚠️  Test mode simulates the capture flow but won't create a real session.")
-	fmt.Println("To capture a real session, make a git commit while using Claude Code.\n")
+	fmt.Println("To capture a real session, make a git commit while using Claude Code.")
 
 	// Validate the flow up to the commit check
 	if !IsGitCommit(input.ToolInput.Command()) {

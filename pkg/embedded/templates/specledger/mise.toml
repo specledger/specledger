@@ -1,3 +1,5 @@
+# SpecLedger mise configuration
+# Issue tracking is now built into sl CLI (sl issue commands)
+
 [tools]
-"ubi:steveyegge/beads" = { version = "0.28.0", exe = "bd" }
-"ubi:zjrosen/perles" = "0.2.11"
+# Add your project tools here

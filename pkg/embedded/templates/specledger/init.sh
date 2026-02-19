@@ -55,15 +55,16 @@ main() {
     export SPECLEDGER_PLAYBOOK_NAME="${SPECLEDGER_PLAYBOOK_NAME:-}"
     export SPECLEDGER_PLAYBOOK_VERSION="${SPECLEDGER_PLAYBOOK_VERSION:-}"
 
-    # Run setup-beads.sh if it exists in the target project
-    if [ -f ".specledger/scripts/bash/setup-beads.sh" ]; then
-        bash .specledger/scripts/bash/setup-beads.sh
-    else
-        print_warning "setup-beads.sh not found - skipping beads initialization"
-    fi
+    # Issue tracking is now built into sl CLI
+    # Use 'sl issue' commands to manage issues
 
     echo
     print_success "SpecLedger initialization complete!"
+    echo
+    echo "Issue tracking:"
+    echo "  sl issue create --title \"Task\" --type task"
+    echo "  sl issue list"
+    echo "  sl issue --help"
 }
 
 main "$@"

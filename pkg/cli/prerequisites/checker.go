@@ -29,6 +29,7 @@ type ToolCheckResult struct {
 
 var (
 	// CoreTools are required for SpecLedger to function
+	// Note: Issue tracking is now built into sl CLI (sl issue commands)
 	CoreTools = []Tool{
 		{
 			Name:        "mise",
@@ -36,20 +37,6 @@ var (
 			Category:    metadata.ToolCategoryCore,
 			VersionFlag: "--version",
 			InstallURL:  "https://mise.jdx.dev/getting-started.html",
-		},
-		{
-			Name:        "bd",
-			DisplayName: "beads (issue tracker)",
-			Category:    metadata.ToolCategoryCore,
-			VersionFlag: "--version",
-			InstallCmd:  "mise install ubi:steveyegge/beads@0.28.0",
-		},
-		{
-			Name:        "perles",
-			DisplayName: "perles (workflow tool)",
-			Category:    metadata.ToolCategoryCore,
-			VersionFlag: "--version",
-			InstallCmd:  "mise install ubi:zjrosen/perles@0.2.11",
 		},
 	}
 

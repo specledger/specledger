@@ -82,9 +82,40 @@ Apply validation from `.specledger/templates/partials/spec-quality-validation.md
 
 ### Step 5: Save and Report
 
-1. Write spec to `SPEC_FILE` path from Step 2
-2. Create checklist at `FEATURE_DIR/checklists/requirements.md`
-3. Report: branch name, spec path, validation status, next steps
+### Step 5: Save and Report
+
+1. Parse user description from Input
+   If empty: ERROR "No feature description provided"
+2. Extract key concepts from description and existing branch research
+   Identify: actors, actions, data, constraints
+3. For unclear aspects:
+   - Make informed guesses based on context and industry standards
+   - Only mark with [NEEDS CLARIFICATION: specific question] if:
+     - The choice significantly impacts feature scope or user experience
+     - Multiple reasonable interpretations exist with different implications
+     - No reasonable default exists
+   - **LIMIT: Maximum 3 [NEEDS CLARIFICATION] markers total**
+   - Prioritize clarifications by impact: scope > security/privacy > user experience > technical details
+4. Fill User Scenarios & Testing section (both included from completed work and missing flows)
+   If no clear user flow: ERROR "Cannot determine user scenarios"
+5. Generate Functional Requirements
+   Each requirement must be testable
+   Use reasonable defaults for unspecified details (document assumptions in Assumptions section)
+6. Define Success Criteria
+   Create measurable, technology-agnostic outcomes
+   Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion)
+   Each criterion must be verifiable without implementation details
+7. Identify Key Entities (if data involved)
+8. Query issue tracker (`sl issue list --all`) for related features/tasks
+   Include references in Previous work section
+9. Check for External References (if feature references external specifications):
+   - Does this feature reference external specifications, APIs, or standards for reading/reference?
+   - If yes: Note in Dependencies & Assumptions section that external specs should be added
+   - Remind user: "If this feature references external specifications for reading/reference, use 'sl deps add' to add them"
+   - Example: Reading API contracts from other teams, referencing industry standards, shared design documents
+10. Write spec to `SPEC_FILE` path from Step 2
+11. Create checklist at `FEATURE_DIR/checklists/requirements.md`
+12. Return: SUCCESS (spec ready for planning)
 
 ## Guidelines
 

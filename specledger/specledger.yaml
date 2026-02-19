@@ -1,22 +1,21 @@
 version: 1.0.0
 project:
-    id: 7109364a-2ebc-451f-b052-2fbe5453459e
     name: specledger
-    short_code: sp
-    created: 2026-02-11T10:22:21.719025921+07:00
-    modified: 2026-02-11T10:22:21.719043688+07:00
+    short_code: sl
+    created: 2026-02-19T22:14:06.865049+07:00
+    modified: 2026-02-19T22:14:06.86505+07:00
     version: 0.1.0
 playbook:
     name: specledger
     version: 1.0.0
-    applied_at: 2026-02-11T10:22:21.719025921+07:00
+    applied_at: 2026-02-19T22:14:06.865049+07:00
     structure:
-        - .beads/
         - .claude/
         - .gitattributes
         - AGENTS.md
         - mise.toml
         - .specledger/
 task_tracker:
-    choice: beads
-    enabled_at: 2026-02-11T10:22:21.719025921+07:00
+    choice: builtin
+    enabled_at: 2026-02-19T22:14:06.865049+07:00
+artifact_path: specledger/

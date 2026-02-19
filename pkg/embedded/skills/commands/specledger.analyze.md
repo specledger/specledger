@@ -1,5 +1,5 @@
 ---
-description: Perform a non-destructive cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md (Beads) after task generation.
+description: Perform a non-destructive cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md after task generation.
 ---
 
 ## User Input
@@ -62,14 +62,14 @@ Load only the minimal necessary context from each artifact:
 
 Refer to query semantics and...
 
-- Use beads queries to extract Task list
-- Use beads queries to extract Phase grouping
-- Use beads show command for tasks to extract
+- Use `sl issue list` to extract Task list
+- Use `sl issue list --label phase:<name>` to extract Phase grouping
+- Use `sl issue show <id>` for tasks to extract
    - Title + Description
    - Design + Acceptance Criteria
    - Referenced file paths
    - Labels referencing requirements or stories
-- Use beads to verify cross task dependencies
+- Use `sl issue list` to verify cross task dependencies
 
 **From constitution:**
 

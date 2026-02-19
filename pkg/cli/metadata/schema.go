@@ -62,8 +62,9 @@ const (
 type TaskTrackerChoice string
 
 const (
-	TaskTrackerBeads TaskTrackerChoice = "beads"
-	TaskTrackerNone  TaskTrackerChoice = "none"
+	TaskTrackerBuiltin TaskTrackerChoice = "builtin" // Built-in sl issue tracking
+	TaskTrackerBeads   TaskTrackerChoice = "beads"   // Deprecated: use builtin
+	TaskTrackerNone    TaskTrackerChoice = "none"
 )
 
 // Dependency represents an external spec dependency
