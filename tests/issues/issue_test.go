@@ -322,4 +322,3 @@ func TestDefinitionOfDone_GetUncheckedItems(t *testing.T) {
 		t.Errorf("GetUncheckedItems()[0] = %v, want 'Code review'", unchecked[0])
 	}
 }
-

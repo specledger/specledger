@@ -14,9 +14,9 @@ import (
 
 // Migration-related errors
 var (
-	ErrBeadsNotFound      = errors.New(".beads/issues.jsonl not found")
-	ErrMigrationFailed    = errors.New("migration failed")
-	ErrNoIssuesToMigrate  = errors.New("no issues to migrate")
+	ErrBeadsNotFound     = errors.New(".beads/issues.jsonl not found")
+	ErrMigrationFailed   = errors.New("migration failed")
+	ErrNoIssuesToMigrate = errors.New("no issues to migrate")
 )
 
 // BeadsIssue represents the Beads JSONL format for issues
@@ -257,16 +257,16 @@ func (m *Migrator) convertAndWriteIssues(specContext string, beadsIssues []Beads
 // convertBeadsIssue converts a Beads issue to sl issue format
 func (m *Migrator) convertBeadsIssue(beadsIssue BeadsIssue, specContext string, now time.Time) *Issue {
 	issue := &Issue{
-		Title:       beadsIssue.Title,
-		Description: beadsIssue.Description,
-		Status:      m.convertStatus(beadsIssue.Status),
-		Priority:    beadsIssue.Priority,
-		IssueType:   m.convertType(beadsIssue.Type),
-		SpecContext: specContext,
-		Labels:      beadsIssue.Labels,
-		Assignee:    beadsIssue.Assignee,
-		Notes:       beadsIssue.Notes,
-		Design:      beadsIssue.Design,
+		Title:              beadsIssue.Title,
+		Description:        beadsIssue.Description,
+		Status:             m.convertStatus(beadsIssue.Status),
+		Priority:           beadsIssue.Priority,
+		IssueType:          m.convertType(beadsIssue.Type),
+		SpecContext:        specContext,
+		Labels:             beadsIssue.Labels,
+		Assignee:           beadsIssue.Assignee,
+		Notes:              beadsIssue.Notes,
+		Design:             beadsIssue.Design,
 		AcceptanceCriteria: beadsIssue.Acceptance,
 	}
 
@@ -402,6 +402,7 @@ func (m *Migrator) removeFromMiseToml() error {
 		newLines = append(newLines, line)
 	}
 
+	// #nosec G306 -- mise.toml needs to be readable by mise tool
 	return os.WriteFile(misePath, []byte(strings.Join(newLines, "\n")), 0644)
 }
 
@@ -410,15 +411,16 @@ func (m *Migrator) writeMigrationLog() error {
 	logPath := filepath.Join(m.artifactPath, ".migration-log")
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("# Migration Log\n"))
-	sb.WriteString(fmt.Sprintf("# Date: %s\n\n", time.Now().Format(time.RFC3339)))
-	sb.WriteString(fmt.Sprintf("Total issues migrated: %d\n", len(m.idMapping)))
-	sb.WriteString("\n## ID Mapping (Beads -> SL)\n\n")
+	fmt.Fprintf(&sb, "# Migration Log\n")
+	fmt.Fprintf(&sb, "# Date: %s\n\n", time.Now().Format(time.RFC3339))
+	fmt.Fprintf(&sb, "Total issues migrated: %d\n", len(m.idMapping))
+	fmt.Fprintf(&sb, "\n## ID Mapping (Beads -> SL)\n\n")
 
 	for oldID, newID := range m.idMapping {
-		sb.WriteString(fmt.Sprintf("%s -> %s\n", oldID, newID))
+		fmt.Fprintf(&sb, "%s -> %s\n", oldID, newID)
 	}
 
+	// #nosec G306 -- migration log needs to be readable by user
 	return os.WriteFile(logPath, []byte(sb.String()), 0644)
 }
 

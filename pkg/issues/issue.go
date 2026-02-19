@@ -88,8 +88,8 @@ type IssueUpdate struct {
 	BlockedBy          *[]string
 	Blocks             *[]string
 	DefinitionOfDone   *DefinitionOfDone
-	CheckDoDItem       string  // Item to mark as checked
-	UncheckDoDItem     string  // Item to mark as unchecked
+	CheckDoDItem       string // Item to mark as checked
+	UncheckDoDItem     string // Item to mark as unchecked
 }
 
 // ListFilter represents filtering options for listing issues
@@ -114,7 +114,7 @@ var (
 )
 
 var (
-	idPattern       = regexp.MustCompile(`^SL-[a-f0-9]{6}$`)
+	idPattern          = regexp.MustCompile(`^SL-[a-f0-9]{6}$`)
 	specContextPattern = regexp.MustCompile(`^\d{3,}-[a-z0-9-]+$`)
 )
 

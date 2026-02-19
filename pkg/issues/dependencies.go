@@ -176,9 +176,7 @@ func (s *Store) wouldCreateCycle(fromID, toID string, issues []*Issue) bool {
 	// Build adjacency map
 	adj := make(map[string][]string)
 	for _, issue := range issues {
-		for _, blocked := range issue.Blocks {
-			adj[issue.ID] = append(adj[issue.ID], blocked)
-		}
+		adj[issue.ID] = append(adj[issue.ID], issue.Blocks...)
 	}
 
 	// Add the proposed edge
@@ -224,9 +222,7 @@ func (s *Store) DetectCycles() ([][]string, error) {
 	// Build adjacency map
 	adj := make(map[string][]string)
 	for _, issue := range issues {
-		for _, blocked := range issue.Blocks {
-			adj[issue.ID] = append(adj[issue.ID], blocked)
-		}
+		adj[issue.ID] = append(adj[issue.ID], issue.Blocks...)
 	}
 
 	var cycles [][]string

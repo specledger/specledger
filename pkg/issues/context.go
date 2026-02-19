@@ -66,10 +66,7 @@ func (d *ContextDetector) DetectSpecContext() (string, error) {
 // Returns the spec context and true if valid, empty string and false otherwise
 func ParseSpecFromBranch(branchName string) (string, bool) {
 	// Extract just the branch name part (remove refs/heads/ prefix if present)
-	name := branchName
-	if strings.HasPrefix(name, "refs/heads/") {
-		name = strings.TrimPrefix(name, "refs/heads/")
-	}
+	name := strings.TrimPrefix(branchName, "refs/heads/")
 
 	// Check if it matches the spec pattern
 	if specBranchPattern.MatchString(name) {

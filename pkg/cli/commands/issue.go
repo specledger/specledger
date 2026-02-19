@@ -173,11 +173,11 @@ Link types:
 
 // issueUnlinkCmd removes dependency links
 var issueUnlinkCmd = &cobra.Command{
-	Use:   "unlink <from-issue-id> <type> <to-issue-id>",
-	Short: "Remove a dependency link between issues",
+	Use:     "unlink <from-issue-id> <type> <to-issue-id>",
+	Short:   "Remove a dependency link between issues",
 	Example: `  sl issue unlink SL-a3f5d8 blocks SL-b4e6f9`,
-	Args: cobra.ExactArgs(3),
-	RunE: runIssueUnlink,
+	Args:    cobra.ExactArgs(3),
+	RunE:    runIssueUnlink,
 }
 
 func init() {
@@ -200,7 +200,9 @@ func init() {
 	issueCreateCmd.Flags().StringVar(&issueLabelsFlag, "labels", "", "Comma-separated labels")
 	issueCreateCmd.Flags().StringVar(&issueSpecFlag, "spec", "", "Override spec context")
 	issueCreateCmd.Flags().BoolVar(&issueForceFlag, "force", false, "Skip duplicate detection")
-	issueCreateCmd.MarkFlagRequired("title")
+	if err := issueCreateCmd.MarkFlagRequired("title"); err != nil {
+		panic(fmt.Sprintf("failed to mark title flag as required: %v", err))
+	}
 
 	// List command flags
 	issueListCmd.Flags().StringVar(&issueStatusFlag, "status", "", "Filter by status (open, in_progress, closed)")

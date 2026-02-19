@@ -25,10 +25,10 @@ var (
 
 // Store manages JSONL file operations with file locking
 type Store struct {
-	path       string // Path to specledger directory
+	path        string // Path to specledger directory
 	specContext string // Current spec context (e.g., "010-my-feature")
-	lock       *flock.Flock
-	mu         sync.Mutex
+	lock        *flock.Flock
+	mu          sync.Mutex
 }
 
 // StoreOptions contains options for creating a new Store
@@ -307,7 +307,7 @@ func (s *Store) WithLock(fn func() error) error {
 	if !locked {
 		return ErrStoreLocked
 	}
-	defer s.lock.Unlock()
+	defer func() { _ = s.lock.Unlock() }()
 
 	return fn()
 }
@@ -324,7 +324,7 @@ func (s *Store) WithLockResult(fn func() (*Issue, error)) (*Issue, error) {
 	if !locked {
 		return nil, ErrStoreLocked
 	}
-	defer s.lock.Unlock()
+	defer func() { _ = s.lock.Unlock() }()
 
 	return fn()
 }

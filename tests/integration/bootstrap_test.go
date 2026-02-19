@@ -219,6 +219,7 @@ func TestConstitutionDetection(t *testing.T) {
 	// Test 2: Template file with placeholders
 	templatePath := filepath.Join(tempDir, "template.md")
 	templateContent := "# [PROJECT_NAME] Constitution\n\n### [PRINCIPLE_1_NAME]\n[PRINCIPLE_1_DESCRIPTION]\n"
+	// #nosec G306 -- test file doesn't need restricted permissions
 	if err := os.WriteFile(templatePath, []byte(templateContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -229,6 +230,7 @@ func TestConstitutionDetection(t *testing.T) {
 	// Test 3: Populated file
 	populatedPath := filepath.Join(tempDir, "populated.md")
 	populatedContent := "# My Project Constitution\n\n## Core Principles\n\n### I. Specification-First\nEvery feature starts with a spec.\n"
+	// #nosec G306 -- test file doesn't need restricted permissions
 	if err := os.WriteFile(populatedPath, []byte(populatedContent), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -238,6 +240,7 @@ func TestConstitutionDetection(t *testing.T) {
 
 	// Test 4: Empty file
 	emptyPath := filepath.Join(tempDir, "empty.md")
+	// #nosec G306 -- test file doesn't need restricted permissions
 	if err := os.WriteFile(emptyPath, []byte(""), 0644); err != nil {
 		t.Fatal(err)
 	}
@@ -263,6 +266,7 @@ func TestInitPreservesExistingConstitution(t *testing.T) {
 
 	existingConstitution := "# Existing Constitution\n\n## Core Principles\n\n### I. My Custom Principle\nCustom description.\n\n## Agent Preferences\n\n- **Preferred Agent**: Claude Code\n"
 	constitutionPath := filepath.Join(constitutionDir, "constitution.md")
+	// #nosec G306 -- test file doesn't need restricted permissions
 	if err := os.WriteFile(constitutionPath, []byte(existingConstitution), 0644); err != nil {
 		t.Fatal(err)
 	}

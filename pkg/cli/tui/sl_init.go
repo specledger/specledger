@@ -27,21 +27,21 @@ const (
 
 // InitStep describes a single step in the sl init TUI.
 type InitStep struct {
-	Key      string       // "short_code", "playbook", "agent_preference"
+	Key      string // "short_code", "playbook", "agent_preference"
 	StepType InitStepType
 }
 
 // InitModel is the Bubble Tea model for sl init.
 type InitModel struct {
-	steps       []InitStep
-	currentStep int
-	answers     map[string]string
-	textInput   textinput.Model
-	selectedIdx int
-	width       int
-	quitting    bool
+	steps        []InitStep
+	currentStep  int
+	answers      map[string]string
+	textInput    textinput.Model
+	selectedIdx  int
+	width        int
+	quitting     bool
 	showingError string
-	projectName string
+	projectName  string
 
 	// Agent preference options
 	agentOptions     []launcher.AgentOption
