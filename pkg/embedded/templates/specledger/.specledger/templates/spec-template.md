@@ -115,7 +115,7 @@
 - **SC-004**: [Business metric, e.g., "Reduce support tickets related to [X] by 50%"]
 
 <!--
-  ACTION REQUIRED: Use Beads queries to identify any previous related features or tasks. `bd list --type task`
+  ACTION REQUIRED: Use `sl issue list` to identify any previous related features or tasks.
   Reference them here to avoid duplication of effort.
 -->
 

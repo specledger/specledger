@@ -90,9 +90,14 @@ Given that feature description, do this:
        Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion)
        Each criterion must be verifiable without implementation details
     7. Identify Key Entities (if data involved)
-    8. Query Beads issue tracker for related features/tasks
+    8. Query issue tracker (`sl issue list --all`) for related features/tasks
        Include references in Previous work section
-    9. Return: SUCCESS (spec ready for planning)
+    9. Check for External References (if feature references external specifications):
+       - Does this feature reference external specifications, APIs, or standards for context?
+       - If yes: Note in Dependencies & Assumptions section that external specs should be added
+       - Remind user: "If this feature references external specifications for reading/reference, use 'sl deps add' to add them"
+       - Example: Reading API contracts from other teams, referencing industry standards, shared design documents
+    10. Return: SUCCESS (spec ready for planning)
 
 5. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
 

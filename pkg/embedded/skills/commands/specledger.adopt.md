@@ -106,7 +106,7 @@ Apply validation from `.specledger/templates/partials/spec-quality-validation.md
    Include both quantitative metrics (time, performance, volume) and qualitative measures (user satisfaction, task completion)
    Each criterion must be verifiable without implementation details
 7. Identify Key Entities (if data involved)
-8. Query Beads for related features/tasks
+8. Query issue tracker (`sl issue list --all`) for related features/tasks
    Include references in Previous work section
 9. Check for External References (if feature references external specifications):
    - Does this feature reference external specifications, APIs, or standards for reading/reference?
