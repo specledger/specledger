@@ -14,21 +14,21 @@ import (
 // TemplateUpdateResult represents the result of a template update operation.
 type TemplateUpdateResult struct {
 	Updated    []string `json:"updated"`     // Files that were updated
-	Skipped    []string `json:"skipped"`     // Customized files that were skipped
+	Overwritten []string `json:"overwritten"` // Files that existed and were overwritten
 	Errors     []error  `json:"errors"`      // Any errors encountered
 	NewVersion string   `json:"new_version"` // New template_version written to YAML
 	Success    bool     `json:"success"`     // true if no fatal errors
 }
 
 // UpdateTemplates updates project templates from embedded files.
-// Customized files are skipped and preserved.
+// All embedded templates are copied, overwriting any existing files.
 func UpdateTemplates(projectDir, cliVersion string) (*TemplateUpdateResult, error) {
 	result := &TemplateUpdateResult{
-		Updated:    []string{},
-		Skipped:    []string{},
-		Errors:     []error{},
-		NewVersion: cliVersion,
-		Success:    true,
+		Updated:     []string{},
+		Overwritten: []string{},
+		Errors:      []error{},
+		NewVersion:  cliVersion,
+		Success:     true,
 	}
 
 	claudeDir := filepath.Join(projectDir, ".claude")
@@ -55,18 +55,10 @@ func UpdateTemplates(projectDir, cliVersion string) (*TemplateUpdateResult, erro
 		// Target path in project
 		targetPath := filepath.Join(claudeDir, relPath)
 
-		// Check if file is customized
-		isCustom, err := IsFileCustomized(targetPath, relPath, embedded.SkillsFS)
-		if err != nil && !os.IsNotExist(err) {
-			// Error reading file - skip it
-			result.Errors = append(result.Errors, fmt.Errorf("error checking %s: %w", relPath, err))
-			return nil
-		}
-
-		if isCustom {
-			// Skip customized files
-			result.Skipped = append(result.Skipped, relPath)
-			return nil
+		// Check if file exists (for tracking overwritten files)
+		fileExists := false
+		if _, err := os.Stat(targetPath); err == nil {
+			fileExists = true
 		}
 
 		// Ensure parent directory exists
@@ -90,13 +82,17 @@ func UpdateTemplates(projectDir, cliVersion string) (*TemplateUpdateResult, erro
 			perm = 0755
 		}
 
-		// Write to project
+		// Write to project (overwrites if exists)
 		if err := os.WriteFile(targetPath, content, perm); err != nil {
 			result.Errors = append(result.Errors, fmt.Errorf("failed to write %s: %w", relPath, err))
 			return nil
 		}
 
-		result.Updated = append(result.Updated, relPath)
+		if fileExists {
+			result.Overwritten = append(result.Overwritten, relPath)
+		} else {
+			result.Updated = append(result.Updated, relPath)
+		}
 		return nil
 	})
 

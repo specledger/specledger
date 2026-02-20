@@ -198,7 +198,23 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 		fmt.Printf(" %s\n", ui.Yellow(fmt.Sprintf("(latest: %s)", versionInfo.LatestVersion)))
 		fmt.Println()
 		fmt.Printf("  %s Update available!\n", ui.Yellow("⚠"))
-		fmt.Printf("  %s\n", version.FormatUpdateMessage(cliVersion, versionInfo.LatestVersion))
+
+		// Offer self-update in interactive mode
+		mode := tui.NewModeDetector()
+		if mode.IsInteractive() {
+			fmt.Println()
+			confirm, err := tui.ConfirmPrompt("  Update CLI now? [y/N]: ")
+			if err == nil && confirm {
+				fmt.Println()
+				if err := version.SelfUpdate(ctx); err != nil {
+					fmt.Printf("  %s Update failed: %v\n", ui.Red("✗"), err)
+					fmt.Printf("  %s Try manual update:\n", ui.Dim("ℹ"))
+					fmt.Printf("      %s\n", version.GetUpdateInstructions())
+				} else {
+					fmt.Printf("  %s Restart sl to use the new version\n", ui.Dim("ℹ"))
+				}
+			}
+		}
 	} else {
 		fmt.Printf(" %s\n", ui.Green("(latest)"))
 	}
@@ -222,10 +238,6 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 			fmt.Printf("  %s Templates: %s\n", ui.Checkmark(), ui.Green("current"))
 		}
 
-		if len(templateStatus.CustomizedFiles) > 0 {
-			fmt.Printf("  %s Customized files: %d\n", ui.Dim("ℹ"), len(templateStatus.CustomizedFiles))
-		}
-
 		// Offer template update if needed
 		if templateStatus.NeedsUpdate {
 			fmt.Println()
@@ -233,18 +245,7 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 
 			// Show warning about uncommitted changes
 			if hasUncommittedChanges(projectDir) {
-				fmt.Printf("  %s Warning: Uncommitted changes in .claude/\n", ui.Yellow("⚠"))
-			}
-
-			// Show warning about customized files
-			if len(templateStatus.CustomizedFiles) > 0 {
-				fmt.Printf("  %s %d customized files will be skipped:\n", ui.Dim("ℹ"), len(templateStatus.CustomizedFiles))
-				for _, f := range templateStatus.CustomizedFiles {
-					if len(f) > 40 {
-						f = "..." + f[len(f)-37:]
-					}
-					fmt.Printf("      • %s\n", ui.Dim(f))
-				}
+				fmt.Printf("  %s Warning: Uncommitted changes in .claude/ will be overwritten\n", ui.Yellow("⚠"))
 			}
 
 			fmt.Println()
@@ -259,10 +260,9 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 					if err != nil {
 						fmt.Printf("  %s Update failed: %v\n", ui.Red("✗"), err)
 					} else {
-						fmt.Printf("  %s Updated %d templates\n", ui.Checkmark(), len(result.Updated))
-						if len(result.Skipped) > 0 {
-							fmt.Printf("  %s Skipped %d customized files\n", ui.Dim("ℹ"), len(result.Skipped))
-						}
+						total := len(result.Updated) + len(result.Overwritten)
+						fmt.Printf("  %s Updated %d templates (%d new, %d overwritten)\n",
+							ui.Checkmark(), total, len(result.Updated), len(result.Overwritten))
 						fmt.Printf("  %s Template version updated to %s\n", ui.Checkmark(), cliVersion)
 					}
 				} else {
