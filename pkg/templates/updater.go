@@ -13,11 +13,11 @@ import (
 
 // TemplateUpdateResult represents the result of a template update operation.
 type TemplateUpdateResult struct {
-	Updated    []string `json:"updated"`     // Files that were updated
+	Updated     []string `json:"updated"`     // Files that were updated
 	Overwritten []string `json:"overwritten"` // Files that existed and were overwritten
-	Errors     []error  `json:"errors"`      // Any errors encountered
-	NewVersion string   `json:"new_version"` // New template_version written to YAML
-	Success    bool     `json:"success"`     // true if no fatal errors
+	Errors      []error  `json:"errors"`      // Any errors encountered
+	NewVersion  string   `json:"new_version"` // New template_version written to YAML
+	Success     bool     `json:"success"`     // true if no fatal errors
 }
 
 // UpdateTemplates updates project templates from embedded files.

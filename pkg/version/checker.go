@@ -137,8 +137,9 @@ func parseSemver(v string) [3]int {
 		}
 		// Parse as integer, ignoring errors
 		var val int
-		fmt.Sscanf(seg, "%d", &val)
-		parts[i] = val
+		if _, err := fmt.Sscanf(seg, "%d", &val); err == nil {
+			parts[i] = val
+		}
 	}
 
 	return parts

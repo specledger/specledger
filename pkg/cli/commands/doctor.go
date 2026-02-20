@@ -51,11 +51,11 @@ type DoctorOutput struct {
 	InstallInstructions string             `json:"install_instructions,omitempty"`
 
 	// CLI version info
-	CLIVersion          string `json:"cli_version"`
-	CLILatestVersion    string `json:"cli_latest_version,omitempty"`
-	CLIUpdateAvailable  bool   `json:"cli_update_available"`
+	CLIVersion            string `json:"cli_version"`
+	CLILatestVersion      string `json:"cli_latest_version,omitempty"`
+	CLIUpdateAvailable    bool   `json:"cli_update_available"`
 	CLIUpdateInstructions string `json:"cli_update_instructions,omitempty"`
-	CLICheckError       string `json:"cli_check_error,omitempty"`
+	CLICheckError         string `json:"cli_check_error,omitempty"`
 
 	// Template version info
 	TemplateVersion         string   `json:"template_version,omitempty"`

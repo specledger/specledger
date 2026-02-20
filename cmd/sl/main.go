@@ -12,10 +12,10 @@ import (
 
 // Build-time variables set by GoReleaser via ldflags
 var (
-	buildVersion   = "dev"
-	buildCommit    = "unknown"
-	buildDate      = "unknown"
-	buildType      = "development"
+	buildVersion = "dev"
+	buildCommit  = "unknown"
+	buildDate    = "unknown"
+	buildType    = "development"
 )
 
 func init() {

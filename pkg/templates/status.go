@@ -57,7 +57,7 @@ func CheckTemplateStatus(projectDir, cliVersion string) (*TemplateStatus, error)
 	// Count template files and find customized ones
 	claudeDir := filepath.Join(projectDir, ".claude")
 	if _, err := os.Stat(claudeDir); err == nil {
-		filepath.Walk(claudeDir, func(path string, info os.FileInfo, err error) error {
+		_ = filepath.Walk(claudeDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil || info.IsDir() {
 				return nil
 			}

@@ -132,15 +132,13 @@ func replaceBinary(newBinary, currentBinary string) error {
 
 	// Backup the current binary
 	backup := currentBinary + ".bak"
-	if err := copyFile(currentBinary, backup); err != nil {
-		// Non-fatal - might be first install
-	}
+	_ = copyFile(currentBinary, backup) // Non-fatal - might be first install
 
 	// Copy new binary to current location
 	if err := copyFile(extractedBinary, currentBinary); err != nil {
 		// Try to restore backup
 		if _, restoreErr := os.Stat(backup); restoreErr == nil {
-			copyFile(backup, currentBinary)
+			_ = copyFile(backup, currentBinary)
 		}
 		return err
 	}
