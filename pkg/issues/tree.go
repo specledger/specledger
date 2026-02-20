@@ -103,19 +103,19 @@ func (r *TreeRenderer) formatType(issueType IssueType) string {
 
 	switch issueType {
 	case TypeEpic:
-		indicator = "◆"
+		indicator = "E"
 		color = colorPurple
 	case TypeFeature:
-		indicator = "★"
-		color = colorBlue
+		indicator = "F"
+		color = colorGreen
 	case TypeTask:
-		indicator = "●"
+		indicator = "T"
 		color = colorGreen
 	case TypeBug:
-		indicator = "✗"
+		indicator = "B"
 		color = colorRed
 	default:
-		indicator = "○"
+		indicator = "?"
 		color = colorGray
 	}
 
