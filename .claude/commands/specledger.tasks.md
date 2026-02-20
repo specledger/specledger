@@ -81,13 +81,14 @@ Generate actionable, dependency-ordered tasks from the implementation plan. Task
          - `phase:<phase-name>` (e.g. `phase:setup`, `phase:us1`, `phase:foundational`)
          - All carry the `spec:<feature-slug>` label
       - For each task, create with `--type task`
-      - Tasks must include:
-         - `title` (short summary, under 80 characters)
-         - `description` Problem statement (WHY this matters) - immutable (what to implement, where, inputs/outputs)
-         - `design` HOW to build, Which files, references (can change during work)
-         - `acceptance` Acceptance: WHAT success looks like (stays stable)
-         - `definition_of_done` Checklist items derived from acceptance criteria (see DoD Population section below)
-         - `priority` (from story priority, 0=critical, 1=high, 2=normal, 3=low)
+      - Tasks must include all content in the `--description` field (there is no separate design/acceptance/dod flag):
+         - `--title` (short summary, under 80 characters)
+         - `--description` Multi-line text containing:
+           - WHY: Problem statement (what to implement, where, inputs/outputs)
+           - DESIGN: HOW to build, which files, references (can change during work)
+           - ACCEPTANCE: WHAT success looks like (stable criteria)
+           - DEFINITION OF DONE: Checklist items [ ] derived from acceptance criteria
+         - `--priority` (from story priority, 0=critical, 1=high, 2=normal, 3=low)
          - Labels:
             - `story:US1`, `story:US2`, etc. (mapped from spec.md)
             - `component:<area>` (e.g. `component:auth`, `component:db`)
@@ -170,22 +171,31 @@ The tasks.md should be immediately executable - each task must be specific enoug
 
 ## Issue Content Structure
 
-Each generated issue MUST have the following structured content:
+Each generated issue MUST have the following structured content in the `--description` field:
 
 | Field | Purpose | Example |
 |-------|---------|---------|
-| `title` | Concise summary (under 80 chars) | "Add user authentication to login page" |
-| `description` | WHY this matters (problem statement) | "Users cannot securely access their accounts..." |
-| `design` | HOW/WHERE to build (implementation details) | "Files: src/auth/login.go, src/models/user.go..." |
-| `acceptance` | WHAT success looks like (stable criteria) | "User can log in with valid credentials" |
-| `definition_of_done` | Checklist of verifiable items | "[ ] Login form renders, [ ] Auth validates credentials" |
+| `--title` | Concise summary (under 80 chars) | "Add user authentication to login page" |
+| `--description` | Multi-line content with sections | See format below |
+
+**Description Format** (all in one `--description` string):
+```
+WHY: [Problem statement - what to implement, where, inputs/outputs]
+
+DESIGN: [HOW to build - file paths, module references, approach decisions]
+
+ACCEPTANCE: [WHAT success looks like - measurable, testable outcomes]
+
+DEFINITION OF DONE:
+[ ] Item 1
+[ ] Item 2
+[ ] Item 3
+```
 
 **Field Guidelines**:
-- `title`: Action-oriented, specific, concise
-- `description`: Explain the problem, not the solution; include context and motivation
-- `design`: Include file paths, module references, approach decisions (can evolve during implementation)
-- `acceptance`: Measurable, testable outcomes that don't change
-- `definition_of_done`: Derived from acceptance criteria, one checklist item per verifiable outcome
+- `--title`: Action-oriented, specific, concise
+- `--description`: Include WHY, DESIGN, ACCEPTANCE, and DEFINITION OF DONE sections
+- All structured content goes in description since `sl issue create` only supports `--title` and `--description` flags
 
 ## Definition of Done Population
 
@@ -230,19 +240,28 @@ This provides quick visibility into verification requirements for each task.
 ### Epic
 
 ```bash
-sl issue create "Login Feature" --description "..." --type epic --labels "spec:006-login-auth,component:webapp" --priority 1
+sl issue create --title "Login Feature" --description "Implement user authentication with OAuth2 support" --type epic --labels "spec:006-login-auth,component:webapp" --priority 1
 ```
 
 ### Feature (Phase)
 
 ```bash
-sl issue create "Setup Phase" --description "..." --type feature --labels "spec:006-login-auth,phase:setup,component:infra" --priority 1
+sl issue create --title "Setup Phase" --description "Initialize project structure and dependencies" --type feature --labels "spec:006-login-auth,phase:setup,component:infra" --priority 1
 ```
 
 ### Task
 
 ```bash
-sl issue create "Add React LoginForm" --description "..." --type task --labels "spec:006-login-auth,story:US1,component:webapp" --priority 2
+sl issue create --title "Add React LoginForm" --description "WHY: Users need to authenticate via the login form.
+
+DESIGN: Files: src/components/LoginForm.tsx, src/hooks/useAuth.ts. Use React Hook Form for validation.
+
+ACCEPTANCE: User can enter credentials, form validates input, submits to auth API.
+
+DEFINITION OF DONE:
+[ ] LoginForm component created
+[ ] Form validation working
+[ ] Auth API integration complete" --type task --labels "spec:006-login-auth,story:US1,component:webapp" --priority 2
 ```
 
 ### Add Dependencies
@@ -251,19 +270,16 @@ sl issue create "Add React LoginForm" --description "..." --type task --labels "
 sl issue link SL-xxxxx blocks SL-yyyyy
 ```
 
-**Use description for:**
-- Problem statement (WHY this matters)
-- What to implement, where, inputs/outputs
+**IMPORTANT**: The `sl issue create` command only supports these flags:
+- `--title` (required)
+- `--description` (optional, but include all WHY/DESIGN/ACCEPTANCE/DoD content here)
+- `--type` (epic, feature, task, bug)
+- `--labels` (comma-separated)
+- `--priority` (0-5)
+- `--spec` (override spec context)
+- `--force` (skip duplicate detection)
 
-**Use design field for:**
-- Implementation approach decisions
-- HOW to build
-- WHERE to build (which files, which modules to depend on)
-
-**Use acceptance criteria for:**
-- Definition of done
-- WHAT success looks like (stays stable)
-- Testing mechanism
+There are NO separate `--design`, `--acceptance`, or `--definition_of_done` flags.
 
 ## Error Handling
 

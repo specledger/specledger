@@ -15,6 +15,7 @@ import (
 	"github.com/specledger/specledger/pkg/cli/playbooks"
 	"github.com/specledger/specledger/pkg/cli/ui"
 	"github.com/specledger/specledger/pkg/embedded"
+	"github.com/specledger/specledger/pkg/version"
 )
 
 // detectArtifactPath detects the artifact path from existing directories in the project.
@@ -163,7 +164,7 @@ func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName st
 	}
 
 	// Create YAML metadata with playbook info
-	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, selectedPlaybookName, playbookVersion, playbookStructure)
+	projectMetadata := metadata.NewProjectMetadata(projectName, shortCode, selectedPlaybookName, playbookVersion, playbookStructure, version.GetVersion())
 	if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
 		return "", "", nil, fmt.Errorf("failed to create project metadata: %w", err)
 	}

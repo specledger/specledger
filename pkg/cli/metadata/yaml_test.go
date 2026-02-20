@@ -9,7 +9,7 @@ import (
 
 func TestNewProjectMetadata(t *testing.T) {
 	t.Run("creates specledger playbook metadata", func(t *testing.T) {
-		metadata := NewProjectMetadata("test-project", "tp", "specledger", "1.0.0", []string{".beads/", ".claude/"})
+		metadata := NewProjectMetadata("test-project", "tp", "specledger", "1.0.0", []string{".beads/", ".claude/"}, "1.0.0")
 
 		if metadata.Version != MetadataVersion {
 			t.Errorf("expected version %s, got %s", MetadataVersion, metadata.Version)
@@ -133,7 +133,7 @@ func TestSaveToProjectAndLoadFromProject(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	// Create test metadata
-	metadata := NewProjectMetadata("test-project", "tp", "specledger", "1.0.0", []string{})
+	metadata := NewProjectMetadata("test-project", "tp", "specledger", "1.0.0", []string{}, "1.0.0")
 
 	// Save to project
 	if err := SaveToProject(metadata, tmpDir); err != nil {

@@ -25,6 +25,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-05
 - Go 1.24.2 + Cobra (CLI), go-git v5, gofrs/flock (file locking), gopkg.in/yaml.v3 (594-issues-storage-config)
 - File-based (JSONL for issues, file locks for concurrency) (594-issues-storage-config)
 - Go 1.24.2 + Cobra (CLI), go-git v5 (branch detection), gofrs/flock (file locking), gopkg.in/yaml.v3 (595-issue-tree-ready)
+- Go 1.24.2 + Cobra (CLI), gopkg.in/yaml.v3, net/http (GitHub API) (596-doctor-version-update)
+- File-based (specledger.yaml for metadata, embedded FS for templates) (596-doctor-version-update)
 
 - Go 1.24+ (004-thin-wrapper-redesign)
 
@@ -44,9 +46,9 @@ tests/
 Go 1.24+: Follow standard conventions
 
 ## Recent Changes
+- 596-doctor-version-update: Added Go 1.24.2 + Cobra (CLI), gopkg.in/yaml.v3, net/http (GitHub API)
 - 595-issue-tree-ready: Added Go 1.24.2 + Cobra (CLI), go-git v5 (branch detection), gofrs/flock (file locking), gopkg.in/yaml.v3
 - 594-issues-storage-config: Added Go 1.24.2 + Cobra (CLI), go-git v5, gofrs/flock (file locking), gopkg.in/yaml.v3
-- 592-prompt-updates: Added Markdown (prompt files), Go 1.24+ (embedding system) + Existing `sl deps` CLI, `sl issue` CLI commands
 
 
 <!-- MANUAL ADDITIONS START -->
