@@ -81,12 +81,14 @@ Generate actionable, dependency-ordered tasks from the implementation plan. Task
          - `phase:<phase-name>` (e.g. `phase:setup`, `phase:us1`, `phase:foundational`)
          - All carry the `spec:<feature-slug>` label
       - For each task, create with `--type task`
-      - Tasks must include:
-         - `title` (short summary)
-         - `description` Problem statement (WHY this matters) - immutable (what to implement, where, inputs/outputs)
-         - `design` HOW to build, Which files, references (can change during work)
-         - `acceptance` Acceptance: WHAT success looks like (stays stable)
-         - `priority` (from story priority, 0=critical, 1=high, 2=normal, 3=low)
+      - Tasks must include all content in the `--description` field (there is no separate design/acceptance/dod flag):
+         - `--title` (short summary, under 80 characters)
+         - `--description` Multi-line text containing:
+           - WHY: Problem statement (what to implement, where, inputs/outputs)
+           - DESIGN: HOW to build, which files, references (can change during work)
+           - ACCEPTANCE: WHAT success looks like (stable criteria)
+           - DEFINITION OF DONE: Checklist items [ ] derived from acceptance criteria
+         - `--priority` (from story priority, 0=critical, 1=high, 2=normal, 3=low)
          - Labels:
             - `story:US1`, `story:US2`, etc. (mapped from spec.md)
             - `component:<area>` (e.g. `component:auth`, `component:db`)
@@ -167,6 +169,61 @@ The tasks.md should be immediately executable - each task must be specific enoug
    - **DO NOT generate a linear checklist** — build a **task graph** using dependencies
    - Each user story phase should be a complete, independently testable increment
 
+## Issue Content Structure
+
+Each generated issue MUST have the following structured content in the `--description` field:
+
+| Field | Purpose | Example |
+|-------|---------|---------|
+| `--title` | Concise summary (under 80 chars) | "Add user authentication to login page" |
+| `--description` | Multi-line content with sections | See format below |
+
+**Description Format** (all in one `--description` string):
+```
+WHY: [Problem statement - what to implement, where, inputs/outputs]
+
+DESIGN: [HOW to build - file paths, module references, approach decisions]
+
+ACCEPTANCE: [WHAT success looks like - measurable, testable outcomes]
+
+DEFINITION OF DONE:
+[ ] Item 1
+[ ] Item 2
+[ ] Item 3
+```
+
+**Field Guidelines**:
+- `--title`: Action-oriented, specific, concise
+- `--description`: Include WHY, DESIGN, ACCEPTANCE, and DEFINITION OF DONE sections
+- All structured content goes in description since `sl issue create` only supports `--title` and `--description` flags
+
+## Definition of Done Population
+
+When creating issues, derive `definition_of_done` items from the acceptance criteria in spec.md:
+
+1. **Extract acceptance criteria**: Parse each "Then" clause from acceptance scenarios in spec.md
+2. **Convert to checklist items**: Transform each criterion into a verifiable statement
+3. **Include in issue creation**: Add items to the `definition_of_done` field
+
+**Example conversion**:
+- Spec acceptance: "Then the user can log in with valid credentials"
+- DoD item: "User can authenticate with valid username/password"
+- Spec acceptance: "Then invalid credentials show an error message"
+- DoD item: "Invalid credentials display appropriate error message"
+
+**DoD Summary in tasks.md**: After creating all issues, include a DoD Summary section in tasks.md:
+
+```markdown
+## Definition of Done Summary
+
+| Issue ID | DoD Items |
+|----------|-----------|
+| SL-xxxxx | - Item 1<br>- Item 2<br>- Item 3 |
+| SL-yyyyy | - Item 1<br>- Item 2 |
+```
+
+This provides quick visibility into verification requirements for each task.
+
 ## Label Conventions
 
 | Label                | Purpose                             |
@@ -183,19 +240,28 @@ The tasks.md should be immediately executable - each task must be specific enoug
 ### Epic
 
 ```bash
-sl issue create "Login Feature" --description "..." --type epic --labels "spec:006-login-auth,component:webapp" --priority 1
+sl issue create --title "Login Feature" --description "Implement user authentication with OAuth2 support" --type epic --labels "spec:006-login-auth,component:webapp" --priority 1
 ```
 
 ### Feature (Phase)
 
 ```bash
-sl issue create "Setup Phase" --description "..." --type feature --labels "spec:006-login-auth,phase:setup,component:infra" --priority 1
+sl issue create --title "Setup Phase" --description "Initialize project structure and dependencies" --type feature --labels "spec:006-login-auth,phase:setup,component:infra" --priority 1
 ```
 
 ### Task
 
 ```bash
-sl issue create "Add React LoginForm" --description "..." --type task --labels "spec:006-login-auth,story:US1,component:webapp" --priority 2
+sl issue create --title "Add React LoginForm" --description "WHY: Users need to authenticate via the login form.
+
+DESIGN: Files: src/components/LoginForm.tsx, src/hooks/useAuth.ts. Use React Hook Form for validation.
+
+ACCEPTANCE: User can enter credentials, form validates input, submits to auth API.
+
+DEFINITION OF DONE:
+[ ] LoginForm component created
+[ ] Form validation working
+[ ] Auth API integration complete" --type task --labels "spec:006-login-auth,story:US1,component:webapp" --priority 2
 ```
 
 ### Add Dependencies
@@ -204,16 +270,58 @@ sl issue create "Add React LoginForm" --description "..." --type task --labels "
 sl issue link SL-xxxxx blocks SL-yyyyy
 ```
 
-**Use description for:**
-- Problem statement (WHY this matters)
-- What to implement, where, inputs/outputs
+**IMPORTANT**: The `sl issue create` command only supports these flags:
+- `--title` (required)
+- `--description` (optional, but include all WHY/DESIGN/ACCEPTANCE/DoD content here)
+- `--type` (epic, feature, task, bug)
+- `--labels` (comma-separated)
+- `--priority` (0-5)
+- `--spec` (override spec context)
+- `--force` (skip duplicate detection)
 
-**Use design field for:**
-- Implementation approach decisions
-- HOW to build
-- WHERE to build (which files, which modules to depend on)
+There are NO separate `--design`, `--acceptance`, or `--definition_of_done` flags.
 
-**Use acceptance criteria for:**
-- Definition of done
-- WHAT success looks like (stays stable)
-- Testing mechanism
+## Error Handling
+
+When `sl issue create` or `sl issue link` commands fail, handle errors gracefully:
+
+### Automatic Error Recovery
+
+1. **Sanitize special characters**: If description contains quotes, newlines, or special characters:
+   - Escape single quotes: `'` → `'\''`
+   - Escape double quotes within strings
+   - Replace literal newlines with `\n` or remove if problematic
+   - Sanitize any shell metacharacters
+
+2. **Retry with corrected parameters**:
+   - First attempt: Use original parameters
+   - If fails: Sanitize and retry once
+   - If still fails: Proceed to manual error handling
+
+3. **Report clear errors**:
+   - Display the specific error message from the CLI
+   - Identify which parameter caused the issue
+   - Suggest remediation steps
+
+### Common Error Scenarios
+
+| Error | Cause | Resolution |
+|-------|-------|------------|
+| "label format invalid" | Special characters in label | Sanitize to alphanumeric + dashes |
+| "description too long" | Field exceeds limit | Truncate with ellipsis, log warning |
+| "duplicate issue" | Same title/labels exist | Skip with warning, use `--force` if intentional |
+| "file system error" | Permissions, disk space | Display path, suggest remediation |
+
+### Example Error Handling Flow
+
+```bash
+# Attempt 1: Original command
+sl issue create --title "Feature" --description "With 'quotes'" --type task
+
+# If fails with quote error, sanitize and retry:
+sl issue create --title "Feature" --description "With '\''quotes'\''" --type task
+
+# If still failing, report and continue:
+echo "Warning: Could not create issue 'Feature'. Error: [specific error]"
+echo "Suggestion: [remediation step]"
+```

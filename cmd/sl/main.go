@@ -5,17 +5,26 @@ import (
 	"os"
 
 	"github.com/specledger/specledger/pkg/cli/commands"
+	"github.com/specledger/specledger/pkg/version"
 
 	"github.com/spf13/cobra"
 )
 
-// Version variables set by GoReleaser during build
+// Build-time variables set by GoReleaser via ldflags
 var (
-	version   = "dev"
-	commit    = "unknown"
-	date      = "unknown"
-	buildType = "development"
+	buildVersion   = "dev"
+	buildCommit    = "unknown"
+	buildDate      = "unknown"
+	buildType      = "development"
 )
+
+func init() {
+	// Set version package variables from build-time ldflags
+	version.Version = buildVersion
+	version.Commit = buildCommit
+	version.Date = buildDate
+	version.BuildType = buildType
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "sl",
@@ -33,7 +42,7 @@ Quick start:
  sl init             # Initialize in existing repository
  sl deps list        # List dependencies
  sl deps add <url>   # Add a dependency`,
-	Version: version,
+	Version: version.GetVersion(),
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 	},
@@ -58,10 +67,10 @@ func init() {
 		Long:  "Display the version, commit, and build date of SpecLedger",
 		Run: func(cmd *cobra.Command, args []string) {
 			fmt.Printf("SpecLedger CLI (sl)\n")
-			fmt.Printf("Version:  %s\n", version)
-			fmt.Printf("Commit:   %s\n", commit)
-			fmt.Printf("Built:    %s\n", date)
-			fmt.Printf("Type:     %s\n", buildType)
+			fmt.Printf("Version:  %s\n", version.GetVersion())
+			fmt.Printf("Commit:   %s\n", version.GetCommit())
+			fmt.Printf("Built:    %s\n", version.GetBuildDate())
+			fmt.Printf("Type:     %s\n", version.GetBuildType())
 		},
 	})
 

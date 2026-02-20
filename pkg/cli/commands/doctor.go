@@ -1,13 +1,16 @@
 package commands
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/prerequisites"
 	"github.com/specledger/specledger/pkg/cli/ui"
+	"github.com/specledger/specledger/pkg/version"
 	"github.com/spf13/cobra"
 )
 
@@ -43,6 +46,18 @@ type DoctorOutput struct {
 	Tools               []DoctorToolStatus `json:"tools"`
 	Missing             []string           `json:"missing,omitempty"`
 	InstallInstructions string             `json:"install_instructions,omitempty"`
+
+	// CLI version info
+	CLIVersion          string `json:"cli_version"`
+	CLILatestVersion    string `json:"cli_latest_version,omitempty"`
+	CLIUpdateAvailable  bool   `json:"cli_update_available"`
+	CLIUpdateInstructions string `json:"cli_update_instructions,omitempty"`
+	CLICheckError       string `json:"cli_check_error,omitempty"`
+
+	// Template version info
+	TemplateVersion         string   `json:"template_version,omitempty"`
+	TemplateUpdateAvailable bool     `json:"template_update_available"`
+	TemplateCustomizedFiles []string `json:"template_customized_files,omitempty"`
 }
 
 // DoctorToolStatus represents a tool's status in JSON output
@@ -101,6 +116,24 @@ func outputDoctorJSON(check prerequisites.PrerequisiteCheck) error {
 		output.InstallInstructions = check.Instructions
 	}
 
+	// Add CLI version info
+	output.CLIVersion = version.GetVersion()
+
+	// Check for updates
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	versionInfo := version.CheckLatestVersion(ctx)
+	if versionInfo.Error != "" {
+		output.CLICheckError = versionInfo.Error
+	} else {
+		output.CLILatestVersion = versionInfo.LatestVersion
+		output.CLIUpdateAvailable = versionInfo.UpdateAvailable
+		if versionInfo.UpdateAvailable {
+			output.CLIUpdateInstructions = version.GetUpdateInstructions()
+		}
+	}
+
 	// Marshal and print JSON
 	jsonBytes, err := json.MarshalIndent(output, "", "  ")
 	if err != nil {
@@ -131,6 +164,31 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 			}
 		}
 		fmt.Printf("  %s%s%s\n", status, ui.Bold(name), versionInfo)
+	}
+	fmt.Println()
+
+	// CLI version section
+	fmt.Println(ui.Bold("SpecLedger CLI"))
+	fmt.Println(ui.Cyan("──────────────"))
+	fmt.Println()
+
+	cliVersion := version.GetVersion()
+	fmt.Printf("  %s Version: %s", ui.Checkmark(), ui.Bold(cliVersion))
+
+	// Check for updates (with timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	versionInfo := version.CheckLatestVersion(ctx)
+	if versionInfo.Error != "" {
+		fmt.Printf(" %s\n", ui.Dim(fmt.Sprintf("(check skipped: %s)", versionInfo.Error)))
+	} else if versionInfo.UpdateAvailable {
+		fmt.Printf(" %s\n", ui.Yellow(fmt.Sprintf("(latest: %s)", versionInfo.LatestVersion)))
+		fmt.Println()
+		fmt.Printf("  %s Update available!\n", ui.Yellow("⚠"))
+		fmt.Printf("  %s\n", version.FormatUpdateMessage(cliVersion, versionInfo.LatestVersion))
+	} else {
+		fmt.Printf(" %s\n", ui.Green("(latest)"))
 	}
 	fmt.Println()
 
