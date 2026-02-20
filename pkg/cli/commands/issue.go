@@ -191,6 +191,23 @@ var issueUnlinkCmd = &cobra.Command{
 	RunE:    runIssueUnlink,
 }
 
+// issueReadyCmd lists ready-to-work issues
+var issueReadyCmd = &cobra.Command{
+	Use:   "ready",
+	Short: "List issues ready to work on",
+	Long: `List issues that are ready to work on (not blocked by open dependencies).
+
+An issue is "ready" when:
+- Status is "open" or "in_progress"
+- AND all issues that block it are closed
+
+If all issues are blocked, displays which issues are blocking them.`,
+	Example: `  sl issue ready
+  sl issue ready --all
+  sl issue ready --json`,
+	RunE: runIssueReady,
+}
+
 func init() {
 	// Add issue command to root
 	VarIssueCmd.AddCommand(issueCreateCmd)
@@ -200,6 +217,7 @@ func init() {
 	VarIssueCmd.AddCommand(issueCloseCmd)
 	VarIssueCmd.AddCommand(issueLinkCmd)
 	VarIssueCmd.AddCommand(issueUnlinkCmd)
+	VarIssueCmd.AddCommand(issueReadyCmd)
 	VarIssueCmd.AddCommand(issueMigrateCmd)
 	VarIssueCmd.AddCommand(issueRepairCmd)
 
@@ -249,6 +267,10 @@ func init() {
 	// Migrate command flags
 	issueMigrateCmd.Flags().BoolVar(&issueDryRunFlag, "dry-run", false, "Show what would be migrated")
 	issueMigrateCmd.Flags().BoolVar(&issueKeepBeadsFlag, "keep-beads", false, "Keep .beads folder after migration")
+
+	// Ready command flags
+	issueReadyCmd.Flags().BoolVar(&issueAllFlag, "all", false, "List ready issues across all specs")
+	issueReadyCmd.Flags().BoolVar(&issueJSONFlag, "json", false, "Output as JSON")
 }
 
 func runIssueCreate(cmd *cobra.Command, args []string) error {
@@ -376,6 +398,11 @@ func runIssueList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
+	// Handle tree view
+	if issueTreeFlag {
+		return renderIssueTree(issueList, specContext, issueAllFlag, artifactPath)
+	}
+
 	// Print table
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tTYPE\tPRIORITY\tSPEC")
@@ -386,6 +413,216 @@ func runIssueList(cmd *cobra.Command, args []string) error {
 		}
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%d\t%s\n",
 			issue.ID, title, issue.Status, issue.IssueType, issue.Priority, issue.SpecContext)
+	}
+	w.Flush()
+
+	return nil
+}
+
+// renderIssueTree renders issues in a hierarchical tree format
+func renderIssueTree(issueList []issues.Issue, specContext string, allFlag bool, artifactPath string) error {
+	// Group issues by spec if --all flag is set
+	if allFlag {
+		return renderCrossSpecTree(issueList, artifactPath)
+	}
+
+	// Build dependency trees for single spec
+	store, err := issues.NewStore(issues.StoreOptions{
+		BasePath:    artifactPath,
+		SpecContext: specContext,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create store: %w", err)
+	}
+
+	return renderSingleSpecTree(issueList, store, specContext)
+}
+
+// renderSingleSpecTree renders issues for a single spec in tree format
+func renderSingleSpecTree(issueList []issues.Issue, store *issues.Store, specContext string) error {
+	// Find root issues (issues not blocked by anything in this list)
+	issueMap := make(map[string]*issues.Issue)
+	blocked := make(map[string]bool)
+
+	for i := range issueList {
+		issueMap[issueList[i].ID] = &issueList[i]
+	}
+
+	// Mark issues that are blocked by others in the list
+	for _, issue := range issueList {
+		for _, blockerID := range issue.BlockedBy {
+			if _, exists := issueMap[blockerID]; exists {
+				blocked[issue.ID] = true
+			}
+		}
+	}
+
+	// Build trees from root issues
+	var trees []*issues.DependencyTree
+	for _, issue := range issueList {
+		if !blocked[issue.ID] {
+			// This is a root issue - get its full tree
+			tree, err := store.GetDependencyTree(issue.ID)
+			if err != nil {
+				// If tree fails, create a simple node
+				tree = &issues.DependencyTree{Issue: issue}
+			}
+			trees = append(trees, tree)
+		}
+	}
+
+	// Check for cycles
+	cycles := issues.DetectCycles(trees)
+
+	// Create renderer
+	renderer := issues.NewTreeRenderer(issues.DefaultTreeRenderOptions())
+
+	// Output
+	var output strings.Builder
+
+	// Show cycle warning if needed
+	if len(cycles) > 0 {
+		output.WriteString(issues.FormatCycleWarning(cycles))
+	}
+
+	// Render tree
+	output.WriteString(renderer.RenderWithRoot(specContext, trees, len(issueList)))
+
+	fmt.Print(output.String())
+	return nil
+}
+
+// renderCrossSpecTree renders issues grouped by spec in tree format
+func renderCrossSpecTree(issueList []issues.Issue, artifactPath string) error {
+	// Group issues by spec
+	specIssues := make(map[string][]issues.Issue)
+	for _, issue := range issueList {
+		specIssues[issue.SpecContext] = append(specIssues[issue.SpecContext], issue)
+	}
+
+	fmt.Println("All Specs")
+	for spec, issues := range specIssues {
+		fmt.Printf("├── %s (%d issues)\n", spec, len(issues))
+		for i, issue := range issues {
+			prefix := "│   ├── "
+			if i == len(issues)-1 {
+				prefix = "│   └── "
+			}
+			fmt.Printf("%s%s [%s] %s\n", prefix, issue.ID, issue.Status, truncateTitle(issue.Title, 40))
+		}
+	}
+
+	return nil
+}
+
+// truncateTitle truncates a title to maxLen characters
+func truncateTitle(title string, maxLen int) string {
+	if len(title) <= maxLen {
+		return title
+	}
+	if maxLen <= 3 {
+		return title[:maxLen]
+	}
+	return title[:maxLen-3] + "..."
+}
+
+func runIssueReady(cmd *cobra.Command, args []string) error {
+	// Determine spec context
+	specContext := issueSpecFlag
+	if specContext == "" && !issueAllFlag {
+		detector := issues.NewContextDetector(".")
+		var err error
+		specContext, err = detector.DetectSpecContext()
+		if err != nil {
+			return fmt.Errorf("%w", err)
+		}
+	}
+
+	artifactPath := getArtifactPath()
+	var readyIssues []issues.ReadyIssue
+	var blockedIssues []issues.ReadyIssue
+	var err error
+
+	if issueAllFlag {
+		// Get ready issues across all specs
+		readyIssues, err = issues.ListReadyAcrossSpecs(artifactPath, issues.ListFilter{})
+		if err != nil {
+			return fmt.Errorf("failed to list ready issues: %w", err)
+		}
+
+		// Also get blocked issues for context
+		// For cross-spec, we need to iterate through each spec
+		specs, _ := issues.ListAllSpecs(artifactPath, issues.ListFilter{})
+		specSet := make(map[string]bool)
+		for _, issue := range specs {
+			specSet[issue.SpecContext] = true
+		}
+
+		for spec := range specSet {
+			store, storeErr := issues.NewStore(issues.StoreOptions{
+				BasePath:    artifactPath,
+				SpecContext: spec,
+			})
+			if storeErr != nil {
+				continue
+			}
+			blocked, _ := store.GetBlockedIssuesWithBlockers()
+			blockedIssues = append(blockedIssues, blocked...)
+		}
+	} else {
+		store, storeErr := issues.NewStore(issues.StoreOptions{
+			BasePath:    artifactPath,
+			SpecContext: specContext,
+		})
+		if storeErr != nil {
+			return fmt.Errorf("failed to create store: %w", storeErr)
+		}
+
+		readyIssues, err = store.ListReady(issues.ListFilter{})
+		if err != nil {
+			return fmt.Errorf("failed to list ready issues: %w", err)
+		}
+
+		blockedIssues, _ = store.GetBlockedIssuesWithBlockers()
+	}
+
+	// JSON output
+	if issueJSONFlag {
+		data, _ := json.MarshalIndent(readyIssues, "", "  ")
+		fmt.Println(string(data))
+		return nil
+	}
+
+	// No ready issues found
+	if len(readyIssues) == 0 {
+		fmt.Println("No ready issues found.")
+		if len(blockedIssues) > 0 {
+			fmt.Println()
+			fmt.Println("Blocked issues:")
+			for _, bi := range blockedIssues {
+				fmt.Printf("  %s \"%s\" is blocked by:\n", bi.Issue.ID, truncateTitle(bi.Issue.Title, 40))
+				for _, blocker := range bi.BlockedBy {
+					fmt.Printf("    - %s \"%s\" (%s)\n", blocker.ID, truncateTitle(blocker.Title, 30), blocker.Status)
+				}
+			}
+		}
+		return nil
+	}
+
+	// Table output
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	if issueAllFlag {
+		fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tPRIORITY\tSPEC")
+		for _, ri := range readyIssues {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%d\t%s\n",
+				ri.Issue.ID, truncateTitle(ri.Issue.Title, 40), ri.Issue.Status, ri.Issue.Priority, ri.Issue.SpecContext)
+		}
+	} else {
+		fmt.Fprintln(w, "ID\tTITLE\tSTATUS\tPRIORITY")
+		for _, ri := range readyIssues {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%d\n",
+				ri.Issue.ID, truncateTitle(ri.Issue.Title, 40), ri.Issue.Status, ri.Issue.Priority)
+		}
 	}
 	w.Flush()
 
@@ -425,6 +662,11 @@ func runIssueShow(cmd *cobra.Command, args []string) error {
 		data, _ := json.MarshalIndent(issue, "", "  ")
 		fmt.Println(string(data))
 		return nil
+	}
+
+	// Handle tree view for single issue
+	if issueTreeFlag {
+		return renderIssueShowTree(store, issue)
 	}
 
 	// Print issue details
@@ -475,6 +717,52 @@ func runIssueShow(cmd *cobra.Command, args []string) error {
 				fmt.Printf("  [ ] %s\n", item.Item)
 			}
 		}
+	}
+
+	return nil
+}
+
+// renderIssueShowTree renders a centered tree showing what an issue blocks and what blocks it
+func renderIssueShowTree(store *issues.Store, issue *issues.Issue) error {
+	tree, err := store.GetDependencyTree(issue.ID)
+	if err != nil {
+		return fmt.Errorf("failed to get dependency tree: %w", err)
+	}
+
+	// Show what blocks this issue
+	if len(tree.BlockedBy) > 0 {
+		fmt.Println("Blocked by:")
+		for i, blocker := range tree.BlockedBy {
+			isLast := i == len(tree.BlockedBy)-1
+			prefix := "├── "
+			if isLast {
+				prefix = "└── "
+			}
+			fmt.Printf("%s%s [%s] %s\n", prefix, blocker.Issue.ID, blocker.Issue.Status, truncateTitle(blocker.Issue.Title, 40))
+		}
+		fmt.Println()
+	}
+
+	// Show the issue itself (centered)
+	fmt.Printf("%s [%s] %s\n", issue.ID, issue.Status, issue.Title)
+	fmt.Println()
+
+	// Show what this issue blocks
+	if len(tree.Blocks) > 0 {
+		fmt.Println("Blocks:")
+		for i, blocked := range tree.Blocks {
+			isLast := i == len(tree.Blocks)-1
+			prefix := "├── "
+			if isLast {
+				prefix = "└── "
+			}
+			fmt.Printf("%s%s [%s] %s\n", prefix, blocked.Issue.ID, blocked.Issue.Status, truncateTitle(blocked.Issue.Title, 40))
+		}
+	}
+
+	// No dependencies
+	if len(tree.BlockedBy) == 0 && len(tree.Blocks) == 0 {
+		fmt.Println("(No dependencies)")
 	}
 
 	return nil

@@ -238,3 +238,58 @@ func NewIssue(title, description, specContext string, issueType IssueType, prior
 		UpdatedAt:   now,
 	}
 }
+
+// Blocker represents a blocking issue with its key details
+type Blocker struct {
+	ID     string      `json:"id"`
+	Title  string      `json:"title"`
+	Status IssueStatus `json:"status"`
+}
+
+// IsReady returns true if the issue is ready to work on (not blocked by open dependencies).
+// An issue is ready when:
+// - Status is open or in_progress (not closed)
+// - AND BlockedBy array is empty OR ALL issues in BlockedBy have status closed
+func (i *Issue) IsReady(allIssues map[string]*Issue) bool {
+	// Not ready if closed
+	if i.Status == StatusClosed {
+		return false
+	}
+
+	// Ready if no blockers
+	if len(i.BlockedBy) == 0 {
+		return true
+	}
+
+	// Check if all blockers are closed
+	for _, blockerID := range i.BlockedBy {
+		blocker, exists := allIssues[blockerID]
+		if !exists {
+			// Blocker doesn't exist - treat as closed (can't block if not found)
+			continue
+		}
+		if blocker.Status != StatusClosed {
+			return false
+		}
+	}
+	return true
+}
+
+// GetBlockers returns details about blocking issues for display purposes.
+// Returns a slice of Blocker structs with ID, Title, and Status.
+func (i *Issue) GetBlockers(allIssues map[string]*Issue) []Blocker {
+	var blockers []Blocker
+	for _, blockerID := range i.BlockedBy {
+		blocker, exists := allIssues[blockerID]
+		if !exists {
+			// Skip missing references
+			continue
+		}
+		blockers = append(blockers, Blocker{
+			ID:     blocker.ID,
+			Title:  blocker.Title,
+			Status: blocker.Status,
+		})
+	}
+	return blockers
+}

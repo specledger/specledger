@@ -121,7 +121,8 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
    - **Polish and validation**: Unit tests, performance optimization, documentation
 
 9. Progress tracking and error handling:
-   - Find open tasks using: `sl issue list --status open`
+   - Find ready tasks using: `sl issue ready`
+   - If no ready tasks, display blocking issues and offer options
    - Update issue status with: `sl issue update <id> --status in_progress`
    - Report progress after each completed task
    - Halt execution if any sequential task fails
@@ -185,7 +186,8 @@ Use the built-in `sl issue` commands for issue management:
 | Action | Command |
 |--------|---------|
 | Create issue | `sl issue create --title "..." --type task` |
-| List open issues | `sl issue list --status open` |
+| **Find ready tasks** | `sl issue ready` |
+| List all open issues | `sl issue list --status open` |
 | Show issue details | `sl issue show <id>` |
 | Update issue | `sl issue update <id> --status in_progress` |
 | Close issue | `sl issue close <id> --reason "Completed"` |

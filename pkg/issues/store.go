@@ -531,6 +531,136 @@ func GetIssueAcrossSpecs(id, basePath string) (*Issue, string, error) {
 	return nil, "", ErrIssueNotFound
 }
 
+// ReadyIssue represents an issue that is ready to work on
+type ReadyIssue struct {
+	Issue     Issue     `json:"issue"`
+	BlockedBy []Blocker `json:"blocked_by,omitempty"` // Empty for ready issues
+}
+
+// ListReady returns all issues that are ready to work on (not blocked by open dependencies).
+// Ready issues have status open or in_progress and all their blockers are closed.
+func (s *Store) ListReady(filter ListFilter) ([]ReadyIssue, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	issues, err := s.readAllUnlocked()
+	if err != nil {
+		return nil, err
+	}
+
+	// Build lookup map for dependency resolution
+	issueMap := make(map[string]*Issue)
+	for _, issue := range issues {
+		issueMap[issue.ID] = issue
+	}
+
+	var result []ReadyIssue
+	for _, issue := range issues {
+		// Check if ready
+		if !issue.IsReady(issueMap) {
+			continue
+		}
+
+		// Apply additional filters
+		if filter.Status != nil && issue.Status != *filter.Status {
+			continue
+		}
+		if filter.IssueType != nil && issue.IssueType != *filter.IssueType {
+			continue
+		}
+		if filter.Priority != nil && issue.Priority != *filter.Priority {
+			continue
+		}
+		for _, label := range filter.Labels {
+			if !contains(issue.Labels, label) {
+				continue
+			}
+		}
+
+		result = append(result, ReadyIssue{
+			Issue:     *issue,
+			BlockedBy: []Blocker{}, // Empty for ready issues
+		})
+	}
+
+	return result, nil
+}
+
+// ListReadyAcrossSpecs returns ready issues across all spec directories.
+func ListReadyAcrossSpecs(basePath string, filter ListFilter) ([]ReadyIssue, error) {
+	if basePath == "" {
+		basePath = "specledger"
+	}
+
+	specs, err := listSpecDirs(basePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list spec directories: %w", err)
+	}
+
+	var allReady []ReadyIssue
+	for _, spec := range specs {
+		store, err := NewStore(StoreOptions{
+			BasePath:    basePath,
+			SpecContext: spec,
+		})
+		if err != nil {
+			continue
+		}
+
+		ready, err := store.ListReady(filter)
+		if err != nil {
+			continue
+		}
+
+		allReady = append(allReady, ready...)
+	}
+
+	return allReady, nil
+}
+
+// GetBlockedIssuesWithBlockers returns all issues that are currently blocked, along with their blocker details.
+func (s *Store) GetBlockedIssuesWithBlockers() ([]ReadyIssue, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	issues, err := s.readAllUnlocked()
+	if err != nil {
+		return nil, err
+	}
+
+	// Build lookup map for dependency resolution
+	issueMap := make(map[string]*Issue)
+	for _, issue := range issues {
+		issueMap[issue.ID] = issue
+	}
+
+	var result []ReadyIssue
+	for _, issue := range issues {
+		// Skip closed issues
+		if issue.Status == StatusClosed {
+			continue
+		}
+
+		// Check if blocked (has open blockers)
+		if issue.IsReady(issueMap) {
+			continue
+		}
+
+		// Get blocker details
+		blockers := issue.GetBlockers(issueMap)
+		if len(blockers) == 0 {
+			continue // Not actually blocked (no blocker references found)
+		}
+
+		result = append(result, ReadyIssue{
+			Issue:     *issue,
+			BlockedBy: blockers,
+		})
+	}
+
+	return result, nil
+}
+
 // RepairResult contains the result of repairing an issues file
 type RepairResult struct {
 	ValidLines      int
