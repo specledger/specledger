@@ -41,6 +41,8 @@ Thumbs.db
 specledger/vendor/
 .spec-config/auth.json
 .cache/
+issues.jsonl.lock
+.issues.jsonl.lock
 
 # SpecLedger CLI credentials (FR-014: never commit tokens)
 .specledger/credentials.json

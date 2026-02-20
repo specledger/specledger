@@ -8,6 +8,7 @@ import (
 	"strings"
 	"text/tabwriter"
 
+	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/ui"
 	"github.com/specledger/specledger/pkg/issues"
 	"github.com/spf13/cobra"
@@ -37,6 +38,16 @@ var (
 	issueDryRunFlag      bool
 	issueKeepBeadsFlag   bool
 )
+
+// getArtifactPath loads the artifact_path from specledger.yaml
+// Falls back to "specledger/" on error or if not configured
+func getArtifactPath() string {
+	meta, err := metadata.LoadFromProject(".")
+	if err != nil {
+		return "specledger/"
+	}
+	return meta.GetArtifactPath()
+}
 
 // VarIssueCmd is the issue command group
 var VarIssueCmd = &cobra.Command{
@@ -269,7 +280,10 @@ func runIssueCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Create store and save
-	store, err := issues.NewStore(issues.StoreOptions{SpecContext: specContext})
+	store, err := issues.NewStore(issues.StoreOptions{
+		BasePath:    getArtifactPath(),
+		SpecContext: specContext,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create store: %w", err)
 	}
@@ -330,13 +344,17 @@ func runIssueList(cmd *cobra.Command, args []string) error {
 	var err error
 
 	// Get issues - use cross-spec listing if --all flag is set
+	artifactPath := getArtifactPath()
 	if issueAllFlag {
-		issueList, err = issues.ListAllSpecs("specledger", filter)
+		issueList, err = issues.ListAllSpecs(artifactPath, filter)
 		if err != nil {
 			return fmt.Errorf("failed to list issues across specs: %w", err)
 		}
 	} else {
-		store, storeErr := issues.NewStore(issues.StoreOptions{SpecContext: specContext})
+		store, storeErr := issues.NewStore(issues.StoreOptions{
+			BasePath:    artifactPath,
+			SpecContext: specContext,
+		})
 		if storeErr != nil {
 			return fmt.Errorf("failed to create store: %w", storeErr)
 		}
@@ -390,7 +408,10 @@ func runIssueShow(cmd *cobra.Command, args []string) error {
 	}
 
 	// Try to find the issue
-	store, err := issues.NewStore(issues.StoreOptions{SpecContext: specContext})
+	store, err := issues.NewStore(issues.StoreOptions{
+		BasePath:    getArtifactPath(),
+		SpecContext: specContext,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create store: %w", err)
 	}
@@ -474,7 +495,10 @@ func runIssueUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	store, err := issues.NewStore(issues.StoreOptions{SpecContext: specContext})
+	store, err := issues.NewStore(issues.StoreOptions{
+		BasePath:    getArtifactPath(),
+		SpecContext: specContext,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create store: %w", err)
 	}
@@ -540,7 +564,10 @@ func runIssueClose(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	store, err := issues.NewStore(issues.StoreOptions{SpecContext: specContext})
+	store, err := issues.NewStore(issues.StoreOptions{
+		BasePath:    getArtifactPath(),
+		SpecContext: specContext,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create store: %w", err)
 	}
@@ -689,7 +716,10 @@ func runIssueLink(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	store, err := issues.NewStore(issues.StoreOptions{SpecContext: specContext})
+	store, err := issues.NewStore(issues.StoreOptions{
+		BasePath:    getArtifactPath(),
+		SpecContext: specContext,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create store: %w", err)
 	}
@@ -731,7 +761,10 @@ func runIssueUnlink(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("%w", err)
 	}
 
-	store, err := issues.NewStore(issues.StoreOptions{SpecContext: specContext})
+	store, err := issues.NewStore(issues.StoreOptions{
+		BasePath:    getArtifactPath(),
+		SpecContext: specContext,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create store: %w", err)
 	}
@@ -754,7 +787,10 @@ func runIssueRepair(cmd *cobra.Command, args []string) error {
 
 	ui.PrintSection("Repairing Issues File")
 
-	store, err := issues.NewStore(issues.StoreOptions{SpecContext: specContext})
+	store, err := issues.NewStore(issues.StoreOptions{
+		BasePath:    getArtifactPath(),
+		SpecContext: specContext,
+	})
 	if err != nil {
 		return fmt.Errorf("failed to create store: %w", err)
 	}

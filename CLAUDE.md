@@ -22,6 +22,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-05
 - File-based (`.specledger/memory/constitution.md`, `specledger/specledger.yaml`) (011-streamline-onboarding)
 - Markdown (prompt files), Go 1.24+ (embedding system) + Existing `sl deps` CLI, `sl issue` CLI commands (592-prompt-updates)
 - N/A (documentation updates only) (592-prompt-updates)
+- Go 1.24.2 + Cobra (CLI), go-git v5, gofrs/flock (file locking), gopkg.in/yaml.v3 (594-issues-storage-config)
+- File-based (JSONL for issues, file locks for concurrency) (594-issues-storage-config)
 
 - Go 1.24+ (004-thin-wrapper-redesign)
 
@@ -41,9 +43,9 @@ tests/
 Go 1.24+: Follow standard conventions
 
 ## Recent Changes
+- 594-issues-storage-config: Added Go 1.24.2 + Cobra (CLI), go-git v5, gofrs/flock (file locking), gopkg.in/yaml.v3
 - 592-prompt-updates: Added Markdown (prompt files), Go 1.24+ (embedding system) + Existing `sl deps` CLI, `sl issue` CLI commands
 - 591-issue-tracking-upgrade: Added Go 1.24+ + Cobra (CLI framework), go-git v5 (branch detection), crypto/sha256 (ID generation)
-- 011-streamline-onboarding: Added Go 1.24.2 + Cobra (CLI), Bubble Tea + Bubbles + Lipgloss (TUI), go-git v5, YAML v3
 
 
 <!-- MANUAL ADDITIONS START -->

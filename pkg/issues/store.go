@@ -49,7 +49,7 @@ func NewStore(opts StoreOptions) (*Store, error) {
 		return &Store{
 			path:        basePath,
 			specContext: "",
-			lock:        flock.New(filepath.Join(basePath, ".issues.jsonl.lock")),
+			lock:        flock.New(filepath.Join(basePath, "issues.jsonl.lock")),
 		}, nil
 	}
 
@@ -57,7 +57,7 @@ func NewStore(opts StoreOptions) (*Store, error) {
 	issuesPath := filepath.Join(basePath, opts.SpecContext, "issues.jsonl")
 
 	// Create lock file path
-	lockPath := filepath.Join(basePath, opts.SpecContext, ".issues.jsonl.lock")
+	lockPath := filepath.Join(basePath, opts.SpecContext, "issues.jsonl.lock")
 
 	store := &Store{
 		path:        issuesPath,
