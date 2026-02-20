@@ -26,16 +26,20 @@
 **At session start, always check for available work:**
 
 ```bash
-# Check ready-to-work issues
-sl issue list --status open
+# Find ready-to-work issues (not blocked by dependencies)
+sl issue ready
 
 # Check in-progress issues
 sl issue list --status in_progress
+
+# See all open issues (including blocked)
+sl issue list --status open
 ```
 
 **Report format:**
-- "I can see X open issues: [summary]"
+- "I can see X ready issues: [summary]"
 - "Issue Y is in_progress. Last session: [summary from notes]. Next: [from notes]. Should I continue with that?"
+- If all issues are blocked: "All issues are blocked. Blockers: [list]"
 
 ## Core Operations
 
@@ -54,11 +58,20 @@ sl issue list                      # All open issues
 sl issue list --status in_progress # In-progress only
 sl issue list --all                # All issues across all specs
 sl issue list --label "phase:setup" # Filter by label
+sl issue list --tree               # Show dependency tree
+```
+
+**Find ready issues (unblocked):**
+```bash
+sl issue ready                     # Issues ready to work on (not blocked)
+sl issue ready --all               # Ready issues across all specs
+sl issue ready --json              # JSON output for scripting
 ```
 
 **Show issue details:**
 ```bash
-sl issue show SL-abc123
+sl issue show SL-abc123            # Full details
+sl issue show SL-abc123 --tree     # Show dependency context (blocks/blocked by)
 ```
 
 **Update issue:**
@@ -177,7 +190,14 @@ sl issue link SL-abc123 related SL-xyz789 # related but not blocking
 
 **View dependencies:**
 ```bash
-sl issue show SL-abc123  # Shows linked issues
+sl issue show SL-abc123           # Shows linked issues
+sl issue show SL-abc123 --tree    # Shows dependency context
+sl issue list --tree              # Shows all issues as dependency tree
+```
+
+**Find unblocked work:**
+```bash
+sl issue ready                    # Issues not blocked by open dependencies
 ```
 
 ## Definition of Done
