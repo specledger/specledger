@@ -8,6 +8,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/specledger/specledger/pkg/cli/launcher"
+	"github.com/specledger/specledger/pkg/cli/playbooks"
+	"github.com/specledger/specledger/pkg/models"
 )
 
 // Colors and styles
@@ -27,6 +29,7 @@ const (
 	stepProjectName = iota
 	stepDirectory
 	stepShortCode
+	stepTemplate // New: Template selection step
 	stepPlaybook
 	stepConstitution
 	stepAgentPreference
@@ -34,7 +37,7 @@ const (
 	stepComplete
 )
 
-const totalSteps = 7
+const totalSteps = 8
 
 // ConstitutionPrinciple represents a toggleable principle in the TUI.
 type ConstitutionPrinciple struct {
@@ -65,11 +68,15 @@ type Model struct {
 	quitting     bool
 	defaultDir   string
 
-	// Constitution principles (step 5)
+	// Template selection (step 4)
+	templates             []models.TemplateDefinition
+	selectedTemplateIndex int
+
+	// Constitution principles (step 6)
 	principles      []ConstitutionPrinciple
 	principleCursor int
 
-	// Agent preference (step 6)
+	// Agent preference (step 7)
 	agentOptions     []launcher.AgentOption
 	selectedAgentIdx int
 }
@@ -82,17 +89,35 @@ func InitialModel(defaultDir string) Model {
 	ti.CharLimit = 50
 	ti.Width = 50
 
+	// Load available templates
+	templates, err := playbooks.LoadTemplates()
+	if err != nil {
+		// If template loading fails, default to empty (will show error in TUI)
+		templates = []models.TemplateDefinition{}
+	}
+
+	// Find default template index
+	defaultTemplateIdx := 0
+	for i, tmpl := range templates {
+		if tmpl.IsDefault {
+			defaultTemplateIdx = i
+			break
+		}
+	}
+
 	return Model{
-		step:             stepProjectName,
-		textInput:        ti,
-		answers:          make(map[string]string),
-		width:            80,
-		selectedIdx:      0,
-		defaultDir:       defaultDir,
-		principles:       DefaultPrinciples(),
-		principleCursor:  0,
-		agentOptions:     launcher.DefaultAgents,
-		selectedAgentIdx: 0,
+		step:                  stepProjectName,
+		textInput:             ti,
+		answers:               make(map[string]string),
+		width:                 80,
+		selectedIdx:           0,
+		defaultDir:            defaultDir,
+		templates:             templates,
+		selectedTemplateIndex: defaultTemplateIdx,
+		principles:            DefaultPrinciples(),
+		principleCursor:       0,
+		agentOptions:          launcher.DefaultAgents,
+		selectedAgentIdx:      0,
 	}
 }
 
