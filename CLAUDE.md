@@ -27,6 +27,8 @@ Auto-generated from all feature plans. Last updated: 2026-02-05
 - Go 1.24.2 + Cobra (CLI), go-git v5 (branch detection), gofrs/flock (file locking), gopkg.in/yaml.v3 (595-issue-tree-ready)
 - Go 1.24.2 + Cobra (CLI), gopkg.in/yaml.v3, net/http (GitHub API) (596-doctor-version-update)
 - File-based (specledger.yaml for metadata, embedded FS for templates) (596-doctor-version-update)
+- Go 1.24.2 + github.com/charmbracelet/bubbletea v1.3.10 (TUI framework), github.com/charmbracelet/bubbles v0.21.1 (TUI components), github.com/charmbracelet/lipgloss v1.1.0 (styling), github.com/google/uuid v1.6.0 (UUID generation), github.com/spf13/cobra v1.10.2 (CLI framework), gopkg.in/yaml.v3 (metadata serialization) (593-init-project-templates)
+- File-based (embedded templates via //go:embed, project metadata in specledger.yaml) (593-init-project-templates)
 
 - Go 1.24+ (004-thin-wrapper-redesign)
 
@@ -46,9 +48,9 @@ tests/
 Go 1.24+: Follow standard conventions
 
 ## Recent Changes
+- 593-init-project-templates: Added Go 1.24.2 + github.com/charmbracelet/bubbletea v1.3.10 (TUI framework), github.com/charmbracelet/bubbles v0.21.1 (TUI components), github.com/charmbracelet/lipgloss v1.1.0 (styling), github.com/google/uuid v1.6.0 (UUID generation), github.com/spf13/cobra v1.10.2 (CLI framework), gopkg.in/yaml.v3 (metadata serialization)
 - 596-doctor-version-update: Added Go 1.24.2 + Cobra (CLI), gopkg.in/yaml.v3, net/http (GitHub API)
 - 595-issue-tree-ready: Added Go 1.24.2 + Cobra (CLI), go-git v5 (branch detection), gofrs/flock (file locking), gopkg.in/yaml.v3
-- 594-issues-storage-config: Added Go 1.24.2 + Cobra (CLI), go-git v5, gofrs/flock (file locking), gopkg.in/yaml.v3
 
 
 <!-- MANUAL ADDITIONS START -->
