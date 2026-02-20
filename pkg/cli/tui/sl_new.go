@@ -2,12 +2,12 @@ package tui
 
 import (
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/specledger/specledger/pkg/cli/launcher"
 	"github.com/specledger/specledger/pkg/cli/playbooks"
 	"github.com/specledger/specledger/pkg/models"
 )
@@ -77,7 +77,7 @@ type Model struct {
 	principleCursor int
 
 	// Agent preference (step 7)
-	agentOptions     []launcher.AgentOption
+	agents           []models.AgentConfig
 	selectedAgentIdx int
 }
 
@@ -92,8 +92,11 @@ func InitialModel(defaultDir string) Model {
 	// Load available templates
 	templates, err := playbooks.LoadTemplates()
 	if err != nil {
+		slog.Warn("failed to load templates", "error", err)
 		// If template loading fails, default to empty (will show error in TUI)
 		templates = []models.TemplateDefinition{}
+	} else {
+		slog.Info("templates loaded", "count", len(templates))
 	}
 
 	// Find default template index
@@ -116,7 +119,7 @@ func InitialModel(defaultDir string) Model {
 		selectedTemplateIndex: defaultTemplateIdx,
 		principles:            DefaultPrinciples(),
 		principleCursor:       0,
-		agentOptions:          launcher.DefaultAgents,
+		agents:                models.SupportedAgents(),
 		selectedAgentIdx:      0,
 	}
 }
@@ -134,6 +137,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		// Handle up/down for list selection steps
 		switch m.step {
+		case stepTemplate:
+			switch msg.String() {
+			case "up", "k":
+				if m.selectedTemplateIndex > 0 {
+					m.selectedTemplateIndex--
+				} else {
+					// Wrap around to last template
+					m.selectedTemplateIndex = len(m.templates) - 1
+				}
+				return m, nil
+			case "down", "j":
+				if m.selectedTemplateIndex < len(m.templates)-1 {
+					m.selectedTemplateIndex++
+				} else {
+					// Wrap around to first template
+					m.selectedTemplateIndex = 0
+				}
+				return m, nil
+			}
+
 		case stepPlaybook:
 			switch msg.String() {
 			case "up", "k":
@@ -172,11 +195,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "up", "k":
 				if m.selectedAgentIdx > 0 {
 					m.selectedAgentIdx--
+				} else {
+					// Wrap around to last agent
+					m.selectedAgentIdx = len(m.agents) - 1
 				}
 				return m, nil
 			case "down", "j":
-				if m.selectedAgentIdx < len(m.agentOptions)-1 {
+				if m.selectedAgentIdx < len(m.agents)-1 {
 					m.selectedAgentIdx++
+				} else {
+					// Wrap around to first agent
+					m.selectedAgentIdx = 0
 				}
 				return m, nil
 			}
@@ -253,6 +282,24 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		m.answers["short_code"] = strings.ToLower(value)
+		m.step = stepTemplate
+		return m, nil
+
+	case stepTemplate:
+		// Validate selection is in bounds
+		if m.selectedTemplateIndex < 0 || m.selectedTemplateIndex >= len(m.templates) {
+			slog.Warn("template selection validation failed",
+				"index", m.selectedTemplateIndex,
+				"count", len(m.templates))
+			m.showingError = "Invalid template selection"
+			return m, nil
+		}
+		// Store template ID in answers
+		selectedTemplate := m.templates[m.selectedTemplateIndex]
+		m.answers["template"] = selectedTemplate.ID
+		slog.Info("template selected",
+			"id", selectedTemplate.ID,
+			"name", selectedTemplate.Name)
 		m.step = stepPlaybook
 		m.selectedIdx = 0
 		return m, nil
@@ -286,9 +333,19 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case stepAgentPreference:
-		if m.selectedAgentIdx >= 0 && m.selectedAgentIdx < len(m.agentOptions) {
-			m.answers["agent_preference"] = m.agentOptions[m.selectedAgentIdx].Name
+		if m.selectedAgentIdx < 0 || m.selectedAgentIdx >= len(m.agents) {
+			slog.Warn("agent selection validation failed",
+				"index", m.selectedAgentIdx,
+				"count", len(m.agents))
+			m.showingError = "Invalid agent selection"
+			return m, nil
 		}
+		selectedAgent := m.agents[m.selectedAgentIdx]
+		m.answers["agent"] = selectedAgent.ID
+		m.answers["agent_preference"] = selectedAgent.Name // Keep for backward compatibility
+		slog.Info("agent selected",
+			"id", selectedAgent.ID,
+			"name", selectedAgent.Name)
 		m.step = stepConfirm
 		return m, nil
 
@@ -326,6 +383,8 @@ func (m Model) View() string {
 		s.WriteString(m.viewDirectory())
 	case stepShortCode:
 		s.WriteString(m.viewShortCode())
+	case stepTemplate:
+		s.WriteString(m.viewTemplateSelection())
 	case stepPlaybook:
 		s.WriteString(m.viewPlaybook())
 	case stepConstitution:
@@ -347,7 +406,7 @@ func (m Model) View() string {
 	switch m.step {
 	case stepConstitution:
 		s.WriteString(colorSubtle.Render("↑/↓: Navigate • Space: Toggle • Enter: Confirm • Ctrl+C: Cancel"))
-	case stepPlaybook, stepAgentPreference:
+	case stepTemplate, stepPlaybook, stepAgentPreference:
 		s.WriteString(colorSubtle.Render("↑/↓: Select • Enter: Confirm • Ctrl+C: Cancel"))
 	default:
 		s.WriteString(colorSubtle.Render("Enter: Continue • Ctrl+C: Cancel"))
@@ -384,6 +443,42 @@ func (m Model) viewShortCode() string {
 	s.WriteString(colorSubtle.Render("A 2-4 letter prefix for issues (e.g., 'sl' for specledger-123)"))
 	s.WriteString("\n\n")
 	s.WriteString(m.textInput.View())
+	return s.String()
+}
+
+func (m Model) viewTemplateSelection() string {
+	var s strings.Builder
+	s.WriteString(colorPrimary.Render("Select Project Template"))
+	s.WriteString("\n")
+	s.WriteString(colorSubtle.Render("Choose a template that matches your project type"))
+	s.WriteString("\n\n")
+
+	for i, template := range m.templates {
+		cursor := " "
+		radio := "○"
+		style := unselectedStyle
+
+		if i == m.selectedTemplateIndex {
+			cursor = "›"
+			style = selectedStyle
+			radio = "◉"
+		}
+
+		// Template name
+		s.WriteString(fmt.Sprintf("%s %s %s\n", cursor, radio, style.Render(template.Name)))
+
+		// Show description and tech characteristics only for selected template
+		if i == m.selectedTemplateIndex {
+			s.WriteString(colorSubtle.Render("  " + template.Description))
+			s.WriteString("\n")
+			if len(template.Characteristics) > 0 {
+				tech := strings.Join(template.Characteristics, ", ")
+				s.WriteString(colorSubtle.Render("  Tech: " + tech))
+				s.WriteString("\n")
+			}
+		}
+	}
+
 	return s.String()
 }
 
@@ -458,10 +553,10 @@ func (m Model) viewAgentPreference() string {
 	var s strings.Builder
 	s.WriteString(colorPrimary.Render("AI Coding Agent"))
 	s.WriteString("\n")
-	s.WriteString(colorSubtle.Render("Choose an AI agent to launch after project setup"))
+	s.WriteString(colorSubtle.Render("Select an AI coding agent for config directory setup"))
 	s.WriteString("\n\n")
 
-	for i, agent := range m.agentOptions {
+	for i, agent := range m.agents {
 		cursor := " "
 		radio := "○"
 		style := unselectedStyle
@@ -476,6 +571,9 @@ func (m Model) viewAgentPreference() string {
 
 		if i == m.selectedAgentIdx {
 			s.WriteString(colorSubtle.Render("  " + agent.Description))
+			if agent.HasConfig() {
+				s.WriteString(colorSubtle.Render(fmt.Sprintf("\n  Config: %s/", agent.ConfigDir)))
+			}
 			s.WriteString("\n")
 		}
 	}
@@ -492,6 +590,18 @@ func (m Model) viewConfirm() string {
 	s.WriteString(colorSuccess.Render("✓ ") + "Project Name: " + m.answers["project_name"] + "\n")
 	s.WriteString(colorSuccess.Render("✓ ") + "Location: " + projectPath + "\n")
 	s.WriteString(colorSuccess.Render("✓ ") + "Short Code: " + m.answers["short_code"] + "\n")
+
+	// Template selection
+	if templateID, ok := m.answers["template"]; ok {
+		templateName := templateID
+		for _, tmpl := range m.templates {
+			if tmpl.ID == templateID {
+				templateName = tmpl.Name
+				break
+			}
+		}
+		s.WriteString(colorSuccess.Render("✓ ") + "Template: " + templateName + "\n")
+	}
 
 	if playbook, ok := m.answers["playbook"]; ok {
 		s.WriteString(colorSuccess.Render("✓ ") + "Playbook: " + playbook + "\n")

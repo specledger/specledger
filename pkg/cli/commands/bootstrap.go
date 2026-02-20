@@ -10,17 +10,23 @@ import (
 	"github.com/specledger/specledger/pkg/cli/config"
 	"github.com/specledger/specledger/pkg/cli/logger"
 	"github.com/specledger/specledger/pkg/cli/metadata"
+	"github.com/specledger/specledger/pkg/cli/playbooks"
 	"github.com/specledger/specledger/pkg/cli/prerequisites"
 	"github.com/specledger/specledger/pkg/cli/tui"
 	"github.com/specledger/specledger/pkg/cli/ui"
+	"github.com/specledger/specledger/pkg/models"
 	"github.com/spf13/cobra"
 )
 
 var (
-	projectNameFlag string
-	shortCodeFlag   string
-	demoDirFlag     string
-	ciFlag          bool
+	projectNameFlag   string
+	shortCodeFlag     string
+	demoDirFlag       string
+	ciFlag            bool
+	templateFlag      string
+	agentFlag         string
+	listTemplatesFlag bool
+	forceFlag         bool
 	// Init-specific flags
 	initShortCodeFlag string
 	initPlaybookFlag  string
@@ -31,22 +37,37 @@ var (
 var VarBootstrapCmd = &cobra.Command{
 	Use:   "new",
 	Short: "Create a new SpecLedger project",
-	Long: `Create a new SpecLedger project with all necessary infrastructure:
+	Long: `Create a new SpecLedger project with all necessary infrastructure.
 
-Interactive mode:
+Interactive mode (default):
   sl new
 
 Non-interactive mode (for CI/CD):
-  sl new --ci --project-name <name> --short-code <code> --project-dir <path>
+  sl new --ci -n my-project -s mp -d /path --template full-stack --agent claude-code
+
+List available templates:
+  sl new --list-templates
+
+Examples:
+  sl new                                    # Interactive TUI mode
+  sl new --template ml-image                # Pre-select ML template
+  sl new --agent opencode                   # Pre-select OpenCode agent
+  sl new --force                            # Overwrite existing directory
+  sl new --ci -n app -s ap -d . -t general-purpose -a none
 
 The bootstrap creates:
-- .claude/ directory with skills and commands
-- Built-in issue tracking via sl issue commands
-- github.com/specledger/specledger/ directory for specifications
-- github.com/specledger/specledger/specledger.yaml file for project metadata`,
+- Project template structure (based on --template selection)
+- Agent config directory (.claude/ or .opencode/ based on --agent)
+- specledger/ directory for specifications
+- specledger/specledger.yaml with project metadata and UUID`,
 
 	// RunE is called when the command is executed
 	RunE: func(cmd *cobra.Command, args []string) error {
+		// Handle --list-templates flag first
+		if listTemplatesFlag {
+			return listTemplates()
+		}
+
 		// Create logger
 		cfg, err := config.Load()
 		if err != nil {
@@ -54,6 +75,25 @@ The bootstrap creates:
 		}
 
 		l := logger.New(logger.Debug)
+
+		// Validate template flag if provided
+		if templateFlag != "" {
+			if _, err := playbooks.GetTemplateByID(templateFlag); err != nil {
+				templates, _ := playbooks.LoadTemplates()
+				var validIDs []string
+				for _, t := range templates {
+					validIDs = append(validIDs, t.ID)
+				}
+				return fmt.Errorf("unknown template: %q\nAvailable: %s\nUse --list-templates for details", templateFlag, strings.Join(validIDs, ", "))
+			}
+		}
+
+		// Validate agent flag if provided
+		if agentFlag != "" {
+			if _, err := models.GetAgentByID(agentFlag); err != nil {
+				return err
+			}
+		}
 
 		// Check if non-interactive mode
 		modeDetector := tui.NewModeDetector()
@@ -131,13 +171,22 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 
 	// Check if directory already exists
 	if _, err := os.Stat(projectPath); err == nil {
-		shouldOverwrite, err := tui.ConfirmPrompt(fmt.Sprintf("Directory '%s' already exists. Overwrite? [y/N]: ", projectName))
-		if err != nil {
-			return fmt.Errorf("failed to confirm overwrite: %w", err)
+		shouldOverwrite := forceFlag
+		if !forceFlag {
+			var promptErr error
+			shouldOverwrite, promptErr = tui.ConfirmPrompt(fmt.Sprintf("Directory '%s' already exists. Overwrite? [y/N]: ", projectName))
+			if promptErr != nil {
+				return fmt.Errorf("failed to confirm overwrite: %w", promptErr)
+			}
 		}
 		if !shouldOverwrite {
 			return fmt.Errorf("bootstrap cancelled by user")
 		}
+		// Remove existing directory
+		if err := os.RemoveAll(projectPath); err != nil {
+			return fmt.Errorf("failed to remove existing directory: %w", err)
+		}
+		fmt.Printf("%s Removed existing directory: %s\n", ui.WarningIcon(), projectPath)
 	}
 
 	// Create directory
@@ -174,6 +223,33 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 		ui.PrintWarning(fmt.Sprintf("Failed to write constitution: %v", err))
 	} else {
 		fmt.Printf("%s Constitution created\n", ui.Checkmark())
+	}
+
+	// Setup agent config directory based on selection
+	agentID := answers["agent"]
+	if agentID == "" {
+		// Fall back to agent_preference for backward compatibility
+		agentID = mapAgentPreferenceToID(agentPref)
+	}
+	if err := setupAgentConfig(projectPath, agentID); err != nil {
+		ui.PrintWarning(fmt.Sprintf("Agent config setup issue: %v", err))
+	}
+
+	// Update metadata with template and agent selections
+	templateID := answers["template"]
+	if templateID != "" || agentID != "" {
+		projectMetadata, err := metadata.LoadFromProject(projectPath)
+		if err == nil {
+			if templateID != "" {
+				projectMetadata.Project.Template = templateID
+			}
+			if agentID != "" && agentID != "none" {
+				projectMetadata.Project.Agent = agentID
+			}
+			if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
+				ui.PrintWarning(fmt.Sprintf("Failed to update metadata: %v", err))
+			}
+		}
 	}
 
 	// Success message
@@ -232,7 +308,15 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 
 	// Check if directory already exists
 	if _, err := os.Stat(projectPath); err == nil {
-		return ErrProjectExists(projectName)
+		if forceFlag {
+			// Remove existing directory when --force is used
+			if err := os.RemoveAll(projectPath); err != nil {
+				return fmt.Errorf("failed to remove existing directory: %w", err)
+			}
+			fmt.Printf("%s Removed existing directory: %s\n", ui.WarningIcon(), projectPath)
+		} else {
+			return ErrProjectExists(projectName)
+		}
 	}
 
 	// Create directory
@@ -246,16 +330,55 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 		return err
 	}
 
-	// Write default constitution in CI mode (all principles selected, no agent)
+	// Use agent from flag or default to "none" in CI mode
+	agentID := agentFlag
+	if agentID == "" {
+		agentID = "none"
+	}
+	agentPref := "None"
+	if agent, err := models.GetAgentByID(agentID); err == nil {
+		agentPref = agent.Name
+	}
+
+	// Write default constitution in CI mode (all principles selected)
 	constitutionPath := filepath.Join(projectPath, ".specledger", "memory", "constitution.md")
-	if err := WriteDefaultConstitution(constitutionPath, DefaultPrinciples(), "None"); err != nil {
+	if err := WriteDefaultConstitution(constitutionPath, DefaultPrinciples(), agentPref); err != nil {
 		ui.PrintWarning(fmt.Sprintf("Failed to write constitution: %v", err))
+	}
+
+	// Setup agent config directory
+	if err := setupAgentConfig(projectPath, agentID); err != nil {
+		ui.PrintWarning(fmt.Sprintf("Agent config setup issue: %v", err))
+	}
+
+	// Update metadata with template and agent selections
+	templateID := templateFlag
+	if templateID == "" {
+		templateID = "general-purpose" // Default template
+	}
+	if templateID != "" || agentID != "" {
+		projectMetadata, err := metadata.LoadFromProject(projectPath)
+		if err == nil {
+			projectMetadata.Project.Template = templateID
+			if agentID != "" && agentID != "none" {
+				projectMetadata.Project.Agent = agentID
+			}
+			if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
+				ui.PrintWarning(fmt.Sprintf("Failed to update metadata: %v", err))
+			}
+		}
 	}
 
 	// Success message
 	ui.PrintHeader("Project Created Successfully", "", 60)
 	fmt.Printf("  Path:       %s\n", ui.Bold(projectPath))
 	fmt.Printf("  Short Code: %s\n", ui.Bold(shortCode))
+	if templateID != "" {
+		fmt.Printf("  Template:   %s\n", ui.Bold(templateID))
+	}
+	if agentID != "" && agentID != "none" {
+		fmt.Printf("  Agent:      %s\n", ui.Bold(agentPref))
+	}
 	fmt.Println()
 	fmt.Println(ui.Bold("Next steps:"))
 	fmt.Printf("  %s    %s\n", ui.Cyan("cd"), projectPath)
@@ -402,12 +525,44 @@ func runInit(l *logger.Logger) error {
 	return nil
 }
 
+// listTemplates displays all available project templates
+func listTemplates() error {
+	templates, err := playbooks.LoadTemplates()
+	if err != nil {
+		return fmt.Errorf("failed to load templates: %w", err)
+	}
+
+	ui.PrintHeader("Available Project Templates", "", 60)
+	fmt.Println()
+
+	for _, tmpl := range templates {
+		defaultMarker := ""
+		if tmpl.IsDefault {
+			defaultMarker = ui.Dim(" (default)")
+		}
+
+		fmt.Printf("  %s%s\n", ui.Bold(tmpl.ID), defaultMarker)
+		fmt.Printf("    %s\n", tmpl.Description)
+		if len(tmpl.Characteristics) > 0 {
+			fmt.Printf("    %s %s\n", ui.Dim("Tech:"), strings.Join(tmpl.Characteristics, ", "))
+		}
+		fmt.Println()
+	}
+
+	fmt.Println(ui.Dim("Usage: sl new --template <id>"))
+	return nil
+}
+
 func init() {
 	// Flags for 'new' command
 	VarBootstrapCmd.PersistentFlags().StringVarP(&projectNameFlag, "project-name", "n", "", "Project name")
 	VarBootstrapCmd.PersistentFlags().StringVarP(&shortCodeFlag, "short-code", "s", "", "Short code (2-4 letters)")
 	VarBootstrapCmd.PersistentFlags().StringVarP(&demoDirFlag, "project-dir", "d", "", "Project directory path")
 	VarBootstrapCmd.PersistentFlags().BoolVarP(&ciFlag, "ci", "", false, "Force non-interactive mode (skip TUI)")
+	VarBootstrapCmd.PersistentFlags().StringVarP(&templateFlag, "template", "t", "", "Project template ID (e.g., full-stack, ml-image)")
+	VarBootstrapCmd.PersistentFlags().StringVarP(&agentFlag, "agent", "a", "", "Coding agent ID (claude-code, opencode, none)")
+	VarBootstrapCmd.PersistentFlags().BoolVar(&listTemplatesFlag, "list-templates", false, "List available project templates")
+	VarBootstrapCmd.PersistentFlags().BoolVarP(&forceFlag, "force", "f", false, "Overwrite existing project directory")
 
 	// Flags for 'init' command
 	VarInitCmd.PersistentFlags().StringVarP(&initShortCodeFlag, "short-code", "s", "", "Short code for issue IDs (2-4 letters)")

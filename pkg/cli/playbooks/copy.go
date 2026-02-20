@@ -79,8 +79,11 @@ func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) 
 			return nil
 		}
 
+		// Transform template file names (e.g., go.mod.template → go.mod)
+		destRelPath := transformTemplatePath(relPath)
+
 		// Determine destination path
-		destPath := filepath.Join(destDir, relPath)
+		destPath := filepath.Join(destDir, destRelPath)
 
 		// Check if file already exists
 		if _, err := os.Stat(destPath); err == nil {
@@ -135,6 +138,16 @@ func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) 
 	return result, nil
 }
 
+// transformTemplatePath transforms template file names to their final names.
+// For example, "go.mod.template" becomes "go.mod".
+func transformTemplatePath(path string) string {
+	// Transform go.mod.template to go.mod
+	if strings.HasSuffix(path, "go.mod.template") {
+		return strings.TrimSuffix(path, ".template")
+	}
+	return path
+}
+
 // matchesPattern checks if a path matches any of the given patterns.
 func matchesPattern(path string, patterns []string) bool {
 	for _, pattern := range patterns {
@@ -183,6 +196,7 @@ func IsExecutableFile(filename string, content []byte) bool {
 
 // copyEmbeddedFile copies a single file from embedded FS to dest.
 // Sets executable permissions (0755) for scripts, regular permissions (0644) for others.
+// Transforms template content (e.g., removes //go:build ignore from Go files).
 func copyEmbeddedFile(src, dest string) error {
 	// Read from embedded filesystem
 	srcFile, err := ReadFile(src)
@@ -190,14 +204,43 @@ func copyEmbeddedFile(src, dest string) error {
 		return fmt.Errorf("failed to read embedded file: %w", err)
 	}
 
+	// Transform content for Go template files
+	content := transformTemplateContent(dest, srcFile)
+
 	// Determine permissions based on file type
 	var perms fs.FileMode
-	if IsExecutableFile(filepath.Base(dest), srcFile) {
+	if IsExecutableFile(filepath.Base(dest), content) {
 		perms = 0755 // Executable: rwxr-xr-x
 	} else {
 		perms = 0644 // Regular: rw-r--r--
 	}
 
 	// Write to destination with appropriate permissions
-	return os.WriteFile(dest, srcFile, perms)
+	return os.WriteFile(dest, content, perms)
+}
+
+// transformTemplateContent transforms file content based on file type.
+// For Go files in templates, removes the //go:build ignore directive that was
+// added to prevent compilation during embedding.
+func transformTemplateContent(destPath string, content []byte) []byte {
+	// Only transform .go files
+	if !strings.HasSuffix(destPath, ".go") {
+		return content
+	}
+
+	// Check if file starts with //go:build ignore
+	buildIgnore := []byte("//go:build ignore\n")
+	if !strings.HasPrefix(string(content), string(buildIgnore)) {
+		return content
+	}
+
+	// Remove the //go:build ignore line and the following empty line
+	transformed := content[len(buildIgnore):]
+
+	// Remove the empty line that follows (if present)
+	if len(transformed) > 0 && transformed[0] == '\n' {
+		transformed = transformed[1:]
+	}
+
+	return transformed
 }

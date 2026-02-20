@@ -3,6 +3,7 @@ package commands
 import (
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 	"github.com/specledger/specledger/pkg/cli/playbooks"
 	"github.com/specledger/specledger/pkg/cli/ui"
 	"github.com/specledger/specledger/pkg/embedded"
+	"github.com/specledger/specledger/pkg/models"
 	"github.com/specledger/specledger/pkg/version"
 )
 
@@ -181,6 +183,95 @@ func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName st
 	}
 
 	return selectedPlaybookName, playbookVersion, playbookStructure, nil
+}
+
+// mapAgentPreferenceToID maps legacy agent preference names to agent IDs.
+// This provides backward compatibility with older TUI versions.
+func mapAgentPreferenceToID(agentPref string) string {
+	switch strings.ToLower(agentPref) {
+	case "claude code":
+		return "claude-code"
+	case "opencode":
+		return "opencode"
+	case "none", "":
+		return "none"
+	default:
+		// Try to match as-is (might already be an ID)
+		if _, err := models.GetAgentByID(agentPref); err == nil {
+			return agentPref
+		}
+		return "none"
+	}
+}
+
+// setupAgentConfig creates the agent configuration directory based on the selected agent.
+// Returns nil if the agent has no config directory (e.g., "none").
+func setupAgentConfig(projectPath, agentID string) error {
+	if agentID == "" || agentID == "none" {
+		slog.Info("no agent config to create", "agent", agentID)
+		return nil
+	}
+
+	agent, err := models.GetAgentByID(agentID)
+	if err != nil {
+		slog.Warn("unknown agent ID, skipping config", "agent", agentID, "error", err)
+		return nil // Non-fatal: unknown agent just means no config to create
+	}
+
+	if !agent.HasConfig() {
+		slog.Info("agent has no config directory", "agent", agentID)
+		return nil
+	}
+
+	// Create agent config directory
+	configDir := filepath.Join(projectPath, agent.ConfigDir)
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		return fmt.Errorf("failed to create agent config directory %s: %w", agent.ConfigDir, err)
+	}
+
+	// Copy agent-specific template files from embedded filesystem
+	agentTemplateDir := filepath.Join("templates", "agents", agentID)
+	err = fs.WalkDir(embedded.TemplatesFS, agentTemplateDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Get relative path from agent template dir
+		relPath, err := filepath.Rel(agentTemplateDir, path)
+		if err != nil {
+			return err
+		}
+
+		destPath := filepath.Join(projectPath, relPath)
+
+		if d.IsDir() {
+			return os.MkdirAll(destPath, 0755)
+		}
+
+		// Read source file
+		content, err := fs.ReadFile(embedded.TemplatesFS, path)
+		if err != nil {
+			return err
+		}
+
+		// Write to destination (skip if exists)
+		if _, err := os.Stat(destPath); err == nil {
+			slog.Debug("skipping existing agent file", "path", relPath)
+			return nil
+		}
+
+		return os.WriteFile(destPath, content, 0644)
+	})
+
+	if err != nil {
+		// Agent template copy failure is non-fatal
+		slog.Warn("failed to copy agent templates", "agent", agentID, "error", err)
+		return nil
+	}
+
+	slog.Info("agent config created", "agent", agentID, "dir", agent.ConfigDir)
+	fmt.Printf("%s Agent config created: %s/\n", ui.Checkmark(), agent.ConfigDir)
+	return nil
 }
 
 // ConstitutionPrinciple represents a selectable guiding principle for the project constitution.

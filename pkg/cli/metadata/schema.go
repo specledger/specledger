@@ -31,6 +31,11 @@ type ProjectInfo struct {
 	ShortCode string    `yaml:"short_code"`
 	// Template is the selected project template ID (e.g., "full-stack", "ml-image")
 	// Empty for projects created before v1.1.0
+	//
+	// IMPORTANT: This field is IMMUTABLE after project creation.
+	// The template determines the initial project structure and cannot be changed
+	// because template-specific files have already been copied to the project.
+	// To use a different template, create a new project with the desired template.
 	Template  string    `yaml:"template,omitempty"`
 	// Agent is the selected coding agent ID (e.g., "claude-code", "opencode", "none")
 	// Empty for projects created before v1.1.0

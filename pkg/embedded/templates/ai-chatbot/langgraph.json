@@ -1,0 +1,10 @@
+{
+  "$schema": "https://langgraph.ai/schemas/langgraph.json",
+  "name": "ai-chatbot",
+  "version": "0.1.0",
+  "graphs": {
+    "default": {
+      "entrypoint": "src.agents.base:BaseAgent"
+    }
+  }
+}

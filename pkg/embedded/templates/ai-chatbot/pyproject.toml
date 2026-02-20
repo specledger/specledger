@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=69.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ai-chatbot"
+version = "0.1.0"
+description = "Multi-platform AI Chatbot with LangChain/LangGraph"
+requires-python = ">=3.11"
+dependencies = [
+    "langchain>=0.2.0",
+    "langgraph>=0.2.0",
+    "langchain-openai>=0.2.0",
+    "langchain-anthropic>=0.2.0",
+    "openai>=1.40.0",
+    "anthropic>=0.34.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
+    "pydantic>=2.9.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+slack = ["slack-sdk>=3.30.0"]
+discord = ["discord.py>=2.4.0"]
+telegram = ["python-telegram-bot>=21.0"]
+vector = ["pinecone-client>=3.2.0", "weaviate-client>=4.6.0"]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.24.0",
+    "black>=24.0.0",
+    "ruff>=0.2.0",
+]

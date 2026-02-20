@@ -26,3 +26,60 @@ templates:
       - "SpecLedger"
     path: "specledger"
     is_default: true
+
+  - id: full-stack
+    name: "Full-Stack Application"
+    description: "Go backend + TypeScript/React frontend with Vite and Docker Compose"
+    characteristics:
+      - "Go"
+      - "React"
+      - "TypeScript"
+      - "Vite"
+    path: "full-stack"
+
+  - id: batch-data
+    name: "Batch Data Processing"
+    description: "Temporal-based ETL pipeline with Go workers and extractors/transformers/loaders"
+    characteristics:
+      - "Go"
+      - "Temporal"
+      - "ETL"
+    path: "batch-data"
+
+  - id: realtime-workflow
+    name: "Real-Time Workflow"
+    description: "Temporal workflow orchestration for real-time event processing"
+    characteristics:
+      - "Go"
+      - "Temporal"
+      - "Workflows"
+    path: "realtime-workflow"
+
+  - id: ml-image
+    name: "ML Image Processing"
+    description: "PyTorch-based machine learning project for computer vision tasks"
+    characteristics:
+      - "Python"
+      - "PyTorch"
+      - "ML"
+      - "Computer Vision"
+    path: "ml-image"
+
+  - id: realtime-data
+    name: "Real-Time Data Pipeline"
+    description: "Kafka-based streaming pipeline with producers, consumers, and processors"
+    characteristics:
+      - "Go"
+      - "Kafka"
+      - "Streaming"
+    path: "realtime-data"
+
+  - id: ai-chatbot
+    name: "AI Chatbot"
+    description: "LangChain/LangGraph multi-platform chatbot with RAG support"
+    characteristics:
+      - "Python"
+      - "LangChain"
+      - "LLM"
+      - "RAG"
+    path: "ai-chatbot"

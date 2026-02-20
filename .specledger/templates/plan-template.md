@@ -33,12 +33,10 @@
 
 Verify compliance with principles from `.specledger/memory/constitution.md`:
 
-- [ ] **Specification-First**: Spec.md complete with prioritized user stories
-- [ ] **Test-First**: Test strategy defined (contract + integration tests planned)
-- [ ] **Code Quality**: Linting/formatting tools identified in Technical Context
-- [ ] **UX Consistency**: User flows documented in spec.md acceptance scenarios
-- [ ] **Performance**: Metrics defined in Technical Context (response time, throughput, memory)
-- [ ] **Observability**: Logging/metrics strategy documented
+- [ ] **Specification-First**: Spec.md complete with prioritized user stories and acceptance scenarios
+- [ ] **Simplicity (YAGNI)**: Complexity Tracking table filled if any violations identified; no speculative features
+- [ ] **UX Consistency**: User flows documented; TUI/non-interactive fallback considered; `CLIError` used for errors
+- [ ] **Observability**: Logging strategy documented; no silent failures; destructive ops logged before execution
 - [ ] **Issue Tracking**: Epic created with `sl issue create --type epic` and linked to spec
 
 **Complexity Violations** (if any, justify in Complexity Tracking table below):

@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestNewProjectMetadata(t *testing.T) {
@@ -57,11 +59,12 @@ func TestSaveAndLoad(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// Create test metadata
+	// Create test metadata with v1.1.0 format (includes UUID)
 	now := time.Now()
 	metadata := &ProjectMetadata{
-		Version: "1.0.0",
+		Version: MetadataVersion,
 		Project: ProjectInfo{
+			ID:        uuid.New(), // v1.1.0 requires UUID
 			Name:      "test-project",
 			ShortCode: "tp",
 			Created:   now,
@@ -249,5 +252,139 @@ func TestSaveUpdatesModifiedTimestamp(t *testing.T) {
 
 	if !loaded.Project.Modified.After(past) {
 		t.Error("expected loaded Modified timestamp to be after original")
+	}
+}
+
+func TestUUIDUniqueness(t *testing.T) {
+	// Generate 10,000 UUIDs and verify no collisions
+	const count = 10000
+	seen := make(map[uuid.UUID]bool, count)
+
+	for i := 0; i < count; i++ {
+		metadata := NewProjectMetadata("test", "ts", "specledger", "1.0.0", []string{}, "1.0.0")
+		if seen[metadata.Project.ID] {
+			t.Fatalf("UUID collision detected at iteration %d: %s", i, metadata.Project.ID)
+		}
+		seen[metadata.Project.ID] = true
+	}
+}
+
+func TestUUIDYAMLRoundTrip(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "specledger-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create metadata with UUID
+	original := NewProjectMetadata("test", "ts", "specledger", "1.0.0", []string{}, "1.0.0")
+	originalID := original.Project.ID
+
+	// Save and load
+	yamlPath := filepath.Join(tmpDir, "test.yaml")
+	if err := Save(original, yamlPath); err != nil {
+		t.Fatalf("failed to save: %v", err)
+	}
+
+	loaded, err := Load(yamlPath)
+	if err != nil {
+		t.Fatalf("failed to load: %v", err)
+	}
+
+	// UUID should be preserved
+	if loaded.Project.ID != originalID {
+		t.Errorf("UUID not preserved: got %s, want %s", loaded.Project.ID, originalID)
+	}
+}
+
+func TestV100ToV110Migration(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "specledger-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Write v1.0.0 format YAML (no UUID)
+	v100YAML := `version: "1.0.0"
+project:
+    name: "old-project"
+    short_code: "op"
+    created: 2024-01-01T00:00:00Z
+    modified: 2024-01-01T00:00:00Z
+    version: "0.1.0"
+playbook:
+    name: "specledger"
+    version: "1.0.0"
+`
+	yamlPath := filepath.Join(tmpDir, "specledger.yaml")
+	if err := os.WriteFile(yamlPath, []byte(v100YAML), 0644); err != nil {
+		t.Fatalf("failed to write v1.0.0 YAML: %v", err)
+	}
+
+	// Load - should trigger migration
+	loaded, err := Load(yamlPath)
+	if err != nil {
+		t.Fatalf("failed to load v1.0.0 metadata: %v", err)
+	}
+
+	// Verify migration occurred
+	if loaded.Version != MetadataVersion {
+		t.Errorf("version not migrated: got %s, want %s", loaded.Version, MetadataVersion)
+	}
+
+	if loaded.Project.ID == uuid.Nil {
+		t.Error("UUID not generated during migration")
+	}
+
+	// Verify original data preserved
+	if loaded.Project.Name != "old-project" {
+		t.Errorf("name not preserved: got %s, want old-project", loaded.Project.Name)
+	}
+	if loaded.Project.ShortCode != "op" {
+		t.Errorf("short_code not preserved: got %s, want op", loaded.Project.ShortCode)
+	}
+
+	// Save the UUID for idempotency test
+	migratedID := loaded.Project.ID
+
+	// Load again - should be idempotent (same UUID)
+	loaded2, err := Load(yamlPath)
+	if err != nil {
+		t.Fatalf("failed to reload migrated metadata: %v", err)
+	}
+
+	if loaded2.Project.ID != migratedID {
+		t.Errorf("migration not idempotent: UUID changed from %s to %s", migratedID, loaded2.Project.ID)
+	}
+}
+
+func TestV110UUIDValidation(t *testing.T) {
+	// v1.1.0 metadata without UUID should fail validation
+	metadata := &ProjectMetadata{
+		Version: "1.1.0",
+		Project: ProjectInfo{
+			ID:        uuid.Nil, // No UUID
+			Name:      "test",
+			ShortCode: "ts",
+			Created:   time.Now(),
+			Modified:  time.Now(),
+			Version:   "0.1.0",
+		},
+		Playbook: PlaybookInfo{
+			Name:    "specledger",
+			Version: "1.0.0",
+		},
+	}
+
+	err := metadata.Validate()
+	if err == nil {
+		t.Error("expected validation error for v1.1.0 without UUID")
+	}
+
+	// v1.0.0 metadata without UUID should pass (for migration compatibility)
+	metadata.Version = "1.0.0"
+	err = metadata.Validate()
+	if err != nil {
+		t.Errorf("v1.0.0 should allow nil UUID for migration: %v", err)
 	}
 }
