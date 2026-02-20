@@ -175,15 +175,25 @@ SpecLedger includes a built-in issue tracker for managing tasks within specs. Is
 | `sl issue create --title "..." --type task` | Create a new issue |
 | `sl issue list` | List issues in current spec |
 | `sl issue list --all` | List issues across all specs |
+| `sl issue list --tree` | Show issues as dependency tree |
 | `sl issue show <id>` | Show issue details |
+| `sl issue show <id> --tree` | Show issue with dependency context |
+| `sl issue ready` | List issues ready to work on (not blocked) |
+| `sl issue ready --all` | Ready issues across all specs |
+| `sl issue ready --json` | Ready issues as JSON (for scripting) |
 | `sl issue update <id> --status in_progress` | Update issue status |
 | `sl issue close <id> --reason "..."` | Close an issue |
 | `sl issue link <from> blocks <to>` | Add dependency |
+| `sl issue unlink <from> blocks <to>` | Remove dependency |
 | `sl issue migrate` | Migrate from Beads format |
 
 **Issue IDs**: Issues use deterministic IDs in format `SL-xxxxxx` (6 hex characters derived from SHA-256 hash).
 
 **Spec Storage**: Issues are stored per-spec to avoid merge conflicts. Use `--all` flag to work across all specs.
+
+**Ready State**: An issue is "ready" when it has status `open` or `in_progress` AND all issues blocking it are `closed`. Use `sl issue ready` to quickly find unblocked work.
+
+**Tree View**: Use `--tree` flag to visualize dependencies. The tree shows which issues block others, helping you understand the critical path.
 
 ### Workflows
 
