@@ -19,13 +19,13 @@ const (
 
 // TreeRenderOptions configures the tree output format
 type TreeRenderOptions struct {
-	MaxDepth    int  // Maximum depth to render (default: 10)
-	ShowStatus  bool // Include status indicator (default: true)
-	TitleWidth  int  // Max title width before truncation (default: 40)
-	ShowSpec    bool // Show spec context for cross-spec trees (default: false)
-	ShowType    bool // Show issue type (default: true)
+	MaxDepth     int  // Maximum depth to render (default: 10)
+	ShowStatus   bool // Include status indicator (default: true)
+	TitleWidth   int  // Max title width before truncation (default: 40)
+	ShowSpec     bool // Show spec context for cross-spec trees (default: false)
+	ShowType     bool // Show issue type (default: true)
 	ShowPriority bool // Show priority (default: true)
-	Color       bool // Use colors (default: true)
+	Color        bool // Use colors (default: true)
 }
 
 // DefaultTreeRenderOptions returns the default options
