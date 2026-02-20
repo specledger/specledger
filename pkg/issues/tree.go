@@ -93,7 +93,7 @@ func (r *TreeRenderer) formatPriority(priority int) string {
 		color = colorGray
 	}
 
-	return r.colorize(indicator, color)
+	return r.colorize("["+indicator+"]", color)
 }
 
 // formatType returns a colored type indicator
@@ -110,7 +110,7 @@ func (r *TreeRenderer) formatType(issueType IssueType) string {
 		color = colorGreen
 	case TypeTask:
 		indicator = "T"
-		color = colorGreen
+		color = colorBlue
 	case TypeBug:
 		indicator = "B"
 		color = colorRed
@@ -119,7 +119,7 @@ func (r *TreeRenderer) formatType(issueType IssueType) string {
 		color = colorGray
 	}
 
-	return r.colorize(indicator, color)
+	return r.colorize("["+indicator+"]", color)
 }
 
 // formatStatus returns a colored status indicator
@@ -159,9 +159,9 @@ func (r *TreeRenderer) formatIssue(issue Issue) string {
 		sb.WriteString(r.formatPriority(issue.Priority))
 	}
 
-	// ID
+	// ID (bolded)
 	sb.WriteString(" ")
-	sb.WriteString(issue.ID)
+	sb.WriteString(r.colorize(issue.ID, "\033[1m")) // bold
 
 	// Title
 	sb.WriteString(" ")
