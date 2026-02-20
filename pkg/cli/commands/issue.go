@@ -500,15 +500,44 @@ func renderCrossSpecTree(issueList []issues.Issue, artifactPath string) error {
 		specIssues[issue.SpecContext] = append(specIssues[issue.SpecContext], issue)
 	}
 
+	// Create renderer for formatting
+	opts := issues.DefaultTreeRenderOptions()
+	opts.ShowSpec = false // Already grouped by spec
+	renderer := issues.NewTreeRenderer(opts)
+
 	fmt.Println("All Specs")
-	for spec, issues := range specIssues {
-		fmt.Printf("├── %s (%d issues)\n", spec, len(issues))
+	specNames := make([]string, 0, len(specIssues))
+	for spec := range specIssues {
+		specNames = append(specNames, spec)
+	}
+
+	for specIdx, spec := range specNames {
+		issues := specIssues[spec]
+		isLastSpec := specIdx == len(specNames)-1
+
+		if isLastSpec {
+			fmt.Printf("└── %s (%d issues)\n", spec, len(issues))
+		} else {
+			fmt.Printf("├── %s (%d issues)\n", spec, len(issues))
+		}
+
 		for i, issue := range issues {
-			prefix := "│   ├── "
-			if i == len(issues)-1 {
-				prefix = "│   └── "
+			isLast := i == len(issues)-1
+			var prefix string
+			if isLastSpec {
+				if isLast {
+					prefix = "    └── "
+				} else {
+					prefix = "    ├── "
+				}
+			} else {
+				if isLast {
+					prefix = "│   └── "
+				} else {
+					prefix = "│   ├── "
+				}
 			}
-			fmt.Printf("%s%s [%s] %s\n", prefix, issue.ID, issue.Status, truncateTitle(issue.Title, 40))
+			fmt.Printf("%s%s\n", prefix, renderer.FormatIssueSimple(issue))
 		}
 	}
 
