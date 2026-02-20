@@ -9,7 +9,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"strings"
 )
 
 // SelfUpdate downloads and installs the latest version from GitHub Releases.
@@ -124,16 +123,12 @@ func downloadFile(ctx context.Context, url string) (string, error) {
 
 // replaceBinary replaces the current binary with the new one.
 func replaceBinary(newBinary, currentBinary string) error {
-	// First, try to extract if it's a tar.gz
-	if strings.HasSuffix(newBinary, ".tar.gz") {
-		// Extract the binary from tar.gz
-		extractedBinary, err := extractTarGz(newBinary)
-		if err != nil {
-			return fmt.Errorf("failed to extract archive: %w", err)
-		}
-		defer os.Remove(extractedBinary)
-		newBinary = extractedBinary
+	// Extract the binary from tar.gz (we always download tar.gz for non-windows)
+	extractedBinary, err := extractTarGz(newBinary)
+	if err != nil {
+		return fmt.Errorf("failed to extract archive: %w", err)
 	}
+	defer os.Remove(extractedBinary)
 
 	// Backup the current binary
 	backup := currentBinary + ".bak"
@@ -142,7 +137,7 @@ func replaceBinary(newBinary, currentBinary string) error {
 	}
 
 	// Copy new binary to current location
-	if err := copyFile(newBinary, currentBinary); err != nil {
+	if err := copyFile(extractedBinary, currentBinary); err != nil {
 		// Try to restore backup
 		if _, restoreErr := os.Stat(backup); restoreErr == nil {
 			copyFile(backup, currentBinary)
