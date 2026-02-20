@@ -2,6 +2,8 @@ package playbooks
 
 import (
 	"time"
+
+	"github.com/specledger/specledger/pkg/models"
 )
 
 // PlaybookSource represents a source of playbooks (embedded or remote).
@@ -44,13 +46,16 @@ type Playbook struct {
 	Structure []string `yaml:"structure,omitempty"`
 }
 
-// PlaybookManifest represents the manifest file that lists available playbooks.
+// PlaybookManifest represents the manifest file that lists available playbooks and templates.
 type PlaybookManifest struct {
 	// Version is the manifest format version
 	Version string
 
-	// Playbooks is the list of available playbooks
+	// Playbooks is the list of available playbooks (legacy, for backward compatibility)
 	Playbooks []Playbook
+
+	// Templates is the list of available project templates (new in v1.1.0)
+	Templates []models.TemplateDefinition `yaml:"templates,omitempty"`
 }
 
 // CopyOptions controls the behavior of playbook copying operations.

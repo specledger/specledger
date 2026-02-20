@@ -1,4 +1,6 @@
 version: "1.0"
+
+# Playbooks (legacy, kept for backward compatibility)
 playbooks:
   - name: specledger
     description: "SpecLedger playbook with Claude Code commands, skills, and bash scripts"
@@ -12,3 +14,15 @@ playbooks:
       - "AGENTS.md"
       - "mise.toml"
       - ".specledger/"
+
+# Templates (new in v1.1.0)
+templates:
+  - id: general-purpose
+    name: "General Purpose"
+    description: "Go CLI/library project with SpecLedger workflows and Claude Code integration"
+    characteristics:
+      - "Go"
+      - "CLI"
+      - "SpecLedger"
+    path: "specledger"
+    is_default: true

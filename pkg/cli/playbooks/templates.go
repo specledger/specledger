@@ -3,6 +3,8 @@ package playbooks
 import (
 	"fmt"
 	"strings"
+
+	"github.com/specledger/specledger/pkg/models"
 )
 
 // ApplyToProject applies playbooks to a project.
@@ -113,4 +115,36 @@ func FormatJSON(playbooks []Playbook) string {
 	sb.WriteString("\n]\n")
 
 	return sb.String()
+}
+
+// LoadTemplates loads all available project templates from the embedded manifest.
+// This is a convenience function that creates an EmbeddedSource and loads templates.
+// Templates are validated during loading and cached for performance.
+func LoadTemplates() ([]models.TemplateDefinition, error) {
+	source, err := NewEmbeddedSource()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize template source: %w", err)
+	}
+
+	return source.LoadTemplates()
+}
+
+// GetTemplateByID is a convenience function to get a template by ID.
+func GetTemplateByID(id string) (*models.TemplateDefinition, error) {
+	source, err := NewEmbeddedSource()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize template source: %w", err)
+	}
+
+	return source.GetTemplateByID(id)
+}
+
+// GetDefaultTemplate is a convenience function to get the default template.
+func GetDefaultTemplate() (*models.TemplateDefinition, error) {
+	source, err := NewEmbeddedSource()
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize template source: %w", err)
+	}
+
+	return source.GetDefaultTemplate()
 }

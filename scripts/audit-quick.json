@@ -1,0 +1,16 @@
+{
+  "project_name": "specledger",
+  "tech_stack": {
+    "language": "Go 1.24.2",
+    "framework": "Cobra (CLI) + Bubble Tea (TUI)",
+    "build_tool": "Make + GoReleaser"
+  },
+  "architecture": {
+    "pattern": "Standard Go CLI (cmd/pkg layered)",
+    "key_directories": ["cmd/sl", "pkg/cli/commands", "pkg/cli/tui", "pkg/issues", "pkg/deps", "pkg/models", "pkg/templates", "internal"]
+  },
+  "entry_points": ["cmd/sl/main.go"],
+  "file_count": 90,
+  "total_loc": 18761,
+  "audit_type": "quick"
+}

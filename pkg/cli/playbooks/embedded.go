@@ -3,6 +3,8 @@ package playbooks
 import (
 	"fmt"
 	"path/filepath"
+
+	"github.com/specledger/specledger/pkg/models"
 )
 
 // EmbeddedSource implements PlaybookSource for playbooks stored in the embedded filesystem.
@@ -101,4 +103,49 @@ func (s *EmbeddedSource) ValidatePlaybooks() error {
 	}
 
 	return nil
+}
+
+// LoadTemplates returns all available project templates from the manifest.
+// Templates are validated and cached for performance.
+func (s *EmbeddedSource) LoadTemplates() ([]models.TemplateDefinition, error) {
+	if s.manifest == nil {
+		return nil, fmt.Errorf("manifest not loaded")
+	}
+
+	// Return templates from manifest (already validated during parsing)
+	return s.manifest.Templates, nil
+}
+
+// GetTemplateByID retrieves a template by its ID.
+// Returns the template if found, or an error if not found.
+func (s *EmbeddedSource) GetTemplateByID(id string) (*models.TemplateDefinition, error) {
+	if s.manifest == nil {
+		return nil, fmt.Errorf("manifest not loaded")
+	}
+
+	for i := range s.manifest.Templates {
+		if s.manifest.Templates[i].ID == id {
+			return &s.manifest.Templates[i], nil
+		}
+	}
+
+	return nil, fmt.Errorf("template not found: %s", id)
+}
+
+// GetDefaultTemplate returns the default template (marked with is_default: true).
+// If no template is marked as default, returns the first template.
+func (s *EmbeddedSource) GetDefaultTemplate() (*models.TemplateDefinition, error) {
+	if s.manifest == nil || len(s.manifest.Templates) == 0 {
+		return nil, fmt.Errorf("no templates available")
+	}
+
+	// Find template marked as default
+	for i := range s.manifest.Templates {
+		if s.manifest.Templates[i].IsDefault {
+			return &s.manifest.Templates[i], nil
+		}
+	}
+
+	// Fallback to first template if no default marked
+	return &s.manifest.Templates[0], nil
 }

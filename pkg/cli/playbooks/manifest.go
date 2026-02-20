@@ -49,5 +49,13 @@ func ParseManifest(data []byte) (*PlaybookManifest, error) {
 		manifest.Playbooks[i] = pb
 	}
 
+	// Validate templates (new in v1.1.0)
+	for i, tmpl := range manifest.Templates {
+		if err := tmpl.Validate(); err != nil {
+			return nil, fmt.Errorf("template %d (%s): %w", i, tmpl.ID, err)
+		}
+		manifest.Templates[i] = tmpl
+	}
+
 	return &manifest, nil
 }

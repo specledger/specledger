@@ -1,0 +1,189 @@
+{
+  "metadata": {
+    "project_name": "specledger",
+    "project_type": "single-package",
+    "language": "go",
+    "framework": "cobra+bubbletea",
+    "analyzed_at": "2026-02-20T00:00:00Z",
+    "total_loc": 18761,
+    "file_count": 90
+  },
+  "global_context": {
+    "architecture_style": "Standard Go CLI layered architecture (cmd → pkg/cli/commands → pkg domain)",
+    "api_pattern": "REST (Supabase HTTP for auth/session; GitHub API for version checking)",
+    "auth_pattern": "OAuth2 browser flow with local callback server; credentials stored in ~/.specledger/credentials.json",
+    "database": "File-based JSONL (issues), YAML (metadata/config), Supabase Storage + PostgreSQL (session capture)",
+    "common_patterns": [
+      "Cobra command pattern (Var*Cmd exported vars)",
+      "Bubble Tea TUI models (Model/InitModel + Update/View)",
+      "go:embed for templates and prompts",
+      "File locking via gofrs/flock for concurrent writes",
+      "go-git/v5 for branch detection and git operations",
+      "YAML v3 for config and metadata serialization"
+    ]
+  },
+  "modules": [
+    {
+      "id": "cli-entry",
+      "name": "CLI Entry Point",
+      "description": "Main binary entry point; wires Cobra root command with all subcommands; sets build-time version vars via ldflags",
+      "type": "infrastructure",
+      "paths": ["cmd/sl/main.go"],
+      "entry_point": "cmd/sl/main.go",
+      "loc": 80,
+      "key_functions": ["main", "init (rootCmd setup)"],
+      "data_models": [],
+      "api_contracts": ["sl new", "sl init", "sl deps", "sl graph", "sl doctor", "sl playbook", "sl auth", "sl session", "sl issue", "sl version"],
+      "dependencies": ["pkg/cli/commands", "pkg/version", "github.com/spf13/cobra"]
+    },
+    {
+      "id": "commands",
+      "name": "CLI Commands",
+      "description": "All Cobra subcommand implementations: bootstrap (new), init, deps, graph, doctor, playbooks, auth, session, issue, update, vendor, conflict, refs",
+      "type": "api",
+      "paths": ["pkg/cli/commands/"],
+      "entry_point": "pkg/cli/commands/bootstrap.go",
+      "loc": 3500,
+      "key_functions": [
+        "VarBootstrapCmd", "VarInitCmd", "VarDepsCmd", "VarGraphCmd", "VarDoctorCmd",
+        "VarPlaybookCmd", "VarAuthCmd", "VarSessionCmd", "VarIssueCmd",
+        "DefaultPrinciples", "IsConstitutionPopulated", "WriteDefaultConstitution",
+        "NewCLIError", "ExitWithError", "PrintSuccess"
+      ],
+      "data_models": ["CLIError", "ConstitutionPrinciple"],
+      "api_contracts": [],
+      "dependencies": ["pkg/cli/tui", "pkg/cli/metadata", "pkg/cli/config", "pkg/cli/prerequisites", "pkg/cli/auth", "pkg/cli/session", "pkg/issues", "pkg/deps", "pkg/models", "pkg/cli/ui", "pkg/cli/logger", "pkg/cli/framework"]
+    },
+    {
+      "id": "tui",
+      "name": "TUI (Bubble Tea)",
+      "description": "Interactive terminal UI for sl new (project creation wizard) and sl init (existing repo initialization). Detects terminal capabilities and falls back to non-interactive mode.",
+      "type": "ui",
+      "paths": ["pkg/cli/tui/"],
+      "entry_point": "pkg/cli/tui/sl_new.go",
+      "loc": 1200,
+      "key_functions": ["NewProgram (sl_new)", "NewInitProgram (sl_init)", "DetectTerminalMode"],
+      "data_models": ["ConstitutionPrinciple", "Model", "Program", "InitModel", "InitProgram", "InitStep", "MissingConfig", "TerminalMode", "ModeDetector"],
+      "api_contracts": [],
+      "dependencies": ["github.com/charmbracelet/bubbletea", "github.com/charmbracelet/bubbles", "github.com/charmbracelet/lipgloss"]
+    },
+    {
+      "id": "issues",
+      "name": "Issue Tracking",
+      "description": "Spec-scoped issue tracking stored as JSONL files per spec. Provides create/read/update/delete, dependency trees, duplicate detection, context detection from git branch, file locking for concurrency, and migration utilities.",
+      "type": "core-domain",
+      "paths": ["pkg/issues/"],
+      "entry_point": "pkg/issues/store.go",
+      "loc": 2800,
+      "key_functions": [
+        "NewStore", "ListAllSpecs", "GetIssueAcrossSpecs", "ListReadyAcrossSpecs",
+        "GenerateIssueID", "ParseIssueID", "IsValidIssueID",
+        "NewIssue", "IsValidStatus", "IsValidIssueType",
+        "FindSimilarIssues", "CheckDuplicatesForCreate",
+        "NewTreeRenderer", "DetectCycles",
+        "NewContextDetector", "ParseSpecFromBranch", "DetectSpecContextFromPath",
+        "NewMigrator"
+      ],
+      "data_models": ["Issue", "IssueStatus", "IssueType", "Store", "StoreOptions", "DependencyTree", "TreeRenderer", "TreeRenderOptions", "DuplicateResult", "ContextDetector", "Migrator"],
+      "api_contracts": [],
+      "dependencies": ["github.com/gofrs/flock", "github.com/go-git/go-git/v5", "pkg/cli/metadata"]
+    },
+    {
+      "id": "deps",
+      "name": "Spec Dependencies",
+      "description": "Manages external specification dependencies via git cloning, caching, and reference resolution. Provides git operations (clone, fetch, checkout, pull), local cache management, and reference path resolution.",
+      "type": "core-domain",
+      "paths": ["pkg/deps/", "internal/spec/", "internal/ref/"],
+      "entry_point": "pkg/deps/resolver.go",
+      "loc": 1200,
+      "key_functions": [
+        "Clone", "OpenRepository", "Fetch", "Checkout", "Pull", "ResolveHead", "ResolveRemoteCommit", "Log",
+        "NewDependencyManifest", "NewLockfile"
+      ],
+      "data_models": ["CloneOptions", "Dependency (deps)", "SpecFile", "DependencyManifest", "LockfileEntry", "Lockfile"],
+      "api_contracts": [],
+      "dependencies": ["github.com/go-git/go-git/v5", "pkg/models", "internal/spec", "internal/ref"]
+    },
+    {
+      "id": "templates-playbooks",
+      "name": "Templates & Playbooks",
+      "description": "Embedded project templates (spec, plan, tasks, constitution, etc.) and playbook management. Handles template copying into user projects, manifest parsing, remote template sources, and template diffing/status.",
+      "type": "infrastructure",
+      "paths": ["pkg/templates/", "pkg/cli/playbooks/", "templates/"],
+      "entry_point": "pkg/cli/playbooks/embedded.go",
+      "loc": 1500,
+      "key_functions": [],
+      "data_models": ["TemplateDefinition", "PlaybookSource", "Playbook", "PlaybookManifest", "CopyOptions", "CopyResult", "CopyError", "RemoteSource"],
+      "api_contracts": [],
+      "dependencies": ["pkg/models", "github.com/google/uuid"]
+    },
+    {
+      "id": "auth",
+      "name": "Authentication",
+      "description": "OAuth2 browser-based login flow with local HTTP callback server. Stores/reads credentials (JWT tokens) at ~/.specledger/credentials.json with 0600 permissions. Supports token refresh.",
+      "type": "infrastructure",
+      "paths": ["pkg/cli/auth/"],
+      "entry_point": "pkg/cli/auth/client.go",
+      "loc": 600,
+      "key_functions": [],
+      "data_models": ["Credentials", "CallbackServer", "CallbackResult", "RefreshTokenResponse"],
+      "api_contracts": [],
+      "dependencies": ["net/http"]
+    },
+    {
+      "id": "session",
+      "name": "Session Capture",
+      "description": "Captures AI coding session data (diffs, metadata) and uploads to Supabase Storage (gzip JSON). Manages local offline queue, delta state tracking, and session metadata. Requires authentication.",
+      "type": "integration",
+      "paths": ["pkg/cli/session/"],
+      "entry_point": "pkg/cli/session/capture.go",
+      "loc": 900,
+      "key_functions": [],
+      "data_models": ["SessionMetadata", "SessionDelta", "OfflineQueue"],
+      "api_contracts": [],
+      "dependencies": ["pkg/cli/auth", "net/http", "compress/gzip", "encoding/json"]
+    },
+    {
+      "id": "models",
+      "name": "Domain Models",
+      "description": "Shared data structures: TemplateDefinition, AgentConfig (supported AI agents), Dependency/DependencyManifest/Lockfile.",
+      "type": "core-domain",
+      "paths": ["pkg/models/"],
+      "entry_point": "pkg/models/dependency.go",
+      "loc": 400,
+      "key_functions": ["SupportedAgents", "GetAgentByID", "DefaultAgent", "NewDependencyManifest", "NewLockfile"],
+      "data_models": ["TemplateDefinition", "AgentConfig", "Dependency", "DependencyManifest", "LockfileEntry", "Lockfile", "SpecFile"],
+      "api_contracts": [],
+      "dependencies": []
+    },
+    {
+      "id": "infrastructure",
+      "name": "Infrastructure Utilities",
+      "description": "Cross-cutting concerns: config parsing, metadata (specledger.yaml CRUD), logger, UI color helpers, prerequisite checking, agent launcher, framework detection.",
+      "type": "utility",
+      "paths": ["pkg/cli/config/", "pkg/cli/metadata/", "pkg/cli/logger/", "pkg/cli/ui/", "pkg/cli/prerequisites/", "pkg/cli/launcher/", "pkg/cli/framework/"],
+      "entry_point": "pkg/cli/config/config.go",
+      "loc": 1500,
+      "key_functions": [
+        "CheckPrerequisites", "EnsurePrerequisites", "AllCoreToolsInstalled", "GetMissingCoreTools",
+        "New (Logger)", "PrintHeader", "PrintSection", "PrintSuccess"
+      ],
+      "data_models": ["Config", "Tool", "ToolCheckResult", "PrerequisiteCheck", "AgentLauncher", "AgentOption", "Logger", "Level"],
+      "api_contracts": [],
+      "dependencies": ["pkg/models", "gopkg.in/yaml.v3", "github.com/charmbracelet/lipgloss"]
+    },
+    {
+      "id": "version",
+      "name": "Version & Updater",
+      "description": "Version string management (set via GoReleaser ldflags), GitHub API-based version checker for self-update, and self-update download logic.",
+      "type": "utility",
+      "paths": ["pkg/version/"],
+      "entry_point": "pkg/version/checker.go",
+      "loc": 400,
+      "key_functions": ["GetVersion", "GetCommit", "GetBuildDate", "GetBuildType"],
+      "data_models": [],
+      "api_contracts": [],
+      "dependencies": ["net/http"]
+    }
+  ]
+}
