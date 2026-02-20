@@ -5,12 +5,13 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 )
 
 const (
 	// MetadataVersion is the current schema version
-	MetadataVersion = "1.0.0"
+	MetadataVersion = "1.1.0"
 
 	// DefaultMetadataFile is the default filename for project metadata
 	DefaultMetadataFile = "specledger/specledger.yaml"
@@ -26,6 +27,19 @@ func Load(path string) (*ProjectMetadata, error) {
 	var metadata ProjectMetadata
 	if err := yaml.Unmarshal(data, &metadata); err != nil {
 		return nil, err
+	}
+
+	// Auto-migrate v1.0.0 → v1.1.0
+	if metadata.Version == "1.0.0" && metadata.Project.ID == uuid.Nil {
+		// Generate UUID for legacy projects
+		metadata.Project.ID = uuid.New()
+		metadata.Version = "1.1.0"
+
+		// Save the migrated metadata immediately
+		if err := Save(&metadata, path); err != nil {
+			// Migration save failure is non-fatal, log but continue
+			// The project will still work with the generated UUID in memory
+		}
 	}
 
 	if err := metadata.Validate(); err != nil {
@@ -84,8 +98,11 @@ func NewProjectMetadata(name, shortCode string, playbookName string, playbookVer
 		ArtifactPath:    "specledger/", // Default artifact path for new projects
 		TemplateVersion: templateVersion,
 		Project: ProjectInfo{
+			ID:        uuid.New(), // Generate UUID v4 for new projects
 			Name:      name,
 			ShortCode: shortCode,
+			Template:  "",         // Will be set by bootstrap when template selected
+			Agent:     "",         // Will be set by bootstrap when agent selected
 			Created:   now,
 			Modified:  now,
 			Version:   "0.1.0",

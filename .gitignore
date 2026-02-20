@@ -4,71 +4,49 @@
 *.dll
 *.so
 *.dylib
+*.test
+*.out
 
 # Test binary, built with `go test -c`
 *.test
 
 # Output of the go coverage tool
-*.out
-coverage.html
 coverage.txt
-
-# Dependency directories
-vendor/
+*.coverprofile
 
 # Go workspace file
 go.work
 
 # IDE
-.vscode/
-.idea/
+.DS_Store
+Thumbs.db
 *.swp
 *.swo
 *~
+.idea/
+.vscode/
+*.iml
 
-# OS
+# Build artifacts
+bin/
+dist/
+tmp/
+.tmp/
+
+# OS files
 .DS_Store
 Thumbs.db
 
-# Temporary files
-*.tmp
-*.log
-*.bak
-*.backup
-
-# SpecLedger specific
-.spec-cache/
-specledger/vendor/
-.spec-config/auth.json
-.cache/
-issues.jsonl.lock
-.issues.jsonl.lock
-
-# SpecLedger CLI credentials (FR-014: never commit tokens)
-.specledger/credentials.json
-**/credentials.json
-
-# Build outputs
-dist/
-build/
-*.tar.gz
-*.zip
-
-# Environment
+# Environment and secrets
 .env
-.env.*
-!.env.example
+.env.local
+*.pem
+*.key
+credentials.json
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
+# Test cache
+testdata/
 
-# Ledger files (if any)
-ledger.db
-*.ledger
-
-bin/
-bin/main
-main
-/sl
+# Debug
+debug
+__debug_bin

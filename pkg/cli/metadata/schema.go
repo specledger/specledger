@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // ProjectMetadata represents specledger.yaml
@@ -22,8 +24,17 @@ type ProjectMetadata struct {
 
 // ProjectInfo contains project identification
 type ProjectInfo struct {
+	// ID is a unique project identifier (UUID v4) used to organize sessions in Supabase storage.
+	// Auto-generated on project creation, never changes.
+	ID        uuid.UUID `yaml:"id"`
 	Name      string    `yaml:"name"`
 	ShortCode string    `yaml:"short_code"`
+	// Template is the selected project template ID (e.g., "full-stack", "ml-image")
+	// Empty for projects created before v1.1.0
+	Template  string    `yaml:"template,omitempty"`
+	// Agent is the selected coding agent ID (e.g., "claude-code", "opencode", "none")
+	// Empty for projects created before v1.1.0
+	Agent     string    `yaml:"agent,omitempty"`
 	Created   time.Time `yaml:"created"`
 	Modified  time.Time `yaml:"modified"`
 	Version   string    `yaml:"version"`
@@ -195,8 +206,14 @@ func ValidateArtifactPath(path string) error {
 
 // Validate validates the entire ProjectMetadata structure
 func (m *ProjectMetadata) Validate() error {
-	if m.Version != "1.0.0" {
-		return errors.New("metadata version must be 1.0.0")
+	// Support both v1.0.0 (legacy) and v1.1.0 (current)
+	if m.Version != "1.0.0" && m.Version != "1.1.0" {
+		return fmt.Errorf("metadata version must be 1.0.0 or 1.1.0, got %q", m.Version)
+	}
+
+	// For v1.1.0, require UUID
+	if m.Version == "1.1.0" && m.Project.ID == uuid.Nil {
+		return errors.New("project ID required for metadata v1.1.0")
 	}
 
 	if err := ValidateProjectName(m.Project.Name); err != nil {
