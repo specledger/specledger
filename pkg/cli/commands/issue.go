@@ -492,54 +492,108 @@ func renderSingleSpecTree(issueList []issues.Issue, store *issues.Store, specCon
 	return nil
 }
 
-// renderCrossSpecTree renders issues with dependency relationships across all specs
+// renderCrossSpecTree renders issues grouped by spec with dependency trees within each spec
 func renderCrossSpecTree(issueList []issues.Issue, artifactPath string) error {
-	// Build a global issue map for cross-spec dependency resolution
-	issueMap := make(map[string]*issues.Issue)
-	blocked := make(map[string]bool)
-
-	for i := range issueList {
-		issueMap[issueList[i].ID] = &issueList[i]
-	}
-
-	// Mark issues that are blocked by others
+	// Group issues by spec
+	specIssues := make(map[string][]issues.Issue)
 	for _, issue := range issueList {
-		for _, blockerID := range issue.BlockedBy {
-			if _, exists := issueMap[blockerID]; exists {
-				blocked[issue.ID] = true
-			}
-		}
+		specIssues[issue.SpecContext] = append(specIssues[issue.SpecContext], issue)
 	}
 
-	// Build dependency trees from root issues (not blocked by anything)
-	var trees []*issues.DependencyTree
-	for _, issue := range issueList {
-		if !blocked[issue.ID] {
-			tree := buildCrossSpecDependencyTree(issue.ID, issueMap, make(map[string]bool))
-			trees = append(trees, tree)
-		}
-	}
-
-	// Create renderer with spec context enabled
+	// Create renderer (no spec context since we're grouping by spec)
 	opts := issues.DefaultTreeRenderOptions()
-	opts.ShowSpec = true
+	opts.ShowSpec = false
 	renderer := issues.NewTreeRenderer(opts)
 
-	// Check for cycles
-	cycles := issues.DetectCycles(trees)
-
-	// Output
-	var output strings.Builder
-
-	if len(cycles) > 0 {
-		output.WriteString(issues.FormatCycleWarning(cycles))
+	// Sort specs for consistent output
+	specNames := make([]string, 0, len(specIssues))
+	for spec := range specIssues {
+		specNames = append(specNames, spec)
 	}
 
-	// Render all trees under a root label
-	output.WriteString(renderer.RenderWithRoot("All Specs", trees, len(issueList)))
+	// Output
+	fmt.Println("All Specs")
 
-	fmt.Print(output.String())
+	for specIdx, spec := range specNames {
+		issuesInSpec := specIssues[spec]
+		isLastSpec := specIdx == len(specNames)-1
+
+		// Spec header
+		var specPrefix, childPrefix string
+		if isLastSpec {
+			specPrefix = "└── "
+			childPrefix = "    "
+		} else {
+			specPrefix = "├── "
+			childPrefix = "│   "
+		}
+		fmt.Printf("%s%s (%d issues)\n", specPrefix, spec, len(issuesInSpec))
+
+		// Build dependency trees for this spec
+		issueMap := make(map[string]*issues.Issue)
+		blocked := make(map[string]bool)
+
+		for i := range issuesInSpec {
+			issueMap[issuesInSpec[i].ID] = &issuesInSpec[i]
+		}
+
+		for _, issue := range issuesInSpec {
+			for _, blockerID := range issue.BlockedBy {
+				if _, exists := issueMap[blockerID]; exists {
+					blocked[issue.ID] = true
+				}
+			}
+		}
+
+		// Build trees from root issues
+		var trees []*issues.DependencyTree
+		for _, issue := range issuesInSpec {
+			if !blocked[issue.ID] {
+				tree := buildCrossSpecDependencyTree(issue.ID, issueMap, make(map[string]bool))
+				trees = append(trees, tree)
+			}
+		}
+
+		// Render each tree with spec prefix
+		for treeIdx, tree := range trees {
+			isLastTree := treeIdx == len(trees)-1
+			treeOutput := renderTreeWithPrefix(renderer, tree, childPrefix, isLastTree)
+			fmt.Print(treeOutput)
+		}
+	}
+
 	return nil
+}
+
+// renderTreeWithPrefix renders a tree with a custom prefix for each line
+func renderTreeWithPrefix(renderer *issues.TreeRenderer, tree *issues.DependencyTree, prefix string, isLast bool) string {
+	var sb strings.Builder
+
+	// Render current node
+	if isLast {
+		sb.WriteString(prefix + "└── ")
+	} else {
+		sb.WriteString(prefix + "├── ")
+	}
+	sb.WriteString(renderer.FormatIssueSimple(tree.Issue))
+	sb.WriteString("\n")
+
+	// Render children
+	if len(tree.Blocks) > 0 {
+		var childPrefix string
+		if isLast {
+			childPrefix = prefix + "    "
+		} else {
+			childPrefix = prefix + "│   "
+		}
+
+		for i, child := range tree.Blocks {
+			childIsLast := i == len(tree.Blocks)-1
+			sb.WriteString(renderTreeWithPrefix(renderer, child, childPrefix, childIsLast))
+		}
+	}
+
+	return sb.String()
 }
 
 // buildCrossSpecDependencyTree recursively builds a dependency tree across specs

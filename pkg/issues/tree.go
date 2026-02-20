@@ -219,13 +219,18 @@ func (r *TreeRenderer) renderTree(tree *DependencyTree, prefix string, isLast bo
 	// Check for cycles
 	if visited[tree.Issue.ID] {
 		sb.WriteString(prefix)
-		if isLast {
-			sb.WriteString("└── ")
+		if depth == 0 {
+			// Already has prefix from RenderWithRoot, just add cycle marker
+			sb.WriteString(" ⚠ (cycle)\n")
 		} else {
-			sb.WriteString("├── ")
+			if isLast {
+				sb.WriteString("└── ")
+			} else {
+				sb.WriteString("├── ")
+			}
+			sb.WriteString(r.formatIssue(tree.Issue))
+			sb.WriteString(" ⚠ (cycle)\n")
 		}
-		sb.WriteString(r.formatIssue(tree.Issue))
-		sb.WriteString(" ⚠ (cycle)\n")
 		return sb.String()
 	}
 
@@ -234,23 +239,36 @@ func (r *TreeRenderer) renderTree(tree *DependencyTree, prefix string, isLast bo
 	defer func() { delete(visited, tree.Issue.ID) }()
 
 	// Render current node
-	sb.WriteString(prefix)
-	if isLast {
-		sb.WriteString("└── ")
-	} else if depth > 0 {
-		sb.WriteString("├── ")
+	if depth == 0 {
+		// Prefix already contains the tree marker from RenderWithRoot
+		sb.WriteString(prefix)
+		sb.WriteString(r.formatIssue(tree.Issue))
+	} else {
+		sb.WriteString(prefix)
+		if isLast {
+			sb.WriteString("└── ")
+		} else {
+			sb.WriteString("├── ")
+		}
+		sb.WriteString(r.formatIssue(tree.Issue))
 	}
-	sb.WriteString(r.formatIssue(tree.Issue))
 	sb.WriteString("\n")
 
 	// Render children (Blocks)
 	if len(tree.Blocks) > 0 {
-		newPrefix := prefix
-		if depth > 0 {
+		var newPrefix string
+		if depth == 0 {
+			// First level children - determine continuation prefix
 			if isLast {
-				newPrefix += "    "
+				newPrefix = "    "
 			} else {
-				newPrefix += "│   "
+				newPrefix = "│   "
+			}
+		} else {
+			if isLast {
+				newPrefix = prefix + "    "
+			} else {
+				newPrefix = prefix + "│   "
 			}
 		}
 
@@ -274,30 +292,16 @@ func (r *TreeRenderer) RenderWithRoot(rootLabel string, trees []*DependencyTree,
 	}
 	sb.WriteString("\n")
 
-	// Render each tree as a child of root
+	// Render each tree as a child of root (depth 0, with prefix from root)
 	for i, tree := range trees {
 		isLast := i == len(trees)-1
-		childOutput := r.renderTree(tree, "", isLast, 1, make(map[string]bool))
-
-		// Add proper prefix to each line
-		lines := strings.Split(strings.TrimRight(childOutput, "\n"), "\n")
-		for j, line := range lines {
-			if j == 0 {
-				if isLast {
-					sb.WriteString("└── ")
-				} else {
-					sb.WriteString("├── ")
-				}
-			} else {
-				if isLast {
-					sb.WriteString("    ")
-				} else {
-					sb.WriteString("│   ")
-				}
-			}
-			sb.WriteString(line)
-			sb.WriteString("\n")
+		var prefix string
+		if isLast {
+			prefix = "└── "
+		} else {
+			prefix = "├── "
 		}
+		sb.WriteString(r.renderTree(tree, prefix, isLast, 0, make(map[string]bool)))
 	}
 
 	return sb.String()
