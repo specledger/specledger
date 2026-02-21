@@ -275,7 +275,72 @@ When the agent exits with no uncommitted file changes (agent committed itself, o
 
 Items identified during review feedback, deferred from this sprint:
 
-- **Agent-generated commit messages**: Let the coding agent suggest a commit message based on the changes it made. Nice to have but hard to implement — requires agent output parsing or a protocol for the agent to communicate the message back.
+- **Agent-driven resolve — `sl resolve` command** *(high impact)*: Instead of `sl revise` handling commit/push/resolve after the agent exits, the agent itself would drive the lifecycle from within its shell session. This requires:
+
+  1. **New `sl resolve` command**: Called by the agent after each edit to mark a comment as resolved with an explanation:
+     ```bash
+     sl resolve --file specledger/009-xxx/spec.md \
+       --text "selected passage from reviewer" \
+       --reply "Removed retry language; content is statically pre-generated"
+     ```
+     - Matches comment by `file_path` + `selected_text` (no UUIDs exposed)
+     - Creates a reply child comment (`is_ai_generated=true`, `triggered_by_user_id` from auth)
+     - Marks parent comment as `is_resolved=true`
+     - Uses same `~/.specledger/credentials.json` (agent runs as subprocess of authenticated `sl revise`)
+     - Graceful no-op if comment already resolved
+
+  2. **Prompt template update**: Instruct the agent to call `sl resolve` after applying each edit:
+     ```gotemplate
+     ## After Each Edit
+     After applying the approved edit for a comment, resolve it:
+     ```
+     sl resolve --file "{{.FilePath}}" --text "{{.Target}}" --reply "<your summary>"
+     ```
+     After all edits are complete, commit your changes:
+     ```
+     git add <modified files>
+     git commit -m "feat: address review feedback — <summary>"
+     ```
+     ```
+
+  3. **Impact on current flow**: Steps 17-22 (post-agent commit/push/resolve in `sl revise`) become a **fallback** for when the agent doesn't handle it. The parent process would detect:
+     - If all processed comments are already resolved → skip resolve step
+     - If changes are already committed → skip commit step
+     - Only prompt for remaining unresolved comments or uncommitted changes
+
+  4. **UX flow** (agent-driven):
+     ```
+     $ sl revise
+     [branch selection, comment processing, prompt generation...]
+     Launching Claude Code...
+
+     # Inside Claude Code session:
+     [Agent reads spec.md, proposes edit for comment 1]
+     [User approves via AskUserQuestion]
+     [Agent applies edit]
+     $ sl resolve --file spec.md --text "retry option" --reply "Removed retry language"
+     # ✓ Comment resolved
+
+     [Agent processes comment 2...]
+     $ sl resolve --file spec.md --text "by making project" --reply "Clarified wording"
+     # ✓ Comment resolved
+
+     [Agent commits]
+     $ git add specledger/009-xxx/spec.md
+     $ git commit -m "feat: address review feedback on spec clarity and retry language"
+
+     [Agent exits]
+
+     # Back in sl revise:
+     # ✓ Agent session complete
+     # ✓ 2 of 2 comments already resolved by agent
+     # ✓ Changes already committed: a1b2c3d
+     # Nothing left to do. Session complete.
+     ```
+
+  **Estimated effort**: 3-5 days (new command + prompt redesign + post-agent detection logic)
+  **Prerequisite**: Core `sl revise` flow (this sprint) must be working first
+
 - **Export resolve file on auth expiry**: When the refresh token is also expired during the resolve step, export a JSON file listing comments to resolve. The user can re-authenticate and run `sl revise --auto resolve-file.json` to complete resolution.
 - **Multi-pane TUI**: Rich TUI with artifact tree (left), comment detail (right), controls (bottom), and free navigation between views. See research.md R11 for design notes and reference implementations.
 
