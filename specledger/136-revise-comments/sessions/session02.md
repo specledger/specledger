@@ -42,11 +42,13 @@ sl-2re  Phase A unit tests (15 tests, all pass)        ✓
 ### Still Open
 
 ```
-sl-0r5  Edge case handling                             ← NEXT (Priority 1)
+# Fix previous session mistakes
+M6      --dry-run unreachable flag                     ← NEXT (Priority 1, agreed solution below)
+
+# Continue implementation
+sl-0r5  Edge case handling                             ← NEXT (Priority 2)
 sl-ndj  Polish epic (close after sl-0r5)
 sl-0e7  Feature epic (close last)
-
-M6      --dry-run unreachable flag                     ← NEXT (Priority 2, agreed solution below)
 ```
 
 ---
@@ -165,7 +167,7 @@ This session initially also silently followed plan.md. User noticed the pattern 
 
 ---
 
-### M1 — `launchReviseAgent` wrapper — FIXED THIS SESSION
+### M1 — `launchReviseAgent` wrapper — FIXED ALREADY
 
 **Original problem (from session01)**: `launchReviseAgent` was a thin ~20-line wrapper called exactly once. Two functions named `launchAgent` and `launchReviseAgent` existed in the same package for the same concept.
 
@@ -197,7 +199,7 @@ sl revise --dry-run
 # No agent launched. No comments resolved.
 ```
 
-**Agreed solution** (to implement in next session, Priority 2 after sl-0r5):
+**Agreed solution** (to implement in next session, Priority 1 before sl-0r5):
 
 1. Change `editAndConfirmPrompt(initial string)` → `editAndConfirmPrompt(initial string, dryRun bool)`
 2. After `current = edited` (editor closes), add:
@@ -267,7 +269,11 @@ sl revise [branch]
 
 ## What the Next Agent Must Do
 
-### Priority 1 — sl-0r5: Edge Case Handling
+### Priority 1 — M6: Fix `--dry-run`
+
+Implement the agreed solution documented in M6 above. Exact code changes specified — no design decisions needed, no AskUserQuestion required. Just implement and remove the `TODO(M6)` comment.
+
+### Priority 2 — sl-0r5: Edge Case Handling
 
 Run `bd show sl-0r5` for full spec. Six cases to handle in `commands/revise.go` and `pkg/cli/revise/`:
 
@@ -279,10 +285,6 @@ Run `bd show sl-0r5` for full spec. Six cases to handle in `commands/revise.go` 
 6. **Editor not found**: Already handled in `editAndConfirmPrompt` (falls through to `writePromptInteractive`). Verify the error message matches quickstart §4 "Editor not found" output.
 
 **Before implementing each case**: read `quickstart.md` for the exact expected output format. Do not invent error messages — match the spec.
-
-### Priority 2 — M6: Fix `--dry-run`
-
-Implement the agreed solution documented in M6 above. Exact code changes specified — no design decisions needed, no AskUserQuestion required. Just implement and remove the `TODO(M6)` comment.
 
 ### Priority 3 — Close epics
 
@@ -326,7 +328,26 @@ pkg/cli/revise/types.go
 pkg/cli/revise/client.go
 ```
 
-Also run:
+First Fix: M6 `--dry-run` unreachable flag
+
+1. Change `editAndConfirmPrompt(initial string)` → `editAndConfirmPrompt(initial string, dryRun bool)`
+2. After `current = edited` (editor closes), add:
+   ```go
+   if dryRun {
+       _, err := writePromptInteractive(current)
+       return "", err
+   }
+   ```
+3. Update call site in `runRevise` (currently has `TODO(M6)` comment):
+   ```go
+   finalPrompt, err := editAndConfirmPrompt(prompt, reviseDryRun)
+   ```
+4. Remove the `TODO(M6)` comment after implementation.
+
+**Current state**: Call site in `runRevise` has a `TODO(M6)` comment. `editAndConfirmPrompt` still takes one argument. Build is clean.
+
+Then run:
+
 ```bash
 bd show sl-0r5
 bd list --status=open --label spec:136-revise-comments
@@ -348,9 +369,9 @@ bd list --status=open --label spec:136-revise-comments
 
 ### Work to complete
 
-**Priority 1 — sl-0r5: Edge cases** (see session02.md §"What the Next Agent Must Do" for the full list of 6 cases and expected output format)
+**Priority 1 — M6: Fix `--dry-run`** (see session02.md §M6 for the exact agreed implementation — no design decisions needed)
 
-**Priority 2 — M6: Fix `--dry-run`** (see session02.md §M6 for the exact agreed implementation — no design decisions needed)
+**Priority 2 — sl-0r5: Edge cases** (see session02.md §"What the Next Agent Must Do" for the full list of 6 cases and expected output format)
 
 **Priority 3 — Close epics**
 ```bash

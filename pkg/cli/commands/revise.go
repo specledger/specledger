@@ -138,8 +138,7 @@ func runRevise(cmd *cobra.Command, args []string) error {
 	revise.PrintTokenWarnings(tokens)
 
 	// Step 8: Open editor for prompt refinement; confirm/re-edit/write-to-file/cancel.
-	// TODO(M6): pass reviseDryRun once editAndConfirmPrompt accepts the parameter.
-	finalPrompt, err := editAndConfirmPrompt(prompt)
+	finalPrompt, err := editAndConfirmPrompt(prompt, reviseDryRun)
 	if err != nil {
 		return err
 	}
@@ -424,12 +423,12 @@ func pickBranchFromAPI(cwd, currentBranch string, client *revise.ReviseClient) (
 
 	project, err := client.GetProject(repoOwner, repoName)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to fetch project: %w", err)
+		return "", "", networkHint(fmt.Errorf("failed to fetch project: %w", err))
 	}
 
 	specs, err := client.ListSpecsWithComments(project.ID)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to fetch specs: %w", err)
+		return "", "", networkHint(fmt.Errorf("failed to fetch specs: %w", err))
 	}
 
 	if len(specs) == 0 {
@@ -503,7 +502,7 @@ func checkoutIfNeeded(cwd, targetBranch string) (stashUsed bool, err error) {
 			return false, nil
 		case actionStash:
 			if err := cligit.StashChanges(cwd); err != nil {
-				return false, fmt.Errorf("stash failed: %w", err)
+				return false, fmt.Errorf("stash failed — resolve manually before switching branches: %w", err)
 			}
 			stashUsed = true
 		}
@@ -521,7 +520,9 @@ func checkoutIfNeeded(cwd, targetBranch string) (stashUsed bool, err error) {
 		}
 	} else {
 		if err := cligit.CheckoutRemoteTracking(cwd, targetBranch); err != nil {
-			return stashUsed, fmt.Errorf("remote checkout failed: %w", err)
+			return stashUsed, fmt.Errorf(
+				"branch %q not found on remote (it may have been deleted)\nRun `sl revise` again to select a different branch.",
+				targetBranch)
 		}
 	}
 
@@ -538,22 +539,22 @@ func fetchComments(cwd, specKey string, client *revise.ReviseClient) ([]revise.R
 
 	project, err := client.GetProject(repoOwner, repoName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch project: %w", err)
+		return nil, networkHint(fmt.Errorf("failed to fetch project: %w", err))
 	}
 
 	spec, err := client.GetSpec(project.ID, specKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch spec %q: %w", specKey, err)
+		return nil, networkHint(fmt.Errorf("failed to fetch spec %q: %w", specKey, err))
 	}
 
 	change, err := client.GetChange(spec.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch change for spec %q: %w", specKey, err)
+		return nil, networkHint(fmt.Errorf("failed to fetch change for spec %q: %w", specKey, err))
 	}
 
 	comments, err := client.FetchComments(change.ID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch comments: %w", err)
+		return nil, networkHint(fmt.Errorf("failed to fetch comments: %w", err))
 	}
 
 	return comments, nil
@@ -649,7 +650,22 @@ func processComments(comments []revise.ReviewComment) ([]revise.ProcessedComment
 		fmt.Println(headerStyle.Render(fmt.Sprintf("Comment %d of %d", i+1, len(comments))))
 		fmt.Printf("%s %s%s\n", labelStyle.Render("File:"), textStyle.Render(c.FilePath), lineInfo)
 
+		// Edge case 1: file no longer exists locally
+		fileExists := true
+		if _, statErr := os.Stat(c.FilePath); os.IsNotExist(statErr) {
+			fmt.Printf("⚠ File not found locally: %s\n", c.FilePath)
+			fileExists = false
+		}
+
 		if c.SelectedText != "" {
+			// Edge case 2: selected text no longer present in the current file version
+			if fileExists {
+				content, readErr := os.ReadFile(c.FilePath)
+				if readErr == nil && !strings.Contains(string(content), c.SelectedText) {
+					fmt.Println("⚠ Original selected text not found in current file version")
+				}
+			}
+
 			excerpt := c.SelectedText
 			if len(excerpt) > 120 {
 				excerpt = excerpt[:117] + "..."
@@ -762,8 +778,9 @@ func runAuto(cwd string, args []string, fixturePath string) error {
 
 // editAndConfirmPrompt opens the prompt in the user's editor then shows a
 // Launch / Re-edit / Write-to-file / Cancel menu. Returns the final prompt
-// string (empty string signals cancellation).
-func editAndConfirmPrompt(initial string) (string, error) {
+// string (empty string signals cancellation or dry-run write).
+// When dryRun is true, skips the action menu and immediately prompts for a filename.
+func editAndConfirmPrompt(initial string, dryRun bool) (string, error) {
 	const (
 		actionLaunch    = "launch"
 		actionReEdit    = "reedit"
@@ -776,10 +793,20 @@ func editAndConfirmPrompt(initial string) (string, error) {
 		edited, err := revise.EditPrompt(current)
 		if err != nil {
 			// Editor not found: fall through to write-to-file path
-			fmt.Printf("Editor unavailable (%v).\n", err)
-			return writePromptInteractive(current)
+			if strings.Contains(err.Error(), "no editor found") {
+				fmt.Println("⚠ No editor found ($EDITOR/$VISUAL not set, vi not available)")
+			} else {
+				fmt.Printf("Editor unavailable (%v).\n", err)
+			}
+			_, err := writePromptInteractive(current)
+			return "", err
 		}
 		current = edited
+
+		if dryRun {
+			_, err := writePromptInteractive(current)
+			return "", err
+		}
 
 		var action string
 		err = huh.NewForm(huh.NewGroup(
@@ -831,6 +858,20 @@ func writePromptInteractive(prompt string) (string, error) {
 	}
 	fmt.Printf("Prompt written to %s\n", filename)
 	return "", nil
+}
+
+// networkHint appends a network connectivity hint to err when the error message
+// does not already contain actionable API-level detail (e.g., "API error (404)").
+// Network errors (connection refused, timeout, DNS failures) benefit from the hint;
+// API-level errors already contain enough context.
+func networkHint(err error) error {
+	if err == nil {
+		return nil
+	}
+	if strings.Contains(err.Error(), "API error (") {
+		return err
+	}
+	return fmt.Errorf("%w\nCheck your network connection and try again.", err)
 }
 
 // writePromptToFile prompts for a filename and writes the prompt there.
