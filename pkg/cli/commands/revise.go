@@ -797,7 +797,20 @@ func editAndConfirmPrompt(initial string, dryRun bool) (string, error) {
 	)
 
 	current := initial
+	firstEdit := true
 	for {
+		editor := revise.DetectEditor()
+		sep := strings.Repeat("─", 58)
+		if firstEdit {
+			fmt.Println(sep)
+			fmt.Println("Revision prompt is ready.")
+			if editor != "" {
+				fmt.Printf("Opening %s — review and refine the prompt, then save and exit to continue.\n", editor)
+			}
+			fmt.Println(sep)
+			firstEdit = false
+		}
+
 		edited, err := revise.EditPrompt(current)
 		if err != nil {
 			// Editor not found: fall through to write-to-file path

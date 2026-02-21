@@ -6,6 +6,23 @@ import (
 	"os/exec"
 )
 
+// DetectEditor returns the user's preferred editor from the environment.
+// It checks $EDITOR and $VISUAL first, then falls back to common editors.
+func DetectEditor() string {
+	for _, env := range []string{"EDITOR", "VISUAL"} {
+		if v := os.Getenv(env); v != "" {
+			return v
+		}
+	}
+	// Common fallbacks
+	for _, candidate := range []string{"vi", "nano", "vim"} {
+		if _, err := exec.LookPath(candidate); err == nil {
+			return candidate
+		}
+	}
+	return ""
+}
+
 // EditPrompt writes prompt to a temp file, opens it in the user's editor,
 // and returns the (possibly modified) content after the editor exits.
 func EditPrompt(prompt string) (string, error) {
@@ -21,7 +38,7 @@ func EditPrompt(prompt string) (string, error) {
 	}
 	tmpFile.Close()
 
-	editor := detectEditor()
+	editor := DetectEditor()
 	if editor == "" {
 		return "", fmt.Errorf("no editor found: set $EDITOR or $VISUAL environment variable")
 	}
@@ -44,18 +61,3 @@ func EditPrompt(prompt string) (string, error) {
 	return string(content), nil
 }
 
-// detectEditor returns the user's preferred editor from the environment.
-func detectEditor() string {
-	for _, env := range []string{"EDITOR", "VISUAL"} {
-		if v := os.Getenv(env); v != "" {
-			return v
-		}
-	}
-	// Common fallbacks
-	for _, candidate := range []string{"vi", "nano", "vim"} {
-		if _, err := exec.LookPath(candidate); err == nil {
-			return candidate
-		}
-	}
-	return ""
-}
