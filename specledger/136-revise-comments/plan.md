@@ -15,7 +15,7 @@ Add `sl revise` as a new Cobra subcommand in the Go CLI binary. The command fetc
 **Testing**: `go test` with table-driven tests for API client, template rendering, token estimation; integration tests for the full command flow
 **Target Platform**: macOS, Linux (CLI binary distributed via GoReleaser + Homebrew)
 **Project Type**: Single Go module (existing CLI binary)
-**Performance Goals**: Comment fetch <5s (SC-001), full workflow <10min for 5 comments (SC-002)
+**Performance Goals**: Comment fetch <5s (SC-001). SC-002 dropped — interactive/agent steps are user-paced.
 **Constraints**: Must preserve TTY when spawning editor and agent; one new dependency (`charmbracelet/huh` for forms) beyond what's in go.mod
 **Scale/Scope**: Typically 1-20 comments per spec, 1-5 artifacts. Single user CLI.
 
@@ -246,8 +246,9 @@ When the agent exits with no uncommitted file changes (agent committed itself, o
 ### 8. Full Command Flow
 
 ```
-1. Parse flags (--auto, --dry-run)
+1. Parse flags (--auto, --dry-run, --summary)
 2. Auth check (auth.GetValidAccessToken)
+2a. If --summary → resolve branch → fetch comments → print compact listing → exit (silent exit code 1 on auth failure)
 3. Branch selection (resolve spec_key; from fixture.branch if --auto)
 4. Branch checkout if needed (stash → checkout)
 5. Fetch comments (project → spec → change → review_comments) [auto-retry on 401]

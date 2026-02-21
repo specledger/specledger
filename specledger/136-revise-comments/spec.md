@@ -219,7 +219,7 @@ As a coding agent (e.g., Claude Code running `/specledger.clarify`), I want to r
 ### Measurable Outcomes
 
 - **SC-001**: Users can fetch and view all comments for a specification in under 5 seconds on a standard internet connection.
-- **SC-002**: Users can complete the full revise workflow (fetch, select, process, generate prompt, launch agent, resolve) for a typical spec with 5 comments in under 10 minutes.
+- **SC-002**: *(Dropped)* ~~Full flow under 10 minutes~~ — not meaningful to measure since interactive steps (comment selection, guidance, agent loop) are user-paced. Performance focus is on SC-001 (fetch speed) and prompt generation (Go template rendering, negligible).
 - **SC-003**: 90% of users can successfully run `sl revise` on their first attempt without consulting documentation, when authenticated and on a feature branch.
 - **SC-004**: Zero data loss — no comments are accidentally resolved without explicit user confirmation.
 - **SC-005**: The command correctly auto-detects the spec key from the branch name in 100% of cases where the branch follows the `###-name` pattern.
@@ -252,6 +252,6 @@ As a coding agent (e.g., Claude Code running `/specledger.clarify`), I want to r
 - The spec key used for querying artifact comments is derived from the Git branch name (e.g., branch `136-revise-comments` → spec key `136-revise-comments`)
 - Comments are only posted through the SpecLedger web UI or CLI, so their format is predictable
 - The coding agent accepts prompt content via stdin or a file path argument
-- Token count estimation uses a simple heuristic (approximately 4 characters per token) as a rough guide, not a precise tokenizer
-- The user configures their preferred coding agent via `specledger.yaml` or an environment variable (e.g., `SPECLEDGER_AGENT`)
+- Token count estimation uses a simple heuristic (~3.5 characters per token, per Anthropic's recommended local estimate) as a rough guide, not a precise tokenizer
+- The user configures their preferred coding agent via `specledger.yaml` (under `agent.command`) or the `SPECLEDGER_AGENT` environment variable. `specledger.yaml` is the canonical config source; the env var overrides it.
 - Network connectivity is available for Supabase API calls; offline mode is not supported for this command
