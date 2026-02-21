@@ -35,7 +35,13 @@ Execution steps:
    - If JSON parsing fails, abort and instruct user to re-run `/specledger.specledger` or verify feature branch environment.
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
-2. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
+2. **Fetch unresolved reviewer comments** (if available):
+   - Run `sl revise --summary` from the repo root.
+   - If exit code is 0 and output is non-empty, parse the output lines. Each line represents a reviewer comment in the format: `file_path:line  "selected_text"  (author)`.
+   - If exit code is non-zero or output is empty, skip this step silently.
+   - Store the parsed comments as additional context for step 3 (ambiguity scan): reviewer comments are high-signal inputs — they indicate areas the spec author or reviewers found unclear, incomplete, or ambiguous. Treat each as a candidate clarification opportunity.
+
+3. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
 
    Functional Scope & Behavior:
    - Core user goals & success criteria

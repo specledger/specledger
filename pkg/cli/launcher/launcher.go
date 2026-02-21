@@ -70,6 +70,24 @@ func (l *AgentLauncher) Launch() error {
 	return cmd.Run()
 }
 
+// LaunchWithPrompt starts the agent as an interactive subprocess and passes prompt as a
+// positional argument. Using a positional arg (not stdin) preserves TTY interactivity.
+// This blocks until the agent process exits.
+func (l *AgentLauncher) LaunchWithPrompt(prompt string) error {
+	if l.Command == "" {
+		return fmt.Errorf("no agent command configured")
+	}
+
+	// #nosec G204 -- l.Command is from a controlled DefaultAgents list, not user input
+	cmd := exec.Command(l.Command, prompt)
+	cmd.Dir = l.Dir
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	return cmd.Run()
+}
+
 // InstallInstructions returns help text for installing the agent.
 func (l *AgentLauncher) InstallInstructions() string {
 	switch l.Command {

@@ -59,6 +59,7 @@ func init() {
 	rootCmd.AddCommand(commands.VarAuthCmd)
 	rootCmd.AddCommand(commands.VarSessionCmd)
 	rootCmd.AddCommand(commands.VarIssueCmd)
+	rootCmd.AddCommand(commands.VarReviseCmd)
 
 	// Add version command
 	rootCmd.AddCommand(&cobra.Command{
