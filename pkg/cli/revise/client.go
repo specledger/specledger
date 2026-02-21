@@ -73,7 +73,9 @@ func (c *ReviseClient) doWithRetry(fn func(token string) (*http.Response, error)
 	if resp.StatusCode == http.StatusUnauthorized {
 		resp.Body.Close()
 
-		newToken, err := auth.GetValidAccessToken()
+		// Force refresh — the server already rejected the current token,
+		// so we must not rely on the local expiry check.
+		newToken, err := auth.ForceRefreshAccessToken()
 		if err != nil {
 			return nil, fmt.Errorf("token refresh failed: %w (run 'sl auth login')", err)
 		}

@@ -799,37 +799,68 @@ func editAndConfirmPrompt(initial string, dryRun bool) (string, error) {
 	firstEdit := true
 	for {
 		editor := revise.DetectEditor()
-		sep := strings.Repeat("─", 58)
+
 		if firstEdit {
-			fmt.Println(sep)
-			fmt.Println("Revision prompt is ready.")
-			if editor != "" {
-				fmt.Printf("Opening %s — review and refine the prompt, then save and exit to continue.\n", editor)
-			}
-			fmt.Println(sep)
 			firstEdit = false
+
+			// Let the user choose: review/edit the prompt or proceed as-is.
+			const (
+				choiceEdit    = "edit"
+				choiceProceed = "proceed"
+			)
+			var choice string
+
+			editLabel := "Review/edit the prompt"
+			if editor != "" {
+				editLabel = fmt.Sprintf("Review/edit the prompt in %s", editor)
+			}
+
+			err := huh.NewForm(huh.NewGroup(
+				huh.NewSelect[string]().
+					Title("Revision prompt is ready.").
+					Options(
+						huh.NewOption(editLabel, choiceEdit),
+						huh.NewOption("Proceed with the generated prompt", choiceProceed),
+					).
+					Value(&choice),
+			)).Run()
+			if err != nil {
+				return "", fmt.Errorf("prompt choice: %w", err)
+			}
+
+			if choice == choiceProceed {
+				// Skip editor, go straight to action menu.
+				if dryRun {
+					_, err := writePromptInteractive(current)
+					return "", err
+				}
+				goto actionMenu
+			}
 		}
 
-		edited, err := revise.EditPrompt(current)
-		if err != nil {
-			// Editor not found: fall through to write-to-file path
-			if strings.Contains(err.Error(), "no editor found") {
-				fmt.Println("⚠ No editor found ($EDITOR/$VISUAL not set, vi not available)")
-			} else {
-				fmt.Printf("Editor unavailable (%v).\n", err)
+		{
+			edited, err := revise.EditPrompt(current)
+			if err != nil {
+				// Editor not found: fall through to write-to-file path
+				if strings.Contains(err.Error(), "no editor found") {
+					fmt.Println("⚠ No editor found ($EDITOR/$VISUAL not set, vi not available)")
+				} else {
+					fmt.Printf("Editor unavailable (%v).\n", err)
+				}
+				_, err := writePromptInteractive(current)
+				return "", err
 			}
-			_, err := writePromptInteractive(current)
-			return "", err
+			current = edited
 		}
-		current = edited
 
 		if dryRun {
 			_, err := writePromptInteractive(current)
 			return "", err
 		}
 
+	actionMenu:
 		var action string
-		err = huh.NewForm(huh.NewGroup(
+		err := huh.NewForm(huh.NewGroup(
 			huh.NewSelect[string]().
 				Title("Prompt ready — what next?").
 				Options(

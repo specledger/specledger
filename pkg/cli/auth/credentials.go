@@ -18,10 +18,14 @@ type Credentials struct {
 	UserID       string `json:"user_id"`
 }
 
-// IsExpired checks if the access token has expired
+// refreshBuffer is how far before actual expiry we consider a token expired,
+// so we proactively refresh instead of racing the clock.
+const refreshBuffer = 30 * time.Second
+
+// IsExpired checks if the access token has expired (or is within the refresh buffer).
 func (c *Credentials) IsExpired() bool {
 	expiresAt := time.Unix(c.CreatedAt, 0).Add(time.Duration(c.ExpiresIn) * time.Second)
-	return time.Now().After(expiresAt)
+	return time.Now().After(expiresAt.Add(-refreshBuffer))
 }
 
 // ExpiresAt returns the expiration time

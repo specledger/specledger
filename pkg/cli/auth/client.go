@@ -127,12 +127,31 @@ func GetValidAccessToken() (string, error) {
 		return "", fmt.Errorf("not authenticated, please run 'sl auth login'")
 	}
 
-	// If token is still valid, return it
+	// If token is still valid (with buffer), return it
 	if !creds.IsExpired() {
 		return creds.AccessToken, nil
 	}
 
-	// Token expired, try to refresh
+	return doRefresh(creds)
+}
+
+// ForceRefreshAccessToken always refreshes the token, ignoring local expiry.
+// Use this when the server has already rejected the current token (e.g. 401).
+func ForceRefreshAccessToken() (string, error) {
+	creds, err := LoadCredentials()
+	if err != nil {
+		return "", fmt.Errorf("failed to load credentials: %w", err)
+	}
+
+	if creds == nil {
+		return "", fmt.Errorf("not authenticated, please run 'sl auth login'")
+	}
+
+	return doRefresh(creds)
+}
+
+// doRefresh performs the actual token refresh using the stored refresh token.
+func doRefresh(creds *Credentials) (string, error) {
 	if creds.RefreshToken == "" {
 		return "", fmt.Errorf("token expired and no refresh token available, please run 'sl auth login'")
 	}
