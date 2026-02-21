@@ -33,7 +33,11 @@ func EstimateTokens(text string) int {
 }
 
 // BuildRevisionContext converts processed comments into the template rendering context.
-func BuildRevisionContext(specKey string, processed []ProcessedComment) RevisionContext {
+// The replies slice contains all thread reply comments; they are grouped by parent_comment_id
+// and attached to the corresponding PromptComment.
+func BuildRevisionContext(specKey string, processed []ProcessedComment, replies []ReviewComment) RevisionContext {
+	replyMap := BuildReplyMap(replies)
+
 	comments := make([]PromptComment, 0, len(processed))
 	for _, p := range processed {
 		target := p.Comment.SelectedText
@@ -49,6 +53,19 @@ func BuildRevisionContext(specKey string, processed []ProcessedComment) Revision
 			target = target[:197] + "..."
 		}
 
+		var threadReplies []ThreadReply
+		if reps, ok := replyMap[p.Comment.ID]; ok {
+			threadReplies = make([]ThreadReply, 0, len(reps))
+			for _, r := range reps {
+				threadReplies = append(threadReplies, ThreadReply{
+					ID:         r.ID,
+					AuthorName: r.AuthorName,
+					Content:    r.Content,
+					CreatedAt:  r.CreatedAt,
+				})
+			}
+		}
+
 		comments = append(comments, PromptComment{
 			Index:    p.Index,
 			ID:       p.Comment.ID,
@@ -56,6 +73,7 @@ func BuildRevisionContext(specKey string, processed []ProcessedComment) Revision
 			Target:   target,
 			Feedback: p.Comment.Content,
 			Guidance: p.Guidance,
+			Replies:  threadReplies,
 		})
 	}
 

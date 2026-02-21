@@ -243,6 +243,40 @@ func (c *ReviseClient) FetchComments(changeID string) ([]ReviewComment, error) {
 	return comments, nil
 }
 
+// FetchReplies fetches all unresolved thread replies (comments with a parent) for the given change.
+// Results are ordered by created_at ascending (oldest first).
+func (c *ReviseClient) FetchReplies(changeID string) ([]ReviewComment, error) {
+	path := fmt.Sprintf(
+		"/rest/v1/review_comments?change_id=eq.%s&is_resolved=eq.false&parent_comment_id=not.is.null"+
+			"&select=id,file_path,content,selected_text,parent_comment_id,author_name,author_email,created_at"+
+			"&order=created_at.asc",
+		url.QueryEscape(changeID),
+	)
+
+	resp, err := c.doWithRetry(func(token string) (*http.Response, error) {
+		return c.get(token, path)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("FetchReplies: %w", err)
+	}
+
+	var replies []ReviewComment
+	if err := readJSON(resp, &replies); err != nil {
+		return nil, fmt.Errorf("FetchReplies: %w", err)
+	}
+
+	return replies, nil
+}
+
+// BuildReplyMap groups reply comments by their parent_comment_id.
+func BuildReplyMap(replies []ReviewComment) map[string][]ReviewComment {
+	m := make(map[string][]ReviewComment)
+	for _, r := range replies {
+		m[r.ParentCommentID] = append(m[r.ParentCommentID], r)
+	}
+	return m
+}
+
 // ResolveComment marks a review comment as resolved via PATCH.
 func (c *ReviseClient) ResolveComment(commentID string) error {
 	reqURL := fmt.Sprintf(
@@ -275,6 +309,49 @@ func (c *ReviseClient) ResolveComment(commentID string) error {
 	if resp.StatusCode >= 400 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("ResolveComment: API error (%d): %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	return nil
+}
+
+// ResolveCommentWithReplies resolves a parent comment and all its thread replies in a single
+// batch PATCH using PostgREST's `id=in.(...)` filter.
+func (c *ReviseClient) ResolveCommentWithReplies(commentID string, replyIDs []string) error {
+	allIDs := make([]string, 0, 1+len(replyIDs))
+	allIDs = append(allIDs, commentID)
+	allIDs = append(allIDs, replyIDs...)
+	idList := "(" + strings.Join(allIDs, ",") + ")"
+
+	reqURL := fmt.Sprintf(
+		"%s/rest/v1/review_comments?id=in.%s",
+		c.baseURL,
+		url.QueryEscape(idList),
+	)
+
+	body := []byte(`{"is_resolved":true}`)
+
+	patchFn := func(token string) (*http.Response, error) {
+		req, err := http.NewRequest(http.MethodPatch, reqURL, bytes.NewReader(body))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("apikey", c.anonKey)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Prefer", "return=minimal")
+
+		return c.httpClient.Do(req)
+	}
+
+	resp, err := c.doWithRetry(patchFn)
+	if err != nil {
+		return fmt.Errorf("ResolveCommentWithReplies: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("ResolveCommentWithReplies: API error (%d): %s", resp.StatusCode, string(bodyBytes))
 	}
 
 	return nil

@@ -31,6 +31,14 @@ type RevisionContext struct {
 	Comments []PromptComment
 }
 
+// ThreadReply is a single reply in a comment thread.
+type ThreadReply struct {
+	ID         string // Reply UUID (for cascade resolution)
+	AuthorName string
+	Content    string
+	CreatedAt  string
+}
+
 // PromptComment is a single comment entry in the revision prompt template.
 type PromptComment struct {
 	Index    int    // 1-based display index
@@ -39,6 +47,7 @@ type PromptComment struct {
 	Target   string // selected_text, "Line N", or "General"
 	Feedback string // Comment content
 	Guidance string // Optional user guidance
+	Replies  []ThreadReply
 }
 
 // AutoFixture is the fixture file structure for non-interactive automation mode.
