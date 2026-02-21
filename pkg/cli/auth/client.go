@@ -11,11 +11,6 @@ import (
 )
 
 const (
-	// ProductionAPIURL is the production API base URL
-	ProductionAPIURL = "https://app.specledger.io"
-	// DevAPIURL is the development API base URL
-	DevAPIURL = "http://localhost:3000"
-
 	// SupabaseURL is the Supabase project URL
 	SupabaseURL = "https://iituikpbiesgofuraclk.supabase.co"
 	// SupabaseAnonKey is the public anon key for Supabase (safe to expose)
@@ -38,32 +33,23 @@ func GetSupabaseAnonKey() string {
 	return SupabaseAnonKey
 }
 
-// getAPIURL returns the API URL based on environment
-func getAPIURL() string {
-	if envURL := os.Getenv("SPECLEDGER_API_URL"); envURL != "" {
-		return envURL
-	}
-	if env := os.Getenv("SPECLEDGER_ENV"); env == "dev" || env == "development" {
-		return DevAPIURL
-	}
-	return ProductionAPIURL
-}
-
-// RefreshTokenResponse represents the response from token refresh
+// RefreshTokenResponse represents the response from Supabase GoTrue token refresh
 type RefreshTokenResponse struct {
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	ExpiresIn    int64  `json:"expires_in"`
-	Email        string `json:"email"`
-	UserID       string `json:"user_id"`
+	User         struct {
+		ID    string `json:"id"`
+		Email string `json:"email"`
+	} `json:"user"`
 	Error        string `json:"error"`
 	ErrorMessage string `json:"error_description"`
 }
 
-// RefreshAccessToken uses the refresh token to get a new access token
+// RefreshAccessToken uses the refresh token to get a new access token via Supabase GoTrue
 func RefreshAccessToken(refreshToken string) (*Credentials, error) {
-	apiURL := getAPIURL()
-	endpoint := fmt.Sprintf("%s/api/cli/refresh", apiURL)
+	supabaseURL := GetSupabaseURL()
+	endpoint := fmt.Sprintf("%s/auth/v1/token?grant_type=refresh_token", supabaseURL)
 
 	// Prepare request body
 	reqBody := map[string]string{
@@ -74,23 +60,28 @@ func RefreshAccessToken(refreshToken string) (*Credentials, error) {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	// Make HTTP request
+	// Make HTTP request directly to Supabase GoTrue
 	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(jsonBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("apikey", GetSupabaseAnonKey())
 
 	client := &http.Client{Timeout: 30 * time.Second}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("refresh request failed (HTTP %d): %s", resp.StatusCode, string(body))
 	}
 
 	var tokenResp RefreshTokenResponse
@@ -120,8 +111,8 @@ func RefreshAccessToken(refreshToken string) (*Credentials, error) {
 		RefreshToken: tokenResp.RefreshToken,
 		ExpiresIn:    expiresIn,
 		CreatedAt:    time.Now().Unix(),
-		UserEmail:    tokenResp.Email,
-		UserID:       tokenResp.UserID,
+		UserEmail:    tokenResp.User.Email,
+		UserID:       tokenResp.User.ID,
 	}, nil
 }
 

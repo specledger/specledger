@@ -1,57 +1,47 @@
 # specledger Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-02-05
-
-## Active Technologies
-- File system (templates embedded in codebase at `templates/`, copied to user projects) (001-embedded-templates)
-- Go 1.24+ (current: 1.24.2) + Cobra (CLI), Bubble Tea (TUI), go-git (v5), YAML v3, GoReleaser (006-opensource-readiness)
-- GitHub repository (https://github.com/specledger/specledger), Documentation hosted separately (006-opensource-readiness)
-- Go 1.24+ + GoReleaser v2, GitHub Actions, Homebrew (007-release-delivery-fix)
-- N/A (release artifacts stored in GitHub Releases) (007-release-delivery-fix)
-- Go 1.24+ + Cobra (CLI), go-git v5 (Git operations), YAML v3 (config parsing) (008-fix-sl-deps)
-- File-based (specledger.yaml for metadata, ~/.specledger/cache/ for dependencies) (008-fix-sl-deps)
-- Go 1.24.2 + Cobra (CLI framework), net/http (callback server), encoding/json (credential storage) (008-cli-auth)
-- File-based (`~/.specledger/credentials.json`) with 0600 permissions (008-cli-auth)
-- Go 1.24+ (CLI), JavaScript/Node.js (utility scripts), Bash (shell scripts) + Cobra (CLI), @supabase/supabase-js (Node.js scripts) (009-command-system-enhancements)
-- File-based (`~/.specledger/credentials.json`, `.beads/issues.jsonl`, `scripts/audit-cache.json`) (009-command-system-enhancements)
-- Go 1.24.2 + Cobra (CLI), net/http (Supabase REST + Storage API), compress/gzip (compression), encoding/json (serialization), go-git/v5 (commit detection) (010-checkpoint-session-capture)
-- Supabase Storage (session content as gzip JSON) + Supabase PostgreSQL (session metadata via PostgREST) + local filesystem (offline queue, delta state) (010-checkpoint-session-capture)
-- Go 1.24+ + Cobra (CLI framework), go-git v5 (branch detection), crypto/sha256 (ID generation) (591-issue-tracking-upgrade)
-- File-based JSONL at `specledger/<spec>/issues.jsonl` (per-spec storage) (591-issue-tracking-upgrade)
-- Go 1.24.2 + Cobra (CLI), Bubble Tea + Bubbles + Lipgloss (TUI), go-git v5, YAML v3 (011-streamline-onboarding)
-- File-based (`.specledger/memory/constitution.md`, `specledger/specledger.yaml`) (011-streamline-onboarding)
-- Markdown (prompt files), Go 1.24+ (embedding system) + Existing `sl deps` CLI, `sl issue` CLI commands (592-prompt-updates)
-- N/A (documentation updates only) (592-prompt-updates)
-- Go 1.24.2 + Cobra (CLI), go-git v5, gofrs/flock (file locking), gopkg.in/yaml.v3 (594-issues-storage-config)
-- File-based (JSONL for issues, file locks for concurrency) (594-issues-storage-config)
-- Go 1.24.2 + Cobra (CLI), go-git v5 (branch detection), gofrs/flock (file locking), gopkg.in/yaml.v3 (595-issue-tree-ready)
-- Go 1.24.2 + Cobra (CLI), gopkg.in/yaml.v3, net/http (GitHub API) (596-doctor-version-update)
-- File-based (specledger.yaml for metadata, embedded FS for templates) (596-doctor-version-update)
-- Go 1.24.2 + Cobra (CLI), Bubble Tea + Bubbles + Lipgloss (TUI), go-git/v5, `net/http` (PostgREST), `text/template` (prompt rendering), `os/exec` (editor + agent launch) (136-revise-comments)
-- Supabase PostgreSQL via PostgREST REST API (remote); no local persistence (136-revise-comments)
-
-- Go 1.24+ (004-thin-wrapper-redesign)
+## Tech Stack
+- **Language:** Go 1.24+ (current: 1.24.2)
+- **CLI Framework:** Cobra
+- **TUI:** Bubble Tea + Bubbles + Lipgloss
+- **Git:** go-git v5
+- **Config:** YAML v3
+- **Auth/API:** Supabase (GoTrue for auth, PostgREST for data, Storage for files)
+- **Build/Release:** GoReleaser v2, GitHub Actions, Homebrew
+- **Storage:** File-based (JSONL for issues, JSON for credentials, YAML for config)
 
 ## Project Structure
-
-```text
-src/
-tests/
+```
+cmd/sl/          # CLI entrypoint
+pkg/cli/         # CLI commands and auth
+pkg/embedded/    # Embedded templates and skills
+pkg/issues/      # Issue tracking
+pkg/models/      # Data models
+internal/        # Internal packages (ref, spec)
+templates/       # Embedded templates copied to user projects
+.github/         # CI workflows
 ```
 
 ## Commands
-
-# Add commands for Go 1.24+
+```bash
+make build          # Build binary to bin/sl
+make test           # Run unit tests
+make test-coverage  # Run tests with coverage report
+make fmt            # Format code
+make vet            # Vet code
+make lint           # Run golangci-lint
+make install        # Install sl to $GOBIN
+```
 
 ## Code Style
+- Follow standard Go conventions (`gofmt`, `go vet`)
+- Linting: golangci-lint with govet, staticcheck, errcheck, ineffassign, unused, gosec
+- **Note:** CI uses golangci-lint v1 config (`.golangci.yml`). Local v2 requires `--no-config` flag with inline linters
 
-Go 1.24+: Follow standard conventions
-
-## Recent Changes
-- 136-revise-comments: Added Go 1.24.2 + Cobra (CLI), Bubble Tea + Bubbles + Lipgloss (TUI), go-git/v5, `net/http` (PostgREST), `text/template` (prompt rendering), `os/exec` (editor + agent launch)
-- 596-doctor-version-update: Added Go 1.24.2 + Cobra (CLI), gopkg.in/yaml.v3, net/http (GitHub API)
-- 595-issue-tree-ready: Added Go 1.24.2 + Cobra (CLI), go-git v5 (branch detection), gofrs/flock (file locking), gopkg.in/yaml.v3
-
+## CI Checks (`.github/workflows/ci.yml`)
+1. **test** — `make test` + `make test-coverage` + Codecov upload
+2. **lint** — `golangci-lint-action@v6`
+3. **format** — `gofmt -l .` (fails if unformatted)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

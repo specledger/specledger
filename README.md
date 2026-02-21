@@ -134,6 +134,7 @@ sl deps resolve
 |---------|-------------|
 | `sl doctor` | Check installation status of all required tools |
 | `sl doctor --json` | Get tool status in JSON format for CI/CD |
+| `sl version` | Show version, commit, and build information |
 
 ### Dependencies
 
@@ -195,80 +196,75 @@ SpecLedger includes a built-in issue tracker for managing tasks within specs. Is
 
 **Tree View**: Use `--tree` flag to visualize dependencies. The tree shows which issues block others, helping you understand the critical path.
 
-### Workflows
+### Review Comments (`sl revise`)
+
+Fetch unresolved review comments from the SpecLedger platform and address them interactively with an AI coding agent. Requires authentication (`sl auth login`).
 
 | Command | Description |
 |---------|-------------|
-| `sl playbook` | Run SDD playbook workflows |
-| `sl graph show` | Show dependency graph |
-| `sl graph export` | Export dependency graph |
+| `sl revise` | Interactive: auto-detect branch, fetch comments, launch agent |
+| `sl revise <branch>` | Use a specific branch name |
+| `sl revise --summary` | Print compact comment listing and exit |
+| `sl revise --dry-run` | Write prompt to file instead of launching agent |
+| `sl revise --auto <fixture.json>` | Non-interactive fixture-driven prompt generation |
+
+**Interactive workflow:**
+1. Detect or select the target branch
+2. Fetch unresolved comments from SpecLedger (issue comments + review comments)
+3. Select artifacts to work on (multi-select TUI)
+4. Process each comment — provide guidance or skip
+5. Generate a combined revision prompt
+6. Open the prompt in your editor for refinement
+7. Launch the configured AI coding agent
+8. Offer to commit/push changes and resolve comments
+
+### Playbooks
+
+| Command | Description |
+|---------|-------------|
+| `sl playbook list` | List available SDD playbooks |
+| `sl playbook list --json` | List playbooks in JSON format |
 
 ### Authentication
 
 | Command | Description |
 |---------|-------------|
 | `sl auth login` | Sign in via browser (OAuth) |
-| `sl auth logout` | Sign out and clear tokens |
-| `sl auth status` | Check authentication status |
+| `sl auth login --token <token>` | Authenticate with access token (CI/headless) |
+| `sl auth login --refresh <token>` | Authenticate with refresh token |
+| `sl auth logout` | Sign out and clear stored credentials |
+| `sl auth status` | Check authentication status and token expiry |
+| `sl auth refresh` | Manually refresh the access token |
 | `sl auth token` | Print access token (for scripts, auto-refreshes) |
 | `sl auth supabase` | Show Supabase URL and anon key |
 
+**Authentication Flow:**
+
+The CLI uses browser-based OAuth authentication:
+
+1. Run `sl auth login` to start the authentication flow
+2. Your browser opens to the SpecLedger sign-in page
+3. Complete authentication in the browser
+4. Credentials are automatically saved to `~/.specledger/credentials.json`
+
+For CI/CD or headless environments, use token-based authentication:
+```bash
+sl auth login --token "$SPECLEDGER_ACCESS_TOKEN"
+sl auth login --refresh "$SPECLEDGER_REFRESH_TOKEN"
+```
+
+**Environment Variables:**
+
+| Variable | Description |
+|----------|-------------|
+| `SPECLEDGER_AUTH_URL` | Override the authentication URL |
+| `SPECLEDGER_SUPABASE_URL` | Override the Supabase project URL |
+| `SPECLEDGER_SUPABASE_ANON_KEY` | Override the Supabase anon key |
+| `SPECLEDGER_ENV` | Set to `dev` or `development` for local development |
 
 ## Claude Code Slash Commands
 
 SpecLedger provides slash commands for [Claude Code](https://claude.ai/claude-code) integration:
-
-### Authentication
-
-| Command | Description |
-|---------|-------------|
-| `/specledger.login` | Authenticate with SpecLedger via CLI |
-| `/specledger.logout` | Sign out from SpecLedger |
-
-### Review Comments
-
-The `/specledger.revise` command is the unified way to manage review comments. It combines fetch, resolve, and post functionality.
-
-| Command | Description |
-|---------|-------------|
-| `/specledger.revise` | Fetch and process all unresolved comments (auto-detect spec from branch) |
-| `/specledger.revise <spec-key>` | Fetch comments for a specific spec |
-| `/specledger.revise --resolve <id>` | Resolve a specific comment by ID |
-| `/specledger.revise --post -f <file> -m <msg>` | Post a new comment on a file |
-
-#### Revise Workflow
-
-When you run `/specledger.revise`, it will:
-
-1. **Fetch** all comments from Supabase (issue comments + review comments)
-2. **Display** a summary of all comments
-3. **Process** each unresolved comment interactively:
-   - Read the file and find the selected text
-   - Analyze the feedback
-   - Propose changes with options
-   - Apply edits after user confirmation
-   - Mark as resolved
-4. **Commit** changes (optional)
-
-Example output:
-```
-📄 Spec: 009-feature-name
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 ISSUE COMMENTS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-(No issue comments)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📝 REVIEW COMMENTS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-#343b1721 | author | 2026-02-10 | ⏳ unresolved
-    📁 File: specledger/009-feature/spec.md
-    📍 Line: 42
-    💬 Comment: "Need more details here"
-
-📊 Total: 0 issue comments, 1 review comment
-```
 
 ### Specification Workflow
 
@@ -280,52 +276,25 @@ Example output:
 | `/specledger.plan` | Generate implementation plan |
 | `/specledger.tasks` | Generate actionable tasks from plan |
 | `/specledger.implement` | Execute tasks from tasks.md |
+| `/specledger.resume` | Resume implementation from where you left off |
 | `/specledger.analyze` | Cross-artifact consistency analysis |
+| `/specledger.audit` | Full codebase audit with dependency graphs |
+| `/specledger.checklist` | Generate a custom checklist for the current feature |
 
 ### Dependencies
 
 | Command | Description |
 |---------|-------------|
 | `/specledger.add-deps` | Add a new spec dependency |
-| `/specledger.list-deps` | List all spec dependencies |
 | `/specledger.remove-deps` | Remove a spec dependency |
-| `/specledger.resolve-deps` | Resolve and checkout dependencies locally |
 
-### Authentication
+### Project Setup
 
 | Command | Description |
 |---------|-------------|
-| `sl auth login` | Sign in via browser (opens OAuth flow) |
-| `sl auth login --token <token>` | Authenticate with access token (CI/headless) |
-| `sl auth login --refresh <token>` | Authenticate with refresh token |
-| `sl auth logout` | Sign out and clear stored credentials |
-| `sl auth status` | Check authentication status and token expiry |
-| `sl auth refresh` | Manually refresh the access token |
-
-#### Authentication Flow
-
-The CLI uses browser-based OAuth authentication:
-
-1. Run `sl auth login` to start the authentication flow
-2. Your browser opens to the SpecLedger sign-in page
-3. Complete authentication in the browser
-4. Credentials are automatically saved to `~/.specledger/credentials.json`
-
-For CI/CD or headless environments, use token-based authentication:
-```bash
-# Using an access token
-sl auth login --token "$SPECLEDGER_ACCESS_TOKEN"
-
-# Using a refresh token (exchanges for access token)
-sl auth login --refresh "$SPECLEDGER_REFRESH_TOKEN"
-```
-
-#### Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `SPECLEDGER_AUTH_URL` | Override the authentication URL |
-| `SPECLEDGER_ENV` | Set to `dev` or `development` for local development |
+| `/specledger.onboard` | Guided onboarding from constitution to implementation |
+| `/specledger.constitution` | Create or update the project constitution |
+| `/specledger.help` | Show all available SpecLedger commands |
 
 ## Documentation
 
