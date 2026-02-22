@@ -86,20 +86,22 @@ As a developer running `/specledger.tasks`, I want the command to utilize the ne
 
 ---
 
-### User Story 5 - Implement Prompt Utilizes DoD Check (Priority: P3)
+### User Story 5 - Implement Prompt Utilizes DoD and Acceptance Criteria (Priority: P3)
 
-As a developer running `/specledger.implement`, I want the command to check off Definition of Done items as implementation progresses so that the issue's DoD reflects actual completion status.
+As a developer running `/specledger.implement`, I want the command to check off Definition of Done items as implementation progresses and verify work against acceptance criteria so that issues accurately reflect completion status.
 
-**Why this priority**: This enhances the implementation workflow by automatically tracking progress through DoD items. Depends on US1 and US2 being implemented first.
+**Why this priority**: This enhances the implementation workflow by automatically tracking progress through DoD items and ensuring work meets defined acceptance criteria. Depends on US1 and US2 being implemented first.
 
-**Independent Test**: Can be tested by running `/specledger.implement` and verifying that as each task phase completes, corresponding DoD items are marked as checked using `sl issue update --check-dod`.
+**Independent Test**: Can be tested by running `/specledger.implement` and verifying that as each task phase completes, corresponding DoD items are marked as checked and acceptance criteria is verified.
 
 **Acceptance Scenarios**:
 
 1. **Given** the updated implement prompt, **When** a task is completed, **Then** the agent uses `sl issue update SL-xxxxx --check-dod "Item text"` to mark relevant DoD items as checked
 2. **Given** an issue with multiple DoD items, **When** implementation progresses, **Then** each completed subtask results in the corresponding DoD item being checked
-3. **Given** the implement prompt completes a task, **When** all DoD items are checked, **Then** the issue status can be changed to closed via `sl issue close`
-4. **Given** the implement prompt, **When** reviewing progress, **Then** `sl issue show` displays which DoD items are checked with verified_at timestamps
+3. **Given** an issue with acceptance_criteria, **When** the agent begins implementation, **Then** the agent reads the acceptance_criteria to understand requirements
+4. **Given** the agent completes a task, **When** verifying work, **Then** the agent confirms the implementation satisfies the acceptance_criteria before marking complete
+5. **Given** the implement prompt completes a task, **When** all DoD items are checked, **Then** the issue status can be changed to closed via `sl issue close`
+6. **Given** the implement prompt, **When** reviewing progress, **Then** `sl issue show` displays which DoD items are checked with verified_at timestamps
 
 ---
 
@@ -128,10 +130,11 @@ As a developer running `/specledger.implement`, I want the command to check off 
 - **FR-009**: System MUST return a clear error when --check-dod or --uncheck-dod is called with text that doesn't match any existing DoD item
 - **FR-010**: System MUST display acceptance_criteria, definition_of_done, and design in `sl issue show` output in dedicated sections
 - **FR-011**: The specledger.tasks prompt MUST be updated to instruct using new CLI flags instead of embedding in description
-- **FR-012**: The specledger.implement prompt MUST be updated to use `sl issue update --check-dod` when completing subtasks that correspond to DoD items
-- **FR-013**: Task generation MUST create proper blocking relationships: setup blocks implementation, models block services, services block endpoints
-- **FR-014**: Task generation MUST NOT create false blocking relationships between parallelizable tasks (different files, no dependencies)
-- **FR-015**: Feature-type issues for phases MUST have appropriate blocking: foundational phases block user story phases, but phases at the same level should not block each other unless specified
+- **FR-012**: The specledger.implement prompt MUST be updated to read acceptance_criteria at task start and verify implementation against it before completion
+- **FR-013**: The specledger.implement prompt MUST be updated to use `sl issue update --check-dod` when completing subtasks that correspond to DoD items
+- **FR-014**: Task generation MUST create proper blocking relationships: setup blocks implementation, models block services, services block endpoints
+- **FR-015**: Task generation MUST NOT create false blocking relationships between parallelizable tasks (different files, no dependencies)
+- **FR-016**: Feature-type issues for phases MUST have appropriate blocking: foundational phases block user story phases, but phases at the same level should not block each other unless specified
 
 ### Key Entities
 
