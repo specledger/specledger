@@ -171,22 +171,7 @@ All `agent.env` entries are injected as environment variables on the agent subpr
 
 ---
 
-## 5. Migration from Shell Alias
-
-When SpecLedger detects an agent preference in `CONSTITUTION.md`:
-
-```
-ℹ  Found agent preference "Claude Code" in CONSTITUTION.md
-   This can be migrated to the new sl config system.
-
-   Migrate now? [Y/n]
-```
-
-On confirmation, the preference is written to config and subsequent agent launches use the config system.
-
----
-
-## 6. Config Key Reference
+## 5. Config Key Reference
 
 | Key | Type | Description |
 |-----|------|-------------|

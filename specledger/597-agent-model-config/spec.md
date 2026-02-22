@@ -63,7 +63,6 @@ A developer frequently switches between different AI provider configurations (e.
 - What happens when both a profile and explicit overrides are set? Explicit overrides should take precedence over the active profile.
 - What happens when a user removes a local override? The global value should take effect immediately.
 - What happens when configuration keys are invalid or unrecognized? The system should reject them with a clear error message listing valid keys.
-- What happens when a user has an existing agent preference in CONSTITUTION.md? The system should detect it and offer to migrate it to the new configuration format. (Note: the current state of agent preferences in CONSTITUTION.md requires further clarification with project members.)
 - What happens when a team member has personal project overrides that differ from the team-shared configuration? The personal override (gitignored) takes precedence for that user without affecting other team members' configurations.
 - What happens when the auth token in configuration has expired? The system should pass it through as-is — token validity is the responsibility of the downstream provider, not SpecLedger.
 
@@ -82,7 +81,6 @@ A developer frequently switches between different AI provider configurations (e.
 - **FR-008**: System MUST display the effective value and its source scope (global, local, or default) for each configuration key.
 - **FR-011**: System MUST support named agent profiles that bundle multiple agent configuration values together.
 - **FR-012**: System MUST validate configuration keys and values, rejecting unknown keys with a helpful error message.
-- **FR-013**: System SHOULD detect existing agent preference in CONSTITUTION.md and offer to migrate it to the new configuration format, with user confirmation. (Note: requires clarification with project members on current usage patterns.)
 
 ### Key Entities
 
@@ -100,7 +98,6 @@ A developer frequently switches between different AI provider configurations (e.
 - **SC-003**: 100% of configurable settings are accessible through the CLI subcommands (`set`, `get`, `show`, `unset`).
 - **SC-004**: Users with multiple projects can maintain different agent configurations per project without interference between projects.
 - **SC-005**: Sensitive values (auth tokens) are never displayed in full in terminal output.
-- **SC-006**: Existing users with agent preferences in CONSTITUTION.md are offered a migration path to the new system without losing their settings.
 
 ### Previous work
 
@@ -125,4 +122,3 @@ A developer frequently switches between different AI provider configurations (e.
 - Secrets management integration (e.g., 1Password, SOPS, Bitwarden, AWS Secrets Manager) is out of scope for this feature. The design should not preclude future integration (e.g., secret interpolation syntax in YAML values).
 - Sensitive config fields are identified by Go struct tags (`sensitive:"true"`) on the `AgentConfig` struct. The CLI uses these tags to drive display masking, file permissions (0600), and scope warnings when sensitive values target git-tracked config without `--personal`. This is best-effort guardrailing — teams should additionally adopt pre-commit hooks (e.g., Yelp's `detect-secrets`) for defense-in-depth.
 - Interactive TUI config editor was descoped from this feature after a research spike (see `research/003-tui-framework-spike.md`). The existing SpecLedger TUI is step-based form wizards only; a full config editor requires building a reusable TUI shell (tree nav, panes, inline editing) estimated at 6-10 days — recommended as a separate spec that also benefits the revise flow.
-- The migration from CONSTITUTION.md agent preferences (FR-013) requires clarification with project members on the current state and usage patterns.

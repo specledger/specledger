@@ -72,17 +72,14 @@ pkg/cli/
 │   └── config_test.go       # NEW: Integration tests for config CLI
 ├── launcher/
 │   └── launcher.go          # EXTEND: Add SetEnv/BuildEnv methods for env var injection
-├── metadata/
-│   └── schema.go            # EXTEND: Add AgentConfig section to ProjectMetadata
-└── migration/
-    ├── constitution.go      # NEW: Migrate agent preference from CONSTITUTION.md
-    └── constitution_test.go # NEW: Migration tests
+└── metadata/
+    └── schema.go            # EXTEND: Add AgentConfig section to ProjectMetadata
 
 cmd/sl/
 └── main.go                  # MODIFY: Register VarConfigCmd
 ```
 
-**Structure Decision**: Extends the existing single-project Go CLI structure. New files added to existing packages (`config/`, `commands/`, `launcher/`). One new package (`migration/`) for constitution migration logic. No new top-level directories needed. Interactive TUI config editor descoped to a future spec (see `research/003-tui-framework-spike.md`).
+**Structure Decision**: Extends the existing single-project Go CLI structure. New files added to existing packages (`config/`, `commands/`, `launcher/`). No new top-level directories needed. Interactive TUI config editor descoped to a future spec (see `research/003-tui-framework-spike.md`).
 
 ## Design Decisions
 

@@ -152,14 +152,6 @@ ResolvedConfig = merge(defaults, global, profile, team-local, personal-local)
 [exists] → sl config profile delete → [removed]
 ```
 
-### Migration Lifecycle
-
-```
-[CONSTITUTION.md has agent pref] → sl config (auto-detect) → [prompt user]
-[user confirms] → migrate to config → [config has agent pref, constitution unchanged]
-[user declines] → no change
-```
-
 ## Config File Examples
 
 ### Global Config (`~/.config/specledger/config.yaml`)

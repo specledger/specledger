@@ -33,5 +33,5 @@
 
 - All validation items pass. Spec is ready for `/specledger.clarify` or `/specledger.plan`.
 - The spec covers 4 user stories across 3 priority levels, providing a clear MVP path (P1: CLI config, P2: local/global hierarchy, P3: TUI + profiles).
-- 13 functional requirements defined, all testable.
-- 6 edge cases identified covering error paths, migration, and precedence rules.
+- 12 functional requirements defined, all testable.
+- 5 edge cases identified covering error paths and precedence rules.

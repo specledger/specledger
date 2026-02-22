@@ -1,5 +1,36 @@
 # Revision Log: 597-agent-model-config
 
+## Revision 3 — 2026-02-22
+
+### Comments Addressed
+
+| Comment | Cluster | Resolution |
+|---------|---------|------------|
+| quickstart-comment-1 (drop "Migration from Shell Alias") | Migration removal | Full purge of CONSTITUTION.md migration feature across all artifacts |
+
+### Options Presented & Choices Made
+
+| Cluster | Options Offered | Choice |
+|---------|----------------|--------|
+| Migration removal scope | 1) Full purge across all artifacts (Recommended), 2) Quickstart + spec only, 3) Quickstart only | **Full purge across all artifacts** — removed all migration references from quickstart, spec, plan, data-model, research, and checklist |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `quickstart.md` | Removed Section 5 "Migration from Shell Alias"; renumbered Section 6 → 5 |
+| `spec.md` | Removed FR-013 (CONSTITUTION.md migration), SC-006 (migration success criterion), edge case about CONSTITUTION.md migration, assumption about migration clarification |
+| `plan.md` | Removed `migration/` package from project structure; removed migration mention from structure decision |
+| `data-model.md` | Removed "Migration Lifecycle" state transition section |
+| `research.md` | Removed R8 (CONSTITUTION.md Migration); renumbered R9 → R8 (TUI), R10 → R9 (Sensitive Values) |
+| `checklists/requirements.md` | Updated FR count (13 → 12), edge case count (6 → 5), removed migration mention |
+
+### User Guidance
+- CONSTITUTION.md agent preference detection and migration is fully descoped from this feature
+- The `ReadAgentPreference()` function in `bootstrap_helpers.go` remains untouched — it serves existing bootstrap flows, not this config feature
+
+---
+
 ## Revision 2 — 2026-02-22
 
 ### Comments Addressed

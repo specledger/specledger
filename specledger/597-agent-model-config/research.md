@@ -151,15 +151,7 @@ profiles:
 active-profile: "work"
 ```
 
-### R8: CONSTITUTION.md Migration
-
-**Decision**: Detect and offer migration with user confirmation. Migration reads the markdown `**Preferred Agent**: <name>` pattern and writes to config.
-**Rationale**: The current `ReadAgentPreference()` function in `bootstrap_helpers.go` already parses this pattern. Migration creates a config entry from the extracted value. The agent preference field in CONSTITUTION.md is informational only — removing it from the constitution doesn't break anything.
-**Note**: FR-013 is SHOULD (not MUST). Migration requires clarification with project members on whether agent preference should remain in constitution as documentation or be fully migrated out.
-
-**Current storage**: `## Agent Preferences\n\n- **Preferred Agent**: Claude Code\n` in `.specledger/memory/constitution.md`
-
-### R9: Interactive TUI Descoped
+### R8: Interactive TUI Descoped
 
 **Decision**: Remove interactive TUI (config editor) from this spec. Defer to a separate TUI spec.
 **Rationale**: A research spike (`research/003-tui-framework-spike.md`) found that the existing SpecLedger TUI is step-based form wizards only (95% hand-rolled, 1 of 20 bubbles components used). A real config editor needs an interactive tree, pane layout, and inline editing — capabilities that don't exist in the codebase today. Building a reusable TUI shell is significant standalone work that also benefits the revise flow.
@@ -174,7 +166,7 @@ active-profile: "work"
 
 **TUI mockup preserved**: See `quickstart.md` (removed) and `research/003-tui-framework-spike.md` Section 6 for the original TUI design concept.
 
-### R10: Sensitive Value Handling
+### R9: Sensitive Value Handling
 
 **Decision**: Minimal approach — file permissions (0600) and display masking. No encryption, no secret manager integration in this feature.
 **Rationale**: Sensitive values (auth tokens, API keys) live in personal-local config (gitignored) or global config (user home). File permissions protect at rest. Display masking (`sk-ant-...****`) prevents shoulder-surfing. Secret manager integration (1Password, SOPS, etc.) is explicitly out of scope per spec assumptions.
