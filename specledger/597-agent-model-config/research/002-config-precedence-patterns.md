@@ -30,7 +30,7 @@
 |----------|-------|----------|------------|----------|
 | 1 (highest) | Personal project override | `specledger/specledger.local.yaml` | gitignored | Developer's personal auth tokens, model preferences |
 | 2 | Team project config | `specledger/specledger.yaml` | tracked | Team-shared gateway URL, required models |
-| 3 | Global user config | `~/.config/specledger/config.yaml` | N/A | Personal defaults across all projects |
+| 3 | Global user config | `~/.specledger/config.yaml` | N/A | Personal defaults across all projects |
 | 4 | Active profile values | stored in applicable scope | varies | Bundled provider configurations |
 | 5 (lowest) | Built-in defaults | compiled into binary | N/A | Sensible out-of-box behavior |
 

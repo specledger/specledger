@@ -16,7 +16,7 @@ Defines a single configurable setting. Registered at compile time in the schema 
 | `EnvVar` | `string` | Environment variable to inject (e.g., `ANTHROPIC_BASE_URL`). Empty if key maps to a CLI flag instead. |
 | `CLIFlag` | `string` | CLI flag to pass to agent (e.g., `--permission-mode`). Empty if key maps to an env var instead. |
 | `Default` | `interface{}` | Default value. `nil` means no default (key is optional). |
-| `Sensitive` | `bool` | If true, value is masked in display and stored with 0600 permissions. |
+| `Sensitive` | `bool` | If true, value is masked in display. CLI warns when stored in a git-tracked scope without `--personal`. |
 | `Description` | `string` | Human-readable description for TUI and help output. |
 | `EnumValues` | `[]string` | Valid values for enum type. Empty for non-enum types. |
 | `Category` | `string` | Display category for TUI grouping (e.g., "Provider", "Models", "Launch Flags"). |
@@ -30,7 +30,7 @@ string | bool | enum | string-list | string-map
 
 Holds the values for all agent-related configuration keys. Used in both global config and project metadata.
 
-Fields tagged `sensitive:"true"` trigger CLI guardrails: masked display, 0600 file permissions, and a warning when stored in a git-tracked scope without `--personal`.
+Fields tagged `sensitive:"true"` trigger CLI guardrails: masked display and a warning when stored in a git-tracked scope without `--personal`.
 
 | Field | YAML Key | Type | Sensitive | Maps To |
 |-------|----------|------|-----------|---------|
@@ -59,9 +59,8 @@ type AgentConfig struct {
 ```
 
 The config schema loader reads `sensitive:"true"` struct tags at init time to populate `ConfigKeyDef.Sensitive`, keeping the single source of truth on the Go struct. This drives:
-1. **Display masking** — `sl config show` renders `****` for sensitive values
-2. **File permissions** — files containing sensitive values written with 0600
-3. **Scope warning** — CLI warns when a sensitive field targets a git-tracked scope (team-local) without `--personal`, recommending `--personal` to store in the gitignored `specledger.local.yaml`
+1. **Display masking** — `sl config show` renders `****[last4]` for sensitive values (showing last 4 characters)
+2. **Scope warning** — CLI warns when a sensitive field targets a git-tracked scope (team-local) without `--personal`, recommending `--personal` to store in the gitignored `specledger.local.yaml`
 
 **Enum values:**
 - `Provider`: `anthropic` (default), `bedrock`, `vertex`
@@ -77,7 +76,7 @@ The config schema loader reads `sensitive:"true"` struct tags at init time to po
 
 ### ConfigFile — Root Config File Schema
 
-Used for both global config (`~/.config/specledger/config.yaml`) and project metadata extensions.
+Used for both global config (`~/.specledger/config.yaml`) and project metadata extensions.
 
 | Field | YAML Key | Type | Description |
 |-------|----------|------|-------------|
@@ -115,7 +114,7 @@ default | global | profile | team-local | personal-local
 ConfigKeyDef (registry, compile-time)
     └── defines type/validation for → AgentConfig fields
 
-Config (global, ~/.config/specledger/config.yaml)
+Config (global, ~/.specledger/config.yaml)
     ├── Agent: AgentConfig
     ├── Profiles: map[string]AgentConfig
     └── ActiveProfile: string
@@ -154,12 +153,12 @@ ResolvedConfig = merge(defaults, global, profile, team-local, personal-local)
 
 ## Config File Examples
 
-### Global Config (`~/.config/specledger/config.yaml`)
+### Global Config (`~/.specledger/config.yaml`)
 
 ```yaml
 default_project_dir: "~/demos"
 preferred_shell: "zsh"
-tui_enabled: true
+tui_enabled: true           # NOTE: currently unused placeholder in codebase
 auto_install_deps: false
 fallback_to_plain_cli: true
 log_level: "debug"
@@ -191,6 +190,7 @@ active-profile: ""
 ```
 
 ### Team Project Config (`specledger/specledger.yaml`)
+<!-- Path stays as specledger/specledger.yaml — moving to .specledger/ is high-impact (200+ refs), out of scope -->
 
 ```yaml
 version: "1.0.0"

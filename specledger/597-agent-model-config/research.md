@@ -27,7 +27,7 @@ Related closed work that informs this feature:
 ### R1: Current Config System Analysis
 
 **Decision**: Extend existing `Config` struct with nested `AgentConfig`
-**Rationale**: The current config system (`pkg/cli/config/config.go`) is a simple 8-field struct with `Load()`/`Save()` operating on `~/.config/specledger/config.yaml`. Adding a nested `AgentConfig` struct follows YAML nesting conventions and keeps the existing API intact.
+**Rationale**: The current config system (`pkg/cli/config/config.go`) is a simple 8-field struct with `Load()`/`Save()` operating on `~/.specledger/config.yaml` (consolidated under `~/.specledger/` alongside credentials). Adding a nested `AgentConfig` struct follows YAML nesting conventions and keeps the existing API intact.
 **Alternatives considered**: Separate config file for agent settings (rejected — adds file proliferation), flat keys in existing struct (rejected — 20+ new fields would bloat the flat struct).
 
 **Current Config struct** (8 fields):
@@ -104,7 +104,7 @@ return cmd.Run()
 
 **Merge algorithm**:
 1. Start with built-in defaults
-2. Overlay global config (`~/.config/specledger/config.yaml`)
+2. Overlay global config (`~/.specledger/config.yaml`)
 3. Overlay active profile values (if a profile is active)
 4. Overlay team-local config (`specledger/specledger.yaml`)
 5. Overlay personal-local config (`specledger/specledger.local.yaml`)

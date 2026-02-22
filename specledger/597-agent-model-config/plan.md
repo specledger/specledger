@@ -11,12 +11,12 @@ Add persistent, layered configuration for agent launch environment variables (mo
 
 **Language/Version**: Go 1.24.2
 **Primary Dependencies**: Cobra (CLI), Bubble Tea v1.3.10 + Bubbles v0.21.1 + Lipgloss v1.1.0 (TUI), huh v0.8.0 (forms), YAML v3 (config serialization), go-git v5
-**Storage**: File-based — YAML for configuration (`~/.config/specledger/config.yaml` global, `specledger/specledger.yaml` team-local, `specledger/specledger.local.yaml` personal-local)
+**Storage**: File-based — YAML for configuration (`~/.specledger/config.yaml` global, `specledger/specledger.yaml` team-local, `specledger/specledger.local.yaml` personal-local)
 **Testing**: Go standard testing (`go test`), golangci-lint (govet, staticcheck, errcheck, ineffassign, unused, gosec)
 **Target Platform**: macOS, Linux (distributed via Homebrew + GoReleaser)
 **Project Type**: Single CLI project
 **Performance Goals**: Sub-second config operations (file I/O only, no network)
-**Constraints**: Must work offline. Sensitive files use 0600 permissions. Personal-local config gitignored by default. No writes to Claude Code's own settings files.
+**Constraints**: Must work offline. Personal-local config gitignored by default. CLI warns when sensitive values target git-tracked scope. No writes to Claude Code's own settings files.
 **Scale/Scope**: ~20 config keys, 3 config files per scope, profiles embedded in config files
 
 ## Constitution Check
@@ -71,7 +71,14 @@ pkg/cli/
 │   ├── bootstrap_helpers.go # MODIFY: Use resolved config for agent launch env vars
 │   └── config_test.go       # NEW: Integration tests for config CLI
 ├── launcher/
-│   └── launcher.go          # EXTEND: Add SetEnv/BuildEnv methods for env var injection
+│   └── launcher.go          # EXTEND: Add SetEnv/BuildEnv methods for env
+│       # Consumers (no code duplication — all go through this package):
+│       #   sl new   → bootstrap_helpers.go:launchAgent() → Launch()
+│       #   sl init  → bootstrap_helpers.go:launchAgent() → Launch()
+│       #   sl revise → revise.go → LaunchWithPrompt(prompt)
+│       # TUI refs (agent selection only, no launch):
+│       #   sl_new.go  → DefaultAgents list
+│       #   sl_init.go → DefaultAgents list var injection
 └── metadata/
     └── schema.go            # EXTEND: Add AgentConfig section to ProjectMetadata
 
@@ -90,16 +97,15 @@ The `sl config set` and `sl config unset` commands accept scope-targeting flags:
 | Flag | Target File | Git-Tracked | Description |
 |------|-------------|-------------|-------------|
 | *(default)* | `specledger/specledger.yaml` | **yes** | Team-local project config, shared via git |
-| `--global` | `~/.config/specledger/config.yaml` | n/a | User-wide global defaults |
+| `--global` | `~/.specledger/config.yaml` | n/a | User-wide global defaults |
 | `--personal` | `specledger/specledger.local.yaml` | **no** (gitignored) | Personal project overrides, not shared |
 
 ### Sensitive Field Guardrails
 
-Fields tagged `sensitive:"true"` on the `AgentConfig` Go struct (currently `AuthToken`, `APIKey`) drive three behaviors:
+Fields tagged `sensitive:"true"` on the `AgentConfig` Go struct (currently `AuthToken`, `APIKey`) drive two behaviors:
 
-1. **Display masking** — `sl config show` renders `****[last4]` instead of the full value
-2. **File permissions** — any config file containing a sensitive value is written with `0600` (owner read/write only)
-3. **Scope warning** — when `sl config set` stores a sensitive field in team-local scope (the default), the CLI emits a warning recommending `--personal` to avoid committing secrets to git. The user can proceed anyway (no `--force` required) but the warning is always shown.
+1. **Display masking** — `sl config show` renders `****[last4]` (last 4 characters visible) instead of the full value
+2. **Scope warning** — when `sl config set` stores a sensitive field in team-local scope (the default), the CLI emits a warning recommending `--personal` to avoid committing secrets to git. The user can proceed anyway (no `--force` required) but the warning is always shown.
 
 This is best-effort guardrailing within SpecLedger. Teams should additionally adopt pre-commit secret detection (e.g., Yelp's `detect-secrets`, `gitleaks`, or `trufflehog`) as defense-in-depth. Recommending this in project README/onboarding is out of scope for this feature but is a natural follow-up.
 

@@ -103,7 +103,7 @@ A developer frequently switches between different AI provider configurations (e.
 
 - **008-cli-auth**: Established the authentication and credentials system (`~/.specledger/credentials.json`) including secure storage patterns with restricted file permissions.
 - **Agent Launcher (pkg/cli/launcher)**: Current agent launching system with `AgentOption` struct and subprocess execution — the foundation this feature extends.
-- **Global Config (pkg/cli/config)**: Existing global config system at `~/.config/specledger/config.yaml` with `DefaultConfig()`, `Load()`, `Save()` pattern — will be extended with agent settings.
+- **Global Config (pkg/cli/config)**: Existing global config system at `~/.specledger/config.yaml` with `DefaultConfig()`, `Load()`, `Save()` pattern — will be extended with agent settings. Path consolidated under `~/.specledger/` to align with credentials (`~/.specledger/credentials.json`).
 - **Project Metadata (pkg/cli/metadata)**: Existing `specledger/specledger.yaml` schema — will be extended with local configuration overrides.
 - **Bootstrap TUI (pkg/cli/tui)**: Existing Bubble Tea TUI for `sl new` and `sl init` with radio buttons, checkboxes, and text inputs. An interactive config editor TUI was descoped from this feature — see `research/003-tui-framework-spike.md` for findings and a future TUI spec recommendation.
 
@@ -112,7 +112,7 @@ A developer frequently switches between different AI provider configurations (e.
 ### Assumptions
 
 - The agent launch mechanism will continue to use subprocess execution with environment variable injection (the standard pattern for CLI tools).
-- The existing `~/.config/specledger/config.yaml` location is the appropriate home for global configuration (follows XDG conventions already established).
+- The global config path is `~/.specledger/config.yaml`, consolidated under `~/.specledger/` alongside credentials. Uses Go stdlib `os.UserHomeDir()` for cross-platform path resolution (no third-party library).
 - Project-level configuration will be added to the existing `specledger/specledger.yaml` file rather than creating a separate config file, to keep the project structure simple.
 - Agent profiles are stored alongside configuration (in the same files), not in separate profile files.
 - The set of configurable agent environment variables includes at minimum: model names (sonnet, opus, haiku), base URL, and auth token — matching the common `ANTHROPIC_*` environment variable pattern.

@@ -140,7 +140,7 @@ Agent Configuration
 **Precedence** (highest to lowest):
 1. Personal project override (`specledger/specledger.local.yaml` — gitignored)
 2. Team project config (`specledger/specledger.yaml` — git tracked)
-3. Global user config (`~/.config/specledger/config.yaml`)
+3. Global user config (`~/.specledger/config.yaml`)
 4. Active profile values
 5. Built-in defaults
 

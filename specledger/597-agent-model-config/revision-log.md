@@ -1,5 +1,48 @@
 # Revision Log: 597-agent-model-config
 
+## Revision 4 — 2026-02-22
+
+### Comments Addressed
+
+| Comment | Cluster | Resolution |
+|---------|---------|------------|
+| Comment 1 (0600 perms with other values) | Sensitive field permissions | Dropped per-field 0600 file permissions; guardrails reduced to display masking + scope warning |
+| Comment 2 (single field controls perms?) | Sensitive field permissions | Same — removed all per-field permission references |
+| Comment 4 (weird to define per field) | Sensitive field permissions | Same — file permissions no longer defined per field |
+| Comment 3 (mask except last 4 chars?) | Display masking | Updated masking format to `****[last4]` (already in plan.md, aligned in data-model.md) |
+| Comment 5 (config path library) | Config path consolidation | Confirmed stdlib `os.UserHomeDir()`. Consolidated global config path from `~/.config/specledger/` to `~/.specledger/` to align with credentials |
+| Comment 6 (tui_enabled — low pri) | Low-priority annotations | Added inline note: `tui_enabled` is currently unused placeholder in codebase |
+| Comment 7 (specledger.yaml path — low pri) | Low-priority annotations | Added inline note: path stays as-is, moving to `.specledger/` is high-impact (200+ refs), out of scope |
+| Comment 8 (launcher consumers) | Launcher call sites | Added call site inventory to plan.md: 3 consumers (sl new, sl init, sl revise), no code duplication, no merge conflict risk |
+
+### Options Presented & Choices Made
+
+| Cluster | Options Offered | Choice |
+|---------|----------------|--------|
+| Sensitive field permissions (C1,2,4) | 1) Drop file permissions entirely, 2) Keep 0600 at file level only, 3) Auto-route sensitive fields to personal scope | **Drop file permissions entirely** — guardrails are display masking + scope warning only |
+| Config path library (C5) | 1) Document stdlib as-is, 2) Recommend consolidating paths, 3) Adopt os.UserConfigDir() | **Recommend consolidating paths** → then user directed: consolidate under `~/.specledger/` now |
+| Low-priority items (C6,7) | 1) Add inline annotations only, 2) Remove tui_enabled from example, 3) Flag both as future work | **Add inline annotations only** |
+| Launcher call sites (C8) | 1) Add call site inventory to plan.md, 2) Minimal note only | **Add call site inventory to plan.md** |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `data-model.md` | Removed 0600 from ConfigKeyDef.Sensitive description; removed 0600 from AgentConfig preamble; removed "File permissions" bullet from sensitive tag drives (3→2 behaviors); updated masking format to `****[last4]`; added tui_enabled annotation; added specledger.yaml path annotation; consolidated global config path to `~/.specledger/config.yaml` |
+| `plan.md` | Updated sensitive field guardrails from 3 to 2 behaviors; removed 0600 from constraints; consolidated global config path to `~/.specledger/config.yaml`; added launcher consumer call site inventory |
+| `spec.md` | Updated global config path to `~/.specledger/config.yaml`; updated assumption about path resolution (stdlib, no third-party lib) |
+| `quickstart.md` | Updated global config path to `~/.specledger/config.yaml` |
+| `research.md` | Updated global config path to `~/.specledger/config.yaml` in R1 rationale and merge algorithm |
+| `research/002-config-precedence-patterns.md` | Updated global config path in precedence table |
+
+### User Guidance
+- Per-field 0600 file permissions are fully removed — the gitignored `specledger.local.yaml` is the security mechanism for sensitive values
+- Global config path consolidated from `~/.config/specledger/config.yaml` to `~/.specledger/config.yaml` — implementation must update `getConfigPath()` in `pkg/cli/config/config.go`
+- No `.config/specledger` references remain in the feature artifacts (verified via full sweep)
+- Launcher package has no code duplication — all 3 agent-launching commands use the shared `launcher` package
+
+---
+
 ## Revision 3 — 2026-02-22
 
 ### Comments Addressed
