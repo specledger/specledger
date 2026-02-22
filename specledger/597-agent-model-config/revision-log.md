@@ -1,4 +1,37 @@
-# Revision Log: 597-agent-model-config spec.md
+# Revision Log: 597-agent-model-config
+
+## Revision 2 — 2026-02-22
+
+### Comments Addressed
+
+| Comment | Cluster | Resolution |
+|---------|---------|------------|
+| quickstart-1 (secrets in config / separate file / interpolation) | Secrets & Scope Flags | Clarified with `--personal` flag for sensitive values, Go struct tags as guardrails, warnings on git-tracked scope |
+
+### Options Presented & Choices Made
+
+| Cluster | Options Offered | Choice |
+|---------|----------------|--------|
+| Secrets handling | 1) Auto-route sensitive keys to personal-local, 2) Separate secrets file + interpolation, 3) Clarify existing design + guardrails | **Clarify existing design + guardrails** — minimal achievable with struct tags, CLI warning, and pre-commit hook recommendation |
+| Flag naming | 1) `--personal` (recommended), 2) `--local`, 3) `--private` | **`--personal`** — already used in quickstart, clear intent |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `quickstart.md` §1 | Changed `sl config set agent.auth-token` → `sl config set --personal agent.auth-token`; added secrets warning callout |
+| `quickstart.md` §2 | Changed profile auth-token example to use `--personal` |
+| `data-model.md` AgentConfig | Added `Sensitive` column to field table; added Go struct tag convention section explaining `sensitive:"true"` drives masking, permissions, and scope warnings |
+| `spec.md` FR-004 | Expanded to include `--personal` flag alongside `--global`; documented default targets team-local |
+| `spec.md` Assumptions | Added sensitive struct tag guardrail assumption; added secret interpolation as future extensibility note |
+| `plan.md` | Added "Design Decisions" section with CLI Scope Flags table and Sensitive Field Guardrails subsection |
+
+### User Guidance
+- Secrets management integration (interpolation, vault backends) remains out of scope — struct tags + warnings are best-effort guardrails
+- Teams should adopt pre-commit secret detection tools as defense-in-depth
+- `--personal` flag is the canonical way to store sensitive values in gitignored config
+
+---
 
 ## Revision 1 — 2026-02-21
 

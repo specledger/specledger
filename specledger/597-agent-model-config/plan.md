@@ -84,6 +84,28 @@ cmd/sl/
 
 **Structure Decision**: Extends the existing single-project Go CLI structure. New files added to existing packages (`config/`, `commands/`, `launcher/`). One new package (`migration/`) for constitution migration logic. No new top-level directories needed. Interactive TUI config editor descoped to a future spec (see `research/003-tui-framework-spike.md`).
 
+## Design Decisions
+
+### CLI Scope Flags
+
+The `sl config set` and `sl config unset` commands accept scope-targeting flags:
+
+| Flag | Target File | Git-Tracked | Description |
+|------|-------------|-------------|-------------|
+| *(default)* | `specledger/specledger.yaml` | **yes** | Team-local project config, shared via git |
+| `--global` | `~/.config/specledger/config.yaml` | n/a | User-wide global defaults |
+| `--personal` | `specledger/specledger.local.yaml` | **no** (gitignored) | Personal project overrides, not shared |
+
+### Sensitive Field Guardrails
+
+Fields tagged `sensitive:"true"` on the `AgentConfig` Go struct (currently `AuthToken`, `APIKey`) drive three behaviors:
+
+1. **Display masking** — `sl config show` renders `****[last4]` instead of the full value
+2. **File permissions** — any config file containing a sensitive value is written with `0600` (owner read/write only)
+3. **Scope warning** — when `sl config set` stores a sensitive field in team-local scope (the default), the CLI emits a warning recommending `--personal` to avoid committing secrets to git. The user can proceed anyway (no `--force` required) but the warning is always shown.
+
+This is best-effort guardrailing within SpecLedger. Teams should additionally adopt pre-commit secret detection (e.g., Yelp's `detect-secrets`, `gitleaks`, or `trufflehog`) as defense-in-depth. Recommending this in project README/onboarding is out of scope for this feature but is a natural follow-up.
+
 ## Complexity Tracking
 
 > No violations identified. Feature extends existing patterns (Cobra commands, YAML config, Bubble Tea TUI) without introducing new architectural abstractions.

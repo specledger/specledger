@@ -30,22 +30,38 @@ string | bool | enum | string-list | string-map
 
 Holds the values for all agent-related configuration keys. Used in both global config and project metadata.
 
-| Field | YAML Key | Type | Maps To |
-|-------|----------|------|---------|
-| `BaseURL` | `base-url` | `string` | `ANTHROPIC_BASE_URL` |
-| `AuthToken` | `auth-token` | `string` | `ANTHROPIC_AUTH_TOKEN` |
-| `APIKey` | `api-key` | `string` | `ANTHROPIC_API_KEY` |
-| `Model` | `model` | `string` | `ANTHROPIC_MODEL` |
-| `ModelSonnet` | `model.sonnet` | `string` | `ANTHROPIC_DEFAULT_SONNET_MODEL` |
-| `ModelOpus` | `model.opus` | `string` | `ANTHROPIC_DEFAULT_OPUS_MODEL` |
-| `ModelHaiku` | `model.haiku` | `string` | `ANTHROPIC_DEFAULT_HAIKU_MODEL` |
-| `SubagentModel` | `subagent-model` | `string` | `CLAUDE_CODE_SUBAGENT_MODEL` |
-| `Provider` | `provider` | `enum` | Sets `CLAUDE_CODE_USE_BEDROCK` or `CLAUDE_CODE_USE_VERTEX` |
-| `PermissionMode` | `permission-mode` | `enum` | `--permission-mode` flag |
-| `SkipPermissions` | `skip-permissions` | `bool` | `--dangerously-skip-permissions` flag |
-| `Effort` | `effort` | `enum` | `--effort` flag |
-| `AllowedTools` | `allowed-tools` | `string-list` | `--allowedTools` flag |
-| `Env` | `env` | `map[string]string` | Each key-value injected as env var |
+Fields tagged `sensitive:"true"` trigger CLI guardrails: masked display, 0600 file permissions, and a warning when stored in a git-tracked scope without `--personal`.
+
+| Field | YAML Key | Type | Sensitive | Maps To |
+|-------|----------|------|-----------|---------|
+| `BaseURL` | `base-url` | `string` | | `ANTHROPIC_BASE_URL` |
+| `AuthToken` | `auth-token` | `string` | **yes** | `ANTHROPIC_AUTH_TOKEN` |
+| `APIKey` | `api-key` | `string` | **yes** | `ANTHROPIC_API_KEY` |
+| `Model` | `model` | `string` | | `ANTHROPIC_MODEL` |
+| `ModelSonnet` | `model.sonnet` | `string` | | `ANTHROPIC_DEFAULT_SONNET_MODEL` |
+| `ModelOpus` | `model.opus` | `string` | | `ANTHROPIC_DEFAULT_OPUS_MODEL` |
+| `ModelHaiku` | `model.haiku` | `string` | | `ANTHROPIC_DEFAULT_HAIKU_MODEL` |
+| `SubagentModel` | `subagent-model` | `string` | | `CLAUDE_CODE_SUBAGENT_MODEL` |
+| `Provider` | `provider` | `enum` | | Sets `CLAUDE_CODE_USE_BEDROCK` or `CLAUDE_CODE_USE_VERTEX` |
+| `PermissionMode` | `permission-mode` | `enum` | | `--permission-mode` flag |
+| `SkipPermissions` | `skip-permissions` | `bool` | | `--dangerously-skip-permissions` flag |
+| `Effort` | `effort` | `enum` | | `--effort` flag |
+| `AllowedTools` | `allowed-tools` | `string-list` | | `--allowedTools` flag |
+| `Env` | `env` | `map[string]string` | | Each key-value injected as env var |
+
+**Go struct tag convention**:
+```go
+type AgentConfig struct {
+    AuthToken string `yaml:"auth-token" sensitive:"true"`
+    APIKey    string `yaml:"api-key"    sensitive:"true"`
+    // ... non-sensitive fields omit the sensitive tag
+}
+```
+
+The config schema loader reads `sensitive:"true"` struct tags at init time to populate `ConfigKeyDef.Sensitive`, keeping the single source of truth on the Go struct. This drives:
+1. **Display masking** — `sl config show` renders `****` for sensitive values
+2. **File permissions** — files containing sensitive values written with 0600
+3. **Scope warning** — CLI warns when a sensitive field targets a git-tracked scope (team-local) without `--personal`, recommending `--personal` to store in the gitignored `specledger.local.yaml`
 
 **Enum values:**
 - `Provider`: `anthropic` (default), `bedrock`, `vertex`

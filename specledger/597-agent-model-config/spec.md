@@ -74,7 +74,7 @@ A developer frequently switches between different AI provider configurations (e.
 - **FR-001**: System MUST allow users to configure agent launch environment variables (model names, base URL, auth token) through a persistent configuration mechanism.
 - **FR-002**: System MUST support a three-tier configuration hierarchy: global (user home directory), team-local (project-level, git-tracked), and personal-local (project-level, gitignored), where more specific layers override broader ones (personal-local > team-local > global > default).
 - **FR-003**: System MUST provide a `sl config` command with subcommands to get, set, list, and unset configuration values.
-- **FR-004**: System MUST support a `--global` flag to target the global configuration and default to local (project-level) when in a project context.
+- **FR-004**: System MUST support `--global` and `--personal` flags on `set` and `unset` to target the global and personal-local (gitignored) scopes respectively. Default (no flag) targets team-local (project-level, git-tracked) when in a project context.
 - **FR-005**: System MUST mask sensitive values (auth tokens) when displaying configuration to the terminal.
 - **FR-006**: System MUST store sensitive configuration values (auth tokens) in files with restricted permissions (owner read/write only).
 - **FR-007**: System MUST inject configured agent environment variables into the agent subprocess when launching. The subprocess MUST inherit the current process environment, with configured values taking precedence over existing environment variables.
@@ -122,6 +122,7 @@ A developer frequently switches between different AI provider configurations (e.
 - Boolean and enum types for settings are determined by a schema defined in code, not by user input.
 - Personal project-level configuration is stored in a gitignored file alongside the team-shared project configuration, following the established `.local` convention used by Claude Code and other tools.
 - The agent subprocess inherits the current process environment, with configured values overriding any matching environment variables.
-- Secrets management integration (e.g., 1Password, SOPS, Bitwarden, AWS Secrets Manager) is out of scope for this feature. The design should not preclude future integration.
+- Secrets management integration (e.g., 1Password, SOPS, Bitwarden, AWS Secrets Manager) is out of scope for this feature. The design should not preclude future integration (e.g., secret interpolation syntax in YAML values).
+- Sensitive config fields are identified by Go struct tags (`sensitive:"true"`) on the `AgentConfig` struct. The CLI uses these tags to drive display masking, file permissions (0600), and scope warnings when sensitive values target git-tracked config without `--personal`. This is best-effort guardrailing — teams should additionally adopt pre-commit hooks (e.g., Yelp's `detect-secrets`) for defense-in-depth.
 - Interactive TUI config editor was descoped from this feature after a research spike (see `research/003-tui-framework-spike.md`). The existing SpecLedger TUI is step-based form wizards only; a full config editor requires building a reusable TUI shell (tree nav, panes, inline editing) estimated at 6-10 days — recommended as a separate spec that also benefits the revise flow.
 - The migration from CONSTITUTION.md agent preferences (FR-013) requires clarification with project members on the current state and usage patterns.

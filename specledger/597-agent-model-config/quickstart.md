@@ -23,12 +23,19 @@ alias zc='ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7-flash \
 sl config set agent.base-url https://api.z.ai/api/anthropic
 sl config set agent.model.sonnet glm-4.7-flash
 sl config set agent.model.opus glm-5
-sl config set agent.auth-token [token]
+sl config set --personal agent.auth-token [token]
 sl config set agent.skip-permissions true
 
 # Verify
 sl config show
 ```
+
+> **Sensitive values**: Fields tagged as sensitive in the config schema (e.g.,
+> `auth-token`, `api-key`) should be stored with `--personal` to keep them in
+> `specledger/specledger.local.yaml` (gitignored). The CLI warns when a
+> sensitive field is stored in a git-tracked scope without `--personal`.
+> Teams should also consider entropy-based or keyword pre-commit hooks
+> (e.g., Yelp's `detect-secrets`) as an additional safeguard.
 
 **Output of `sl config show`**:
 ```
@@ -56,7 +63,7 @@ Now every `sl new` or `sl init` launch automatically applies these settings.
 sl config profile create work
 sl config set agent.base-url https://litellm.corp.example.com --profile work
 sl config set agent.model.sonnet gpt-4-turbo --profile work
-sl config set agent.auth-token sk-corp-... --profile work
+sl config set --personal agent.auth-token sk-corp-... --profile work
 
 # Create a "local" profile for Ollama
 sl config profile create local
