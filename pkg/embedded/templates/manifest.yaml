@@ -83,3 +83,13 @@ templates:
       - "LLM"
       - "RAG"
     path: "ai-chatbot"
+
+  - id: adk-chatbot
+    name: "AI Chatbot (Google ADK)"
+    description: "Go chatbot using Google Agent Development Kit with Gemini, custom tools, and multi-agent support"
+    characteristics:
+      - "Go"
+      - "Google ADK"
+      - "Gemini"
+      - "LLM"
+    path: "adk-chatbot"

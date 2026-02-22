@@ -9,44 +9,49 @@ import (
 func TestAllTemplatesHaveRequiredStructure(t *testing.T) {
 	// Table-driven test for all 7 templates
 	tests := []struct {
-		templateID   string
-		expectedDirs []string
+		templateID    string
+		expectedDirs  []string
 		expectedFiles []string
 	}{
 		{
-			templateID:   "general-purpose",
-			expectedDirs: []string{".claude", ".specledger"},
+			templateID:    "general-purpose",
+			expectedDirs:  []string{".claude", ".specledger"},
 			expectedFiles: []string{"AGENTS.md", "mise.toml"},
 		},
 		{
-			templateID:   "full-stack",
-			expectedDirs: []string{"backend", "frontend", "backend/cmd/server", "frontend/src"},
+			templateID:    "full-stack",
+			expectedDirs:  []string{"backend", "frontend", "backend/cmd/server", "frontend/src"},
 			expectedFiles: []string{"README.md", "docker-compose.yml"},
 		},
 		{
-			templateID:   "batch-data",
-			expectedDirs: []string{"workflows", "cmd/worker", "cmd/starter", "internal/extractors"},
+			templateID:    "batch-data",
+			expectedDirs:  []string{"workflows", "cmd/worker", "cmd/starter", "internal/extractors"},
 			expectedFiles: []string{"README.md", "go.mod.template", "docker-compose.yml"},
 		},
 		{
-			templateID:   "realtime-workflow",
-			expectedDirs: []string{"cmd/worker", "internal/workflows", "internal/activities"},
+			templateID:    "realtime-workflow",
+			expectedDirs:  []string{"cmd/worker", "internal/workflows", "internal/activities"},
 			expectedFiles: []string{"README.md", "go.mod.template", "docker-compose.yml"},
 		},
 		{
-			templateID:   "ml-image",
-			expectedDirs: []string{"src/data", "src/models", "src/training", "data/raw"},
+			templateID:    "ml-image",
+			expectedDirs:  []string{"src/data", "src/models", "src/training", "data/raw"},
 			expectedFiles: []string{"README.md", "requirements.txt", "pyproject.toml"},
 		},
 		{
-			templateID:   "realtime-data",
-			expectedDirs: []string{"cmd/producer", "cmd/consumer", "internal/kafka"},
+			templateID:    "realtime-data",
+			expectedDirs:  []string{"cmd/producer", "cmd/consumer", "internal/kafka"},
 			expectedFiles: []string{"README.md", "go.mod.template"},
 		},
 		{
-			templateID:   "ai-chatbot",
-			expectedDirs: []string{"src/agents", "src/tools", "src/integrations"},
+			templateID:    "ai-chatbot",
+			expectedDirs:  []string{"src/agents", "src/tools", "src/integrations"},
 			expectedFiles: []string{"README.md", "requirements.txt", "langgraph.json"},
+		},
+		{
+			templateID:    "adk-chatbot",
+			expectedDirs:  []string{"cmd/chatbot", "cmd/server", "internal/agents", "internal/tools"},
+			expectedFiles: []string{"README.md", "go.mod.template", "AGENTS.md"},
 		},
 	}
 
@@ -106,7 +111,7 @@ func TestTemplateCount(t *testing.T) {
 		t.Fatalf("LoadTemplates() error: %v", err)
 	}
 
-	expectedCount := 7
+	expectedCount := 8
 	if len(templates) != expectedCount {
 		t.Errorf("expected %d templates, got %d", expectedCount, len(templates))
 	}

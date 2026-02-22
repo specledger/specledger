@@ -1,0 +1,8 @@
+module example.com/project
+
+go 1.24
+
+require (
+	google.golang.org/adk v0.5.0
+	google.golang.org/genai v0.7.0
+)

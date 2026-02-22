@@ -4,17 +4,20 @@ This directory contains Claude Code configuration files that are copied to new p
 
 ## Session Capture Integration
 
-The `.claude/settings.json` file configures automatic session capture for SpecLedger integration:
+The `.claude/settings.json` file configures a PostToolUse hook for SpecLedger session capture:
 
 ```json
 {
-  "saveTranscripts": true,
-  "transcriptsDirectory": "~/.claude/sessions",
   "hooks": {
     "PostToolUse": [
       {
         "matcher": "Bash",
-        "command": "sl session capture"
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sl session capture"
+          }
+        ]
       }
     ]
   }
@@ -23,12 +26,19 @@ The `.claude/settings.json` file configures automatic session capture for SpecLe
 
 ### How It Works
 
-1. **saveTranscripts**: Enables saving conversation transcripts locally
-2. **transcriptsDirectory**: Stores transcripts in `~/.claude/sessions`
-3. **PostToolUse Hook**: After each Bash command, runs `sl session capture` to:
-   - Capture the current session state
-   - Upload to Supabase for project tracking (if configured)
-   - Associate with the project UUID for organization
+The **PostToolUse Hook** runs `sl session capture` after each Bash command to:
+- Capture the current session state
+- Upload to Supabase for project tracking (if configured)
+- Associate with the project UUID for organization
+
+### Verification
+
+To verify the hook is working:
+```bash
+sl session list
+```
+
+This shows captured sessions for the current branch.
 
 ### Benefits
 
@@ -40,8 +50,7 @@ The `.claude/settings.json` file configures automatic session capture for SpecLe
 ### Customization
 
 You can modify `.claude/settings.json` in your project to:
-- Disable session capture: Set `saveTranscripts: false`
-- Change transcript location: Update `transcriptsDirectory`
+- Disable session capture: Remove the PostToolUse hook
 - Add additional hooks: Extend the `hooks` configuration
 
 For more information, see the [Claude Code documentation](https://docs.anthropic.com/claude-code).

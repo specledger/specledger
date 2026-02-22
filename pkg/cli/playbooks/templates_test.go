@@ -10,8 +10,8 @@ func TestLoadTemplates(t *testing.T) {
 		t.Fatalf("LoadTemplates() error = %v", err)
 	}
 
-	// Verify we have all 7 templates
-	expectedCount := 7
+	// Verify we have all 8 templates
+	expectedCount := 8
 	if len(templates) != expectedCount {
 		t.Errorf("LoadTemplates() returned %d templates, want %d", len(templates), expectedCount)
 	}
@@ -25,6 +25,7 @@ func TestLoadTemplates(t *testing.T) {
 		"ml-image",
 		"realtime-data",
 		"ai-chatbot",
+		"adk-chatbot",
 	}
 
 	templateMap := make(map[string]bool)
@@ -67,6 +68,7 @@ func TestGetTemplateByID(t *testing.T) {
 		{"ml-image", false},
 		{"realtime-data", false},
 		{"ai-chatbot", false},
+		{"adk-chatbot", false},
 		{"nonexistent", true},
 	}
 

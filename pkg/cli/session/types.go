@@ -10,6 +10,27 @@ import (
 // MaxSessionSize is the maximum uncompressed session size (10 MB)
 const MaxSessionSize = 10 * 1024 * 1024
 
+// MaxCapturedCommits is the maximum number of commit hashes tracked for deduplication
+const MaxCapturedCommits = 50
+
+// CaptureTrigger identifies what triggered the session capture
+type CaptureTrigger string
+
+const (
+	TriggerPostToolUse CaptureTrigger = "post-tool-use"
+	TriggerStop        CaptureTrigger = "stop"
+	TriggerPostCommit  CaptureTrigger = "post-commit"
+)
+
+// CaptureTypeName identifies the type of capture record
+type CaptureTypeName string
+
+const (
+	CaptureTypeCommit        CaptureTypeName = "commit"
+	CaptureTypeSpecledgerCmd CaptureTypeName = "specledger-command"
+	CaptureTypePostCommit    CaptureTypeName = "post-commit"
+)
+
 // SessionStatus represents the completion status of a session
 type SessionStatus string
 
@@ -28,14 +49,16 @@ type Message struct {
 
 // SessionContent represents the full session data stored in Supabase Storage
 type SessionContent struct {
-	Version       string    `json:"version"`        // schema version (e.g., "1.0")
-	SessionID     string    `json:"session_id"`     // unique identifier
-	FeatureBranch string    `json:"feature_branch"` // e.g., "010-checkpoint-session-capture"
-	CommitHash    string    `json:"commit_hash"`    // git commit hash (nullable for task sessions)
-	TaskID        string    `json:"task_id"`        // beads task ID (nullable for commit sessions)
-	Author        string    `json:"author"`         // user email
-	CapturedAt    time.Time `json:"captured_at"`    // when captured
-	Messages      []Message `json:"messages"`       // conversation messages
+	Version       string    `json:"version"`                // schema version (e.g., "1.0")
+	SessionID     string    `json:"session_id"`             // unique identifier
+	FeatureBranch string    `json:"feature_branch"`         // e.g., "010-checkpoint-session-capture"
+	CommitHash    string    `json:"commit_hash"`            // git commit hash (nullable for task sessions)
+	TaskID        string    `json:"task_id"`                // beads task ID (nullable for commit sessions)
+	Author        string    `json:"author"`                 // user email
+	CapturedAt    time.Time `json:"captured_at"`            // when captured
+	Messages      []Message `json:"messages"`               // conversation messages
+	CaptureType   string    `json:"capture_type,omitempty"` // "commit", "specledger-command", "post-commit"
+	CommandName   string    `json:"command_name,omitempty"` // specledger command name (e.g., "plan", "implement")
 }
 
 // SessionMetadata represents the queryable metadata stored in the database
@@ -98,6 +121,7 @@ type HookInput struct {
 	ToolOutput     string    `json:"tool_output"`      // output from the tool
 	ToolDurationMs int64     `json:"tool_duration_ms"` // how long the tool took
 	ToolSuccess    bool      `json:"tool_success"`     // whether the tool succeeded
+	StopHookActive bool      `json:"stop_hook_active"` // true when invoked from Stop hook (different JSON shape)
 }
 
 // SessionState represents the local tracking state for delta computation
@@ -107,9 +131,10 @@ type SessionState struct {
 
 // SessionOffsetInfo tracks the last captured position in the transcript
 type SessionOffsetInfo struct {
-	LastOffset     int64  `json:"last_offset"`     // byte offset in transcript file
-	LastCommit     string `json:"last_commit"`     // last commit hash captured
-	TranscriptPath string `json:"transcript_path"` // path to the transcript file
+	LastOffset      int64    `json:"last_offset"`                // byte offset in transcript file
+	LastCommit      string   `json:"last_commit"`                // last commit hash captured
+	TranscriptPath  string   `json:"transcript_path"`            // path to the transcript file
+	CapturedCommits []string `json:"captured_commits,omitempty"` // commit hashes captured in-Claude (for post-commit dedup)
 }
 
 // QueueEntry represents a session queued for upload

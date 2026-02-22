@@ -43,14 +43,22 @@ func TestSetupAgentConfig_ClaudeCode(t *testing.T) {
 		t.Fatalf("invalid JSON in settings.json: %v", err)
 	}
 
-	// Check saveTranscripts is true
-	if saveTranscripts, ok := settings["saveTranscripts"].(bool); !ok || !saveTranscripts {
-		t.Error("saveTranscripts should be true")
+	// Check hooks exist with PostToolUse configuration
+	hooks, ok := settings["hooks"].(map[string]interface{})
+	if !ok {
+		t.Fatal("hooks configuration missing")
 	}
 
-	// Check hooks exist
-	if _, ok := settings["hooks"]; !ok {
-		t.Error("hooks configuration missing")
+	// Verify PostToolUse hook exists
+	postToolUse, ok := hooks["PostToolUse"]
+	if !ok {
+		t.Error("PostToolUse hook missing")
+	}
+
+	// Verify it's an array with at least one entry
+	hookArray, ok := postToolUse.([]interface{})
+	if !ok || len(hookArray) == 0 {
+		t.Error("PostToolUse should have at least one hook configuration")
 	}
 }
 
