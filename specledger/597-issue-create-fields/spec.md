@@ -17,19 +17,19 @@
 
 ### User Story 1 - Create Issues with Complete Field Set (Priority: P1)
 
-As a developer using SpecLedger, I want to create issues with all available fields (acceptance criteria, definition of done, design notes) in a single command so that I don't have to update issues immediately after creation.
+As a developer using SpecLedger, I want to create issues with all available structured fields (`--acceptance-criteria`, `--dod`, `--design`) in a single command so that I don't have to update issues immediately after creation.
 
-**Why this priority**: This is the core functionality gap. Users currently cannot set acceptance criteria, definition of done, design notes, or notes during issue creation, forcing a two-step workflow (create then update). Fixing this enables the full potential of the issue model.
+**Why this priority**: This is the core functionality gap. Users currently cannot set acceptance criteria, definition of done, or design notes during issue creation, forcing a two-step workflow (create then update). Fixing this enables the full potential of the issue model.
 
-**Independent Test**: Can be fully tested by creating an issue with all new flags and verifying each field is persisted correctly in the JSONL file. Delivers immediate value by eliminating the create-then-update pattern.
+**Independent Test**: Can be fully tested by creating an issue with all 3 new flags and verifying each field is persisted correctly in the JSONL file. Delivers immediate value by eliminating the create-then-update pattern.
 
 **Acceptance Scenarios**:
 
 1. **Given** a user wants to create a fully-specified issue, **When** they run `sl issue create --title "Task" --acceptance-criteria "AC text" --type task`, **Then** the created issue has the acceptance_criteria field populated
 2. **Given** a user wants to create an issue with definition of done items, **When** they run `sl issue create --title "Task" --dod "Item 1" --dod "Item 2" --type task`, **Then** the created issue has definition_of_done.items containing both items as unchecked
 3. **Given** a user wants to create an issue with design notes, **When** they run `sl issue create --title "Task" --design "Design approach details" --type task`, **Then** the created issue has the design field populated
-4. **Given** a user wants to create an issue with notes, **When** they run `sl issue create --title "Task" --notes "Implementation notes" --type task`, **Then** the created issue has the notes field populated
-5. **Given** a user creates an issue with all new fields combined, **When** they run `sl issue show` on the created issue, **Then** all fields are displayed correctly
+4. **Given** a user creates an issue with all 3 structured fields combined, **When** they run `sl issue create --title "Task" --acceptance-criteria "AC" --dod "DoD1" --design "Design" --type task`, **Then** all 3 fields are persisted correctly
+5. **Given** a user creates an issue with all new fields, **When** they run `sl issue show` on the created issue, **Then** acceptance_criteria, definition_of_done, and design are displayed in dedicated sections
 
 ---
 
@@ -69,39 +69,41 @@ As a developer running `/specledger.tasks`, I want generated task issues to have
 
 ---
 
-### User Story 4 - Tasks Prompt Utilizes Issue Fields (Priority: P3)
+### User Story 4 - Tasks Prompt Utilizes All Three Structured Fields (Priority: P3)
 
-As a developer running `/specledger.tasks`, I want the command to utilize the new CLI flags (acceptance-criteria, definition-of-done, design) when creating issues so that generated tasks have structured, queryable data.
+As a developer running `/specledger.tasks`, I want the command to utilize all three structured field flags (`--acceptance-criteria`, `--dod`, `--design`) when creating issues so that generated tasks have structured, queryable data.
 
 **Why this priority**: This enhances the task generation quality but depends on US1 being implemented first.
 
-**Independent Test**: Can be tested by running `/specledger.tasks` and verifying generated issues use the new flags correctly instead of embedding everything in description.
+**Independent Test**: Can be tested by running `/specledger.tasks` and verifying generated issues use all 3 new flags correctly instead of embedding everything in description.
 
 **Acceptance Scenarios**:
 
 1. **Given** the updated tasks prompt, **When** issues are created, **Then** acceptance criteria is set via `--acceptance-criteria` flag, not embedded in description
 2. **Given** the updated tasks prompt, **When** issues are created with DoD items, **Then** DoD is set via multiple `--dod` flags, not embedded in description
-3. **Given** the updated tasks prompt, **When** issues are created with design notes, **Then** design is set via `--design` flag
-4. **Given** the updated tasks prompt, **When** `sl issue show` displays the issue, **Then** acceptance criteria, DoD items, and design are shown in dedicated sections
+3. **Given** the updated tasks prompt, **When** issues are created with design notes, **Then** design is set via `--design` flag, not embedded in description
+4. **Given** the updated tasks prompt, **When** issues are created with all 3 fields, **Then** `sl issue show` displays acceptance_criteria, definition_of_done, and design in dedicated sections
+5. **Given** the updated tasks prompt, **When** task generation creates feature issues, **Then** design field contains technical approach derived from plan.md
 
 ---
 
-### User Story 5 - Implement Prompt Utilizes DoD and Acceptance Criteria (Priority: P3)
+### User Story 5 - Implement Prompt Utilizes All Three Structured Fields (Priority: P3)
 
-As a developer running `/specledger.implement`, I want the command to check off Definition of Done items as implementation progresses and verify work against acceptance criteria so that issues accurately reflect completion status.
+As a developer running `/specledger.implement`, I want the command to utilize all three structured fields (design, acceptance_criteria, definition_of_done) so that implementation follows the design approach, meets acceptance criteria, and tracks progress through DoD items.
 
-**Why this priority**: This enhances the implementation workflow by automatically tracking progress through DoD items and ensuring work meets defined acceptance criteria. Depends on US1 and US2 being implemented first.
+**Why this priority**: This enhances the implementation workflow by providing technical guidance, verification criteria, and progress tracking. Depends on US1 and US2 being implemented first.
 
-**Independent Test**: Can be tested by running `/specledger.implement` and verifying that as each task phase completes, corresponding DoD items are marked as checked and acceptance criteria is verified.
+**Independent Test**: Can be tested by running `/specledger.implement` and verifying that the agent reads design for approach, verifies against acceptance criteria, and checks off DoD items as work progresses.
 
 **Acceptance Scenarios**:
 
-1. **Given** the updated implement prompt, **When** a task is completed, **Then** the agent uses `sl issue update SL-xxxxx --check-dod "Item text"` to mark relevant DoD items as checked
-2. **Given** an issue with multiple DoD items, **When** implementation progresses, **Then** each completed subtask results in the corresponding DoD item being checked
-3. **Given** an issue with acceptance_criteria, **When** the agent begins implementation, **Then** the agent reads the acceptance_criteria to understand requirements
-4. **Given** the agent completes a task, **When** verifying work, **Then** the agent confirms the implementation satisfies the acceptance_criteria before marking complete
-5. **Given** the implement prompt completes a task, **When** all DoD items are checked, **Then** the issue status can be changed to closed via `sl issue close`
-6. **Given** the implement prompt, **When** reviewing progress, **Then** `sl issue show` displays which DoD items are checked with verified_at timestamps
+1. **Given** an issue with design field, **When** the agent begins implementation, **Then** the agent reads the design field to understand the technical approach
+2. **Given** an issue with acceptance_criteria, **When** the agent begins implementation, **Then** the agent reads the acceptance_criteria to understand requirements
+3. **Given** the agent completes a task, **When** verifying work, **Then** the agent confirms the implementation satisfies the acceptance_criteria before marking complete
+4. **Given** the updated implement prompt, **When** a subtask is completed, **Then** the agent uses `sl issue update SL-xxxxx --check-dod "Item text"` to mark relevant DoD items as checked
+5. **Given** an issue with multiple DoD items, **When** implementation progresses, **Then** each completed subtask results in the corresponding DoD item being checked
+6. **Given** the implement prompt completes a task, **When** all DoD items are checked, **Then** the issue status can be changed to closed via `sl issue close`
+7. **Given** the implement prompt, **When** reviewing progress, **Then** `sl issue show` displays which DoD items are checked with verified_at timestamps
 
 ---
 
@@ -129,12 +131,14 @@ As a developer running `/specledger.implement`, I want the command to check off 
 - **FR-008**: DoD item matching for --check-dod and --uncheck-dod MUST be exact (case-sensitive, no whitespace normalization)
 - **FR-009**: System MUST return a clear error when --check-dod or --uncheck-dod is called with text that doesn't match any existing DoD item
 - **FR-010**: System MUST display acceptance_criteria, definition_of_done, and design in `sl issue show` output in dedicated sections
-- **FR-011**: The specledger.tasks prompt MUST be updated to instruct using new CLI flags instead of embedding in description
-- **FR-012**: The specledger.implement prompt MUST be updated to read acceptance_criteria at task start and verify implementation against it before completion
-- **FR-013**: The specledger.implement prompt MUST be updated to use `sl issue update --check-dod` when completing subtasks that correspond to DoD items
-- **FR-014**: Task generation MUST create proper blocking relationships: setup blocks implementation, models block services, services block endpoints
-- **FR-015**: Task generation MUST NOT create false blocking relationships between parallelizable tasks (different files, no dependencies)
-- **FR-016**: Feature-type issues for phases MUST have appropriate blocking: foundational phases block user story phases, but phases at the same level should not block each other unless specified
+- **FR-011**: The specledger.tasks prompt MUST be updated to use `--acceptance-criteria`, `--dod`, and `--design` flags instead of embedding in description
+- **FR-012**: The specledger.tasks prompt MUST populate design field with technical approach derived from plan.md when creating feature issues
+- **FR-013**: The specledger.implement prompt MUST read the design field at task start to understand the technical approach
+- **FR-014**: The specledger.implement prompt MUST read acceptance_criteria at task start and verify implementation against it before completion
+- **FR-015**: The specledger.implement prompt MUST use `sl issue update --check-dod` when completing subtasks that correspond to DoD items
+- **FR-016**: Task generation MUST create proper blocking relationships: setup blocks implementation, models block services, services block endpoints
+- **FR-017**: Task generation MUST NOT create false blocking relationships between parallelizable tasks (different files, no dependencies)
+- **FR-018**: Feature-type issues for phases MUST have appropriate blocking: foundational phases block user story phases, but phases at the same level should not block each other unless specified
 
 ### Key Entities
 
@@ -145,12 +149,15 @@ As a developer running `/specledger.implement`, I want the command to check off 
 
 ### Measurable Outcomes
 
-- **SC-001**: Users can create fully-specified issues with all fields in a single command (no create-then-update needed)
+- **SC-001**: Users can create issues with all 3 structured fields (`--acceptance-criteria`, `--dod`, `--design`) in a single command
 - **SC-002**: Generated task issues have verifiable blocking relationships using `sl issue show --tree` or `sl issue ready`
-- **SC-003**: `sl issue show` displays all fields in organized, readable format with dedicated sections
+- **SC-003**: `sl issue show` displays all 3 structured fields in organized, readable format with dedicated sections
 - **SC-004**: Task generation creates no more false-positive blocking relationships between independent tasks
-- **SC-005**: Implementation workflow automatically checks off DoD items as subtasks complete
-- **SC-006**: All existing functionality remains unchanged (backward compatibility)
+- **SC-005**: Task generation populates design field with technical approach from plan.md
+- **SC-006**: Implementation workflow reads design field for technical guidance
+- **SC-007**: Implementation workflow verifies work against acceptance_criteria before completion
+- **SC-008**: Implementation workflow automatically checks off DoD items as subtasks complete
+- **SC-009**: All existing functionality remains unchanged (backward compatibility)
 
 ### Previous work
 
