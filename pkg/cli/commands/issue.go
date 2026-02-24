@@ -678,8 +678,12 @@ func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing 
 			childPrefix = prefix + "│  "
 		}
 
-		// Add blank line before each child
-		fmt.Println()
+		// Add blank line with vertical connector for non-last children
+		if isLast {
+			fmt.Println()
+		} else {
+			fmt.Printf("%s│\n", prefix)
+		}
 
 		// Check if already visited
 		if visited[targetID] {
