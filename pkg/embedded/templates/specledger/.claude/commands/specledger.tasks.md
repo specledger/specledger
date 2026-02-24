@@ -206,45 +206,69 @@ The tasks.md should be immediately executable - each task must be specific enoug
 
 ## Issue Content Structure
 
-Each generated issue MUST have the following structured content in the `--description` field:
+Each generated issue MUST use the dedicated CLI flags for structured content:
 
-| Field | Purpose | Example |
-|-------|---------|---------|
+| Flag | Purpose | Content |
+|------|---------|---------|
 | `--title` | Concise summary (under 80 chars) | "Add user authentication to login page" |
-| `--description` | Multi-line content with sections | See format below |
+| `--description` | Problem statement only | WHY: What problem does this solve? |
+| `--design` | Technical approach | HOW: File paths, modules, approach |
+| `--acceptance-criteria` | Success criteria | WHAT: Measurable, testable outcomes |
+| `--dod` | Definition of Done items | Repeatable flag for checklist items |
 
-**Description Format** (all in one `--description` string):
-```
-WHY: [Problem statement - what to implement, where, inputs/outputs]
+**IMPORTANT**: Do NOT put structured content in `--description`. Use dedicated flags:
 
-DESIGN: [HOW to build - file paths, module references, approach decisions]
+```bash
+# CORRECT - Use dedicated flags
+sl issue create \
+  --title "Add PDF viewer support" \
+  --description "WHY: PDF example documents need to be viewable without leaving the form page." \
+  --design "File: frontend/src/pages/TemplateGeneratorPage.tsx. Add PDF viewer integration. Options: open in new tab, embedded viewer, or download." \
+  --acceptance-criteria "PDF opens in new tab or embedded viewer. User can view full document. No disruption to form filling." \
+  --dod "PDF opens in new tab option" \
+  --dod "Or embedded viewer option" \
+  --dod "Full document viewable" \
+  --dod "Form filling not disrupted" \
+  --type task \
+  --labels "spec:xxx,story:US1"
 
-ACCEPTANCE: [WHAT success looks like - measurable, testable outcomes]
-
-DEFINITION OF DONE:
-[ ] Item 1
-[ ] Item 2
-[ ] Item 3
+# WRONG - Do not put everything in description
+sl issue create --title "Add PDF viewer" --description "WHY: ... DESIGN: ... ACCEPTANCE: ... DoD: ..."
 ```
 
 **Field Guidelines**:
-- `--title`: Action-oriented, specific, concise
-- `--description`: Include WHY, DESIGN, ACCEPTANCE, and DEFINITION OF DONE sections
-- All structured content goes in description since `sl issue create` only supports `--title` and `--description` flags
+- `--title`: Action-oriented, specific, concise (under 80 chars)
+- `--description`: Brief problem statement only (WHY section)
+- `--design`: Technical approach, file paths, references (from plan.md)
+- `--acceptance-criteria`: What success looks like (stable, measurable criteria)
+- `--dod`: Definition of Done checklist items (use flag multiple times)
 
 ## Definition of Done Population
 
-When creating issues, derive `definition_of_done` items from the acceptance criteria in spec.md:
+When creating issues, derive Definition of Done items from the acceptance criteria in spec.md:
 
 1. **Extract acceptance criteria**: Parse each "Then" clause from acceptance scenarios in spec.md
 2. **Convert to checklist items**: Transform each criterion into a verifiable statement
-3. **Include in issue creation**: Add items to the `definition_of_done` field
+3. **Use `--dod` flag for each item**: Add each item as a separate `--dod` flag
 
 **Example conversion**:
 - Spec acceptance: "Then the user can log in with valid credentials"
-- DoD item: "User can authenticate with valid username/password"
+- DoD item: `--dod "User can authenticate with valid username/password"`
 - Spec acceptance: "Then invalid credentials show an error message"
-- DoD item: "Invalid credentials display appropriate error message"
+- DoD item: `--dod "Invalid credentials display appropriate error message"`
+
+**Example CLI usage**:
+```bash
+sl issue create \
+  --title "Implement login" \
+  --description "WHY: Users need to authenticate securely." \
+  --design "Use OAuth2 with PKCE flow." \
+  --acceptance-criteria "User can log in and receive session token." \
+  --dod "User can authenticate with valid credentials" \
+  --dod "Invalid credentials show error message" \
+  --dod "Session token stored securely" \
+  --type task
+```
 
 **DoD Summary in tasks.md**: After creating all issues, include a DoD Summary section in tasks.md:
 

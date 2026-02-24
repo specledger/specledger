@@ -208,6 +208,97 @@ func (r *TreeRenderer) RenderForest(trees []*DependencyTree) string {
 	return sb.String()
 }
 
+// RenderHierarchyForest renders a forest of hierarchy trees (parent-child)
+func (r *TreeRenderer) RenderHierarchyForest(rootLabel string, trees []*DependencyTree, totalIssues int) string {
+	var sb strings.Builder
+
+	// Render root
+	sb.WriteString(rootLabel)
+	if totalIssues > 0 {
+		sb.WriteString(fmt.Sprintf(" (%d issues)", totalIssues))
+	}
+	sb.WriteString("\n")
+
+	// Render each tree as a child of root
+	for i, tree := range trees {
+		isLast := i == len(trees)-1
+		sb.WriteString(r.renderHierarchyTree(tree, "", isLast, 0, make(map[string]bool)))
+	}
+
+	return sb.String()
+}
+
+// renderHierarchyTree recursively renders a hierarchy tree (parent-child)
+func (r *TreeRenderer) renderHierarchyTree(tree *DependencyTree, prefix string, isLast bool, depth int, visited map[string]bool) string {
+	if depth > r.options.MaxDepth {
+		return prefix + "...\n"
+	}
+
+	var sb strings.Builder
+
+	// Check for cycles
+	if visited[tree.Issue.ID] {
+		sb.WriteString(prefix)
+		if isLast {
+			sb.WriteString("└── ")
+		} else {
+			sb.WriteString("├── ")
+		}
+		sb.WriteString(r.formatIssue(tree.Issue))
+		sb.WriteString(" ⚠ (cycle)\n")
+		return sb.String()
+	}
+
+	// Mark as visited
+	visited[tree.Issue.ID] = true
+	defer func() { delete(visited, tree.Issue.ID) }()
+
+	// Render current node
+	if depth == 0 {
+		// Root level - add tree marker
+		if isLast {
+			sb.WriteString("└── ")
+		} else {
+			sb.WriteString("├── ")
+		}
+		sb.WriteString(r.formatIssue(tree.Issue))
+	} else {
+		sb.WriteString(prefix)
+		if isLast {
+			sb.WriteString("└── ")
+		} else {
+			sb.WriteString("├── ")
+		}
+		sb.WriteString(r.formatIssue(tree.Issue))
+	}
+	sb.WriteString("\n")
+
+	// Render children (parent-child hierarchy)
+	if len(tree.Children) > 0 {
+		var newPrefix string
+		if depth == 0 {
+			if isLast {
+				newPrefix = "    "
+			} else {
+				newPrefix = "│   "
+			}
+		} else {
+			if isLast {
+				newPrefix = prefix + "    "
+			} else {
+				newPrefix = prefix + "│   "
+			}
+		}
+
+		for i, child := range tree.Children {
+			childIsLast := i == len(tree.Children)-1
+			sb.WriteString(r.renderHierarchyTree(child, newPrefix, childIsLast, depth+1, visited))
+		}
+	}
+
+	return sb.String()
+}
+
 // renderTree recursively renders a tree with proper indentation
 func (r *TreeRenderer) renderTree(tree *DependencyTree, prefix string, isLast bool, depth int, visited map[string]bool) string {
 	if depth > r.options.MaxDepth {
