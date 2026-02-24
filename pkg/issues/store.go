@@ -391,7 +391,7 @@ func (s *Store) GetChildren(parentID string) ([]Issue, error) {
 	if !locked {
 		return nil, ErrStoreLocked
 	}
-	defer s.lock.Unlock()
+	defer func() { _ = s.lock.Unlock() }()
 
 	issues, err := s.readAllUnlocked()
 	if err != nil {

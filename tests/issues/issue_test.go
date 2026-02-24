@@ -387,18 +387,18 @@ func TestDefinitionOfDone_ExactTextMatching(t *testing.T) {
 func TestIssue_NewFields(t *testing.T) {
 	parentID := "SL-parent"
 	issue := &issues.Issue{
-		ID:                "SL-a3f5d8",
-		Title:             "Add validation",
-		Status:            issues.StatusOpen,
-		Priority:          1,
-		IssueType:         issues.TypeTask,
-		SpecContext:       "010-my-feature",
+		ID:                 "SL-a3f5d8",
+		Title:              "Add validation",
+		Status:             issues.StatusOpen,
+		Priority:           1,
+		IssueType:          issues.TypeTask,
+		SpecContext:        "010-my-feature",
 		AcceptanceCriteria: "User can validate input",
-		Design:            "Use regex for validation",
-		Notes:             "Consider edge cases",
-		ParentID:          &parentID,
-		CreatedAt:         time.Now(),
-		UpdatedAt:         time.Now(),
+		Design:             "Use regex for validation",
+		Notes:              "Consider edge cases",
+		ParentID:           &parentID,
+		CreatedAt:          time.Now(),
+		UpdatedAt:          time.Now(),
 	}
 
 	// Validate the issue with new fields
