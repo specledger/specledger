@@ -76,11 +76,26 @@ This feature follows a phase-based structure:
 | SL-3c9872 | Add DoD update flags to issueUpdateCmd | - |
 | SL-5ba439 | Handle DoD operations in runIssueUpdate | SL-3c9872 |
 
-### Phase 3: US3+US4 - Tasks Prompt Updates (P2)
+### Phase 3: US6 - Parent-Child Relationships (P2)
+
+**Feature ID**: SL-e4b767
+**Goal**: Add --parent flag with single parent constraint and cycle detection
+**Blocked By**: US1 (SL-05d112)
+
+| Issue ID | Title | Blocked By |
+|----------|-------|------------|
+| SL-9fe19c | Add ParentID field to Issue struct | SL-e4b767 |
+| SL-ad72a5 | Add --parent flag to issue create and update | SL-9fe19c, SL-e4b767 |
+| SL-d957d8 | Implement parent validation (single, self, cycle) | SL-9fe19c, SL-e4b767 |
+| SL-8e6b12 | Update issue show to display parent and children | SL-9fe19c, SL-e4b767 |
+| SL-67da87 | Update issue show --tree for parent-child hierarchy | SL-8e6b12, SL-e4b767 |
+| SL-6c6595 | Update tasks prompt to use --parent flag | SL-e4b767 |
+
+### Phase 4: US3+US4 - Tasks Prompt Updates (P2)
 
 **Feature ID**: SL-d42fee
 **Goal**: Update tasks prompt to use new CLI flags and improve blocking instructions
-**Blocked By**: US2 (SL-0dd751)
+**Blocked By**: US2 (SL-0dd751), US6 (SL-e4b767)
 
 | Issue ID | Title | Blocked By |
 |----------|-------|------------|
@@ -88,7 +103,7 @@ This feature follows a phase-based structure:
 | SL-de1a02 | Add design field population instruction | - |
 | SL-c141f0 | Improve blocking relationship instructions | - |
 
-### Phase 4: US5 - Implement Prompt Updates (P3)
+### Phase 5: US5 - Implement Prompt Updates (P3)
 
 **Feature ID**: SL-a594b9
 **Goal**: Update implement prompt to utilize design, AC, and DoD fields
@@ -99,11 +114,11 @@ This feature follows a phase-based structure:
 | SL-dfa042 | Add field reading instructions to implement prompt | - |
 | SL-909448 | Add AC verification and DoD check instructions | SL-dfa042 |
 
-### Phase 5: Polish - Tests (P3)
+### Phase 6: Polish - Tests (P3)
 
 **Feature ID**: SL-f17a81
 **Goal**: Add unit tests for CLI flag changes
-**Blocked By**: US1, US2, US3+US4, US5
+**Blocked By**: US1, US2, US6, US3+US4, US5
 
 | Issue ID | Title | Blocked By |
 |----------|-------|------------|
@@ -120,7 +135,12 @@ Epic: SL-bb6f5b
 ├── US2: SL-0dd751 (Update DoD) [blocked by US1]
 │   └── SL-3c9872 → SL-5ba439
 │
-├── US3+US4: SL-d42fee (Tasks prompt) [blocked by US2]
+├── US6: SL-e4b767 (Parent-Child) [blocked by US1]
+│   ├── SL-9fe19c → SL-ad72a5, SL-d957d8, SL-8e6b12
+│   └── SL-8e6b12 → SL-67da87
+│   └── SL-6c6595 (parallel)
+│
+├── US3+US4: SL-d42fee (Tasks prompt) [blocked by US2, US6]
 │   ├── SL-fe19e2 (parallel)
 │   ├── SL-de1a02 (parallel)
 │   └── SL-c141f0 (parallel)
@@ -136,9 +156,13 @@ Epic: SL-bb6f5b
 
 **Within US1**: SL-225aa7 and SL-cf082a can run in parallel (different concerns)
 
+**Within US6**: SL-ad72a5, SL-d957d8, SL-8e6b12 can run in parallel after SL-9fe19c
+
 **Within US3+US4**: All 3 tasks can run in parallel (different prompt sections)
 
-**US3+US4 and US5**: Can run in parallel after US2 completes
+**US2 and US6**: Can run in parallel after US1 completes
+
+**US3+US4 and US5**: Can run in parallel after US2 and US6 complete
 
 ## Definition of Done Summary
 
@@ -149,6 +173,12 @@ Epic: SL-bb6f5b
 | SL-cf082a | 5 items: all sections display, empty fields omitted, manual test passes |
 | SL-3c9872 | 4 items: all flags declared, go build succeeds |
 | SL-5ba439 | 5 items: DoD replace/check/uncheck work, error format correct, manual tests pass |
+| SL-9fe19c | 4 items: ParentID added to Issue and IssueUpdate, go build succeeds |
+| SL-ad72a5 | 5 items: --parent flag on create and update, empty string clears, go build succeeds |
+| SL-d957d8 | 5 items: single parent, self-parent, cycle detection, parent existence, error messages |
+| SL-8e6b12 | 5 items: parent displayed, children computed, ordered by priority/ID, manual test passes |
+| SL-67da87 | 5 items: tree view recursive, tree characters, type/priority displayed, manual test passes |
+| SL-6c6595 | 4 items: --parent instruction added, hierarchy documented, both files updated |
 | SL-fe19e2 | 5 items: all flags in examples, description simplified, all 3 files updated |
 | SL-de1a02 | 3 items: instruction added, references plan.md, all files updated |
 | SL-c141f0 | 6 items: all blocking rules documented, examples added, all files updated |
@@ -160,15 +190,16 @@ Epic: SL-bb6f5b
 
 ### MVP Scope (Recommended)
 
-Implement US1 only for minimum viable functionality:
-- Create issues with all 4 new flags
+Implement US1 + US6 for minimum viable functionality:
+- Create issues with all 5 new flags (AC, DoD, Design, Notes, Parent)
 - Display fields in issue show
+- Parent-child relationships with validation
 
-This enables immediate value: users can create fully-specified issues in one command.
+This enables immediate value: users can create fully-specified issues with hierarchies in one command.
 
 ### Incremental Delivery
 
-1. **MVP (US1)**: CLI create flags + issue show display
+1. **MVP (US1 + US6)**: CLI create flags + parent-child + issue show display
 2. **Iteration 2 (US2)**: DoD update operations
 3. **Iteration 3 (US3+US4)**: Tasks prompt improvements
 4. **Iteration 4 (US5)**: Implement prompt improvements
