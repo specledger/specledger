@@ -611,7 +611,7 @@ func renderSingleSpecGraph(issueList []issues.Issue, store *issues.Store, specCo
 		visited := make(map[string]bool)
 		for _, iss := range component {
 			if !blocked[iss.ID] && len(outgoing[iss.ID]) > 0 {
-				renderGraphNode(iss.ID, issueMap, outgoing, renderer, visited, "")
+				renderGraphNode(iss.ID, issueMap, outgoing, renderer, visited, "", "")
 			}
 		}
 
@@ -630,7 +630,7 @@ func renderSingleSpecGraph(issueList []issues.Issue, store *issues.Store, specCo
 }
 
 // renderGraphNode renders a node and what it blocks recursively with topological ordering
-func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing map[string][]string, renderer *issues.TreeRenderer, visited map[string]bool, prefix string) {
+func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing map[string][]string, renderer *issues.TreeRenderer, visited map[string]bool, prefix string, connector string) {
 	node, exists := issueMap[nodeID]
 	if !exists {
 		return
@@ -638,12 +638,17 @@ func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing 
 
 	// If already visited, don't render again
 	if visited[nodeID] {
+		fmt.Printf("%s%s (see above)\n", prefix, renderer.FormatIssueSimple(*node))
 		return
 	}
 	visited[nodeID] = true
 
-	// Render this node
-	fmt.Printf("%s%s\n", prefix, renderer.FormatIssueSimple(*node))
+	// Render this node (with connector if provided, for child nodes)
+	if connector != "" {
+		fmt.Printf("%s%s %s\n", prefix, connector, renderer.FormatIssueSimple(*node))
+	} else {
+		fmt.Printf("%s%s\n", prefix, renderer.FormatIssueSimple(*node))
+	}
 
 	// Get targets this node blocks
 	targets := outgoing[nodeID]
@@ -665,39 +670,33 @@ func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing 
 		}
 	}
 
+	// Determine prefix for children based on whether this node is last child
+	// (└─> means last child, ├─> means not last, "" means root)
+	var childBasePrefix string
+	if connector == "" {
+		// Root level - add 3 spaces so children are indented
+		childBasePrefix = "   "
+	} else if connector == "└─>" {
+		// Last child - add 6 spaces to align past "└─> " connector
+		childBasePrefix = prefix + "      "
+	} else {
+		// Not last child - add vertical line + spaces to align past "├─> " connector
+		childBasePrefix = prefix + "│     "
+	}
+
 	for i, targetID := range sortedTargets {
 		isLast := i == len(sortedTargets)-1
 
-		// Determine connector and child prefix
-		var connector, childPrefix string
+		// Determine connector for this child
+		var childConnector string
 		if isLast {
-			connector = "└─>"
-			childPrefix = prefix + "   "
+			childConnector = "└─>"
 		} else {
-			connector = "├─>"
-			childPrefix = prefix + "│  "
+			childConnector = "├─>"
 		}
 
-		// Add blank line with vertical connector for non-last children
-		if isLast {
-			fmt.Println()
-		} else {
-			fmt.Printf("%s│\n", prefix)
-		}
-
-		// Check if already visited
-		if visited[targetID] {
-			childNode := issueMap[targetID]
-			fmt.Printf("%s%s %s (see above)\n", prefix, connector, renderer.FormatIssueSimple(*childNode))
-		} else {
-			// Print connector + node on same line
-			childNode := issueMap[targetID]
-			fmt.Printf("%s%s %s\n", prefix, connector, renderer.FormatIssueSimple(*childNode))
-			// Mark as visited before recursing
-			visited[targetID] = true
-			// Recurse for children
-			renderGraphNode(targetID, issueMap, outgoing, renderer, visited, childPrefix)
-		}
+		// Render child with connector on same line
+		renderGraphNode(targetID, issueMap, outgoing, renderer, visited, childBasePrefix, childConnector)
 	}
 }
 
@@ -793,7 +792,7 @@ func renderCrossSpecGraph(issueList []issues.Issue, artifactPath string) error {
 			visited := make(map[string]bool)
 			for _, iss := range component {
 				if !blocked[iss.ID] && len(outgoing[iss.ID]) > 0 {
-					renderGraphNode(iss.ID, issueMap, outgoing, renderer, visited, "")
+					renderGraphNode(iss.ID, issueMap, outgoing, renderer, visited, "", "")
 				}
 			}
 
