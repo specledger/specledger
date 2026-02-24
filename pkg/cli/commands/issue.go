@@ -636,55 +636,57 @@ func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing 
 		return
 	}
 
+	// If already visited, show as back-reference only
+	if visited[nodeID] {
+		fmt.Printf("%s%s (see above)\n", prefix, renderer.FormatIssueSimple(*node))
+		return
+	}
+
+	visited[nodeID] = true
+
 	// Render this node
 	fmt.Printf("%s%s\n", prefix, renderer.FormatIssueSimple(*node))
 
-	// If already visited, don't recurse (prevents cycles)
-	if visited[nodeID] {
-		return
-	}
-	visited[nodeID] = true
-
-	// Render what this node blocks
+	// Get targets this node blocks
 	targets := outgoing[nodeID]
 	if len(targets) == 0 {
 		return
 	}
 
-	// Sort targets by number of outgoing edges (topological heuristic - render sinks first)
+	// Sort targets: sinks (no outgoing) first, then by number of outgoing
 	sortedTargets := make([]string, len(targets))
 	copy(sortedTargets, targets)
 	for i := 0; i < len(sortedTargets)-1; i++ {
 		for j := i + 1; j < len(sortedTargets); j++ {
-			// Nodes with fewer outgoing edges (sinks) come first
-			if len(outgoing[sortedTargets[j]]) < len(outgoing[sortedTargets[i]]) {
+			outI := len(outgoing[sortedTargets[i]])
+			outJ := len(outgoing[sortedTargets[j]])
+			// Sinks first, then fewer outgoing
+			if outJ == 0 && outI > 0 {
 				sortedTargets[i], sortedTargets[j] = sortedTargets[j], sortedTargets[i]
 			}
 		}
 	}
 
-	childPrefix := prefix + "│ "
-	lastPrefix := prefix + "  "
-
 	for i, targetID := range sortedTargets {
 		isLast := i == len(sortedTargets)-1
 
-		var connPrefix string
+		// Determine prefix for child
+		var childPrefix string
 		if isLast {
-			connPrefix = lastPrefix
+			childPrefix = prefix + "  "
 		} else {
-			connPrefix = childPrefix
+			childPrefix = prefix + "│ "
 		}
 
-		if visited[targetID] {
-			// Already visited in another path - show as back-reference
-			target := issueMap[targetID]
-			fmt.Printf("%s└─> %s (see above)\n", connPrefix, renderer.FormatIssueSimple(*target))
-		} else {
-			// Render edge and recurse
-			fmt.Printf("%s↓\n", connPrefix)
-			renderGraphNode(targetID, issueMap, outgoing, renderer, visited, connPrefix)
+		// Print connector
+		connector := "├──"
+		if isLast {
+			connector = "└──"
 		}
+		fmt.Printf("%s%s\n", prefix, connector)
+
+		// Render child node
+		renderGraphNode(targetID, issueMap, outgoing, renderer, visited, childPrefix)
 	}
 }
 
