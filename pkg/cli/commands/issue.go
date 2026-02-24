@@ -37,6 +37,10 @@ var (
 	issueRemoveLabelFlag string
 	issueDryRunFlag      bool
 	issueKeepBeadsFlag   bool
+	issueDoDFlag         []string // Definition of Done items (repeatable)
+	issueCheckDoDFlag    string   // Mark DoD item as checked
+	issueUncheckDoDFlag  string   // Mark DoD item as unchecked
+	issueParentFlag      string   // Parent issue ID
 )
 
 // getArtifactPath loads the artifact_path from specledger.yaml
@@ -229,6 +233,11 @@ func init() {
 	issueCreateCmd.Flags().StringVar(&issueLabelsFlag, "labels", "", "Comma-separated labels")
 	issueCreateCmd.Flags().StringVar(&issueSpecFlag, "spec", "", "Override spec context")
 	issueCreateCmd.Flags().BoolVar(&issueForceFlag, "force", false, "Skip duplicate detection")
+	issueCreateCmd.Flags().StringVar(&issueAcceptFlag, "acceptance-criteria", "", "Acceptance criteria text")
+	issueCreateCmd.Flags().StringArrayVar(&issueDoDFlag, "dod", []string{}, "Definition of Done items (can be repeated)")
+	issueCreateCmd.Flags().StringVar(&issueDesignFlag, "design", "", "Design notes/approach")
+	issueCreateCmd.Flags().StringVar(&issueNotesFlag, "notes", "", "Implementation notes")
+	issueCreateCmd.Flags().StringVar(&issueParentFlag, "parent", "", "Parent issue ID")
 	if err := issueCreateCmd.MarkFlagRequired("title"); err != nil {
 		panic(fmt.Sprintf("failed to mark title flag as required: %v", err))
 	}
@@ -259,6 +268,10 @@ func init() {
 	issueUpdateCmd.Flags().StringVar(&issueAcceptFlag, "acceptance-criteria", "", "Update acceptance criteria")
 	issueUpdateCmd.Flags().StringVar(&issueAddLabelFlag, "add-label", "", "Add a label")
 	issueUpdateCmd.Flags().StringVar(&issueRemoveLabelFlag, "remove-label", "", "Remove a label")
+	issueUpdateCmd.Flags().StringArrayVar(&issueDoDFlag, "dod", []string{}, "Replace Definition of Done items (can be repeated)")
+	issueUpdateCmd.Flags().StringVar(&issueCheckDoDFlag, "check-dod", "", "Mark DoD item as checked (exact match)")
+	issueUpdateCmd.Flags().StringVar(&issueUncheckDoDFlag, "uncheck-dod", "", "Mark DoD item as unchecked (exact match)")
+	issueUpdateCmd.Flags().StringVar(&issueParentFlag, "parent", "", "Set parent issue ID (empty string to clear)")
 
 	// Close command flags
 	issueCloseCmd.Flags().StringVar(&issueReasonFlag, "reason", "", "Close reason")
@@ -299,6 +312,30 @@ func runIssueCreate(cmd *cobra.Command, args []string) error {
 		for i, l := range issue.Labels {
 			issue.Labels[i] = strings.TrimSpace(l)
 		}
+	}
+
+	// Add structured fields from flags
+	if issueAcceptFlag != "" {
+		issue.AcceptanceCriteria = issueAcceptFlag
+	}
+	if len(issueDoDFlag) > 0 {
+		items := make([]issues.ChecklistItem, len(issueDoDFlag))
+		for i, item := range issueDoDFlag {
+			items[i] = issues.ChecklistItem{
+				Item:    item,
+				Checked: false,
+			}
+		}
+		issue.DefinitionOfDone = &issues.DefinitionOfDone{Items: items}
+	}
+	if issueDesignFlag != "" {
+		issue.Design = issueDesignFlag
+	}
+	if issueNotesFlag != "" {
+		issue.Notes = issueNotesFlag
+	}
+	if issueParentFlag != "" {
+		issue.ParentID = &issueParentFlag
 	}
 
 	// Create store and save
@@ -798,11 +835,48 @@ func runIssueShow(cmd *cobra.Command, args []string) error {
 		fmt.Println()
 	}
 	fmt.Printf("  Spec: %s\n", issue.SpecContext)
+	if issue.ParentID != nil && *issue.ParentID != "" {
+		fmt.Printf("  Parent: %s\n", *issue.ParentID)
+	}
 	fmt.Println()
 
 	if issue.Description != "" {
 		fmt.Println("Description:")
 		fmt.Printf("  %s\n", strings.ReplaceAll(issue.Description, "\n", "\n  "))
+		fmt.Println()
+	}
+
+	if issue.AcceptanceCriteria != "" {
+		fmt.Println("Acceptance Criteria:")
+		fmt.Printf("  %s\n", strings.ReplaceAll(issue.AcceptanceCriteria, "\n", "\n  "))
+		fmt.Println()
+	}
+
+	if issue.Design != "" {
+		fmt.Println("Design:")
+		fmt.Printf("  %s\n", strings.ReplaceAll(issue.Design, "\n", "\n  "))
+		fmt.Println()
+	}
+
+	if issue.DefinitionOfDone != nil && len(issue.DefinitionOfDone.Items) > 0 {
+		fmt.Println("Definition of Done:")
+		for _, item := range issue.DefinitionOfDone.Items {
+			if item.Checked {
+				if item.VerifiedAt != nil {
+					fmt.Printf("  [x] %s (verified: %s)\n", item.Item, item.VerifiedAt.Format("2006-01-02 15:04:05"))
+				} else {
+					fmt.Printf("  [x] %s\n", item.Item)
+				}
+			} else {
+				fmt.Printf("  [ ] %s\n", item.Item)
+			}
+		}
+		fmt.Println()
+	}
+
+	if issue.Notes != "" {
+		fmt.Println("Notes:")
+		fmt.Printf("  %s\n", strings.ReplaceAll(issue.Notes, "\n", "\n  "))
 		fmt.Println()
 	}
 
@@ -814,6 +888,16 @@ func runIssueShow(cmd *cobra.Command, args []string) error {
 		fmt.Println()
 	}
 
+	// Get and display children
+	children, err := store.GetChildren(issue.ID)
+	if err == nil && len(children) > 0 {
+		fmt.Println("Children:")
+		for _, child := range children {
+			fmt.Printf("  - %s (%s) [P%d]\n", child.ID, child.IssueType, child.Priority)
+		}
+		fmt.Println()
+	}
+
 	fmt.Printf("Created: %s\n", issue.CreatedAt.Format("2006-01-02 15:04:05"))
 	fmt.Printf("Updated: %s\n", issue.UpdatedAt.Format("2006-01-02 15:04:05"))
 
@@ -821,22 +905,10 @@ func runIssueShow(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Closed: %s\n", issue.ClosedAt.Format("2006-01-02 15:04:05"))
 	}
 
-	if issue.DefinitionOfDone != nil && len(issue.DefinitionOfDone.Items) > 0 {
-		fmt.Println()
-		fmt.Println("Definition of Done:")
-		for _, item := range issue.DefinitionOfDone.Items {
-			if item.Checked {
-				fmt.Printf("  [x] %s\n", item.Item)
-			} else {
-				fmt.Printf("  [ ] %s\n", item.Item)
-			}
-		}
-	}
-
 	return nil
 }
 
-// renderIssueShowTree renders a centered tree showing what an issue blocks and what blocks it
+// renderIssueShowTree renders a tree showing parent-child hierarchy and blocking relationships
 func renderIssueShowTree(store *issues.Store, issue *issues.Issue) error {
 	tree, err := store.GetDependencyTree(issue.ID)
 	if err != nil {
@@ -844,6 +916,18 @@ func renderIssueShowTree(store *issues.Store, issue *issues.Issue) error {
 	}
 
 	renderer := issues.NewTreeRenderer(issues.DefaultTreeRenderOptions())
+
+	// Show parent hierarchy (if any)
+	if issue.ParentID != nil && *issue.ParentID != "" {
+		fmt.Println("Parent:")
+		parent, err := store.Get(*issue.ParentID)
+		if err == nil {
+			fmt.Printf("└── %s (%s) [P%d]\n", parent.ID, parent.IssueType, parent.Priority)
+		} else {
+			fmt.Printf("└── %s (not found)\n", *issue.ParentID)
+		}
+		fmt.Println()
+	}
 
 	// Show what blocks this issue
 	if len(tree.BlockedBy) > 0 {
@@ -860,8 +944,19 @@ func renderIssueShowTree(store *issues.Store, issue *issues.Issue) error {
 	}
 
 	// Show the issue itself (centered)
-	fmt.Printf("%s\n", renderer.FormatIssueSimple(*issue))
+	fmt.Printf("%s (%s) [P%d]\n", issue.ID, issue.IssueType, issue.Priority)
 	fmt.Println()
+
+	// Show children recursively (parent-child hierarchy)
+	children, err := store.GetChildren(issue.ID)
+	if err == nil && len(children) > 0 {
+		fmt.Println("Children:")
+		for i, child := range children {
+			isLast := i == len(children)-1
+			renderChildTree(store, child, "", isLast)
+		}
+		fmt.Println()
+	}
 
 	// Show what this issue blocks
 	if len(tree.Blocks) > 0 {
@@ -876,12 +971,44 @@ func renderIssueShowTree(store *issues.Store, issue *issues.Issue) error {
 		}
 	}
 
-	// No dependencies
-	if len(tree.BlockedBy) == 0 && len(tree.Blocks) == 0 {
-		fmt.Println("(No dependencies)")
+	// No dependencies or children
+	if len(tree.BlockedBy) == 0 && len(tree.Blocks) == 0 && len(children) == 0 && issue.ParentID == nil {
+		fmt.Println("(No dependencies or hierarchy)")
 	}
 
 	return nil
+}
+
+// renderChildTree recursively renders children with proper tree characters
+func renderChildTree(store *issues.Store, issue issues.Issue, prefix string, isLast bool) {
+	// Determine the connector for this item
+	connector := "├── "
+	if isLast {
+		connector = "└── "
+	}
+
+	// Print this item
+	fmt.Printf("%s%s%s (%s) [P%d]\n", prefix, connector, issue.ID, issue.IssueType, issue.Priority)
+
+	// Get children of this issue
+	children, err := store.GetChildren(issue.ID)
+	if err != nil || len(children) == 0 {
+		return
+	}
+
+	// Determine the prefix for children
+	childPrefix := prefix
+	if isLast {
+		childPrefix += "    "
+	} else {
+		childPrefix += "│   "
+	}
+
+	// Render children
+	for i, child := range children {
+		childIsLast := i == len(children)-1
+		renderChildTree(store, child, childPrefix, childIsLast)
+	}
 }
 
 func runIssueUpdate(cmd *cobra.Command, args []string) error {
@@ -942,6 +1069,34 @@ func runIssueUpdate(cmd *cobra.Command, args []string) error {
 	}
 	if issueRemoveLabelFlag != "" {
 		update.RemoveLabels = []string{issueRemoveLabelFlag}
+	}
+
+	// Handle DoD operations
+	if cmd.Flags().Changed("dod") {
+		items := make([]issues.ChecklistItem, len(issueDoDFlag))
+		for i, item := range issueDoDFlag {
+			items[i] = issues.ChecklistItem{
+				Item:    item,
+				Checked: false,
+			}
+		}
+		update.DefinitionOfDone = &issues.DefinitionOfDone{Items: items}
+	}
+	if issueCheckDoDFlag != "" {
+		update.CheckDoDItem = issueCheckDoDFlag
+	}
+	if issueUncheckDoDFlag != "" {
+		update.UncheckDoDItem = issueUncheckDoDFlag
+	}
+
+	// Handle parent update
+	if cmd.Flags().Changed("parent") {
+		if issueParentFlag == "" {
+			// Clear parent
+			update.ParentID = &issueParentFlag // empty string clears parent
+		} else {
+			update.ParentID = &issueParentFlag
+		}
 	}
 
 	issue, err := store.Update(issueID, update)

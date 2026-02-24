@@ -80,14 +80,14 @@ Generate actionable, dependency-ordered tasks from the implementation plan. Task
       - Labels:
          - `phase:<phase-name>` (e.g. `phase:setup`, `phase:us1`, `phase:foundational`)
          - All carry the `spec:<feature-slug>` label
+      - **For feature-type issues**: Extract technical approach from plan.md and set `--design` flag
       - For each task, create with `--type task`
-      - Tasks must include all content in the `--description` field (there is no separate design/acceptance/dod flag):
+      - Tasks use dedicated flags for structured content:
          - `--title` (short summary, under 80 characters)
-         - `--description` Multi-line text containing:
-           - WHY: Problem statement (what to implement, where, inputs/outputs)
-           - DESIGN: HOW to build, which files, references (can change during work)
-           - ACCEPTANCE: WHAT success looks like (stable criteria)
-           - DEFINITION OF DONE: Checklist items [ ] derived from acceptance criteria
+         - `--description` Brief problem statement (WHY)
+         - `--design` Technical approach, file paths, references (extracted from plan.md)
+         - `--acceptance-criteria` WHAT success looks like (stable criteria)
+         - `--dod` Definition of Done items (can be repeated for each item)
          - `--priority` (from story priority, 0=critical, 1=high, 2=normal, 3=low)
          - Labels:
             - `story:US1`, `story:US2`, etc. (mapped from spec.md)
@@ -168,6 +168,41 @@ The tasks.md should be immediately executable - each task must be specific enoug
    - Final Phase: Polish & Cross-Cutting Concerns
    - **DO NOT generate a linear checklist** — build a **task graph** using dependencies
    - Each user story phase should be a complete, independently testable increment
+
+6. **Blocking Relationship Rules**:
+
+   Use `sl issue link <blocker> blocks <blocked>` to create dependencies.
+
+   **Within User Stories** (vertical chain):
+   - Models BLOCK Services (services depend on data structures)
+   - Services BLOCK Endpoints (endpoints depend on business logic)
+   - Endpoints BLOCK UI Components (UI depends on API)
+
+   **Between Phases**:
+   - Setup phase BLOCKS all implementation phases
+   - Foundational phase BLOCKS all user story phases
+   - User story phases at same priority level do NOT block each other (parallel)
+   - Polish phase blocked by ALL implementation phases
+
+   **Parallelizable Tasks** (no blocking needed):
+   - Tasks affecting different files with no shared data
+   - Independent UI components
+   - Separate endpoint implementations
+   - Documentation tasks
+
+   **Correct Pattern Example**:
+   ```
+   Setup → Foundational → US1 (feature)
+                         ├─→ Model Task → Service Task → Endpoint Task
+                         └─→ UI Task (blocked by Endpoint Task)
+           └─→ US2 (feature) [parallel to US1]
+              └─→ Model Task → Service Task
+   ```
+
+   **Incorrect Pattern** (avoid):
+   - ❌ Blocking tasks within same phase that modify different files
+   - ❌ Feature issues blocking their own task issues
+   - ❌ Circular dependencies (A blocks B, B blocks A)
 
 ## Issue Content Structure
 
@@ -252,16 +287,7 @@ sl issue create --title "Setup Phase" --description "Initialize project structur
 ### Task
 
 ```bash
-sl issue create --title "Add React LoginForm" --description "WHY: Users need to authenticate via the login form.
-
-DESIGN: Files: src/components/LoginForm.tsx, src/hooks/useAuth.ts. Use React Hook Form for validation.
-
-ACCEPTANCE: User can enter credentials, form validates input, submits to auth API.
-
-DEFINITION OF DONE:
-[ ] LoginForm component created
-[ ] Form validation working
-[ ] Auth API integration complete" --type task --labels "spec:006-login-auth,story:US1,component:webapp" --priority 2
+sl issue create --title "Add React LoginForm" --description "Users need to authenticate via the login form" --type task --parent SL-yyyyyy --acceptance-criteria "User can enter credentials, form validates input, submits to auth API" --design "Files: src/components/LoginForm.tsx, src/hooks/useAuth.ts. Use React Hook Form for validation" --dod "LoginForm component created" --dod "Form validation working" --dod "Auth API integration complete" --labels "spec:006-login-auth,story:US1,component:webapp" --priority 2
 ```
 
 ### Add Dependencies
@@ -270,16 +296,19 @@ DEFINITION OF DONE:
 sl issue link SL-xxxxx blocks SL-yyyyy
 ```
 
-**IMPORTANT**: The `sl issue create` command only supports these flags:
+**IMPORTANT**: The `sl issue create` command supports these flags:
 - `--title` (required)
-- `--description` (optional, but include all WHY/DESIGN/ACCEPTANCE/DoD content here)
+- `--description` (optional, brief problem statement)
 - `--type` (epic, feature, task, bug)
 - `--labels` (comma-separated)
 - `--priority` (0-5)
 - `--spec` (override spec context)
+- `--parent` (parent issue ID for hierarchy)
+- `--acceptance-criteria` (acceptance criteria text)
+- `--design` (design notes/approach)
+- `--dod` (definition of done item, can be repeated)
+- `--notes` (implementation notes)
 - `--force` (skip duplicate detection)
-
-There are NO separate `--design`, `--acceptance`, or `--definition_of_done` flags.
 
 ## Error Handling
 

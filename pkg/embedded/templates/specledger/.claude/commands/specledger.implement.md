@@ -112,6 +112,11 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **File-based coordination**: Tasks affecting the same files must run sequentially
    - **Validation checkpoints**: Verify each phase completion before proceeding
+   - **Read issue fields before implementation**:
+     - Use `sl issue show <id>` to retrieve the issue's details
+     - Read the `design` field for technical approach and file references
+     - Read the `acceptance_criteria` field for requirements and success criteria
+     - Use these fields to guide implementation decisions
 
 8. Implementation execution rules:
    - **Setup first**: Initialize project structure, dependencies, configuration
@@ -119,6 +124,9 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
    - **Core development**: Implement models, services, CLI commands, endpoints
    - **Integration work**: Database connections, middleware, logging, external services
    - **Polish and validation**: Unit tests, performance optimization, documentation
+   - **Verify against acceptance criteria**: Before marking task complete, verify implementation satisfies all acceptance_criteria
+   - **Check off DoD items progressively**: As subtasks complete, use `sl issue update <id> --check-dod "Item text"` to mark relevant DoD items as verified
+   - **Only close after all DoD items checked**: Ensure all Definition of Done items are marked complete before closing an issue
 
 9. Progress tracking and error handling:
    - Find open tasks using: `sl issue list --status open`

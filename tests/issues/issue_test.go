@@ -322,3 +322,172 @@ func TestDefinitionOfDone_GetUncheckedItems(t *testing.T) {
 		t.Errorf("GetUncheckedItems()[0] = %v, want 'Code review'", unchecked[0])
 	}
 }
+
+func TestDefinitionOfDone_UncheckItem(t *testing.T) {
+	now := time.Now()
+	dod := &issues.DefinitionOfDone{
+		Items: []issues.ChecklistItem{
+			{Item: "Write tests", Checked: true, VerifiedAt: &now},
+			{Item: "Code review", Checked: false},
+		},
+	}
+
+	// Uncheck first item
+	result := dod.UncheckItem("Write tests")
+	if !result {
+		t.Error("UncheckItem() should return true when item exists")
+	}
+	if dod.Items[0].Checked {
+		t.Error("UncheckItem() should set Checked to false")
+	}
+	if dod.Items[0].VerifiedAt != nil {
+		t.Error("UncheckItem() should clear VerifiedAt")
+	}
+
+	// Uncheck non-existent item
+	result = dod.UncheckItem("Non-existent")
+	if result {
+		t.Error("UncheckItem() should return false when item doesn't exist")
+	}
+}
+
+func TestDefinitionOfDone_ExactTextMatching(t *testing.T) {
+	dod := &issues.DefinitionOfDone{
+		Items: []issues.ChecklistItem{
+			{Item: "Write tests", Checked: false},
+			{Item: "  Code review  ", Checked: false}, // with whitespace
+		},
+	}
+
+	// Exact match should work
+	result := dod.CheckItem("Write tests")
+	if !result {
+		t.Error("CheckItem() should return true for exact match")
+	}
+
+	// Case-sensitive - should not match
+	result = dod.CheckItem("write tests")
+	if result {
+		t.Error("CheckItem() should be case-sensitive and return false for different case")
+	}
+
+	// Whitespace is preserved - should match exactly
+	result = dod.CheckItem("  Code review  ")
+	if !result {
+		t.Error("CheckItem() should match item with whitespace exactly")
+	}
+
+	// No whitespace normalization - should not match
+	result = dod.CheckItem("Code review")
+	if result {
+		t.Error("CheckItem() should not normalize whitespace")
+	}
+}
+
+func TestIssue_NewFields(t *testing.T) {
+	parentID := "SL-parent"
+	issue := &issues.Issue{
+		ID:                "SL-a3f5d8",
+		Title:             "Add validation",
+		Status:            issues.StatusOpen,
+		Priority:          1,
+		IssueType:         issues.TypeTask,
+		SpecContext:       "010-my-feature",
+		AcceptanceCriteria: "User can validate input",
+		Design:            "Use regex for validation",
+		Notes:             "Consider edge cases",
+		ParentID:          &parentID,
+		CreatedAt:         time.Now(),
+		UpdatedAt:         time.Now(),
+	}
+
+	// Validate the issue with new fields
+	err := issue.Validate()
+	if err != nil {
+		t.Errorf("Issue with new fields should validate: %v", err)
+	}
+
+	if issue.AcceptanceCriteria != "User can validate input" {
+		t.Errorf("AcceptanceCriteria not set correctly")
+	}
+	if issue.Design != "Use regex for validation" {
+		t.Errorf("Design not set correctly")
+	}
+	if issue.Notes != "Consider edge cases" {
+		t.Errorf("Notes not set correctly")
+	}
+	if issue.ParentID == nil || *issue.ParentID != "SL-parent" {
+		t.Errorf("ParentID not set correctly")
+	}
+}
+
+func TestIssue_ParentIDNil(t *testing.T) {
+	issue := &issues.Issue{
+		ID:          "SL-a3f5d8",
+		Title:       "Add validation",
+		Status:      issues.StatusOpen,
+		Priority:    1,
+		IssueType:   issues.TypeTask,
+		SpecContext: "010-my-feature",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+		ParentID:    nil, // No parent
+	}
+
+	if issue.ParentID != nil {
+		t.Error("ParentID should be nil when not set")
+	}
+}
+
+func TestIssueUpdate_ParentID(t *testing.T) {
+	parentID := "SL-parent"
+
+	// Test setting parent
+	update := &issues.IssueUpdate{
+		ParentID: &parentID,
+	}
+	if update.ParentID == nil || *update.ParentID != "SL-parent" {
+		t.Error("IssueUpdate ParentID not set correctly")
+	}
+
+	// Test clearing parent (empty string)
+	emptyParent := ""
+	update.ParentID = &emptyParent
+	if update.ParentID == nil || *update.ParentID != "" {
+		t.Error("IssueUpdate ParentID should be clearable with empty string")
+	}
+}
+
+func TestIssueUpdate_DoDFields(t *testing.T) {
+	// Test DoD replacement
+	dod := &issues.DefinitionOfDone{
+		Items: []issues.ChecklistItem{
+			{Item: "New item 1", Checked: false},
+			{Item: "New item 2", Checked: false},
+		},
+	}
+	update := &issues.IssueUpdate{
+		DefinitionOfDone: dod,
+	}
+	if update.DefinitionOfDone == nil || len(update.DefinitionOfDone.Items) != 2 {
+		t.Error("IssueUpdate DefinitionOfDone not set correctly")
+	}
+
+	// Test check DoD item
+	checkItem := "Write tests"
+	updateCheck := &issues.IssueUpdate{
+		CheckDoDItem: checkItem,
+	}
+	if updateCheck.CheckDoDItem != "Write tests" {
+		t.Error("IssueUpdate CheckDoDItem not set correctly")
+	}
+
+	// Test uncheck DoD item
+	uncheckItem := "Code review"
+	updateUncheck := &issues.IssueUpdate{
+		UncheckDoDItem: uncheckItem,
+	}
+	if updateUncheck.UncheckDoDItem != "Code review" {
+		t.Error("IssueUpdate UncheckDoDItem not set correctly")
+	}
+}
