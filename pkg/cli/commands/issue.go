@@ -636,14 +636,14 @@ func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing 
 		return
 	}
 
-	// Render this node
-	fmt.Printf("%s%s\n", prefix, renderer.FormatIssueSimple(*node))
-
-	// If already visited, don't recurse
+	// If already visited, don't render again
 	if visited[nodeID] {
 		return
 	}
 	visited[nodeID] = true
+
+	// Render this node
+	fmt.Printf("%s%s\n", prefix, renderer.FormatIssueSimple(*node))
 
 	// Get targets this node blocks
 	targets := outgoing[nodeID]
@@ -681,12 +681,16 @@ func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing 
 		// Add blank line before each child
 		fmt.Println()
 
-		// Print connector + node on same line
-		childNode := issueMap[targetID]
+		// Check if already visited
 		if visited[targetID] {
+			childNode := issueMap[targetID]
 			fmt.Printf("%s%s %s (see above)\n", prefix, connector, renderer.FormatIssueSimple(*childNode))
 		} else {
+			// Print connector + node on same line
+			childNode := issueMap[targetID]
 			fmt.Printf("%s%s %s\n", prefix, connector, renderer.FormatIssueSimple(*childNode))
+			// Mark as visited before recursing
+			visited[targetID] = true
 			// Recurse for children
 			renderGraphNode(targetID, issueMap, outgoing, renderer, visited, childPrefix)
 		}
