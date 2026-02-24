@@ -638,7 +638,7 @@ func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing 
 
 	// If already visited, show as back-reference only
 	if visited[nodeID] {
-		fmt.Printf("%s%s (see above)\n", prefix, renderer.FormatIssueSimple(*node))
+		fmt.Printf("%s  (see above)\n", prefix)
 		return
 	}
 
@@ -670,23 +670,25 @@ func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing 
 	for i, targetID := range sortedTargets {
 		isLast := i == len(sortedTargets)-1
 
-		// Determine prefix for child
-		var childPrefix string
+		// Determine connector and child prefix
+		var connector, childPrefix string
 		if isLast {
-			childPrefix = prefix + "  "
+			connector = "└─>"
+			childPrefix = prefix + "   "
 		} else {
-			childPrefix = prefix + "│ "
+			connector = "├─>"
+			childPrefix = prefix + "│  "
 		}
 
-		// Print connector
-		connector := "├──"
-		if isLast {
-			connector = "└──"
+		// Check if already visited
+		if visited[targetID] {
+			childNode := issueMap[targetID]
+			fmt.Printf("%s%s %s (see above)\n", prefix, connector, renderer.FormatIssueSimple(*childNode))
+		} else {
+			// Print connector line, then render child
+			fmt.Printf("%s%s\n", prefix, connector)
+			renderGraphNode(targetID, issueMap, outgoing, renderer, visited, childPrefix)
 		}
-		fmt.Printf("%s%s\n", prefix, connector)
-
-		// Render child node
-		renderGraphNode(targetID, issueMap, outgoing, renderer, visited, childPrefix)
 	}
 }
 
