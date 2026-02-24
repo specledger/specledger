@@ -678,6 +678,9 @@ func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing 
 			childPrefix = prefix + "│  "
 		}
 
+		// Add blank line before each child
+		fmt.Println()
+
 		// Print connector + node on same line
 		childNode := issueMap[targetID]
 		if visited[targetID] {
