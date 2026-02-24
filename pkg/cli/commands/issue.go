@@ -519,61 +519,73 @@ func renderDependencyGraph(issueList []issues.Issue, specContext string, allFlag
 	return renderSingleSpecGraph(issueList, store, specContext)
 }
 
-// renderSingleSpecGraph renders blocking dependencies for a single spec
+// renderSingleSpecGraph renders blocking dependencies as a graph
 func renderSingleSpecGraph(issueList []issues.Issue, store *issues.Store, specContext string) error {
-	// Find root issues (issues not blocked by anything in this list)
+	// Build issue map
 	issueMap := make(map[string]*issues.Issue)
-	blocked := make(map[string]bool)
-
 	for i := range issueList {
 		issueMap[issueList[i].ID] = &issueList[i]
 	}
 
-	// Mark issues that are blocked by others in the list
-	for _, issue := range issueList {
-		for _, blockerID := range issue.BlockedBy {
-			if _, exists := issueMap[blockerID]; exists {
-				blocked[issue.ID] = true
-			}
-		}
-	}
-
-	// Build dependency trees from root issues
-	var trees []*issues.DependencyTree
-	for _, issue := range issueList {
-		if !blocked[issue.ID] {
-			// This is a root issue - get its full dependency tree
-			tree, err := store.GetDependencyTree(issue.ID)
-			if err != nil {
-				// If tree fails, create a simple node
-				tree = &issues.DependencyTree{Issue: issue}
-			}
-			trees = append(trees, tree)
-		}
-	}
-
-	// Check for cycles
-	cycles := issues.DetectCycles(trees)
-
-	// Create renderer
-	renderer := issues.NewTreeRenderer(issues.DefaultTreeRenderOptions())
+	// Find connected components (disjoint subgraphs)
+	components := findConnectedComponents(issueList, issueMap)
 
 	// Output
-	var output strings.Builder
+	fmt.Printf("%s (dependency graph)\n", specContext)
+	fmt.Println()
 
-	// Show cycle warning if needed
-	if len(cycles) > 0 {
-		output.WriteString(issues.FormatCycleWarning(cycles))
+	if len(components) == 0 {
+		fmt.Println("No dependencies found.")
+		return nil
 	}
 
-	// Render graph (using Blocks for dependency graph)
-	output.WriteString(renderer.RenderWithRoot(specContext+" (dependency graph)", trees, len(issueList)))
+	// Check if graph is disjoint
+	if len(components) > 1 {
+		fmt.Printf("┌─ Disjoint Graph (%d components) ─┐\n", len(components))
+		fmt.Println()
+	}
 
-	fmt.Print(output.String())
+	renderer := issues.NewTreeRenderer(issues.DefaultTreeRenderOptions())
+
+	for i, component := range components {
+		if len(components) > 1 {
+			fmt.Printf("┌─ Component %d (%d issues) ─┐\n", i+1, len(component))
+		}
+
+		// Render edges for this component
+		renderGraphEdges(component, issueMap, renderer)
+
+		if len(components) > 1 {
+			fmt.Println()
+		}
+	}
+
+	// Show isolated nodes (no edges)
+	edges := collectAllEdges(issueList, issueMap)
+	nodesWithEdges := make(map[string]bool)
+	for _, edge := range edges {
+		nodesWithEdges[edge.from] = true
+		nodesWithEdges[edge.to] = true
+	}
+
+	var isolatedNodes []issues.Issue
+	for _, issue := range issueList {
+		if !nodesWithEdges[issue.ID] {
+			isolatedNodes = append(isolatedNodes, issue)
+		}
+	}
+
+	if len(isolatedNodes) > 0 {
+		fmt.Printf("┌─ Isolated Nodes (%d) ─┐\n", len(isolatedNodes))
+		for _, node := range isolatedNodes {
+			fmt.Printf("  %s\n", renderer.FormatIssueSimple(node))
+		}
+	}
+
 	return nil
 }
 
-// renderCrossSpecGraph renders blocking dependencies across all specs
+// renderCrossSpecGraph renders blocking dependencies across all specs as a graph
 func renderCrossSpecGraph(issueList []issues.Issue, artifactPath string) error {
 	// Group issues by spec
 	specIssues := make(map[string][]issues.Issue)
@@ -581,123 +593,231 @@ func renderCrossSpecGraph(issueList []issues.Issue, artifactPath string) error {
 		specIssues[issue.SpecContext] = append(specIssues[issue.SpecContext], issue)
 	}
 
-	// Create renderer
-	opts := issues.DefaultTreeRenderOptions()
-	opts.ShowSpec = false
-	renderer := issues.NewTreeRenderer(opts)
-
 	// Sort specs for consistent output
 	specNames := make([]string, 0, len(specIssues))
 	for spec := range specIssues {
 		specNames = append(specNames, spec)
 	}
 
-	// Output
 	fmt.Println("All Specs (dependency graph)")
+	fmt.Println()
 
-	for specIdx, spec := range specNames {
+	renderer := issues.NewTreeRenderer(issues.DefaultTreeRenderOptions())
+
+	for _, spec := range specNames {
 		issuesInSpec := specIssues[spec]
-		isLastSpec := specIdx == len(specNames)-1
-
-		// Spec header
-		var specPrefix string
-		if isLastSpec {
-			specPrefix = "└── "
-		} else {
-			specPrefix = "├── "
-		}
-		fmt.Printf("%s%s (%d issues)\n", specPrefix, spec, len(issuesInSpec))
-
-		// Build dependency trees for this spec
 		issueMap := make(map[string]*issues.Issue)
-		blocked := make(map[string]bool)
-
 		for i := range issuesInSpec {
 			issueMap[issuesInSpec[i].ID] = &issuesInSpec[i]
 		}
 
+		// Find connected components
+		components := findConnectedComponents(issuesInSpec, issueMap)
+
+		fmt.Printf("┌─ %s (%d issues", spec, len(issuesInSpec))
+		if len(components) > 1 {
+			fmt.Printf(", %d components", len(components))
+		}
+		fmt.Println(") ─┐")
+
+		for _, component := range components {
+			renderGraphEdges(component, issueMap, renderer)
+		}
+
+		// Show isolated nodes
+		edges := collectAllEdges(issuesInSpec, issueMap)
+		nodesWithEdges := make(map[string]bool)
+		for _, edge := range edges {
+			nodesWithEdges[edge.from] = true
+			nodesWithEdges[edge.to] = true
+		}
+
+		var isolatedNodes []issues.Issue
 		for _, issue := range issuesInSpec {
-			for _, blockerID := range issue.BlockedBy {
-				if _, exists := issueMap[blockerID]; exists {
-					blocked[issue.ID] = true
-				}
+			if !nodesWithEdges[issue.ID] {
+				isolatedNodes = append(isolatedNodes, issue)
 			}
 		}
 
-		// Build trees from root issues
-		childPrefix := "    "
-		if !isLastSpec {
-			childPrefix = "│   "
+		if len(isolatedNodes) > 0 {
+			fmt.Printf("  └─ %d isolated nodes\n", len(isolatedNodes))
 		}
 
-		for issueIdx, issue := range issuesInSpec {
-			if !blocked[issue.ID] {
-				// Render this root issue and its blocked issues
-				isLastIssue := true
-				// Check if there are more root issues after this one
-				for j := issueIdx + 1; j < len(issuesInSpec); j++ {
-					if !blocked[issuesInSpec[j].ID] {
-						isLastIssue = false
-						break
-					}
-				}
-				treeOutput := renderDependencyTreeWithPrefix(renderer, issue, issueMap, childPrefix, isLastIssue, make(map[string]bool))
-				fmt.Print(treeOutput)
-			}
-		}
+		fmt.Println()
 	}
 
 	return nil
 }
 
-// renderDependencyTreeWithPrefix renders a dependency tree with prefix
-func renderDependencyTreeWithPrefix(renderer *issues.TreeRenderer, issue issues.Issue, issueMap map[string]*issues.Issue, prefix string, isLast bool, visited map[string]bool) string {
-	if visited[issue.ID] {
-		return ""
-	}
-	visited[issue.ID] = true
+// edge represents a dependency edge
+type edge struct {
+	from string
+	to   string
+}
 
-	var sb strings.Builder
+// collectAllEdges collects all edges from the issue list
+func collectAllEdges(issueList []issues.Issue, issueMap map[string]*issues.Issue) []edge {
+	var edges []edge
+	seen := make(map[string]bool)
 
-	// Render current node
-	if isLast {
-		sb.WriteString(prefix + "└── ")
-	} else {
-		sb.WriteString(prefix + "├── ")
-	}
-	sb.WriteString(renderer.FormatIssueSimple(issue))
-	sb.WriteString("\n")
-
-	// Find issues that this issue blocks
-	var blockedByThis []issues.Issue
-	for id, other := range issueMap {
-		if id == issue.ID {
-			continue
-		}
-		for _, blockerID := range other.BlockedBy {
-			if blockerID == issue.ID {
-				blockedByThis = append(blockedByThis, *other)
-				break
+	for _, issue := range issueList {
+		for _, blockerID := range issue.BlockedBy {
+			if _, exists := issueMap[blockerID]; exists {
+				key := blockerID + "->" + issue.ID
+				if !seen[key] {
+					edges = append(edges, edge{from: blockerID, to: issue.ID})
+					seen[key] = true
+				}
 			}
 		}
 	}
 
-	// Render blocked issues
-	if len(blockedByThis) > 0 {
-		var childPrefix string
-		if isLast {
-			childPrefix = prefix + "    "
-		} else {
-			childPrefix = prefix + "│   "
-		}
+	return edges
+}
 
-		for i, blocked := range blockedByThis {
-			childIsLast := i == len(blockedByThis)-1
-			sb.WriteString(renderDependencyTreeWithPrefix(renderer, blocked, issueMap, childPrefix, childIsLast, visited))
+// findConnectedComponents finds all connected components in the dependency graph
+func findConnectedComponents(issueList []issues.Issue, issueMap map[string]*issues.Issue) [][]issues.Issue {
+	// Build adjacency list (undirected for connected components)
+	adj := make(map[string]map[string]bool)
+	for _, issue := range issueList {
+		adj[issue.ID] = make(map[string]bool)
+	}
+
+	for _, issue := range issueList {
+		for _, blockerID := range issue.BlockedBy {
+			if _, exists := issueMap[blockerID]; exists {
+				adj[issue.ID][blockerID] = true
+				adj[blockerID][issue.ID] = true
+			}
+		}
+		for _, blocksID := range issue.Blocks {
+			if _, exists := issueMap[blocksID]; exists {
+				adj[issue.ID][blocksID] = true
+				adj[blocksID][issue.ID] = true
+			}
 		}
 	}
 
-	return sb.String()
+	// Find connected components using BFS
+	visited := make(map[string]bool)
+	var components [][]issues.Issue
+
+	for _, issue := range issueList {
+		if visited[issue.ID] {
+			continue
+		}
+
+		// BFS to find all nodes in this component
+		var component []issues.Issue
+		queue := []string{issue.ID}
+		visited[issue.ID] = true
+
+		for len(queue) > 0 {
+			current := queue[0]
+			queue = queue[1:]
+
+			if iss, exists := issueMap[current]; exists {
+				component = append(component, *iss)
+			}
+
+			for neighbor := range adj[current] {
+				if !visited[neighbor] {
+					visited[neighbor] = true
+					queue = append(queue, neighbor)
+				}
+			}
+		}
+
+		// Only include components with edges
+		if len(component) > 1 {
+			components = append(components, component)
+		}
+	}
+
+	return components
+}
+
+// renderGraphEdges renders edges in a graph format
+func renderGraphEdges(component []issues.Issue, issueMap map[string]*issues.Issue, renderer *issues.TreeRenderer) {
+	// Build edge list for this component
+	var edges []edge
+	seen := make(map[string]bool)
+
+	for _, issue := range component {
+		for _, blockerID := range issue.BlockedBy {
+			if _, exists := issueMap[blockerID]; exists {
+				key := blockerID + "->" + issue.ID
+				if !seen[key] {
+					edges = append(edges, edge{from: blockerID, to: issue.ID})
+					seen[key] = true
+				}
+			}
+		}
+	}
+
+	if len(edges) == 0 {
+		return
+	}
+
+	// Find root nodes (not blocked by anything in this component)
+	componentSet := make(map[string]bool)
+	for _, iss := range component {
+		componentSet[iss.ID] = true
+	}
+
+	blocked := make(map[string]bool)
+	for _, iss := range component {
+		for _, blockerID := range iss.BlockedBy {
+			if componentSet[blockerID] {
+				blocked[iss.ID] = true
+			}
+		}
+	}
+
+	// Render edges starting from root nodes
+	rendered := make(map[string]bool)
+	for _, iss := range component {
+		if !blocked[iss.ID] {
+			renderNodeEdges(iss.ID, issueMap, renderer, rendered, "")
+		}
+	}
+
+	// Render any remaining edges (handles cycles)
+	for _, edge := range edges {
+		key := edge.from + "->" + edge.to
+		if !rendered[key] {
+			from := issueMap[edge.from]
+			to := issueMap[edge.to]
+			fmt.Printf("  %s ──blocks──> %s\n",
+				renderer.FormatIssueSimple(*from),
+				renderer.FormatIssueSimple(*to))
+			rendered[key] = true
+		}
+	}
+}
+
+// renderNodeEdges recursively renders edges from a node
+func renderNodeEdges(nodeID string, issueMap map[string]*issues.Issue, renderer *issues.TreeRenderer, rendered map[string]bool, prefix string) {
+	node, exists := issueMap[nodeID]
+	if !exists {
+		return
+	}
+
+	// Find all edges from this node
+	for _, blocksID := range node.Blocks {
+		if target, exists := issueMap[blocksID]; exists {
+			key := nodeID + "->" + blocksID
+			if !rendered[key] {
+				fmt.Printf("  %s ──blocks──> %s\n",
+					renderer.FormatIssueSimple(*node),
+					renderer.FormatIssueSimple(*target))
+				rendered[key] = true
+
+				// Recursively render edges from target
+				renderNodeEdges(blocksID, issueMap, renderer, rendered, prefix+"  ")
+			}
+		}
+	}
 }
 
 // renderCrossSpecTree renders issues grouped by spec with hierarchy trees within each spec
