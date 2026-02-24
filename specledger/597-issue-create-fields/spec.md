@@ -14,6 +14,10 @@
 - Q: What should happen when --check-dod is called with text that doesn't match any DoD item? → A: Return error with clear message: "DoD item not found: 'text'"
 - Q: Should --notes flag be included in scope alongside the 3 structured fields? → A: Yes, include --notes in US1 acceptance scenarios
 
+### Session 2026-02-24
+
+- Q: Should parent-child relationships be added similar to Beads? → A: Yes, add --parent flag with single parent constraint, update prompts to utilize parent-child relationships
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Create Issues with Complete Field Set (Priority: P1)
@@ -109,6 +113,27 @@ As a developer running `/specledger.implement`, I want the command to utilize al
 
 ---
 
+### User Story 6 - Parent-Child Relationships for Task Hierarchy (Priority: P2)
+
+As a developer using SpecLedger, I want to set parent-child relationships between issues so that I can organize tasks into hierarchies (epic → feature → task) and query child issues efficiently.
+
+**Why this priority**: Parent-child relationships are essential for task organization. Similar to Beads, a task should have only ONE parent to maintain a clean hierarchy. This enables better task breakdown and progress tracking.
+
+**Independent Test**: Can be tested by creating an epic, creating child features with --parent flag, and verifying the hierarchy with `sl issue show --tree`.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user wants to create a child issue, **When** they run `sl issue create --title "Subtask" --parent SL-abc123 --type task`, **Then** the created issue has parentId field set to SL-abc123
+2. **Given** an existing issue without a parent, **When** user runs `sl issue update SL-xyz789 --parent SL-abc123`, **Then** the issue's parentId is set to SL-abc123
+3. **Given** an issue with an existing parent, **When** user runs `sl issue update SL-xyz789 --parent SL-def456`, **Then** the command returns an error "issue already has a parent, remove existing parent first"
+4. **Given** an issue with a parent, **When** user runs `sl issue update SL-xyz789 --parent ""`, **Then** the issue's parentId is cleared
+5. **Given** a user tries to set self as parent, **When** user runs `sl issue update SL-xyz789 --parent SL-xyz789`, **Then** the command returns an error "cannot set self as parent"
+6. **Given** an issue with parentId set, **When** user runs `sl issue show SL-xyz789`, **Then** the output displays the parent relationship
+7. **Given** a parent issue, **When** user runs `sl issue show SL-abc123 --tree`, **Then** child issues are displayed under the parent in tree format
+8. **Given** the updated tasks prompt, **When** tasks are generated, **Then** task issues are created with --parent flag pointing to their phase feature issue
+
+---
+
 ### Edge Cases
 
 - What happens when `--dod` is provided without `--title`? The existing validation should catch missing required title.
@@ -118,6 +143,11 @@ As a developer running `/specledger.implement`, I want the command to utilize al
 - What happens when circular dependencies are detected during task generation? Existing cycle detection should prevent creation.
 - What happens when `--check-dod` is called with text that doesn't match any DoD item? Return error: "DoD item not found: '<text>'"
 - What happens when `--uncheck-dod` is called on an already unchecked item? Return error: "DoD item not found: '<text>'" (same behavior as non-existent)
+- What happens when setting parent on an issue that already has a parent? Return error: "issue already has a parent, remove existing parent first"
+- What happens when setting self as parent? Return error: "cannot set self as parent"
+- What happens when setting parent creates a circular relationship (A→B→A)? Return error: "circular parent-child relationship detected"
+- What happens when setting parent to a non-existent issue? Return error: "parent issue not found: <id>"
+- What happens when --parent "" is called on an issue without a parent? Silently succeed (idempotent operation)
 
 ## Requirements *(mandatory)*
 
@@ -141,11 +171,20 @@ As a developer running `/specledger.implement`, I want the command to utilize al
 - **FR-016**: Task generation MUST create proper blocking relationships: setup blocks implementation, models block services, services block endpoints
 - **FR-017**: Task generation MUST NOT create false blocking relationships between parallelizable tasks (different files, no dependencies)
 - **FR-018**: Feature-type issues for phases MUST have appropriate blocking: foundational phases block user story phases, but phases at the same level should not block each other unless specified
+- **FR-019**: System MUST accept `--parent` flag on `sl issue create` to set the parentId field
+- **FR-020**: System MUST accept `--parent` flag on `sl issue update` to set or clear the parentId field
+- **FR-021**: System MUST enforce single parent constraint - an issue can only have ONE parent; attempting to set a second parent MUST return error "issue already has a parent, remove existing parent first"
+- **FR-022**: System MUST prevent setting self as parent - attempting to set an issue as its own parent MUST return error "cannot set self as parent"
+- **FR-023**: System MUST prevent circular parent-child relationships (A parent of B, B parent of A)
+- **FR-024**: `sl issue show` MUST display parent relationship when parentId is set
+- **FR-025**: `sl issue show --tree` MUST display child issues under their parent in tree format
+- **FR-026**: The specledger.tasks prompt MUST be updated to use `--parent` flag when creating task issues, setting parent to the phase feature issue
+- **FR-027**: The specledger.tasks prompt MUST instruct agents to create proper parent-child hierarchies: epic → feature (phase) → task
 
 ### Key Entities
 
-- **Issue**: Existing model with fields being exposed: acceptance_criteria (string), definition_of_done (struct with items array), design (string), notes (string)
-- **IssueUpdate**: Existing struct needs new fields for DoD operations: DefinitionOfDone replacement, CheckDoDItem, UncheckDoDItem
+- **Issue**: Existing model with fields being exposed: acceptance_criteria (string), definition_of_done (struct with items array), design (string), notes (string), parentId (string pointer - NEW)
+- **IssueUpdate**: Existing struct needs new fields for DoD operations: DefinitionOfDone replacement, CheckDoDItem, UncheckDoDItem, ParentID (string pointer - NEW)
 
 ## Success Criteria *(mandatory)*
 
@@ -160,6 +199,10 @@ As a developer running `/specledger.implement`, I want the command to utilize al
 - **SC-007**: Implementation workflow verifies work against acceptance_criteria before completion
 - **SC-008**: Implementation workflow automatically checks off DoD items as subtasks complete
 - **SC-009**: All existing functionality remains unchanged (backward compatibility)
+- **SC-010**: Users can set parent on issue create and update with single parent constraint enforced
+- **SC-011**: `sl issue show --tree` displays parent-child hierarchy correctly
+- **SC-012**: Task generation creates proper parent-child hierarchies (epic → feature → task)
+- **SC-013**: Circular parent-child relationships are prevented with clear error message
 
 ### Previous work
 
