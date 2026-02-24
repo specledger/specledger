@@ -572,43 +572,120 @@ func renderSingleSpecGraph(issueList []issues.Issue, store *issues.Store, specCo
 		fmt.Printf("[%s]\n\n", strings.Join(parts, ", "))
 	}
 
-	// Render edges grouped by source (blocks relationships)
-	if len(edges) > 0 {
+	// Render each component
+	for i, component := range components {
+		if len(components) > 1 {
+			fmt.Printf("── Component %d (%d nodes) ──\n", i+1, len(component))
+		}
+
+		// Get edges for this component only
+		componentSet := make(map[string]bool)
+		for _, iss := range component {
+			componentSet[iss.ID] = true
+		}
+
+		var componentEdges []edge
+		for _, e := range edges {
+			if componentSet[e.from] && componentSet[e.to] {
+				componentEdges = append(componentEdges, e)
+			}
+		}
+
 		// Group edges by source
 		outgoing := make(map[string][]string)
-		for _, e := range edges {
+		for _, e := range componentEdges {
 			outgoing[e.from] = append(outgoing[e.from], e.to)
 		}
 
-		// Find sources (nodes that block others)
-		var sources []string
-		for id := range outgoing {
-			sources = append(sources, id)
-		}
-
-		// Render each source and what it blocks
-		for _, sourceID := range sources {
-			source := issueMap[sourceID]
-			targets := outgoing[sourceID]
-
-			fmt.Printf("%s blocks:\n", renderer.FormatIssueSimple(*source))
-			for _, targetID := range targets {
-				target := issueMap[targetID]
-				fmt.Printf("  -> %s\n", renderer.FormatIssueSimple(*target))
+		// Find root nodes in this component (not blocked by anything in component)
+		blocked := make(map[string]bool)
+		for _, iss := range component {
+			for _, blockerID := range iss.BlockedBy {
+				if componentSet[blockerID] {
+					blocked[iss.ID] = true
+				}
 			}
-			fmt.Println()
 		}
+
+		// Render starting from root nodes
+		visited := make(map[string]bool)
+		for _, iss := range component {
+			if !blocked[iss.ID] && len(outgoing[iss.ID]) > 0 {
+				renderGraphNode(iss.ID, issueMap, outgoing, renderer, visited, "")
+			}
+		}
+
+		fmt.Println()
 	}
 
 	// Render isolated nodes
 	if len(isolatedNodes) > 0 {
-		fmt.Printf("Isolated (no dependencies):\n")
+		fmt.Printf("── Isolated (%d) ──\n", len(isolatedNodes))
 		for _, node := range isolatedNodes {
 			fmt.Printf("  %s\n", renderer.FormatIssueSimple(node))
 		}
 	}
 
 	return nil
+}
+
+// renderGraphNode renders a node and what it blocks recursively with topological ordering
+func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing map[string][]string, renderer *issues.TreeRenderer, visited map[string]bool, prefix string) {
+	node, exists := issueMap[nodeID]
+	if !exists {
+		return
+	}
+
+	// Render this node
+	fmt.Printf("%s%s\n", prefix, renderer.FormatIssueSimple(*node))
+
+	// If already visited, don't recurse (prevents cycles)
+	if visited[nodeID] {
+		return
+	}
+	visited[nodeID] = true
+
+	// Render what this node blocks
+	targets := outgoing[nodeID]
+	if len(targets) == 0 {
+		return
+	}
+
+	// Sort targets by number of outgoing edges (topological heuristic - render sinks first)
+	sortedTargets := make([]string, len(targets))
+	copy(sortedTargets, targets)
+	for i := 0; i < len(sortedTargets)-1; i++ {
+		for j := i + 1; j < len(sortedTargets); j++ {
+			// Nodes with fewer outgoing edges (sinks) come first
+			if len(outgoing[sortedTargets[j]]) < len(outgoing[sortedTargets[i]]) {
+				sortedTargets[i], sortedTargets[j] = sortedTargets[j], sortedTargets[i]
+			}
+		}
+	}
+
+	childPrefix := prefix + "│ "
+	lastPrefix := prefix + "  "
+
+	for i, targetID := range sortedTargets {
+		isLast := i == len(sortedTargets)-1
+
+		var connPrefix string
+		if isLast {
+			connPrefix = lastPrefix
+		} else {
+			connPrefix = childPrefix
+		}
+
+		if visited[targetID] {
+			// Already visited in another path - show as back-reference
+			target := issueMap[targetID]
+			fmt.Printf("%s└─> %s (see above)\n", connPrefix, renderer.FormatIssueSimple(*target))
+		} else {
+			// Render edge and recurse
+			fmt.Printf("%s↓\n", connPrefix)
+			renderGraphNode(targetID, issueMap, outgoing, renderer, visited, connPrefix)
+		}
+	}
 }
 
 // renderCrossSpecGraph renders blocking dependencies across all specs as a graph
@@ -638,6 +715,7 @@ func renderCrossSpecGraph(issueList []issues.Issue, artifactPath string) error {
 		}
 
 		edges := collectAllEdges(issuesInSpec, issueMap)
+		components := findConnectedComponents(issuesInSpec, issueMap)
 
 		// Count isolated
 		nodesWithEdges := make(map[string]bool)
@@ -653,25 +731,60 @@ func renderCrossSpecGraph(issueList []issues.Issue, artifactPath string) error {
 		}
 
 		fmt.Printf("=== %s ===\n", spec)
-		fmt.Printf("%d issues, %d edges, %d isolated\n\n", len(issuesInSpec), len(edges), isolated)
+		fmt.Printf("%d issues, %d edges", len(issuesInSpec), len(edges))
+		if len(components) > 1 {
+			fmt.Printf(", %d components", len(components))
+		}
+		if isolated > 0 {
+			fmt.Printf(", %d isolated", isolated)
+		}
+		fmt.Println()
+		fmt.Println()
 
-		if len(edges) > 0 {
+		// Render each component
+		for i, component := range components {
+			if len(components) > 1 {
+				fmt.Printf("── Component %d (%d nodes) ──\n", i+1, len(component))
+			}
+
+			// Get edges for this component
+			componentSet := make(map[string]bool)
+			for _, iss := range component {
+				componentSet[iss.ID] = true
+			}
+
+			var componentEdges []edge
+			for _, e := range edges {
+				if componentSet[e.from] && componentSet[e.to] {
+					componentEdges = append(componentEdges, e)
+				}
+			}
+
 			// Group edges by source
 			outgoing := make(map[string][]string)
-			for _, e := range edges {
+			for _, e := range componentEdges {
 				outgoing[e.from] = append(outgoing[e.from], e.to)
 			}
 
-			// Render each source and what it blocks
-			for sourceID, targets := range outgoing {
-				source := issueMap[sourceID]
-				fmt.Printf("%s blocks:\n", renderer.FormatIssueSimple(*source))
-				for _, targetID := range targets {
-					target := issueMap[targetID]
-					fmt.Printf("  -> %s\n", renderer.FormatIssueSimple(*target))
+			// Find root nodes
+			blocked := make(map[string]bool)
+			for _, iss := range component {
+				for _, blockerID := range iss.BlockedBy {
+					if componentSet[blockerID] {
+						blocked[iss.ID] = true
+					}
 				}
-				fmt.Println()
 			}
+
+			// Render starting from roots
+			visited := make(map[string]bool)
+			for _, iss := range component {
+				if !blocked[iss.ID] && len(outgoing[iss.ID]) > 0 {
+					renderGraphNode(iss.ID, issueMap, outgoing, renderer, visited, "")
+				}
+			}
+
+			fmt.Println()
 		}
 	}
 
