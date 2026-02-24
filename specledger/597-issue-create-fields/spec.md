@@ -17,6 +17,8 @@
 ### Session 2026-02-24
 
 - Q: Should parent-child relationships be added similar to Beads? → A: Yes, add --parent flag with single parent constraint, update prompts to utilize parent-child relationships
+- Q: What should be the maximum parent-child hierarchy depth? → A: Unlimited (no depth restriction, unlike Beads' 3-level limit)
+- Q: When displaying children in `sl issue show --tree`, how should they be ordered? → A: Priority then ID (higher priority first, then by creation order)
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -180,6 +182,8 @@ As a developer using SpecLedger, I want to set parent-child relationships betwee
 - **FR-025**: `sl issue show --tree` MUST display child issues under their parent in tree format
 - **FR-026**: The specledger.tasks prompt MUST be updated to use `--parent` flag when creating task issues, setting parent to the phase feature issue
 - **FR-027**: The specledger.tasks prompt MUST instruct agents to create proper parent-child hierarchies: epic → feature (phase) → task
+- **FR-028**: Parent-child hierarchy depth MUST be unlimited (no maximum depth restriction)
+- **FR-029**: Children in `sl issue show --tree` MUST be ordered by priority (higher priority first), then by creation order (ID)
 
 ### Key Entities
 
@@ -231,3 +235,5 @@ As a developer using SpecLedger, I want to set parent-child relationships betwee
 - Shell escaping for complex DoD items is the user's responsibility (standard CLI behavior)
 - Existing validation (title required, priority range, etc.) applies to enhanced create
 - DoD items are matched by exact text (case-sensitive, no whitespace normalization) for check/uncheck operations
+- Parent-child hierarchy has no maximum depth (unlimited nesting allowed)
+- Children are displayed ordered by priority (descending), then by creation order (ascending ID)
