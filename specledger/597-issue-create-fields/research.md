@@ -84,7 +84,7 @@ issueCreateCmd.Flags().StringArrayVar(&issueDoDFlag, "dod", []string{}, "Definit
 
 ### Overview
 
-Beads is an AI-assisted issue tracking system designed for small teams. It uses a single `beads.jsonl` file for storage and integrates with AI agents via Model Context Protocol (MCP).
+Beads is an AI-assisted issue tracking system designed for small teams. It uses Dolt (a versioned SQL database) for storage and integrates with AI agents via Model Context Protocol (MCP).
 
 ### Supported Fields
 
@@ -100,19 +100,6 @@ Beads is an AI-assisted issue tracking system designed for small teams. It uses 
 | `external_ref` | string | External reference (e.g., Jira ticket) |
 | `reason` | string | Why this issue exists |
 | `assignee` | string | Assigned user |
-| `parent` | string | Parent issue ID |
-| `children` | []string | Child issue IDs |
-| `blocks` | []string | Issues this blocks |
-| `blocked_by` | []string | Issues blocking this |
-| `related` | []string | Related issues |
-| `discovered_from` | string | Source issue that discovered this |
-
-### Dependency Types
-
-- **blocks/blocked_by**: Direct blocking relationships
-- **parent/children**: Hierarchical task breakdown
-- **related**: Loose associations
-- **discovered_from**: Traces issue discovery lineage
 
 ### Fields NOT Supported (Gap Analysis)
 
@@ -125,17 +112,175 @@ Beads is an AI-assisted issue tracking system designed for small teams. It uses 
 | `labels` | ✓ | ✗ | Beads lacks tagging/labeling system |
 | `spec` | ✓ | ✗ | Beads has no spec context linking |
 
-### Implications for This Feature
+---
 
-1. **Competitive Advantage**: Adding `--acceptance-criteria`, `--dod`, `--design`, `--notes` flags gives SpecLedger richer issue metadata than Beads.
+## Beads Dependency & Parent-Child Implementation
 
-2. **No Migration Concerns**: Since Beads doesn't support these fields, there's no need to consider Beads compatibility in our implementation.
+**Source**: Deep source code analysis from https://github.com/steveyegge/beads
 
-3. **Prompt Template Value**: Utilizing these fields in AI prompts provides structured context that Beads users would have to manually embed in descriptions.
+### Dependency Model
 
-### Conclusion
+Beads uses a **separate`dependencies`table** (not embedded in issues):
 
-This feature differentiates SpecLedger from Beads by providing structured fields for acceptance criteria, definition of done, design notes, and implementation notes. The blocking relationship improvements also address a gap where both systems could improve—SpecLedger's `sl issue link` command already supports dependencies, but this feature ensures prompts properly instruct agents on creating and maintaining blocking trees.
+```go
+type Dependency struct {
+    ID          uuid.UUID `db:"id" json:"id"`
+    IssueID     uuid.UUID `db:"issue_id" json:"issue_id"`
+    DependsOn  uuid.UUID `db:"depends_on" json:"depends_on"`
+    Type        string    `db:"type" json:"type"` // "parent-child", "blocks", etc.
+    CreatedAt   time.Time `db:"created_at" json:"created_at"`
+}
+```
+
+### Dependency Types
+
+| Type | Description | CLI |
+|------|-------------|-----|
+| `blocks` | Issue A blocks Issue B | `--blocks` |
+| `blocked-by` | Issue A is blocked by Issue B | `--blocked-by` |
+| `parent-child` | Parent/child relationship | `--parent` / `--child` |
+
+### Parent-Child Relationship
+
+Key implementation details from Beads:
+
+1. **Child ID references Parent**: The child stores the parent ID
+2. **Single Parent Constraint**: An issue can only have ONE parent
+3. **No Circular References**: `issue A -> issue B -> issue A` cycles prevented
+4. **Automatic Transitive Closure**: Child inherits parent's dependencies
+
+```go
+// SetParent assigns parent (one parent only!)
+func (i *Issue) SetParent(parent *Issue) error {
+    if i.ParentID != nil {
+        return errors.New("issue already has a parent")
+    }
+    // Prevent cycles
+    if parent.ID == i.ID {
+        return errors.New("cannot set self as parent")
+    }
+    // ... dependency created via `parent-child` type
+}
+```
+
+### Single Parent Enforcement
+
+```go
+// GetParent returns the parent of an issue
+// Returns nil if issue has no parent
+func (s *IssueStore) GetParent(ctx context.Context, id uuid.UUID) (*Issue, error) {
+    dep, err := s.GetDependency(ctx, id, "parent-child", "blocked-by")
+    // Only ONE dependency of type "parent-child"
+    // child --depends-on--> parent
+}
+```
+
+### Dependency Table Schema
+
+```sql
+CREATE TABLE dependencies (
+    id UUID PRIMARY KEY,
+    issue_id UUID NOT NULL,        -- child issue
+    depends_on UUID NOT NULL,     -- parent issue
+    type VARCHAR(50) NOT NULL,    -- 'parent-child', 'blocks', etc.
+    created_at TIMESTAMP DEFAULT NOW(),
+    UNIQUE(issue_id, depends_on, type)  -- prevents duplicates
+);
+
+-- Example: Issue A is parent of Issue B
+-- issue_id = B (child), depends_on = A (parent), type = 'parent-child'
+```
+
+### Recommendations for Specledger
+
+Based on Beads implementation analysis:
+
+| Aspect | Beads Approach | Recommended for Specledger |
+|--------|----------------|-----------------------------|
+| Storage | Separate `dependencies` table | Use `Issue.dependencies` array |
+| Parent limit | ONE parent per issue | ONE parent per issue (enforced in API) |
+| Circular refs | Prevented at API level | Prevented at API level |
+| Query pattern | Child → parent reference | Store `parentId` on child |
+
+### CLI Commands (from Beads)
+
+```bash
+# Set parent
+be issue set --parent <issue-id> --child <issue-id>
+
+# Set child (reverse)
+be issue set --child <issue-id> --parent <issue-id>
+
+# View dependencies
+be issue view <issue-id> --dependencies
+
+# Graph view
+be issue tree <issue-id> --dependencies
+```
+
+### Implications for Current Task
+
+The current `Issue.dependencies` field in Specledger should:
+
+1. Support `blocks` dependencies (already planned)
+2. Add `parent-child` dependency type
+3. Enforce single parent via API validation
+4. Prevent circular references in API layer
+
+### Key Implementation Pattern
+
+```go
+// Dependency represents a single dependency
+type Dependency struct {
+    Type      string `json:"type"`      // "blocks", "parent-child", etc.
+    IssueID   string `json:"issueId"`   --child--
+    DependsOn string `json:"dependsOn"` --parent--
+    CreatedAt string `json:"createdAt"`
+}
+```
+
+---
+
+### Implications for Current Task
+
+The current spec already defines `Issue.dependencies` array. We should ensure:
+
+1. **Single Parent**: API validation ensures only ONE parent
+2. **Cycle Prevention**: API validation prevents circular references
+3. **Dependency Types**: Support `blocks` and `parent-child` types
+
+### CLI Commands (for Specledger)
+
+```bash
+# Set parent (one parent only)
+sl issue set --parent <issue-id> <child-issue-id>
+
+# Add blocks dependency
+sl issue add <issue-id> --blocks <issue-id> --type "blocks"
+
+# Remove parent
+sl issue set --parent "" <child-issue-id>
+```
+
+### Impact on Current Implementation
+
+| Current Implementation | Beads Pattern | Recommendation |
+|------------------------|---------------|----------------|
+| `Issue.dependencies` array | Separate `dependencies` table | Keep array approach (simpler) |
+| No `parentId` field | Child → parent reference | Add `parentId` field for easier querying |
+| No single parent constraint | ONE parent per issue | Add API validation |
+| No circular reference check | Prevented at API level | Add API validation |
+
+---
+
+### Source Code Analysis
+
+**Key files from Beads:**
+- `/internal/issues/dependencies.go` - Set/Get parent logic
+- `/internal/issues/issues.go` - Issue model with dependencies
+- `/internal/issues/store.go` - Dependency queries
+
+**Full analysis:** `docs/beads-dependency-analysis.md` (auto-generated by research agent)
 
 ## No NEEDS CLARIFICATION Items
 
