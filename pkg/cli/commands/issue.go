@@ -636,16 +636,14 @@ func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing 
 		return
 	}
 
-	// If already visited, show as back-reference only
-	if visited[nodeID] {
-		fmt.Printf("%s  (see above)\n", prefix)
-		return
-	}
-
-	visited[nodeID] = true
-
 	// Render this node
 	fmt.Printf("%s%s\n", prefix, renderer.FormatIssueSimple(*node))
+
+	// If already visited, don't recurse
+	if visited[nodeID] {
+		return
+	}
+	visited[nodeID] = true
 
 	// Get targets this node blocks
 	targets := outgoing[nodeID]
@@ -653,14 +651,14 @@ func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing 
 		return
 	}
 
-	// Sort targets: sinks (no outgoing) first, then by number of outgoing
+	// Sort targets: sinks (no outgoing) first
 	sortedTargets := make([]string, len(targets))
 	copy(sortedTargets, targets)
 	for i := 0; i < len(sortedTargets)-1; i++ {
 		for j := i + 1; j < len(sortedTargets); j++ {
 			outI := len(outgoing[sortedTargets[i]])
 			outJ := len(outgoing[sortedTargets[j]])
-			// Sinks first, then fewer outgoing
+			// Sinks first
 			if outJ == 0 && outI > 0 {
 				sortedTargets[i], sortedTargets[j] = sortedTargets[j], sortedTargets[i]
 			}
@@ -680,13 +678,13 @@ func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing 
 			childPrefix = prefix + "│  "
 		}
 
-		// Check if already visited
+		// Print connector + node on same line
+		childNode := issueMap[targetID]
 		if visited[targetID] {
-			childNode := issueMap[targetID]
 			fmt.Printf("%s%s %s (see above)\n", prefix, connector, renderer.FormatIssueSimple(*childNode))
 		} else {
-			// Print connector line, then render child
-			fmt.Printf("%s%s\n", prefix, connector)
+			fmt.Printf("%s%s %s\n", prefix, connector, renderer.FormatIssueSimple(*childNode))
+			// Recurse for children
 			renderGraphNode(targetID, issueMap, outgoing, renderer, visited, childPrefix)
 		}
 	}
