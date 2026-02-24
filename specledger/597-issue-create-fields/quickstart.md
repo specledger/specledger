@@ -1,7 +1,7 @@
 # Quickstart: Issue Create Fields Enhancement
 
 **Feature**: 597-issue-create-fields
-**Date**: 2026-02-22
+**Date**: 2026-02-24
 
 ## Prerequisites
 
@@ -13,7 +13,7 @@
 ### Scenario 1: Create Issue with All New Fields
 
 ```bash
-# Create an issue with all 4 new fields
+# Create an issue with all 5 new fields
 ./bin/sl issue create \
   --title "Implement user authentication" \
   --type task \
@@ -156,19 +156,167 @@ Definition of Done:
 Notes:
   Reference: https://example.com/docs
 
-Created: 2026-02-22 10:30:00
-Updated: 2026-02-22 10:30:00
+Created: 2026-02-24 10:30:00
+Updated: 2026-02-24 10:30:00
 ```
+
+---
+
+## Parent-Child Relationship Scenarios
+
+### Scenario 9: Create Issue with Parent
+
+```bash
+# Create a parent epic
+EPIC_ID=$(./bin/sl issue create --title "Epic: User Auth" --type epic --format json | jq -r '.id')
+
+# Create a child feature
+./bin/sl issue create \
+  --title "Feature: Login" \
+  --type feature \
+  --parent $EPIC_ID
+
+# Verify parent relationship
+./bin/sl issue show <child-id>
+```
+
+**Expected**: Issue displays with `Parent: SL-xxxxx` field.
+
+### Scenario 10: Set Parent on Existing Issue
+
+```bash
+# Create two issues
+PARENT_ID=$(./bin/sl issue create --title "Parent Task" --type task --format json | jq -r '.id')
+CHILD_ID=$(./bin/sl issue create --title "Child Task" --type task --format json | jq -r '.id')
+
+# Set parent
+./bin/sl issue update $CHILD_ID --parent $PARENT_ID
+
+# Verify
+./bin/sl issue show $CHILD_ID
+```
+
+**Expected**: Issue displays with `Parent: SL-xxxxx` field.
+
+### Scenario 11: Single Parent Constraint (Error Case)
+
+```bash
+# Create three issues
+PARENT1_ID=$(./bin/sl issue create --title "Parent 1" --type task --format json | jq -r '.id')
+PARENT2_ID=$(./bin/sl issue create --title "Parent 2" --type task --format json | jq -r '.id')
+CHILD_ID=$(./bin/sl issue create --title "Child" --type task --parent $PARENT1_ID --format json | jq -r '.id')
+
+# Try to set second parent (should fail)
+./bin/sl issue update $CHILD_ID --parent $PARENT2_ID
+```
+
+**Expected**: Error message: `issue already has a parent, remove existing parent first`
+
+### Scenario 12: Remove Parent
+
+```bash
+# Create issue with parent
+PARENT_ID=$(./bin/sl issue create --title "Parent" --type task --format json | jq -r '.id')
+CHILD_ID=$(./bin/sl issue create --title "Child" --type task --parent $PARENT_ID --format json | jq -r '.id')
+
+# Remove parent
+./bin/sl issue update $CHILD_ID --parent ""
+
+# Verify parent is cleared
+./bin/sl issue show $CHILD_ID
+```
+
+**Expected**: Issue no longer shows Parent field.
+
+### Scenario 13: Self as Parent (Error Case)
+
+```bash
+# Create an issue
+ISSUE_ID=$(./bin/sl issue create --title "Test" --type task --format json | jq -r '.id')
+
+# Try to set self as parent
+./bin/sl issue update $ISSUE_ID --parent $ISSUE_ID
+```
+
+**Expected**: Error message: `cannot set self as parent`
+
+### Scenario 14: Circular Parent (Error Case)
+
+```bash
+# Create three issues in a chain
+A_ID=$(./bin/sl issue create --title "A" --type task --format json | jq -r '.id')
+B_ID=$(./bin/sl issue create --title "B" --type task --parent $A_ID --format json | jq -r '.id')
+C_ID=$(./bin/sl issue create --title "C" --type task --parent $B_ID --format json | jq -r '.id')
+
+# Try to create cycle: A -> B -> C -> A
+./bin/sl issue update $A_ID --parent $C_ID
+```
+
+**Expected**: Error message: `circular parent-child relationship detected`
+
+### Scenario 15: Non-existent Parent (Error Case)
+
+```bash
+# Create an issue
+ISSUE_ID=$(./bin/sl issue create --title "Test" --type task --format json | jq -r '.id')
+
+# Try to set non-existent parent
+./bin/sl issue update $ISSUE_ID --parent SL-nonexistent
+```
+
+**Expected**: Error message: `parent issue not found: SL-nonexistent`
+
+### Scenario 16: Tree View with Children
+
+```bash
+# Create hierarchy
+EPIC_ID=$(./bin/sl issue create --title "Epic" --type epic --format json | jq -r '.id')
+FEATURE_ID=$(./bin/sl issue create --title "Feature" --type feature --parent $EPIC_ID --format json | jq -r '.id')
+TASK1_ID=$(./bin/sl issue create --title "Task 1" --type task --parent $FEATURE_ID --priority 1 --format json | jq -r '.id')
+TASK2_ID=$(./bin/sl issue create --title "Task 2" --type task --parent $FEATURE_ID --priority 2 --format json | jq -r '.id')
+
+# View tree
+./bin/sl issue show $EPIC_ID --tree
+```
+
+**Expected Output**:
+```
+Issue: SL-xxxxx (Epic)
+└── Issue: SL-yyyyy (Feature)
+    ├── Issue: SL-zzzz1 (Task 1) [P1]
+    └── Issue: SL-zzzz2 (Task 2) [P2]
+```
+
+Note: Children are ordered by priority (P1 before P2).
+
+---
 
 ## Verification Checklist
 
+### Create Flags
 - [ ] `--acceptance-criteria` flag works on create
 - [ ] `--dod` flag works with repeated values on create
 - [ ] `--design` flag works on create
 - [ ] `--notes` flag works on create
+- [ ] `--parent` flag works on create
+
+### Update Flags
 - [ ] `--dod` flag replaces entire DoD on update
 - [ ] `--check-dod` marks item as checked with timestamp
 - [ ] `--uncheck-dod` marks item as unchecked
+- [ ] `--parent` flag sets parent on update
+- [ ] `--parent ""` clears parent
+
+### Error Handling
 - [ ] Error returned when checking non-existent DoD item
 - [ ] Exact text matching (case-sensitive, no normalization)
-- [ ] `sl issue show` displays all 4 fields in dedicated sections
+- [ ] Error returned when setting second parent
+- [ ] Error returned when setting self as parent
+- [ ] Error returned when creating circular parent chain
+- [ ] Error returned when setting non-existent parent
+
+### Display
+- [ ] `sl issue show` displays all 5 fields in dedicated sections
+- [ ] `sl issue show` displays parent relationship
+- [ ] `sl issue show --tree` displays children in tree format
+- [ ] Children are ordered by priority then ID

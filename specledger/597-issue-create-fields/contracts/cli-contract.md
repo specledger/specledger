@@ -1,7 +1,7 @@
 # CLI Contract: Issue Commands
 
 **Feature**: 597-issue-create-fields
-**Date**: 2026-02-22
+**Date**: 2026-02-24
 
 ## sl issue create
 
@@ -31,6 +31,7 @@ sl issue create --title <string> [flags]
 | `--dod` | []string | [] | Definition of Done items (repeatable) |
 | `--design` | string | "" | Design notes/approach |
 | `--notes` | string | "" | Implementation notes |
+| `--parent` | string | "" | Parent issue ID |
 
 ### Output
 
@@ -58,7 +59,8 @@ View: sl issue show SL-xxxxxx
     ]
   },
   "design": "...",
-  "notes": "..."
+  "notes": "...",
+  "parentId": "SL-yyyyyy"
 }
 ```
 
@@ -69,6 +71,8 @@ View: sl issue show SL-xxxxxx
 | Missing --title | 1 | `title is required` |
 | Invalid --type | 1 | `invalid issue type: <value>` |
 | Invalid --priority | 1 | `invalid priority: must be 0-5` |
+| Invalid --parent | 1 | `parent issue not found: <id>` |
+| Self as parent | 1 | `cannot set self as parent` |
 
 ---
 
@@ -103,6 +107,7 @@ sl issue update <issue-id> [flags]
 | `--dod` | []string | Replace Definition of Done items (repeatable) |
 | `--check-dod` | string | Mark DoD item as checked (exact match) |
 | `--uncheck-dod` | string | Mark DoD item as unchecked (exact match) |
+| `--parent` | string | Set parent issue ID (empty string to clear) |
 
 ### Output
 
@@ -118,6 +123,10 @@ sl issue update <issue-id> [flags]
 | Invalid issue-id format | 1 | `invalid issue ID: <id>` |
 | Issue not found | 1 | `failed to get issue: ...` |
 | DoD item not found | 1 | `DoD item not found: '<text>'` |
+| Already has parent | 1 | `issue already has a parent, remove existing parent first` |
+| Self as parent | 1 | `cannot set self as parent` |
+| Circular parent | 1 | `circular parent-child relationship detected` |
+| Parent not found | 1 | `parent issue not found: <id>` |
 
 ---
 
@@ -140,7 +149,7 @@ sl issue show <issue-id> [flags]
 | Flag | Type | Description |
 |------|------|-------------|
 | `--json` | bool | Output as JSON |
-| `--tree` | bool | Show dependency tree |
+| `--tree` | bool | Show dependency tree with children |
 
 ### Output Format (non-JSON)
 
@@ -151,6 +160,7 @@ Issue: SL-xxxxxx
   Status: <status>
   Priority: <priority> (<priority-label>)
   Spec: <spec-context>
+  Parent: SL-yyyyyy (if set)
 
 Description:
   <description>
@@ -182,6 +192,21 @@ Closed: <timestamp>  (if closed)
 - Acceptance Criteria, Design, Notes shown only if populated
 - Definition of Done shown only if items exist
 - Labels shown only if any exist
+- Parent shown only if set
+
+### Tree Output Format (--tree)
+
+```
+Issue: SL-xxxxx (Epic)
+├── Issue: SL-yyyyy (Feature)
+│   ├── Issue: SL-zzzz1 (Task 1) [P1]
+│   └── Issue: SL-zzzz2 (Task 2) [P2]
+└── Issue: SL-wwww (Feature 2) [P2]
+```
+
+**Children Ordering**:
+1. Priority (descending - higher priority first)
+2. Creation order / ID (ascending)
 
 ---
 
@@ -206,3 +231,24 @@ Closed: <timestamp>  (if closed)
 - `--uncheck-dod` sets: checked=false, verified_at=null
 - Both require exact text match
 - Both return error if item not found
+
+### Parent-Child Relationships
+
+- `--parent` on create sets the parent immediately
+- `--parent` on update:
+  - With valid ID: Sets parent (fails if already has parent)
+  - With empty string: Clears parent (idempotent)
+- **Single parent constraint**: An issue can only have ONE parent
+- **Self-parent prevention**: Cannot set self as parent
+- **Cycle prevention**: Cannot create circular parent chains
+- **Hierarchy depth**: Unlimited (no maximum depth)
+- **Children query**: Computed at read time, not stored
+
+### Error Messages
+
+| Scenario | Error Message |
+|----------|---------------|
+| Set second parent | `issue already has a parent, remove existing parent first` |
+| Set self as parent | `cannot set self as parent` |
+| Create circular chain | `circular parent-child relationship detected` |
+| Parent doesn't exist | `parent issue not found: <id>` |
