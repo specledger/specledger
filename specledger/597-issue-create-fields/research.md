@@ -117,170 +117,186 @@ Beads is an AI-assisted issue tracking system designed for small teams. It uses 
 ## Beads Dependency & Parent-Child Implementation
 
 **Source**: Deep source code analysis from https://github.com/steveyegge/beads
+**Storage**: Dolt (versioned SQL database), not JSONL
 
 ### Dependency Model
 
-Beads uses a **separate`dependencies`table** (not embedded in issues):
+Beads uses a **separate `dependencies` table** with typed edges:
 
 ```go
 type Dependency struct {
-    ID          uuid.UUID `db:"id" json:"id"`
-    IssueID     uuid.UUID `db:"issue_id" json:"issue_id"`
-    DependsOn  uuid.UUID `db:"depends_on" json:"depends_on"`
-    Type        string    `db:"type" json:"type"` // "parent-child", "blocks", etc.
-    CreatedAt   time.Time `db:"created_at" json:"created_at"`
+    IssueID     string         // The dependent issue (child)
+    DependsOnID string         // What it depends on (parent)
+    Type        DependencyType // Relationship type
+    CreatedAt   time.Time
+    CreatedBy   string
+    Metadata    string         // JSON blob for type-specific data
 }
 ```
 
 ### Dependency Types
 
-| Type | Description | CLI |
-|------|-------------|-----|
-| `blocks` | Issue A blocks Issue B | `--blocks` |
-| `blocked-by` | Issue A is blocked by Issue B | `--blocked-by` |
-| `parent-child` | Parent/child relationship | `--parent` / `--child` |
+```go
+type DependencyType string
 
-### Parent-Child Relationship
+const (
+    // Workflow types (affect ready work calculation)
+    DepBlocks            DependencyType = "blocks"             // Hard dependency
+    DepParentChild       DependencyType = "parent-child"       // Hierarchy
+    DepConditionalBlocks DependencyType = "conditional-blocks" // B runs only if A fails
+    DepWaitsFor          DependencyType = "waits-for"          // Fanout gate
 
-Key implementation details from Beads:
+    // Association types (soft links - don't block)
+    DepRelated           DependencyType = "related"
+    DepDiscoveredFrom    DependencyType = "discovered-from"
+    DepRelatesTo         DependencyType = "relates-to"
+    DepDuplicates        DependencyType = "duplicates"
+    DepSupersedes        DependencyType = "supersedes"
+)
+```
 
-1. **Child ID references Parent**: The child stores the parent ID
-2. **Single Parent Constraint**: An issue can only have ONE parent
-3. **No Circular References**: `issue A -> issue B -> issue A` cycles prevented
-4. **Automatic Transitive Closure**: Child inherits parent's dependencies
+**Key insight**: Only `blocks`, `parent-child`, `conditional-blocks`, and `waits-for` affect the ready queue. Other types are soft links for organization.
+
+### Parent-Child Implementation
+
+Beads uses **TWO complementary mechanisms** for parent-child:
+
+#### Mechanism 1: Hierarchical IDs (Primary)
+
+Child IDs are derived from parent using dot notation:
 
 ```go
-// SetParent assigns parent (one parent only!)
-func (i *Issue) SetParent(parent *Issue) error {
-    if i.ParentID != nil {
-        return errors.New("issue already has a parent")
-    }
-    // Prevent cycles
-    if parent.ID == i.ID {
-        return errors.New("cannot set self as parent")
-    }
-    // ... dependency created via `parent-child` type
+// GenerateChildID creates a hierarchical child ID
+// Format: parent.N (e.g., "bd-af78e9a2.1", "bd-af78e9a2.1.2")
+func GenerateChildID(parentID string, childNumber int) string {
+    return fmt.Sprintf("%s.%d", parentID, childNumber)
 }
 ```
 
-### Single Parent Enforcement
+**Single parent is enforced by ID hierarchy** - a child ID like `bd-abc.1` can only have one parent (`bd-abc`) by construction.
 
-```go
-// GetParent returns the parent of an issue
-// Returns nil if issue has no parent
-func (s *IssueStore) GetParent(ctx context.Context, id uuid.UUID) (*Issue, error) {
-    dep, err := s.GetDependency(ctx, id, "parent-child", "blocked-by")
-    // Only ONE dependency of type "parent-child"
-    // child --depends-on--> parent
-}
-```
+#### Mechanism 2: Explicit Parent-Child Dependency
 
-### Dependency Table Schema
+For non-ID-based hierarchy, the `parent-child` dependency type is used:
 
 ```sql
-CREATE TABLE dependencies (
-    id UUID PRIMARY KEY,
-    issue_id UUID NOT NULL,        -- child issue
-    depends_on UUID NOT NULL,     -- parent issue
-    type VARCHAR(50) NOT NULL,    -- 'parent-child', 'blocks', etc.
-    created_at TIMESTAMP DEFAULT NOW(),
-    UNIQUE(issue_id, depends_on, type)  -- prevents duplicates
-);
-
--- Example: Issue A is parent of Issue B
--- issue_id = B (child), depends_on = A (parent), type = 'parent-child'
+-- Query children by parent
+SELECT issue_id FROM dependencies
+WHERE type = 'parent-child' AND depends_on_id = ?
 ```
 
-### Recommendations for Specledger
+### Cycle Detection
 
-Based on Beads implementation analysis:
+Beads uses recursive CTEs with depth limit:
 
-| Aspect | Beads Approach | Recommended for Specledger |
-|--------|----------------|-----------------------------|
-| Storage | Separate `dependencies` table | Use `Issue.dependencies` array |
-| Parent limit | ONE parent per issue | ONE parent per issue (enforced in API) |
-| Circular refs | Prevented at API level | Prevented at API level |
-| Query pattern | Child → parent reference | Store `parentId` on child |
+```sql
+WITH RECURSIVE reachable AS (
+    SELECT ? AS node, 0 AS depth
+    UNION ALL
+    SELECT d.depends_on_id, r.depth + 1
+    FROM reachable r
+    JOIN dependencies d ON d.issue_id = r.node
+    WHERE d.type = 'blocks'
+      AND r.depth < 100  -- Depth limit prevents infinite loops
+)
+SELECT COUNT(*) FROM reachable WHERE node = ?
+```
 
-### CLI Commands (from Beads)
+### Key Design Decisions from Beads
+
+| Question | Beads Answer |
+|----------|--------------|
+| How is single parent enforced? | By ID hierarchy design - `bd-abc.1` can only be child of `bd-abc` |
+| Does setting parent update children array? | No - children are queried dynamically |
+| Are there referential integrity checks? | Yes - validates both issues exist before creating dependency |
+| How are circular references prevented? | 1) ID hierarchy makes cycles impossible, 2) Recursive CTE detection |
+
+### Beads CLI Commands
 
 ```bash
-# Set parent
-be issue set --parent <issue-id> --child <issue-id>
+# Add a blocking dependency
+bd dep add bd-42 bd-41                    # bd-42 depends on (blocked by) bd-41
 
-# Set child (reverse)
-be issue set --child <issue-id> --parent <issue-id>
+# Add with type
+bd dep add bd-42 bd-41 --type parent-child
+bd dep add bd-42 bd-41 --type related
 
-# View dependencies
-be issue view <issue-id> --dependencies
+# Create with parent (generates hierarchical ID)
+bd create "Subtask title" --parent bd-42
+# Results in ID like: bd-42.1, bd-42.2, etc.
 
-# Graph view
-be issue tree <issue-id> --dependencies
+# Dependency tree
+bd dep tree bd-42 --format=mermaid
 ```
 
-### Implications for Current Task
+### Recommendations for SpecLedger
 
-The current `Issue.dependencies` field in Specledger should:
+Based on Beads analysis, here's how to implement parent-child in SpecLedger:
 
-1. Support `blocks` dependencies (already planned)
-2. Add `parent-child` dependency type
-3. Enforce single parent via API validation
-4. Prevent circular references in API layer
+| Aspect | Beads Approach | SpecLedger Recommendation |
+|--------|----------------|---------------------------|
+| Storage | Separate `dependencies` table | Keep `Issue.BlockedBy` array (simpler for JSONL) |
+| Parent field | Hierarchical ID or dependency record | Add `ParentID *string` field to Issue |
+| Single parent | Enforced by ID hierarchy | Enforce in API - only ONE parent allowed |
+| Children query | Dynamic query | Compute `Children []string` at read time |
+| Cycle prevention | Recursive CTE | Graph traversal in Go code |
 
-### Key Implementation Pattern
+### Proposed SpecLedger Implementation
 
 ```go
-// Dependency represents a single dependency
-type Dependency struct {
-    Type      string `json:"type"`      // "blocks", "parent-child", etc.
-    IssueID   string `json:"issueId"`   --child--
-    DependsOn string `json:"dependsOn"` --parent--
-    CreatedAt string `json:"createdAt"`
+// Issue model additions
+type Issue struct {
+    // ... existing fields ...
+
+    // Parent relationship (single parent only)
+    ParentID   *string  `json:"parentId,omitempty"`   // ID of parent issue
+
+    // Blocking relationships (existing)
+    BlockedBy  []string `json:"blockedBy,omitempty"`  // Issues blocking this one
+    Blocks     []string `json:"blocks,omitempty"`     // Issues this one blocks
+}
+
+// Validation: single parent constraint
+func (i *Issue) SetParent(parentID string) error {
+    if i.ParentID != nil && *i.ParentID != "" {
+        return errors.New("issue already has a parent, remove existing parent first")
+    }
+    if parentID == i.ID {
+        return errors.New("cannot set self as parent")
+    }
+    i.ParentID = &parentID
+    return nil
 }
 ```
 
----
-
-### Implications for Current Task
-
-The current spec already defines `Issue.dependencies` array. We should ensure:
-
-1. **Single Parent**: API validation ensures only ONE parent
-2. **Cycle Prevention**: API validation prevents circular references
-3. **Dependency Types**: Support `blocks` and `parent-child` types
-
-### CLI Commands (for Specledger)
+### CLI Commands for SpecLedger
 
 ```bash
 # Set parent (one parent only)
-sl issue set --parent <issue-id> <child-issue-id>
-
-# Add blocks dependency
-sl issue add <issue-id> --blocks <issue-id> --type "blocks"
+sl issue update SL-001 --parent SL-002
 
 # Remove parent
-sl issue set --parent "" <child-issue-id>
+sl issue update SL-001 --parent ""
+
+# Add blocking dependency
+sl issue link SL-001 blocks SL-002
+
+# View with dependency tree
+sl issue show SL-001 --tree
 ```
 
-### Impact on Current Implementation
+### Source Files Reference (Beads)
 
-| Current Implementation | Beads Pattern | Recommendation |
-|------------------------|---------------|----------------|
-| `Issue.dependencies` array | Separate `dependencies` table | Keep array approach (simpler) |
-| No `parentId` field | Child → parent reference | Add `parentId` field for easier querying |
-| No single parent constraint | ONE parent per issue | Add API validation |
-| No circular reference check | Prevented at API level | Add API validation |
+| File | Purpose |
+|------|---------|
+| `internal/types/types.go` | Core type definitions (Issue, Dependency, DependencyType) |
+| `internal/types/id_generator.go` | Hierarchical ID generation and parsing |
+| `internal/storage/dolt/dependencies.go` | Dependency CRUD operations |
+| `internal/storage/dolt/queries.go` | Query builders including GetNextChildID |
+| `cmd/bd/dep.go` | Dependency CLI commands |
+| `cmd/bd/create.go` | Issue creation with parent support |
 
----
-
-### Source Code Analysis
-
-**Key files from Beads:**
-- `/internal/issues/dependencies.go` - Set/Get parent logic
-- `/internal/issues/issues.go` - Issue model with dependencies
-- `/internal/issues/store.go` - Dependency queries
-
-**Full analysis:** `docs/beads-dependency-analysis.md` (auto-generated by research agent)
+**Full analysis:** `/Users/arielmiki/Workspace/aidev/specledger/specledger/research/beads-dependency-implementation.md`
 
 ## No NEEDS CLARIFICATION Items
 
