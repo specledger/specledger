@@ -51,7 +51,7 @@ Run `/specledger.plan` with your tech stack context (e.g., "I am building with G
 
 Run `/specledger.tasks` to generate the task breakdown.
 
-**Important: Generate tasks without beads.** The task generation should produce a clean `tasks.md` file with dependency-ordered tasks. Do not use `sl issue` commands during task generation — the tasks file is the source of truth at this stage.
+**Important: Generate tasks cleanly.** The task generation should produce a clean `tasks.md` file with dependency-ordered tasks. Do not use `sl issue` commands during task generation — the tasks file is the source of truth at this stage.
 
 ## Stage 4: Analyze (Before Implementation)
 
@@ -151,4 +151,4 @@ The more specific your constraints and questions, the deeper the research agents
 - **Skipping analyze** — Going straight from tasks to implement misses coverage gaps and inconsistencies
 - **Vague prompts** — "Build a login page" produces a shallow spec; provide constraints, edge cases, and user context
 - **Ignoring CRITICAL findings** — Analyze flags them for a reason; resolve before implementing
-- **Using beads during task generation** — Keep task generation clean; issue tracking starts during implementation
+- **Using issue tracking during task generation** — Keep task generation clean; issue tracking starts during implementation
