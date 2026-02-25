@@ -155,6 +155,25 @@ func (q *Queue) Count() (int, error) {
 	return len(sessionIDs), nil
 }
 
+// ListEntries returns all queue entries with their metadata
+func (q *Queue) ListEntries() ([]*QueueEntry, error) {
+	sessionIDs, err := q.List()
+	if err != nil {
+		return nil, err
+	}
+
+	var entries []*QueueEntry
+	for _, sessionID := range sessionIDs {
+		_, entry, err := q.GetQueuedSession(sessionID)
+		if err != nil {
+			continue // Skip entries we can't read
+		}
+		entries = append(entries, entry)
+	}
+
+	return entries, nil
+}
+
 // UpdateRetryCount updates the retry count for a queued session
 func (q *Queue) UpdateRetryCount(sessionID string) error {
 	metaPath := filepath.Join(q.dir, sessionID+".meta.json")

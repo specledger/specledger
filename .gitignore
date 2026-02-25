@@ -36,6 +36,12 @@ Thumbs.db
 *.bak
 *.backup
 
+# Beads local state (SQLite temp files)
+.beads/beads.db-shm
+.beads/beads.db-wal
+.beads/.local_version
+.beads/export-state/
+
 # SpecLedger specific
 .spec-cache/
 specledger/vendor/
