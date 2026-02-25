@@ -1,5 +1,5 @@
 // Package session provides checkpoint session capture functionality
-// for storing AI conversation segments linked to git commits and beads tasks.
+// for storing AI conversation segments linked to git commits and tasks.
 package session
 
 import (
@@ -32,7 +32,7 @@ type SessionContent struct {
 	SessionID     string    `json:"session_id"`     // unique identifier
 	FeatureBranch string    `json:"feature_branch"` // e.g., "010-checkpoint-session-capture"
 	CommitHash    string    `json:"commit_hash"`    // git commit hash (nullable for task sessions)
-	TaskID        string    `json:"task_id"`        // beads task ID (nullable for commit sessions)
+	TaskID        string    `json:"task_id"`        // task ID (nullable for commit sessions)
 	Author        string    `json:"author"`         // user email
 	CapturedAt    time.Time `json:"captured_at"`    // when captured
 	Messages      []Message `json:"messages"`       // conversation messages

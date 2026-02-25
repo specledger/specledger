@@ -175,7 +175,7 @@ func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName st
 	runPostInitScript(projectPath, projectMetadata)
 
 	// Initialize git if requested (bootstrap only)
-	// This runs AFTER post-init so generated files (like .beads/) are staged
+	// This runs AFTER post-init so generated files are staged
 	if initGit {
 		if err := initializeGitRepo(projectPath); err != nil {
 			return "", "", nil, fmt.Errorf("failed to initialize git: %w", err)
@@ -424,7 +424,7 @@ func lookupProjectID(projectPath string) string {
 }
 
 // runPostInitScript executes the template's init.sh script if it exists.
-// This allows templates to perform post-initialization tasks like setting up beads.
+// This allows templates to perform post-initialization tasks.
 // Passes specledger.yaml data as environment variables for use in scripts.
 // The init.sh script is read from embedded templates (not copied to target project).
 func runPostInitScript(projectPath string, projectMetadata *metadata.ProjectMetadata) {
