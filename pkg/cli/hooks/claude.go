@@ -66,7 +66,8 @@ func (s ClaudeSettings) MarshalJSON() ([]byte, error) {
 		result["hooks"] = s.Hooks
 	}
 
-	return json.MarshalIndent(result, "", "  ")
+	// Return without indent - caller (SaveClaudeSettings) handles indentation
+	return json.Marshal(result)
 }
 
 // getClaudeSettingsPath returns the path to ~/.claude/settings.json
