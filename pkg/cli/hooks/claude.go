@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 )
 
 // ClaudeSettings represents the structure of ~/.claude/settings.json
@@ -138,6 +140,23 @@ func SaveClaudeSettings(settings *ClaudeSettings) error {
 	return nil
 }
 
+// getSlCommand returns the command to use for sl session capture.
+// It tries to find the full path to the sl binary for reliability.
+func getSlCommand() string {
+	// Try to find the full path of sl
+	if path, err := exec.LookPath("sl"); err == nil {
+		return path + " session capture"
+	}
+	// Fallback to just "sl" if not found (might be in a different PATH context)
+	return "sl session capture"
+}
+
+// isSessionCaptureCommand checks if a command is the session capture hook
+func isSessionCaptureCommand(cmd string) bool {
+	// Match both "sl session capture" and "/path/to/sl session capture"
+	return cmd == "sl session capture" || strings.HasSuffix(cmd, "/sl session capture")
+}
+
 // HasSessionCaptureHook checks if the session capture hook is already installed
 func HasSessionCaptureHook(settings *ClaudeSettings) bool {
 	postToolUse, ok := settings.Hooks["PostToolUse"]
@@ -148,7 +167,7 @@ func HasSessionCaptureHook(settings *ClaudeSettings) bool {
 	for _, matcher := range postToolUse {
 		if matcher.Matcher == "Bash" {
 			for _, hook := range matcher.Hooks {
-				if hook.Command == "sl session capture" {
+				if isSessionCaptureCommand(hook.Command) {
 					return true
 				}
 			}
@@ -171,10 +190,10 @@ func InstallSessionCaptureHook() (bool, error) {
 		return false, nil // Already installed, nothing to do
 	}
 
-	// Create the hook
+	// Create the hook with full path for reliability
 	sessionCaptureHook := Hook{
 		Type:    "command",
-		Command: "sl session capture",
+		Command: getSlCommand(),
 	}
 
 	// Find or create the Bash matcher in PostToolUse
@@ -224,10 +243,10 @@ func UninstallSessionCaptureHook() (bool, error) {
 
 	for _, matcher := range postToolUse {
 		if matcher.Matcher == "Bash" {
-			// Filter out sl session capture
+			// Filter out sl session capture (handles both relative and absolute paths)
 			newHooks := make([]Hook, 0, len(matcher.Hooks))
 			for _, hook := range matcher.Hooks {
-				if hook.Command != "sl session capture" {
+				if !isSessionCaptureCommand(hook.Command) {
 					newHooks = append(newHooks, hook)
 				} else {
 					removed = true
