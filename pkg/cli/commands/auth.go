@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/specledger/specledger/pkg/cli/auth"
+	"github.com/specledger/specledger/pkg/cli/hooks"
 	"github.com/spf13/cobra"
 )
 
@@ -232,6 +233,13 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Signed in as: %s\n", result.UserEmail)
 	fmt.Printf("Credentials stored at: %s\n", auth.GetCredentialsPath())
 
+	// Install session capture hook for Claude Code
+	if installed, err := hooks.InstallSessionCaptureHook(); err != nil {
+		fmt.Printf("Warning: failed to install session capture hook: %v\n", err)
+	} else if installed {
+		fmt.Println("Session capture hook installed for Claude Code.")
+	}
+
 	return nil
 }
 
@@ -252,6 +260,13 @@ func runAccessTokenLogin(accessToken string) error {
 
 	fmt.Println("Authentication successful!")
 	fmt.Printf("Credentials stored at: %s\n", auth.GetCredentialsPath())
+
+	// Install session capture hook for Claude Code
+	if installed, err := hooks.InstallSessionCaptureHook(); err != nil {
+		fmt.Printf("Warning: failed to install session capture hook: %v\n", err)
+	} else if installed {
+		fmt.Println("Session capture hook installed for Claude Code.")
+	}
 
 	return nil
 }
@@ -276,6 +291,13 @@ func runRefreshTokenLogin(refreshToken string) error {
 		fmt.Printf("Signed in as: %s\n", creds.UserEmail)
 	}
 	fmt.Printf("Credentials stored at: %s\n", auth.GetCredentialsPath())
+
+	// Install session capture hook for Claude Code
+	if installed, err := hooks.InstallSessionCaptureHook(); err != nil {
+		fmt.Printf("Warning: failed to install session capture hook: %v\n", err)
+	} else if installed {
+		fmt.Println("Session capture hook installed for Claude Code.")
+	}
 
 	return nil
 }

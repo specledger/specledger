@@ -1,7 +1,0 @@
-*.db
-*.db-shm
-*.db-wal
-metadata.json
-bd.sock
-daemon.log
-export-state/
