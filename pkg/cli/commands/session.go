@@ -189,9 +189,9 @@ func runSessionList(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
-	projectID, err := session.GetProjectID(cwd)
+	projectID, err := session.GetProjectIDWithFallback(cwd)
 	if err != nil {
-		return fmt.Errorf("project not configured: %w\n\nHint: Ensure specledger.yaml exists with 'project.id' set.\nRun 'sl init' to initialize the project.", err)
+		return fmt.Errorf("project not configured: %w\n\nHint: Ensure specledger.yaml has 'project.id' set, or the project is registered in Supabase with matching git remote.", err)
 	}
 
 	// Get access token
@@ -264,9 +264,9 @@ func runSessionGet(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
-	projectID, err := session.GetProjectID(cwd)
+	projectID, err := session.GetProjectIDWithFallback(cwd)
 	if err != nil {
-		return fmt.Errorf("project not configured: %w\n\nHint: Ensure specledger.yaml exists with 'project.id' set.", err)
+		return fmt.Errorf("project not configured: %w\n\nHint: Ensure specledger.yaml has 'project.id' set, or the project is registered in Supabase with matching git remote.", err)
 	}
 
 	// Get access token

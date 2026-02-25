@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/specledger/specledger/pkg/cli/auth"
+	"github.com/specledger/specledger/pkg/cli/revise"
 	"gopkg.in/yaml.v3"
 )
 
@@ -108,6 +109,66 @@ func GetProjectID(workdir string) (string, error) {
 	}
 
 	return config.Project.ID, nil
+}
+
+// GetProjectIDFromRemote attempts to get project ID by looking up git remote in Supabase
+func GetProjectIDFromRemote(workdir string) (string, error) {
+	// Get git remote URL
+	cmd := exec.Command("git", "remote", "get-url", "origin")
+	cmd.Dir = workdir
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("no git remote 'origin' found")
+	}
+
+	remoteURL := strings.TrimSpace(string(output))
+	owner, repo, err := parseGitRemote(remoteURL)
+	if err != nil {
+		return "", err
+	}
+
+	// Get access token
+	accessToken, err := auth.GetValidAccessToken()
+	if err != nil {
+		return "", fmt.Errorf("not authenticated: %w", err)
+	}
+
+	// Lookup project in Supabase
+	client := revise.NewReviseClient(accessToken)
+	project, err := client.GetProject(owner, repo)
+	if err != nil {
+		return "", fmt.Errorf("project not found for %s/%s: %w", owner, repo, err)
+	}
+
+	return project.ID, nil
+}
+
+// parseGitRemote extracts owner and repo from git remote URL
+func parseGitRemote(remoteURL string) (owner, repo string, err error) {
+	// SSH format: git@github.com:owner/repo.git
+	sshPattern := regexp.MustCompile(`git@[^:]+:([^/]+)/(.+?)(?:\.git)?$`)
+	if matches := sshPattern.FindStringSubmatch(remoteURL); len(matches) == 3 {
+		return matches[1], strings.TrimSuffix(matches[2], ".git"), nil
+	}
+
+	// HTTPS format: https://github.com/owner/repo.git
+	httpsPattern := regexp.MustCompile(`https?://[^/]+/([^/]+)/(.+?)(?:\.git)?$`)
+	if matches := httpsPattern.FindStringSubmatch(remoteURL); len(matches) == 3 {
+		return matches[1], strings.TrimSuffix(matches[2], ".git"), nil
+	}
+
+	return "", "", fmt.Errorf("unable to parse git remote URL: %s", remoteURL)
+}
+
+// GetProjectIDWithFallback tries specledger.yaml first, then falls back to git remote lookup
+func GetProjectIDWithFallback(workdir string) (string, error) {
+	// Try specledger.yaml first
+	if id, err := GetProjectID(workdir); err == nil && id != "" {
+		return id, nil
+	}
+
+	// Fallback to git remote lookup
+	return GetProjectIDFromRemote(workdir)
 }
 
 // Capture orchestrates the session capture flow
