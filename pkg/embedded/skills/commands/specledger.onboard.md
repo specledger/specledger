@@ -98,6 +98,6 @@ Run `/specledger.implement` to begin executing the tasks in order.
 ## Important Notes
 
 - **Never skip the review pause** in Step 8. The user must always approve tasks before implementation begins.
-- If the user wants to modify tasks, help them update the beads issues before proceeding.
+- If the user wants to modify tasks, help them update the issues before proceeding.
 - If the user wants to stop at any point, respect that and summarize what was completed.
 - Each step builds on the previous one - don't skip steps unless the user explicitly asks.
