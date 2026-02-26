@@ -64,10 +64,11 @@ func TestIsGitCommit(t *testing.T) {
 		{"bash comment", "# git commit -m 'test'", false},
 		{"inline comment", "ls # git commit", false},
 
-		// Chained commands - git commit NOT at start
-		{"and chain", "git add . && git commit -m 'test'", false},
-		{"semicolon chain", "git status; git commit -m 'test'", false},
-		{"or chain", "git add . || git commit -m 'test'", false},
+		// Chained commands - git commit in chain SHOULD trigger
+		{"and chain", "git add . && git commit -m 'test'", true},
+		{"semicolon chain", "git status; git commit -m 'test'", true},
+		{"or chain", "git add . || git commit -m 'test'", true},
+		// Pipes and subshells should NOT trigger (different semantics)
 		{"pipe", "echo test | git commit", false},
 		{"subshell", "$(git commit -m 'test')", false},
 		{"backtick subshell", "`git commit -m 'test'`", false},

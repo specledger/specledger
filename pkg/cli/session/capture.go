@@ -23,6 +23,9 @@ var gitCommitPattern = regexp.MustCompile(`^\s*git\s+commit(\s|$)`)
 // gitAmendPattern matches git commit --amend commands
 var gitAmendPattern = regexp.MustCompile(`\s+--amend\b`)
 
+// chainSeparators splits commands by shell chain operators
+var chainSeparators = regexp.MustCompile(`\s*(?:&&|\|\||;)\s*`)
+
 // ParseHookInput parses the hook input from stdin
 func ParseHookInput(data []byte) (*HookInput, error) {
 	var input HookInput
@@ -32,16 +35,21 @@ func ParseHookInput(data []byte) (*HookInput, error) {
 	return &input, nil
 }
 
-// IsGitCommit checks if the tool input is a git commit command (but not amend)
+// IsGitCommit checks if the tool input contains a git commit command (but not amend)
+// Handles chained commands like "git add . && git commit -m 'msg'"
 func IsGitCommit(toolInput string) bool {
-	if !gitCommitPattern.MatchString(toolInput) {
-		return false
+	// Split by chain operators (&&, ||, ;) and check each part
+	parts := chainSeparators.Split(toolInput, -1)
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if gitCommitPattern.MatchString(part) {
+			// Check this specific part for amend
+			if !gitAmendPattern.MatchString(part) {
+				return true
+			}
+		}
 	}
-	// Exclude amend commits (they create new sessions for the new hash)
-	if gitAmendPattern.MatchString(toolInput) {
-		return false
-	}
-	return true
+	return false
 }
 
 // GetCurrentCommitHash gets the current HEAD commit hash
