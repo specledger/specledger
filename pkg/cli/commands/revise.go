@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/specledger/specledger/pkg/cli/auth"
+	"github.com/specledger/specledger/pkg/cli/config"
 	cligit "github.com/specledger/specledger/pkg/cli/git"
 	"github.com/specledger/specledger/pkg/cli/launcher"
 	"github.com/specledger/specledger/pkg/cli/revise"
@@ -184,6 +185,9 @@ func runRevise(cmd *cobra.Command, args []string) error {
 		fmt.Printf("No AI agent found. Install with: %s\n", al.InstallInstructions())
 		return writePromptToFile(finalPrompt)
 	}
+
+	// Inject config environment variables (base-url, auth-token, model overrides, etc.)
+	al.SetEnv(config.ResolveAgentEnv())
 
 	fmt.Printf("Launching %s...\n", al.Name)
 	if err := al.LaunchWithPrompt(finalPrompt); err != nil {
