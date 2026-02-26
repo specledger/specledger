@@ -344,7 +344,7 @@ func queueSession(result *CaptureResult, compressed []byte, projectID, branch st
 		RetryCount:    0,
 	}
 
-	if err := queue.Enqueue(result.SessionID, compressed, entry); err != nil {
+	if err := queue.Enqueue(entry, compressed); err != nil {
 		result.Error = fmt.Errorf("failed to queue session: %w", err)
 		return result
 	}
