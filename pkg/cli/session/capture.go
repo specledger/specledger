@@ -180,6 +180,7 @@ func GetProjectIDWithFallback(workdir string) (string, error) {
 }
 
 // Capture orchestrates the session capture flow
+// Implements graceful degradation: captures metadata even without transcript
 func Capture(input *HookInput) *CaptureResult {
 	result := &CaptureResult{Captured: false}
 
@@ -193,17 +194,7 @@ func Capture(input *HookInput) *CaptureResult {
 		return result // Commit failed, nothing to capture
 	}
 
-	// Check for transcript path
-	if input.TranscriptPath == "" {
-		result.Error = fmt.Errorf("no transcript path in hook input")
-		return result
-	}
-
-	// Check transcript exists
-	if _, err := os.Stat(input.TranscriptPath); err != nil {
-		result.Error = fmt.Errorf("transcript not found: %w", err)
-		return result
-	}
+	// === Core metadata (always available from git) ===
 
 	// Get commit hash
 	commitHash, err := GetCurrentCommitHash(input.Cwd)
@@ -230,24 +221,39 @@ func Capture(input *HookInput) *CaptureResult {
 		return result
 	}
 
-	// Get last offset for this session
-	offsetInfo, err := GetSessionOffset(input.SessionID)
-	if err != nil {
-		result.Error = fmt.Errorf("failed to get session offset: %w", err)
-		return result
+	// === Transcript (nice-to-have, graceful degradation) ===
+
+	var messages []Message
+	var newOffset int64
+
+	// Try to get transcript path - provided or search by session_id
+	transcriptPath := input.TranscriptPath
+	if transcriptPath == "" && input.SessionID != "" {
+		if found, err := findTranscriptBySessionID(input.SessionID); err == nil {
+			transcriptPath = found
+		}
 	}
 
-	// Compute delta
-	messages, newOffset, err := ComputeDelta(input.TranscriptPath, offsetInfo.LastOffset)
-	if err != nil {
-		result.Error = fmt.Errorf("failed to compute delta: %w", err)
-		return result
+	// If we have a transcript, compute delta
+	if transcriptPath != "" {
+		if _, err := os.Stat(transcriptPath); err == nil {
+			input.TranscriptPath = transcriptPath
+
+			// Get last offset for this session
+			offsetInfo, err := GetSessionOffset(input.SessionID)
+			if err == nil {
+				// Compute delta
+				msgs, offset, err := ComputeDelta(transcriptPath, offsetInfo.LastOffset)
+				if err == nil {
+					messages = msgs
+					newOffset = offset
+				}
+			}
+		}
 	}
 
-	// Check if there's anything to capture
-	if len(messages) == 0 {
-		return result // No new messages since last capture
-	}
+	// Even without transcript messages, we still capture metadata
+	// A session record with commit linkage is valuable
 
 	// Get credentials
 	creds, err := auth.LoadCredentials()
@@ -328,9 +334,11 @@ func Capture(input *HookInput) *CaptureResult {
 		return queueSession(result, compressed, projectID, branch, &commitHash, nil, creds.UserID)
 	}
 
-	// Update offset tracking
-	if err := UpdateSessionOffset(input.SessionID, newOffset, commitHash, input.TranscriptPath); err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: failed to update session offset: %v\n", err)
+	// Update offset tracking (only if we have transcript data)
+	if input.TranscriptPath != "" && newOffset > 0 {
+		if err := UpdateSessionOffset(input.SessionID, newOffset, commitHash, input.TranscriptPath); err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to update session offset: %v\n", err)
+		}
 	}
 
 	result.Captured = true
@@ -504,6 +512,34 @@ To test:
 	fmt.Println("\nTo view sessions: sl session list")
 
 	return &CaptureResult{Captured: false}
+}
+
+// findTranscriptBySessionID searches for a transcript file by session ID
+// Searches in ~/.claude/projects/<project-slug>/<session-id>.jsonl
+func findTranscriptBySessionID(sessionID string) (string, error) {
+	homeDir, err := os.UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	projectsDir := filepath.Join(homeDir, ".claude", "projects")
+	entries, err := os.ReadDir(projectsDir)
+	if err != nil {
+		return "", err
+	}
+
+	filename := sessionID + ".jsonl"
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		transcriptPath := filepath.Join(projectsDir, entry.Name(), filename)
+		if _, err := os.Stat(transcriptPath); err == nil {
+			return transcriptPath, nil
+		}
+	}
+
+	return "", fmt.Errorf("transcript not found for session %s", sessionID)
 }
 
 // findMostRecentTranscript finds the most recent Claude Code transcript
