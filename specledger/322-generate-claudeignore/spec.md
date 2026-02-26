@@ -4,49 +4,7 @@
 **Created**: 2026-02-24
 **Status**: In Progress
 
-## Background Research: `.claudeignore` vs `permissions.deny`
-
-### Key Finding
-
-**`.claudeignore` is a deprecated/transitional feature.** The current recommended approach is using `permissions.deny` in `.claude/settings.json`, which provides:
-- Stronger enforcement (blocks read operations, not just discovery)
-- Fine-grained control with gitignore-style patterns
-- Scope-aware configuration (user, project, local, managed)
-
-### Purpose
-
-| Purpose | Description |
-|---------|-------------|
-| **Token Efficiency** | Exclude large directories (`node_modules/`, `dist/`, `build/`) to prevent context window bloat and reduce API costs |
-| **Sensitive Data Exclusion** | Block access to `.env`, `.env.*`, `secrets/**`, credentials files to prevent Claude from reading or exposing sensitive information |
-
-### Known Issues
-
-1. **Session caching:** When resuming sessions after adding ignore patterns, old cached content may still be loaded
-2. **File watching:** File watcher may still process excluded directories like `node_modules/`, potentially causing OOM crashes
-3. **`.gitignore` alone is insufficient for security** - Claude Code can still read gitignored files unless explicitly blocked
-
-### Recommended Modern Approach
-
-```json
-// .claude/settings.json
-{
-  "respectGitignore": true,
-  "permissions": {
-    "deny": [
-      "Read(./.env)",
-      "Read(./.env.*)",
-      "Read(./secrets/**)",
-      "Read(./node_modules/**)",
-      "Read(./dist/**)"
-    ]
-  }
-}
-```
-
-**Recommendation:** This spec should generate `permissions.deny` entries in `.claude/settings.json` instead of (or in addition to) `.claudeignore`.
-
----
+> **Note:** See [preliminary-research.md](./preliminary-research.md) for background research on `.claudeignore` vs `permissions.deny`.
 
 ## Overview
 
