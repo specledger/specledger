@@ -104,7 +104,6 @@ func Load() (*Config, error) {
 func (c *Config) Save() error {
 	configPath := getConfigPath()
 
-	// Create directory if it doesn't exist
 	if err := os.MkdirAll(filepath.Dir(configPath), 0755); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
@@ -114,12 +113,25 @@ func (c *Config) Save() error {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	// #nosec G306 -- config file needs to be readable, 0644 is appropriate
-	if err := os.WriteFile(configPath, data, 0644); err != nil {
+	if err := os.WriteFile(configPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
 	return nil
+}
+
+func (c *Config) HasSensitiveValues() bool {
+	if c.Agent != nil {
+		if c.Agent.AuthToken != "" || c.Agent.APIKey != "" {
+			return true
+		}
+	}
+	for _, profile := range c.Profiles {
+		if profile != nil && (profile.AuthToken != "" || profile.APIKey != "") {
+			return true
+		}
+	}
+	return false
 }
 
 // getConfigPath returns the path to the config file

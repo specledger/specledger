@@ -1,7 +1,11 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
+
+	"gopkg.in/yaml.v3"
 )
 
 type ConfigScope string
@@ -177,4 +181,76 @@ func (r *ResolvedConfig) GetEnvVars() map[string]string {
 	}
 
 	return envVars
+}
+
+func ResolveAgentEnv() map[string]string {
+	globalCfg, _ := Load()
+	if globalCfg == nil {
+		globalCfg = DefaultConfig()
+	}
+
+	var teamLocal, personalLocal *AgentConfig
+
+	teamMeta, err := loadProjectMetadata(".")
+	if err == nil && teamMeta != nil && teamMeta.Agent != nil {
+		teamLocal = teamMeta.Agent
+	}
+
+	personalMeta, err := loadPersonalMetadata(".")
+	if err == nil && personalMeta != nil && personalMeta.Agent != nil {
+		personalLocal = personalMeta.Agent
+	}
+
+	var profile *AgentConfig
+	if globalCfg.ActiveProfile != "" && globalCfg.Profiles != nil {
+		profile = globalCfg.Profiles[globalCfg.ActiveProfile]
+	}
+
+	resolved := MergeConfigs(
+		DefaultAgentConfig(),
+		globalCfg.Agent,
+		profile,
+		teamLocal,
+		personalLocal,
+	)
+
+	return resolved.GetEnvVars()
+}
+
+func loadProjectMetadata(projectPath string) (*struct {
+	Agent *AgentConfig `yaml:"agent,omitempty"`
+}, error) {
+	metaPath := filepath.Join(projectPath, "specledger", "specledger.yaml")
+	data, err := os.ReadFile(metaPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var meta struct {
+		Agent *AgentConfig `yaml:"agent,omitempty"`
+	}
+	if err := yaml.Unmarshal(data, &meta); err != nil {
+		return nil, err
+	}
+
+	return &meta, nil
+}
+
+func loadPersonalMetadata(projectPath string) (*struct {
+	Agent *AgentConfig `yaml:"agent,omitempty"`
+}, error) {
+	personalPath := filepath.Join(projectPath, "specledger", "specledger.local.yaml")
+	data, err := os.ReadFile(personalPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var meta struct {
+		Agent *AgentConfig `yaml:"agent,omitempty"`
+	}
+	if err := yaml.Unmarshal(data, &meta); err != nil {
+		return nil, err
+	}
+
+	return &meta, nil
 }
