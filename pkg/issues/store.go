@@ -81,6 +81,36 @@ func (s *Store) Create(issue *Issue) error {
 			issue.SpecContext = s.specContext
 		}
 
+		// Validate parent if set
+		if issue.ParentID != nil && *issue.ParentID != "" {
+			// Self-parent check
+			if *issue.ParentID == issue.ID {
+				return fmt.Errorf("cannot set self as parent")
+			}
+
+			// Parent existence check
+			issues, err := s.readAllUnlocked()
+			if err != nil {
+				return fmt.Errorf("failed to read issues: %w", err)
+			}
+
+			parentExists := false
+			for _, existing := range issues {
+				if existing.ID == *issue.ParentID {
+					parentExists = true
+					break
+				}
+			}
+			if !parentExists {
+				return fmt.Errorf("parent issue not found: %s", *issue.ParentID)
+			}
+
+			// Cycle detection
+			if s.wouldCreateParentCycle(issue.ID, *issue.ParentID, issues) {
+				return fmt.Errorf("circular parent-child relationship detected")
+			}
+		}
+
 		// Validate issue
 		if err := issue.Validate(); err != nil {
 			return err
@@ -243,10 +273,53 @@ func (s *Store) Update(id string, update IssueUpdate) (*Issue, error) {
 			found.DefinitionOfDone = update.DefinitionOfDone
 		}
 		if update.CheckDoDItem != "" && found.DefinitionOfDone != nil {
-			found.DefinitionOfDone.CheckItem(update.CheckDoDItem)
+			if !found.DefinitionOfDone.CheckItem(update.CheckDoDItem) {
+				return nil, fmt.Errorf("DoD item not found: '%s'", update.CheckDoDItem)
+			}
 		}
 		if update.UncheckDoDItem != "" && found.DefinitionOfDone != nil {
-			found.DefinitionOfDone.UncheckItem(update.UncheckDoDItem)
+			if !found.DefinitionOfDone.UncheckItem(update.UncheckDoDItem) {
+				return nil, fmt.Errorf("DoD item not found: '%s'", update.UncheckDoDItem)
+			}
+		}
+
+		// Handle parent update
+		if update.ParentID != nil {
+			if *update.ParentID == "" {
+				// Clear parent
+				found.ParentID = nil
+			} else {
+				newParentID := *update.ParentID
+
+				// Self-parent check
+				if newParentID == found.ID {
+					return nil, fmt.Errorf("cannot set self as parent")
+				}
+
+				// Single parent constraint - only error if trying to change to a different parent
+				if found.ParentID != nil && *found.ParentID != "" && *found.ParentID != newParentID {
+					return nil, fmt.Errorf("issue already has a parent, remove existing parent first")
+				}
+
+				// Parent existence check
+				parentExists := false
+				for _, issue := range issues {
+					if issue.ID == newParentID {
+						parentExists = true
+						break
+					}
+				}
+				if !parentExists {
+					return nil, fmt.Errorf("parent issue not found: %s", newParentID)
+				}
+
+				// Cycle detection - check if setting this parent would create a cycle
+				if s.wouldCreateParentCycle(found.ID, newParentID, issues) {
+					return nil, fmt.Errorf("circular parent-child relationship detected")
+				}
+
+				found.ParentID = update.ParentID
+			}
 		}
 
 		// Update timestamp
@@ -267,6 +340,82 @@ func (s *Store) Update(id string, update IssueUpdate) (*Issue, error) {
 
 		return found, nil
 	})
+}
+
+// wouldCreateParentCycle checks if setting parentID as the parent of issueID would create a cycle
+func (s *Store) wouldCreateParentCycle(issueID, parentID string, issues []*Issue) bool {
+	// Build a map for quick lookup
+	issueMap := make(map[string]*Issue)
+	for _, issue := range issues {
+		issueMap[issue.ID] = issue
+	}
+
+	// Traverse up the parent chain from parentID
+	// If we reach issueID, there's a cycle
+	visited := make(map[string]bool)
+	current := parentID
+
+	for current != "" {
+		// If we reach the issue we're trying to set as child, there's a cycle
+		if current == issueID {
+			return true
+		}
+
+		// Prevent infinite loops
+		if visited[current] {
+			break
+		}
+		visited[current] = true
+
+		// Get the parent of current
+		parent, exists := issueMap[current]
+		if !exists || parent.ParentID == nil || *parent.ParentID == "" {
+			break
+		}
+		current = *parent.ParentID
+	}
+
+	return false
+}
+
+// GetChildren returns all issues that have the given issue as parent
+// Results are ordered by priority (descending), then by ID (ascending)
+func (s *Store) GetChildren(parentID string) ([]Issue, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	locked, err := s.lock.TryLock()
+	if err != nil {
+		return nil, fmt.Errorf("failed to acquire lock: %w", err)
+	}
+	if !locked {
+		return nil, ErrStoreLocked
+	}
+	defer func() { _ = s.lock.Unlock() }()
+
+	issues, err := s.readAllUnlocked()
+	if err != nil {
+		return nil, err
+	}
+
+	var children []Issue
+	for _, issue := range issues {
+		if issue.ParentID != nil && *issue.ParentID == parentID {
+			children = append(children, *issue)
+		}
+	}
+
+	// Sort by priority (descending - higher priority first), then by ID (ascending)
+	for i := 0; i < len(children)-1; i++ {
+		for j := i + 1; j < len(children); j++ {
+			if children[i].Priority > children[j].Priority ||
+				(children[i].Priority == children[j].Priority && children[i].ID > children[j].ID) {
+				children[i], children[j] = children[j], children[i]
+			}
+		}
+	}
+
+	return children, nil
 }
 
 // Delete removes an issue from the store

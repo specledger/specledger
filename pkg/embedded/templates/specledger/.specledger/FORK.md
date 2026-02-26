@@ -9,14 +9,14 @@ Notes on changes made to local files compared to upstream [github/spec-kit](http
 
 ## Task Generation Updates
 
-- Updated `speckit.tasks` prompt template and `tasks.md` template to use [beads](https://github.com/steveyegge/beads) CLI for task management instead of a linear checklist.
+- Updated `speckit.tasks` prompt template and `tasks.md` template to use built-in `sl issue` CLI for task management instead of a linear checklist.
 - Updated `speckit.analyze` prompt to reflect new task generation approach.
 - Updated `speckit.implement` prompt to reflect new task generation approach.
 
 ## Task Tracking Updates
 
-- Updated `speckit.specify` prompt to review previous work using beads queries.
-- Updated `speckit.plan` prompt to research previous work first using beads queries.
+- Updated `speckit.specify` prompt to review previous work using `sl issue` queries.
+- Updated `speckit.plan` prompt to research previous work first using `sl issue` queries.
 
 ## Scripts updates
 
@@ -63,7 +63,7 @@ Notes on changes made to local files compared to upstream [github/spec-kit](http
 - Added Previous Work section
 
 ### tasks-template.md
-- Adapted for beads-based task management
+- Adapted for built-in issue tracking task management
 - Added dependency tracking (blocks/blockedBy)
 - Changed from linear checklist to dependency graph
 
@@ -84,7 +84,7 @@ Notes on changes made to local files compared to upstream [github/spec-kit](http
 ## Current Upstream Version
 
 Based on the templates and scripts, this fork tracks a version of spec-kit from approximately 2024-2025, with significant local modifications for:
-1. Beads integration for task tracking
+1. Built-in `sl issue` task tracking
 2. Branch adoption workflow
 3. Enhanced branch naming with stop word filtering
 4. Specledger branding and project structure

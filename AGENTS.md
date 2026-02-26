@@ -1,51 +1,43 @@
 # Repository Guidelines
 
-## Issue Tracking with bd (beads)
+## Issue Tracking with `sl issue`
 
-**IMPORTANT**: This project uses **bd (beads)** for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
+**IMPORTANT**: This project uses the built-in **`sl issue`** commands for ALL issue tracking. Do NOT use markdown TODOs, task lists, or other tracking methods.
 
-### Why bd?
+### Why `sl issue`?
 
-- Dependency-aware: Track blockers and relationships between issues
-- Git-friendly: Auto-syncs to JSONL for version control
-- Agent-optimized: JSON output, ready work detection, discovered-from links
+- No external dependencies: Built directly into the `sl` CLI
+- Git-friendly: Issues stored as JSONL files, one per spec
+- Agent-optimized: JSON output, ready work detection, dependency links
 - Prevents duplicate tracking systems and confusion
 
 ### Quick Start
 
-Read [skills/bd-issue-tracking](.claude/skills/bd-issue-tracking/README.md)
-
-**Check for ready work:**
-
-Use filters to stay focused.
+**Check for open issues:**
 
 ```bash
-bd ready [--label ... ] [--limit 10]
+sl issue list --status open
+sl issue list --all  # across all specs
 ```
 
 **Create new issues:**
 
-
 ```bash
-bd create "Issue title" -t bug|feature|task -p 0-4 [--parent epic] [--design "hOW"] [--acceptance "WHAT success looks like" ]
-bd create "Issue title" -p 1 --deps discovered-from:bd-123
+sl issue create --title "Issue title" --type bug|feature|task --priority 0-4
+sl issue create --title "Fix login" --type bug --priority 1
 ```
 
-**Claim and update:**
-```bash
-bd update bd-42 --status in_progress
-bd update bd-42 --priority 1
-```
+**Update issues:**
 
-
-**Document information discovered during implementation:**
 ```bash
-bd comments add bd-42 "zitadel/oidc requires key generation and key ID to sign"
+sl issue update SL-abc123 --status in_progress
+sl issue update SL-abc123 --priority 1
 ```
 
 **Complete work:**
+
 ```bash
-bd close bd-42 --reason "Completed"
+sl issue close SL-abc123 --reason "Completed: Fixed login validation"
 ```
 
 ### Issue Types
@@ -54,7 +46,6 @@ bd close bd-42 --reason "Completed"
 - `feature` - New functionality
 - `task` - Work item (tests, docs, refactoring)
 - `epic` - Large feature with subtasks
-- `chore` - Maintenance (dependencies, tooling)
 
 ### Priorities
 
@@ -62,38 +53,42 @@ bd close bd-42 --reason "Completed"
 - `1` - High (major features, important bugs)
 - `2` - Medium (default, nice-to-have)
 - `3` - Low (polish, optimization)
-- `4` - Backlog (future ideas)
+
+### Issue IDs
+
+Issues use deterministic IDs in format `SL-xxxxxx` (6 hex characters derived from SHA-256 hash of spec context + title + timestamp).
+
+### Spec Storage
+
+Issues are stored per-spec in `specledger/<spec>/issues.jsonl` to avoid merge conflicts when working on different features.
 
 ### Workflow for AI Agents
 
-1. **Check ready work**: `bd ready` shows unblocked issues
-2. **Claim your task**: `bd update <id> --status in_progress`
+1. **Check open issues**: `sl issue list --status open`
+2. **Claim your task**: `sl issue update <id> --status in_progress`
 3. **Work on it**: Implement, test, document
-4. **Discover new work?** Create linked issue:
-   - `bd create "Found bug" -p 1 --deps discovered-from:<parent-id>`
-5. **Complete**: `bd close <id> --reason "Done"`
-6. **Commit together**: Always commit the `.beads/issues.jsonl` file together with the code changes so issue state stays in sync with code state
+4. **Complete**: `sl issue close <id> --reason "Done"`
+5. **Commit together**: Always commit the `specledger/<spec>/issues.jsonl` file together with the code changes
 
-### Auto-Sync
+### Dependency Management
 
-bd automatically syncs with git:
-- Exports to `.beads/issues.jsonl` after changes (5s debounce)
-- Imports from JSONL when newer (e.g., after `git pull`)
-- No manual export/import needed!
+Link issues with dependencies:
+
+```bash
+sl issue link SL-abc123 blocks SL-def456  # abc123 blocks def456
+```
 
 ### Important Rules
 
-- ✅ Use bd for ALL task tracking
-- ✅ Always use `--json` flag for programmatic use
-- ✅ Link discovered work with `discovered-from` dependencies
-- ✅ Check `bd ready` before asking "what should I work on?"
-- ❌ Do NOT create markdown TODO lists
-- ❌ Do NOT use external issue trackers
-- ❌ Do NOT duplicate tracking systems
-
-For more details, see README.md and QUICKSTART.md.
+- Use `sl issue` for ALL task tracking
+- Issues are stored per-spec in `specledger/<spec>/issues.jsonl`
+- Check `sl issue list --status open` before asking "what should I work on?"
+- Do NOT create markdown TODO lists
+- Do NOT use external issue trackers
+- Do NOT duplicate tracking systems
 
 ## Commit & Pull Request Guidelines
+
 Follow the existing conventional prefixes (`feat:`, `fix:`, `chore:`, `docs:`) and keep messages imperative and under 72 characters. Reference related issues in the body and mention migrations, proto changes, or new binaries explicitly. PRs should include a concise summary, testing evidence (`make test-unit`, `make test-integration`, etc.), and screenshots or CLI transcripts when behavior changes. Request reviews from domain owners and ensure generated artifacts and docs stay in sync with code changes.
 
 ## Landing the Plane (Session Completion)
@@ -108,7 +103,6 @@ Follow the existing conventional prefixes (`feat:`, `fix:`, `chore:`, `docs:`) a
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd sync
    git push
    git status  # MUST show "up to date with origin"
    ```

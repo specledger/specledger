@@ -3,7 +3,24 @@
 **Feature Branch**: `010-checkpoint-session-capture`
 **Created**: 2026-02-11
 **Status**: Draft
-**Input**: User description: "Capture AI chat sessions during checkpoint creation and beads task execution, store them to S3, and associate session links with checkpoints in the database."
+
+## Problem Statement
+
+When using AI assistants for software development, there is no persistent record of the conversations that led to code changes. This creates several problems:
+
+1. **No audit trail**: Reviewers cannot see what AI assistance was provided or what reasoning led to each commit
+2. **Lost knowledge**: Decisions, trade-offs, and rejected approaches discussed with AI are not captured
+3. **No retrospective data**: Teams cannot analyze AI-assisted development patterns or improve their workflows
+
+### What This Feature Does NOT Do
+
+- ❌ **Context continuity for AI** - Loading past sessions to "remember" user preferences is out of scope
+- ❌ **Real-time collaboration** - Sessions are captured post-hoc, not streamed
+- ❌ **Code analysis** - We capture conversations, not code quality metrics
+
+### Success Looks Like
+
+A developer commits code → The AI conversation (since last commit) is automatically captured → Anyone on the team can later retrieve and review that session to understand the reasoning behind the commit.
 
 ## Clarifications
 
@@ -36,22 +53,19 @@ This is the core workflow: the developer uses Claude Code to work on changes, co
 
 ---
 
-### User Story 2 - AI Retrieves Past Sessions for Context Continuity (Priority: P2)
+### User Story 2 - Team Reviews Sessions for Retrospectives (Priority: P2)
 
-As an AI assistant working on a feature across multiple sessions, I can retrieve relevant past sessions to recall what the user decided, what additional context the user provided about the system, and what approaches were accepted or rejected — so I don't repeat questions or contradict earlier decisions.
+As a team lead or developer, I can browse and search past sessions to understand patterns in AI-assisted development, identify recurring issues, and improve team workflows.
 
-Sessions are too large to embed in commit messages or local files. They must be stored in cloud storage and be queryable by the AI. When the AI starts a new task or session, it can look up past sessions for the same feature (or related tasks) to load prior context. This is the primary value driver — sessions become the AI's institutional memory for the project.
+**Why this priority**: After capturing sessions (P1), the next value is enabling humans to review and analyze them for process improvement.
 
-**Why this priority**: Without AI-consumable retrieval, stored sessions are just a passive archive. Making sessions queryable by the AI transforms them into an active knowledge base that improves AI quality over time.
-
-**Independent Test**: Can be fully tested by storing sessions across multiple commits/tasks, then having the AI query for sessions related to a specific feature or task and verifying it receives relevant prior context.
+**Independent Test**: Can be fully tested by storing multiple sessions, then querying by feature/date/author and verifying results are filterable and readable.
 
 **Acceptance Scenarios**:
 
-1. **Given** multiple sessions exist for a feature, **When** the AI begins work on a new task in that feature, **Then** the AI can query and retrieve past sessions for the same feature to understand prior decisions and user-provided context.
-2. **Given** a session where the user selected a specific approach (e.g., "use approach A, not B"), **When** the AI retrieves that session later, **Then** the user's decision is identifiable from the structured message data (user messages containing selections/preferences).
-3. **Given** a session where the user provided additional system context (e.g., architecture details, constraints, domain knowledge), **When** the AI retrieves that session, **Then** the context is available to inform the AI's approach in the current session.
-4. **Given** no prior sessions exist for a feature, **When** the AI queries for past context, **Then** the query returns empty results without error.
+1. **Given** multiple sessions exist for a feature, **When** a team member queries by feature branch, **Then** all sessions for that feature are returned with metadata (commit, date, author, size).
+2. **Given** sessions from multiple authors, **When** a team lead filters by author, **Then** only that author's sessions are returned.
+3. **Given** sessions across a date range, **When** a user filters by date, **Then** only sessions within that range are returned.
 
 ---
 
@@ -164,3 +178,165 @@ As a project owner, I need sessions to be accessible only to authorized team mem
 - **008-cli-auth**: Established browser-based OAuth authentication for the CLI and credential storage at `~/.specledger/credentials.json`.
 - **009-add-login-and-comment-commands**: Established slash-command authentication via token paste with session storage at `~/.specledger/session.json`, and Supabase REST API integration for comments.
 - **Beads Issue Tracker**: Provides the task execution framework (`.beads/issues.jsonl`) where per-task sessions will be captured.
+
+---
+
+## Implementation Design Decisions
+
+*Added 2026-02-23: Documents technical decisions made during implementation.*
+
+### Approach Selection: Claude Code Hooks
+
+**Options Considered:**
+
+| Option | Pros | Cons | Verdict |
+|--------|------|------|---------|
+| **Git Hook (post-commit)** | Works with any git workflow, simple | No transcript access, can't differentiate AI commits | Rejected |
+| **Claude Code Hook (PostToolUse)** | Direct transcript access, session ID, filters for commits | Only works with Claude Code | **Selected** |
+| **File Watcher on Transcript** | Independent of hooks | Complex, race conditions, no clear trigger | Rejected |
+
+**Rationale:** Claude Code hooks provide direct access to the conversation transcript via `transcript_path` in the hook JSON. This is the only approach that gives us the actual conversation content.
+
+### Hook Format Discovery
+
+Initial implementation assumed a `tool_success: bool` field based on expected schema. Testing revealed the actual format:
+
+**Assumed:**
+```json
+{"tool_success": true, "tool_output": "..."}
+```
+
+**Actual (discovered via debug capture):**
+```json
+{
+  "tool_response": {
+    "stdout": "...",
+    "stderr": "",
+    "interrupted": false
+  },
+  "tool_use_id": "toolu_..."
+}
+```
+
+**Fix:** Updated `HookInput` struct in `types.go` to match actual format, added `ToolSuccess()` method that checks `!tool_response.interrupted`.
+
+### Trigger Condition: Git Commit Only
+
+**Decision:** Only capture when Bash tool executes `git commit` (excluding `--amend`).
+
+**Implementation:**
+```go
+var gitCommitPattern = regexp.MustCompile(`^\s*git\s+commit(\s|$)`)
+var gitAmendPattern = regexp.MustCompile(`\s+--amend\b`)
+```
+
+**Rationale:**
+- Commits represent logical checkpoints
+- Amends modify history (would create duplicate captures)
+- Other git commands (add, push, status) don't represent new work
+
+**Known Limitation:** Excluding `--amend` may miss legitimate work if developers use amend as their primary workflow. This is a deliberate trade-off to avoid duplicate session captures when amending typos or minor fixes. May revisit if this causes issues.
+
+### Delta Capture (Incremental)
+
+**Decision:** Only capture messages since last capture for this session.
+
+**Implementation:**
+- Track byte offset in transcript file per session
+- Store state in `~/.specledger/session-state.json`
+- Read only new JSONL lines from offset
+
+**Rationale:**
+- Avoids duplicate storage
+- Reduces storage costs
+- Each commit gets only relevant context
+
+### Project ID Auto-Lookup
+
+**Decision:** Auto-lookup `project.id` from Supabase when running `sl init`.
+
+**Implementation:**
+1. Parse git remote URL (SSH or HTTPS format)
+2. Extract `owner/repo`
+3. Query Supabase: `GET /projects?repo_owner=eq.{owner}&repo_name=eq.{repo}`
+4. Store in `specledger.yaml`
+
+**Rationale:**
+- Reduces manual configuration errors
+- Git remote uniquely identifies project
+- Seamless setup experience
+
+### Storage Architecture
+
+```
+Supabase Storage: sessions/{project_id}/{branch}/{commit_hash}.json.gz
+PostgreSQL:       sessions table (metadata for querying)
+```
+
+**Rationale:**
+- Compressed JSON reduces storage costs (~10x compression)
+- Metadata separation enables fast queries without downloading content
+- Standard patterns for cloud storage
+
+### Offline Queue
+
+**Decision:** Queue failed uploads locally for retry with `sl session sync`.
+
+**Location:** `~/.specledger/session-queue/`
+
+**Rationale:**
+- Network failures shouldn't block commits
+- Developer workflow must not be interrupted
+- Eventual consistency acceptable for session data
+
+---
+
+## Validation & Testing
+
+### Unit Tests (`pkg/cli/session/capture_test.go`)
+
+| Test | What It Validates |
+|------|-------------------|
+| `TestIsGitCommit` | Correctly identifies git commit commands vs other commands |
+| `TestToolInputCommand` | Parses tool_input JSON correctly (object and string formats) |
+| `TestToolSuccess` | Correctly interprets tool_response.interrupted field |
+| `TestParseHookInput` | Full hook JSON parsing with all fields |
+
+### Manual Validation Steps
+
+**Pre-requisite:** Project initialized with `sl init`, authenticated with `sl auth login`
+
+1. **Verify hook is configured:**
+   ```bash
+   cat .claude/settings.json | jq '.hooks.PostToolUse'
+   # Should show matcher: "Bash" with command: "sl session capture"
+   ```
+
+2. **Test capture trigger in Claude Code:**
+   ```bash
+   # In Claude Code, make a commit
+   git commit -m "test"
+   # Check session was captured
+   sl session list --limit 1
+   # Should show the new commit
+   ```
+
+3. **Verify delta capture:**
+   ```bash
+   # Make another commit in same Claude Code session
+   git commit --allow-empty -m "second commit"
+   sl session list --limit 2
+   # Second session should have fewer messages (delta only)
+   ```
+
+4. **Verify session content:**
+   ```bash
+   sl session get <commit-hash> --json | jq '.messages | length'
+   # Should return message count > 0
+   ```
+
+### What Is NOT Automatically Tested
+
+- E2E test requiring actual Claude Code session (requires manual testing)
+- Network failure scenarios (queue/retry)
+- Large session handling (>10MB)

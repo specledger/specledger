@@ -27,6 +27,7 @@ var (
 	issueAllFlag         bool
 	issueJSONFlag        bool
 	issueTreeFlag        bool
+	issueGraphFlag       bool // Show blocking dependency graph
 	issueBlockedFlag     bool
 	issueReasonFlag      string
 	issueAssigneeFlag    string
@@ -37,6 +38,10 @@ var (
 	issueRemoveLabelFlag string
 	issueDryRunFlag      bool
 	issueKeepBeadsFlag   bool
+	issueDoDFlag         []string // Definition of Done items (repeatable)
+	issueCheckDoDFlag    string   // Mark DoD item as checked
+	issueUncheckDoDFlag  string   // Mark DoD item as unchecked
+	issueParentFlag      string   // Parent issue ID
 )
 
 // getArtifactPath loads the artifact_path from specledger.yaml
@@ -229,6 +234,11 @@ func init() {
 	issueCreateCmd.Flags().StringVar(&issueLabelsFlag, "labels", "", "Comma-separated labels")
 	issueCreateCmd.Flags().StringVar(&issueSpecFlag, "spec", "", "Override spec context")
 	issueCreateCmd.Flags().BoolVar(&issueForceFlag, "force", false, "Skip duplicate detection")
+	issueCreateCmd.Flags().StringVar(&issueAcceptFlag, "acceptance-criteria", "", "Acceptance criteria text")
+	issueCreateCmd.Flags().StringArrayVar(&issueDoDFlag, "dod", []string{}, "Definition of Done items (can be repeated)")
+	issueCreateCmd.Flags().StringVar(&issueDesignFlag, "design", "", "Design notes/approach")
+	issueCreateCmd.Flags().StringVar(&issueNotesFlag, "notes", "", "Implementation notes")
+	issueCreateCmd.Flags().StringVar(&issueParentFlag, "parent", "", "Parent issue ID")
 	if err := issueCreateCmd.MarkFlagRequired("title"); err != nil {
 		panic(fmt.Sprintf("failed to mark title flag as required: %v", err))
 	}
@@ -241,7 +251,8 @@ func init() {
 	issueListCmd.Flags().StringVar(&issueSpecFlag, "spec", "", "Filter by spec context")
 	issueListCmd.Flags().BoolVar(&issueAllFlag, "all", false, "List across all specs")
 	issueListCmd.Flags().BoolVar(&issueJSONFlag, "json", false, "Output as JSON")
-	issueListCmd.Flags().BoolVar(&issueTreeFlag, "tree", false, "Show dependency tree")
+	issueListCmd.Flags().BoolVar(&issueTreeFlag, "tree", false, "Show parent-child hierarchy tree")
+	issueListCmd.Flags().BoolVar(&issueGraphFlag, "graph", false, "Show blocking dependency graph")
 	issueListCmd.Flags().BoolVar(&issueBlockedFlag, "blocked", false, "Show only blocked issues")
 
 	// Show command flags
@@ -259,6 +270,10 @@ func init() {
 	issueUpdateCmd.Flags().StringVar(&issueAcceptFlag, "acceptance-criteria", "", "Update acceptance criteria")
 	issueUpdateCmd.Flags().StringVar(&issueAddLabelFlag, "add-label", "", "Add a label")
 	issueUpdateCmd.Flags().StringVar(&issueRemoveLabelFlag, "remove-label", "", "Remove a label")
+	issueUpdateCmd.Flags().StringArrayVar(&issueDoDFlag, "dod", []string{}, "Replace Definition of Done items (can be repeated)")
+	issueUpdateCmd.Flags().StringVar(&issueCheckDoDFlag, "check-dod", "", "Mark DoD item as checked (exact match)")
+	issueUpdateCmd.Flags().StringVar(&issueUncheckDoDFlag, "uncheck-dod", "", "Mark DoD item as unchecked (exact match)")
+	issueUpdateCmd.Flags().StringVar(&issueParentFlag, "parent", "", "Set parent issue ID (empty string to clear)")
 
 	// Close command flags
 	issueCloseCmd.Flags().StringVar(&issueReasonFlag, "reason", "", "Close reason")
@@ -299,6 +314,30 @@ func runIssueCreate(cmd *cobra.Command, args []string) error {
 		for i, l := range issue.Labels {
 			issue.Labels[i] = strings.TrimSpace(l)
 		}
+	}
+
+	// Add structured fields from flags
+	if issueAcceptFlag != "" {
+		issue.AcceptanceCriteria = issueAcceptFlag
+	}
+	if len(issueDoDFlag) > 0 {
+		items := make([]issues.ChecklistItem, len(issueDoDFlag))
+		for i, item := range issueDoDFlag {
+			items[i] = issues.ChecklistItem{
+				Item:    item,
+				Checked: false,
+			}
+		}
+		issue.DefinitionOfDone = &issues.DefinitionOfDone{Items: items}
+	}
+	if issueDesignFlag != "" {
+		issue.Design = issueDesignFlag
+	}
+	if issueNotesFlag != "" {
+		issue.Notes = issueNotesFlag
+	}
+	if issueParentFlag != "" {
+		issue.ParentID = &issueParentFlag
 	}
 
 	// Create store and save
@@ -398,9 +437,14 @@ func runIssueList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Handle tree view
+	// Handle tree view (parent-child hierarchy)
 	if issueTreeFlag {
 		return renderIssueTree(issueList, specContext, issueAllFlag, artifactPath)
+	}
+
+	// Handle graph view (blocking dependencies)
+	if issueGraphFlag {
+		return renderDependencyGraph(issueList, specContext, issueAllFlag, artifactPath)
 	}
 
 	// Print table
@@ -440,59 +484,429 @@ func renderIssueTree(issueList []issues.Issue, specContext string, allFlag bool,
 
 // renderSingleSpecTree renders issues for a single spec in tree format
 func renderSingleSpecTree(issueList []issues.Issue, store *issues.Store, specContext string) error {
-	// Find root issues (issues not blocked by anything in this list)
-	issueMap := make(map[string]*issues.Issue)
-	blocked := make(map[string]bool)
-
-	for i := range issueList {
-		issueMap[issueList[i].ID] = &issueList[i]
+	// Build hierarchy trees based on parent-child relationships
+	trees, err := store.GetHierarchyForest()
+	if err != nil {
+		return fmt.Errorf("failed to build hierarchy tree: %w", err)
 	}
-
-	// Mark issues that are blocked by others in the list
-	for _, issue := range issueList {
-		for _, blockerID := range issue.BlockedBy {
-			if _, exists := issueMap[blockerID]; exists {
-				blocked[issue.ID] = true
-			}
-		}
-	}
-
-	// Build trees from root issues
-	var trees []*issues.DependencyTree
-	for _, issue := range issueList {
-		if !blocked[issue.ID] {
-			// This is a root issue - get its full tree
-			tree, err := store.GetDependencyTree(issue.ID)
-			if err != nil {
-				// If tree fails, create a simple node
-				tree = &issues.DependencyTree{Issue: issue}
-			}
-			trees = append(trees, tree)
-		}
-	}
-
-	// Check for cycles
-	cycles := issues.DetectCycles(trees)
 
 	// Create renderer
 	renderer := issues.NewTreeRenderer(issues.DefaultTreeRenderOptions())
 
-	// Output
-	var output strings.Builder
+	// Render hierarchy tree
+	output := renderer.RenderHierarchyForest(specContext, trees, len(issueList))
+	fmt.Print(output)
 
-	// Show cycle warning if needed
-	if len(cycles) > 0 {
-		output.WriteString(issues.FormatCycleWarning(cycles))
-	}
-
-	// Render tree
-	output.WriteString(renderer.RenderWithRoot(specContext, trees, len(issueList)))
-
-	fmt.Print(output.String())
 	return nil
 }
 
-// renderCrossSpecTree renders issues grouped by spec with dependency trees within each spec
+// renderDependencyGraph renders issues as a blocking dependency graph
+func renderDependencyGraph(issueList []issues.Issue, specContext string, allFlag bool, artifactPath string) error {
+	// Group issues by spec if --all flag is set
+	if allFlag {
+		return renderCrossSpecGraph(issueList, artifactPath)
+	}
+
+	// Build store for single spec
+	store, err := issues.NewStore(issues.StoreOptions{
+		BasePath:    artifactPath,
+		SpecContext: specContext,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create store: %w", err)
+	}
+
+	return renderSingleSpecGraph(issueList, store, specContext)
+}
+
+// renderSingleSpecGraph renders blocking dependencies as a graph
+func renderSingleSpecGraph(issueList []issues.Issue, store *issues.Store, specContext string) error {
+	// Build issue map
+	issueMap := make(map[string]*issues.Issue)
+	for i := range issueList {
+		issueMap[issueList[i].ID] = &issueList[i]
+	}
+
+	// Collect edges
+	edges := collectAllEdges(issueList, issueMap)
+
+	// Find isolated nodes
+	nodesWithEdges := make(map[string]bool)
+	for _, edge := range edges {
+		nodesWithEdges[edge.from] = true
+		nodesWithEdges[edge.to] = true
+	}
+
+	var isolatedNodes []issues.Issue
+	for _, issue := range issueList {
+		if !nodesWithEdges[issue.ID] {
+			isolatedNodes = append(isolatedNodes, issue)
+		}
+	}
+
+	// Find connected components
+	components := findConnectedComponents(issueList, issueMap)
+
+	// Output header
+	fmt.Printf("%s (dependency graph)\n\n", specContext)
+
+	if len(edges) == 0 && len(isolatedNodes) == 0 {
+		fmt.Println("No issues found.")
+		return nil
+	}
+
+	renderer := issues.NewTreeRenderer(issues.DefaultTreeRenderOptions())
+
+	// Summary line
+	parts := []string{}
+	if len(edges) > 0 {
+		parts = append(parts, fmt.Sprintf("%d edges", len(edges)))
+	}
+	if len(isolatedNodes) > 0 {
+		parts = append(parts, fmt.Sprintf("%d isolated", len(isolatedNodes)))
+	}
+	if len(components) > 1 {
+		parts = append(parts, fmt.Sprintf("%d components", len(components)))
+	}
+	if len(parts) > 0 {
+		fmt.Printf("[%s]\n\n", strings.Join(parts, ", "))
+	}
+
+	// Render each component
+	for i, component := range components {
+		if len(components) > 1 {
+			fmt.Printf("── Component %d (%d nodes) ──\n", i+1, len(component))
+		}
+
+		// Get edges for this component only
+		componentSet := make(map[string]bool)
+		for _, iss := range component {
+			componentSet[iss.ID] = true
+		}
+
+		var componentEdges []edge
+		for _, e := range edges {
+			if componentSet[e.from] && componentSet[e.to] {
+				componentEdges = append(componentEdges, e)
+			}
+		}
+
+		// Group edges by source
+		outgoing := make(map[string][]string)
+		for _, e := range componentEdges {
+			outgoing[e.from] = append(outgoing[e.from], e.to)
+		}
+
+		// Find root nodes in this component (not blocked by anything in component)
+		blocked := make(map[string]bool)
+		for _, iss := range component {
+			for _, blockerID := range iss.BlockedBy {
+				if componentSet[blockerID] {
+					blocked[iss.ID] = true
+				}
+			}
+		}
+
+		// Render starting from root nodes
+		visited := make(map[string]bool)
+		for _, iss := range component {
+			if !blocked[iss.ID] && len(outgoing[iss.ID]) > 0 {
+				renderGraphNode(iss.ID, issueMap, outgoing, renderer, visited, "", "")
+			}
+		}
+
+		fmt.Println()
+	}
+
+	// Render isolated nodes
+	if len(isolatedNodes) > 0 {
+		fmt.Printf("── Isolated (%d) ──\n", len(isolatedNodes))
+		for _, node := range isolatedNodes {
+			fmt.Printf("  %s\n", renderer.FormatIssueSimple(node))
+		}
+	}
+
+	return nil
+}
+
+// renderGraphNode renders a node and what it blocks recursively with topological ordering
+func renderGraphNode(nodeID string, issueMap map[string]*issues.Issue, outgoing map[string][]string, renderer *issues.TreeRenderer, visited map[string]bool, prefix string, connector string) {
+	node, exists := issueMap[nodeID]
+	if !exists {
+		return
+	}
+
+	// If already visited, don't render again
+	if visited[nodeID] {
+		fmt.Printf("%s%s (see above)\n", prefix, renderer.FormatIssueSimple(*node))
+		return
+	}
+	visited[nodeID] = true
+
+	// Render this node (with connector if provided, for child nodes)
+	if connector != "" {
+		fmt.Printf("%s%s %s\n", prefix, connector, renderer.FormatIssueSimple(*node))
+	} else {
+		fmt.Printf("%s%s\n", prefix, renderer.FormatIssueSimple(*node))
+	}
+
+	// Get targets this node blocks
+	targets := outgoing[nodeID]
+	if len(targets) == 0 {
+		return
+	}
+
+	// Sort targets: sinks (no outgoing) first
+	sortedTargets := make([]string, len(targets))
+	copy(sortedTargets, targets)
+	for i := 0; i < len(sortedTargets)-1; i++ {
+		for j := i + 1; j < len(sortedTargets); j++ {
+			outI := len(outgoing[sortedTargets[i]])
+			outJ := len(outgoing[sortedTargets[j]])
+			// Sinks first
+			if outJ == 0 && outI > 0 {
+				sortedTargets[i], sortedTargets[j] = sortedTargets[j], sortedTargets[i]
+			}
+		}
+	}
+
+	// Determine prefix for children based on whether this node is last child
+	// (└─> means last child, ├─> means not last, "" means root)
+	var childBasePrefix string
+	if connector == "" {
+		// Root level - add 3 spaces so children are indented
+		childBasePrefix = "   "
+	} else if connector == "└─>" {
+		// Last child - add 6 spaces to align past "└─> " connector
+		childBasePrefix = prefix + "      "
+	} else {
+		// Not last child - add vertical line + spaces to align past "├─> " connector
+		childBasePrefix = prefix + "│     "
+	}
+
+	for i, targetID := range sortedTargets {
+		isLast := i == len(sortedTargets)-1
+
+		// Determine connector for this child
+		var childConnector string
+		if isLast {
+			childConnector = "└─>"
+		} else {
+			childConnector = "├─>"
+		}
+
+		// Render child with connector on same line
+		renderGraphNode(targetID, issueMap, outgoing, renderer, visited, childBasePrefix, childConnector)
+	}
+}
+
+// renderCrossSpecGraph renders blocking dependencies across all specs as a graph
+func renderCrossSpecGraph(issueList []issues.Issue, artifactPath string) error {
+	// Group issues by spec
+	specIssues := make(map[string][]issues.Issue)
+	for _, issue := range issueList {
+		specIssues[issue.SpecContext] = append(specIssues[issue.SpecContext], issue)
+	}
+
+	// Sort specs for consistent output
+	specNames := make([]string, 0, len(specIssues))
+	for spec := range specIssues {
+		specNames = append(specNames, spec)
+	}
+
+	fmt.Println("All Specs (dependency graph)")
+	fmt.Println()
+
+	renderer := issues.NewTreeRenderer(issues.DefaultTreeRenderOptions())
+
+	for _, spec := range specNames {
+		issuesInSpec := specIssues[spec]
+		issueMap := make(map[string]*issues.Issue)
+		for i := range issuesInSpec {
+			issueMap[issuesInSpec[i].ID] = &issuesInSpec[i]
+		}
+
+		edges := collectAllEdges(issuesInSpec, issueMap)
+		components := findConnectedComponents(issuesInSpec, issueMap)
+
+		// Count isolated
+		nodesWithEdges := make(map[string]bool)
+		for _, edge := range edges {
+			nodesWithEdges[edge.from] = true
+			nodesWithEdges[edge.to] = true
+		}
+		isolated := 0
+		for _, iss := range issuesInSpec {
+			if !nodesWithEdges[iss.ID] {
+				isolated++
+			}
+		}
+
+		fmt.Printf("=== %s ===\n", spec)
+		fmt.Printf("%d issues, %d edges", len(issuesInSpec), len(edges))
+		if len(components) > 1 {
+			fmt.Printf(", %d components", len(components))
+		}
+		if isolated > 0 {
+			fmt.Printf(", %d isolated", isolated)
+		}
+		fmt.Println()
+		fmt.Println()
+
+		// Render each component
+		for i, component := range components {
+			if len(components) > 1 {
+				fmt.Printf("── Component %d (%d nodes) ──\n", i+1, len(component))
+			}
+
+			// Get edges for this component
+			componentSet := make(map[string]bool)
+			for _, iss := range component {
+				componentSet[iss.ID] = true
+			}
+
+			var componentEdges []edge
+			for _, e := range edges {
+				if componentSet[e.from] && componentSet[e.to] {
+					componentEdges = append(componentEdges, e)
+				}
+			}
+
+			// Group edges by source
+			outgoing := make(map[string][]string)
+			for _, e := range componentEdges {
+				outgoing[e.from] = append(outgoing[e.from], e.to)
+			}
+
+			// Find root nodes
+			blocked := make(map[string]bool)
+			for _, iss := range component {
+				for _, blockerID := range iss.BlockedBy {
+					if componentSet[blockerID] {
+						blocked[iss.ID] = true
+					}
+				}
+			}
+
+			// Render starting from roots
+			visited := make(map[string]bool)
+			for _, iss := range component {
+				if !blocked[iss.ID] && len(outgoing[iss.ID]) > 0 {
+					renderGraphNode(iss.ID, issueMap, outgoing, renderer, visited, "", "")
+				}
+			}
+
+			fmt.Println()
+		}
+	}
+
+	return nil
+}
+
+// edge represents a dependency edge
+type edge struct {
+	from string
+	to   string
+}
+
+// collectAllEdges collects all edges from the issue list
+func collectAllEdges(issueList []issues.Issue, issueMap map[string]*issues.Issue) []edge {
+	var edges []edge
+	seen := make(map[string]bool)
+
+	for _, issue := range issueList {
+		for _, blockerID := range issue.BlockedBy {
+			if _, exists := issueMap[blockerID]; exists {
+				key := blockerID + "->" + issue.ID
+				if !seen[key] {
+					edges = append(edges, edge{from: blockerID, to: issue.ID})
+					seen[key] = true
+				}
+			}
+		}
+	}
+
+	return edges
+}
+
+// findConnectedComponents finds all connected components in the dependency graph
+func findConnectedComponents(issueList []issues.Issue, issueMap map[string]*issues.Issue) [][]issues.Issue {
+	// Build adjacency list (undirected for connected components)
+	adj := make(map[string]map[string]bool)
+	for _, issue := range issueList {
+		adj[issue.ID] = make(map[string]bool)
+	}
+
+	for _, issue := range issueList {
+		for _, blockerID := range issue.BlockedBy {
+			if _, exists := issueMap[blockerID]; exists {
+				adj[issue.ID][blockerID] = true
+				adj[blockerID][issue.ID] = true
+			}
+		}
+		for _, blocksID := range issue.Blocks {
+			if _, exists := issueMap[blocksID]; exists {
+				adj[issue.ID][blocksID] = true
+				adj[blocksID][issue.ID] = true
+			}
+		}
+	}
+
+	// Find connected components using BFS
+	visited := make(map[string]bool)
+	var components [][]issues.Issue
+
+	for _, issue := range issueList {
+		if visited[issue.ID] {
+			continue
+		}
+
+		// BFS to find all nodes in this component
+		var component []issues.Issue
+		queue := []string{issue.ID}
+		visited[issue.ID] = true
+
+		for len(queue) > 0 {
+			current := queue[0]
+			queue = queue[1:]
+
+			if iss, exists := issueMap[current]; exists {
+				component = append(component, *iss)
+			}
+
+			for neighbor := range adj[current] {
+				if !visited[neighbor] {
+					visited[neighbor] = true
+					queue = append(queue, neighbor)
+				}
+			}
+		}
+
+		// Only include components with edges (more than 1 node connected)
+		if len(component) > 1 {
+			// Verify there are actual edges
+			hasEdges := false
+			for _, iss := range component {
+				for _, blockerID := range iss.BlockedBy {
+					if _, exists := issueMap[blockerID]; exists {
+						hasEdges = true
+						break
+					}
+				}
+				if hasEdges {
+					break
+				}
+			}
+			if hasEdges {
+				components = append(components, component)
+			}
+		}
+	}
+
+	return components
+}
+
+// renderCrossSpecTree renders issues grouped by spec with hierarchy trees within each spec
 func renderCrossSpecTree(issueList []issues.Issue, artifactPath string) error {
 	// Group issues by spec
 	specIssues := make(map[string][]issues.Issue)
@@ -519,45 +933,38 @@ func renderCrossSpecTree(issueList []issues.Issue, artifactPath string) error {
 		isLastSpec := specIdx == len(specNames)-1
 
 		// Spec header
-		var specPrefix, childPrefix string
+		var specPrefix string
 		if isLastSpec {
 			specPrefix = "└── "
-			childPrefix = "    "
 		} else {
 			specPrefix = "├── "
-			childPrefix = "│   "
 		}
 		fmt.Printf("%s%s (%d issues)\n", specPrefix, spec, len(issuesInSpec))
 
-		// Build dependency trees for this spec
-		issueMap := make(map[string]*issues.Issue)
-		blocked := make(map[string]bool)
-
-		for i := range issuesInSpec {
-			issueMap[issuesInSpec[i].ID] = &issuesInSpec[i]
+		// Create store for this spec to get hierarchy
+		store, err := issues.NewStore(issues.StoreOptions{
+			BasePath:    artifactPath,
+			SpecContext: spec,
+		})
+		if err != nil {
+			continue
 		}
 
-		for _, issue := range issuesInSpec {
-			for _, blockerID := range issue.BlockedBy {
-				if _, exists := issueMap[blockerID]; exists {
-					blocked[issue.ID] = true
-				}
-			}
+		// Build hierarchy trees
+		trees, err := store.GetHierarchyForest()
+		if err != nil {
+			continue
 		}
 
-		// Build trees from root issues
-		var trees []*issues.DependencyTree
-		for _, issue := range issuesInSpec {
-			if !blocked[issue.ID] {
-				tree := buildCrossSpecDependencyTree(issue.ID, issueMap, make(map[string]bool))
-				trees = append(trees, tree)
-			}
+		// Render each hierarchy tree with spec prefix
+		childPrefix := "    "
+		if !isLastSpec {
+			childPrefix = "│   "
 		}
 
-		// Render each tree with spec prefix
 		for treeIdx, tree := range trees {
 			isLastTree := treeIdx == len(trees)-1
-			treeOutput := renderTreeWithPrefix(renderer, tree, childPrefix, isLastTree)
+			treeOutput := renderHierarchyTreeWithPrefix(renderer, tree, childPrefix, isLastTree)
 			fmt.Print(treeOutput)
 		}
 	}
@@ -565,8 +972,8 @@ func renderCrossSpecTree(issueList []issues.Issue, artifactPath string) error {
 	return nil
 }
 
-// renderTreeWithPrefix renders a tree with a custom prefix for each line
-func renderTreeWithPrefix(renderer *issues.TreeRenderer, tree *issues.DependencyTree, prefix string, isLast bool) string {
+// renderHierarchyTreeWithPrefix renders a hierarchy tree with a custom prefix
+func renderHierarchyTreeWithPrefix(renderer *issues.TreeRenderer, tree *issues.DependencyTree, prefix string, isLast bool) string {
 	var sb strings.Builder
 
 	// Render current node
@@ -579,7 +986,7 @@ func renderTreeWithPrefix(renderer *issues.TreeRenderer, tree *issues.Dependency
 	sb.WriteString("\n")
 
 	// Render children
-	if len(tree.Blocks) > 0 {
+	if len(tree.Children) > 0 {
 		var childPrefix string
 		if isLast {
 			childPrefix = prefix + "    "
@@ -587,46 +994,13 @@ func renderTreeWithPrefix(renderer *issues.TreeRenderer, tree *issues.Dependency
 			childPrefix = prefix + "│   "
 		}
 
-		for i, child := range tree.Blocks {
-			childIsLast := i == len(tree.Blocks)-1
-			sb.WriteString(renderTreeWithPrefix(renderer, child, childPrefix, childIsLast))
+		for i, child := range tree.Children {
+			childIsLast := i == len(tree.Children)-1
+			sb.WriteString(renderHierarchyTreeWithPrefix(renderer, child, childPrefix, childIsLast))
 		}
 	}
 
 	return sb.String()
-}
-
-// buildCrossSpecDependencyTree recursively builds a dependency tree across specs
-func buildCrossSpecDependencyTree(issueID string, issueMap map[string]*issues.Issue, visited map[string]bool) *issues.DependencyTree {
-	issue, exists := issueMap[issueID]
-	if !exists {
-		return &issues.DependencyTree{Issue: issues.Issue{ID: issueID}}
-	}
-
-	// Handle cycles
-	if visited[issueID] {
-		return &issues.DependencyTree{Issue: *issue}
-	}
-	visited[issueID] = true
-	defer func() { delete(visited, issueID) }()
-
-	tree := &issues.DependencyTree{Issue: *issue}
-
-	// Find issues that this issue blocks (issues that have this issue in their BlockedBy)
-	for id, other := range issueMap {
-		if id == issueID {
-			continue
-		}
-		for _, blockerID := range other.BlockedBy {
-			if blockerID == issueID {
-				childTree := buildCrossSpecDependencyTree(id, issueMap, visited)
-				tree.Blocks = append(tree.Blocks, childTree)
-				break
-			}
-		}
-	}
-
-	return tree
 }
 
 // truncateTitle truncates a title to maxLen characters
@@ -798,11 +1172,48 @@ func runIssueShow(cmd *cobra.Command, args []string) error {
 		fmt.Println()
 	}
 	fmt.Printf("  Spec: %s\n", issue.SpecContext)
+	if issue.ParentID != nil && *issue.ParentID != "" {
+		fmt.Printf("  Parent: %s\n", *issue.ParentID)
+	}
 	fmt.Println()
 
 	if issue.Description != "" {
 		fmt.Println("Description:")
 		fmt.Printf("  %s\n", strings.ReplaceAll(issue.Description, "\n", "\n  "))
+		fmt.Println()
+	}
+
+	if issue.AcceptanceCriteria != "" {
+		fmt.Println("Acceptance Criteria:")
+		fmt.Printf("  %s\n", strings.ReplaceAll(issue.AcceptanceCriteria, "\n", "\n  "))
+		fmt.Println()
+	}
+
+	if issue.Design != "" {
+		fmt.Println("Design:")
+		fmt.Printf("  %s\n", strings.ReplaceAll(issue.Design, "\n", "\n  "))
+		fmt.Println()
+	}
+
+	if issue.DefinitionOfDone != nil && len(issue.DefinitionOfDone.Items) > 0 {
+		fmt.Println("Definition of Done:")
+		for _, item := range issue.DefinitionOfDone.Items {
+			if item.Checked {
+				if item.VerifiedAt != nil {
+					fmt.Printf("  [x] %s (verified: %s)\n", item.Item, item.VerifiedAt.Format("2006-01-02 15:04:05"))
+				} else {
+					fmt.Printf("  [x] %s\n", item.Item)
+				}
+			} else {
+				fmt.Printf("  [ ] %s\n", item.Item)
+			}
+		}
+		fmt.Println()
+	}
+
+	if issue.Notes != "" {
+		fmt.Println("Notes:")
+		fmt.Printf("  %s\n", strings.ReplaceAll(issue.Notes, "\n", "\n  "))
 		fmt.Println()
 	}
 
@@ -814,6 +1225,16 @@ func runIssueShow(cmd *cobra.Command, args []string) error {
 		fmt.Println()
 	}
 
+	// Get and display children
+	children, err := store.GetChildren(issue.ID)
+	if err == nil && len(children) > 0 {
+		fmt.Println("Children:")
+		for _, child := range children {
+			fmt.Printf("  - %s (%s) [P%d]\n", child.ID, child.IssueType, child.Priority)
+		}
+		fmt.Println()
+	}
+
 	fmt.Printf("Created: %s\n", issue.CreatedAt.Format("2006-01-02 15:04:05"))
 	fmt.Printf("Updated: %s\n", issue.UpdatedAt.Format("2006-01-02 15:04:05"))
 
@@ -821,22 +1242,10 @@ func runIssueShow(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Closed: %s\n", issue.ClosedAt.Format("2006-01-02 15:04:05"))
 	}
 
-	if issue.DefinitionOfDone != nil && len(issue.DefinitionOfDone.Items) > 0 {
-		fmt.Println()
-		fmt.Println("Definition of Done:")
-		for _, item := range issue.DefinitionOfDone.Items {
-			if item.Checked {
-				fmt.Printf("  [x] %s\n", item.Item)
-			} else {
-				fmt.Printf("  [ ] %s\n", item.Item)
-			}
-		}
-	}
-
 	return nil
 }
 
-// renderIssueShowTree renders a centered tree showing what an issue blocks and what blocks it
+// renderIssueShowTree renders a tree showing parent-child hierarchy and blocking relationships
 func renderIssueShowTree(store *issues.Store, issue *issues.Issue) error {
 	tree, err := store.GetDependencyTree(issue.ID)
 	if err != nil {
@@ -844,6 +1253,18 @@ func renderIssueShowTree(store *issues.Store, issue *issues.Issue) error {
 	}
 
 	renderer := issues.NewTreeRenderer(issues.DefaultTreeRenderOptions())
+
+	// Show parent hierarchy (if any)
+	if issue.ParentID != nil && *issue.ParentID != "" {
+		fmt.Println("Parent:")
+		parent, err := store.Get(*issue.ParentID)
+		if err == nil {
+			fmt.Printf("└── %s (%s) [P%d]\n", parent.ID, parent.IssueType, parent.Priority)
+		} else {
+			fmt.Printf("└── %s (not found)\n", *issue.ParentID)
+		}
+		fmt.Println()
+	}
 
 	// Show what blocks this issue
 	if len(tree.BlockedBy) > 0 {
@@ -860,8 +1281,19 @@ func renderIssueShowTree(store *issues.Store, issue *issues.Issue) error {
 	}
 
 	// Show the issue itself (centered)
-	fmt.Printf("%s\n", renderer.FormatIssueSimple(*issue))
+	fmt.Printf("%s (%s) [P%d]\n", issue.ID, issue.IssueType, issue.Priority)
 	fmt.Println()
+
+	// Show children recursively (parent-child hierarchy)
+	children, err := store.GetChildren(issue.ID)
+	if err == nil && len(children) > 0 {
+		fmt.Println("Children:")
+		for i, child := range children {
+			isLast := i == len(children)-1
+			renderChildTree(store, child, "", isLast)
+		}
+		fmt.Println()
+	}
 
 	// Show what this issue blocks
 	if len(tree.Blocks) > 0 {
@@ -876,12 +1308,44 @@ func renderIssueShowTree(store *issues.Store, issue *issues.Issue) error {
 		}
 	}
 
-	// No dependencies
-	if len(tree.BlockedBy) == 0 && len(tree.Blocks) == 0 {
-		fmt.Println("(No dependencies)")
+	// No dependencies or children
+	if len(tree.BlockedBy) == 0 && len(tree.Blocks) == 0 && len(children) == 0 && issue.ParentID == nil {
+		fmt.Println("(No dependencies or hierarchy)")
 	}
 
 	return nil
+}
+
+// renderChildTree recursively renders children with proper tree characters
+func renderChildTree(store *issues.Store, issue issues.Issue, prefix string, isLast bool) {
+	// Determine the connector for this item
+	connector := "├── "
+	if isLast {
+		connector = "└── "
+	}
+
+	// Print this item
+	fmt.Printf("%s%s%s (%s) [P%d]\n", prefix, connector, issue.ID, issue.IssueType, issue.Priority)
+
+	// Get children of this issue
+	children, err := store.GetChildren(issue.ID)
+	if err != nil || len(children) == 0 {
+		return
+	}
+
+	// Determine the prefix for children
+	childPrefix := prefix
+	if isLast {
+		childPrefix += "    "
+	} else {
+		childPrefix += "│   "
+	}
+
+	// Render children
+	for i, child := range children {
+		childIsLast := i == len(children)-1
+		renderChildTree(store, child, childPrefix, childIsLast)
+	}
 }
 
 func runIssueUpdate(cmd *cobra.Command, args []string) error {
@@ -942,6 +1406,34 @@ func runIssueUpdate(cmd *cobra.Command, args []string) error {
 	}
 	if issueRemoveLabelFlag != "" {
 		update.RemoveLabels = []string{issueRemoveLabelFlag}
+	}
+
+	// Handle DoD operations
+	if cmd.Flags().Changed("dod") {
+		items := make([]issues.ChecklistItem, len(issueDoDFlag))
+		for i, item := range issueDoDFlag {
+			items[i] = issues.ChecklistItem{
+				Item:    item,
+				Checked: false,
+			}
+		}
+		update.DefinitionOfDone = &issues.DefinitionOfDone{Items: items}
+	}
+	if issueCheckDoDFlag != "" {
+		update.CheckDoDItem = issueCheckDoDFlag
+	}
+	if issueUncheckDoDFlag != "" {
+		update.UncheckDoDItem = issueUncheckDoDFlag
+	}
+
+	// Handle parent update
+	if cmd.Flags().Changed("parent") {
+		if issueParentFlag == "" {
+			// Clear parent
+			update.ParentID = &issueParentFlag // empty string clears parent
+		} else {
+			update.ParentID = &issueParentFlag
+		}
 	}
 
 	issue, err := store.Update(issueID, update)

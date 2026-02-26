@@ -1,5 +1,5 @@
 // Package session provides checkpoint session capture functionality
-// for storing AI conversation segments linked to git commits and beads tasks.
+// for storing AI conversation segments linked to git commits and tasks.
 package session
 
 import (
@@ -32,7 +32,7 @@ type SessionContent struct {
 	SessionID     string    `json:"session_id"`     // unique identifier
 	FeatureBranch string    `json:"feature_branch"` // e.g., "010-checkpoint-session-capture"
 	CommitHash    string    `json:"commit_hash"`    // git commit hash (nullable for task sessions)
-	TaskID        string    `json:"task_id"`        // beads task ID (nullable for commit sessions)
+	TaskID        string    `json:"task_id"`        // task ID (nullable for commit sessions)
 	Author        string    `json:"author"`         // user email
 	CapturedAt    time.Time `json:"captured_at"`    // when captured
 	Messages      []Message `json:"messages"`       // conversation messages
@@ -87,17 +87,30 @@ func (t *ToolInput) Command() string {
 	return string(t.Raw)
 }
 
+// ToolResponse represents the tool_response field from Claude Code hooks
+type ToolResponse struct {
+	Stdout      string `json:"stdout"`
+	Stderr      string `json:"stderr"`
+	Interrupted bool   `json:"interrupted"`
+	ExitCode    *int   `json:"exitCode,omitempty"` // may be present for some tools
+}
+
 // HookInput represents the JSON input from Claude Code hooks
 type HookInput struct {
-	SessionID      string    `json:"session_id"`
-	TranscriptPath string    `json:"transcript_path"`
-	Cwd            string    `json:"cwd"`
-	HookEventName  string    `json:"hook_event_name"`
-	ToolName       string    `json:"tool_name"`
-	ToolInput      ToolInput `json:"tool_input"`       // the command that was run
-	ToolOutput     string    `json:"tool_output"`      // output from the tool
-	ToolDurationMs int64     `json:"tool_duration_ms"` // how long the tool took
-	ToolSuccess    bool      `json:"tool_success"`     // whether the tool succeeded
+	SessionID      string       `json:"session_id"`
+	TranscriptPath string       `json:"transcript_path"`
+	Cwd            string       `json:"cwd"`
+	PermissionMode string       `json:"permission_mode,omitempty"`
+	HookEventName  string       `json:"hook_event_name"`
+	ToolName       string       `json:"tool_name"`
+	ToolInput      ToolInput    `json:"tool_input"`    // the command that was run
+	ToolResponse   ToolResponse `json:"tool_response"` // response from the tool
+	ToolUseID      string       `json:"tool_use_id"`   // unique ID for this tool use
+}
+
+// ToolSuccess returns true if the tool executed successfully (no interruption)
+func (h *HookInput) ToolSuccess() bool {
+	return !h.ToolResponse.Interrupted
 }
 
 // SessionState represents the local tracking state for delta computation

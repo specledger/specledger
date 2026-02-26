@@ -28,7 +28,7 @@ var VarDoctorCmd = &cobra.Command{
 	Long: `Check the installation status of all tools required by SpecLedger.
 
 This command verifies that:
-- Core tools (mise, bd, perles) are installed and accessible
+- Core tools (mise) are installed and accessible
 - Framework tools (specify, openspec) are installed (optional)
 
 Use --json flag for machine-readable output suitable for CI/CD pipelines.`,

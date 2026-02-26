@@ -372,9 +372,19 @@ func runInit(l *logger.Logger) error {
 		detectedPath := detectArtifactPath(projectPath)
 		if detectedPath != "specledger/" && detectedPath != projectMetadata.ArtifactPath {
 			projectMetadata.ArtifactPath = detectedPath
-			if err := metadata.SaveToProject(projectMetadata, projectPath); err == nil {
-				fmt.Printf("  Artifact Path: %s (detected)\n", ui.Bold(detectedPath))
+		}
+
+		// Try to lookup project ID from Supabase (for session capture)
+		if projectMetadata.Project.ID == "" {
+			if projectID := lookupProjectID(projectPath); projectID != "" {
+				projectMetadata.Project.ID = projectID
+				fmt.Printf("  Project ID:   %s (from Supabase)\n", ui.Bold(projectID[:8]+"..."))
 			}
+		}
+
+		// Save any updates
+		if err := metadata.SaveToProject(projectMetadata, projectPath); err != nil {
+			ui.PrintWarning(fmt.Sprintf("Failed to save metadata: %v", err))
 		}
 	}
 
