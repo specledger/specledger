@@ -164,6 +164,13 @@ func (r *SchemaRegistry) Lookup(key string) (*ConfigKeyDef, error) {
 	if def, ok := r.keys[key]; ok {
 		return def, nil
 	}
+
+	if strings.HasPrefix(key, "agent.env.") {
+		if def, ok := r.keys["agent.env"]; ok {
+			return def, nil
+		}
+	}
+
 	return nil, fmt.Errorf("unknown config key: %s", key)
 }
 

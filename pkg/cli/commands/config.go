@@ -116,7 +116,7 @@ func runConfigSet(cmd *cobra.Command, args []string) error {
 
 	scope := determineScope()
 
-	if keyDef.Sensitive && scope == "team-local" {
+	if keyDef.Sensitive && scope == "local" && !configPersonalFlag {
 		ui.PrintWarning("Storing sensitive value in git-tracked config. Consider using --personal to store in gitignored file.")
 	}
 
@@ -177,12 +177,23 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 	keysByCategory := config.GetRegistry().ListByCategory()
 	for _, category := range []string{"Provider", "Models", "Launch Flags", "Environment", "Profiles"} {
 		keys := keysByCategory[category]
-		if len(keys) == 0 {
+		if len(keys) == 0 && category != "Environment" {
 			continue
 		}
 
 		fmt.Printf("  %s\n", category)
+
+		if category == "Environment" && cfg.Agent != nil && len(cfg.Agent.Env) > 0 {
+			fmt.Printf("    %-25s\n", "agent.env")
+			for envKey, envValue := range cfg.Agent.Env {
+				fmt.Printf("      %-23s %-35s [local]\n", envKey, envValue)
+			}
+		}
+
 		for _, keyDef := range keys {
+			if keyDef.Key == "agent.env" {
+				continue
+			}
 			value, scope := getAgentConfigValue(cfg, keyDef.Key)
 			if value == "" {
 				continue
