@@ -35,6 +35,7 @@ type DependencyTree struct {
 	Issue     Issue
 	BlockedBy []*DependencyTree
 	Blocks    []*DependencyTree
+	Children  []*DependencyTree // Parent-child hierarchy
 }
 
 // AddDependency creates a dependency link between two issues
@@ -325,6 +326,74 @@ func (s *Store) buildDependencySubtree(ids []string, issueMap map[string]*Issue,
 func (s *Store) GetBlockedIssues() ([]Issue, error) {
 	filter := ListFilter{Blocked: true}
 	return s.List(filter)
+}
+
+// GetHierarchyForest returns a forest of trees based on parent-child relationships.
+// Root nodes are issues without a parent. Each tree includes all descendants.
+func (s *Store) GetHierarchyForest() ([]*DependencyTree, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	issues, err := s.readAllUnlocked()
+	if err != nil {
+		return nil, err
+	}
+
+	// Build issue map
+	issueMap := make(map[string]*Issue)
+	for _, issue := range issues {
+		issueMap[issue.ID] = issue
+	}
+
+	// Find root issues (no parent)
+	var roots []*DependencyTree
+	hasParent := make(map[string]bool)
+
+	for _, issue := range issues {
+		if issue.ParentID != nil && *issue.ParentID != "" {
+			hasParent[issue.ID] = true
+		}
+	}
+
+	// Build trees for root issues
+	visited := make(map[string]bool)
+	for _, issue := range issues {
+		if !hasParent[issue.ID] {
+			tree := s.buildHierarchyTree(issue.ID, issueMap, visited)
+			if tree != nil {
+				roots = append(roots, tree)
+			}
+		}
+	}
+
+	return roots, nil
+}
+
+// buildHierarchyTree recursively builds a hierarchy tree for an issue
+func (s *Store) buildHierarchyTree(id string, issueMap map[string]*Issue, visited map[string]bool) *DependencyTree {
+	if visited[id] {
+		return nil // Avoid cycles
+	}
+	visited[id] = true
+
+	issue, ok := issueMap[id]
+	if !ok {
+		return nil
+	}
+
+	tree := &DependencyTree{Issue: *issue}
+
+	// Find children (issues that have this issue as parent)
+	for _, potentialChild := range issueMap {
+		if potentialChild.ParentID != nil && *potentialChild.ParentID == id {
+			childTree := s.buildHierarchyTree(potentialChild.ID, issueMap, visited)
+			if childTree != nil {
+				tree.Children = append(tree.Children, childTree)
+			}
+		}
+	}
+
+	return tree
 }
 
 // Helper function to remove a string from a slice

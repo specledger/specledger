@@ -80,14 +80,14 @@ Generate actionable, dependency-ordered tasks from the implementation plan. Task
       - Labels:
          - `phase:<phase-name>` (e.g. `phase:setup`, `phase:us1`, `phase:foundational`)
          - All carry the `spec:<feature-slug>` label
+      - **For feature-type issues**: Extract technical approach from plan.md and set `--design` flag
       - For each task, create with `--type task`
-      - Tasks must include all content in the `--description` field (there is no separate design/acceptance/dod flag):
+      - Tasks use dedicated flags for structured content:
          - `--title` (short summary, under 80 characters)
-         - `--description` Multi-line text containing:
-           - WHY: Problem statement (what to implement, where, inputs/outputs)
-           - DESIGN: HOW to build, which files, references (can change during work)
-           - ACCEPTANCE: WHAT success looks like (stable criteria)
-           - DEFINITION OF DONE: Checklist items [ ] derived from acceptance criteria
+         - `--description` Brief problem statement (WHY)
+         - `--design` Technical approach, file paths, references (extracted from plan.md)
+         - `--acceptance-criteria` WHAT success looks like (stable criteria)
+         - `--dod` Definition of Done items (can be repeated for each item)
          - `--priority` (from story priority, 0=critical, 1=high, 2=normal, 3=low)
          - Labels:
             - `story:US1`, `story:US2`, etc. (mapped from spec.md)
@@ -169,47 +169,106 @@ The tasks.md should be immediately executable - each task must be specific enoug
    - **DO NOT generate a linear checklist** — build a **task graph** using dependencies
    - Each user story phase should be a complete, independently testable increment
 
+6. **Blocking Relationship Rules**:
+
+   Use `sl issue link <blocker> blocks <blocked>` to create dependencies.
+
+   **Within User Stories** (vertical chain):
+   - Models BLOCK Services (services depend on data structures)
+   - Services BLOCK Endpoints (endpoints depend on business logic)
+   - Endpoints BLOCK UI Components (UI depends on API)
+
+   **Between Phases**:
+   - Setup phase BLOCKS all implementation phases
+   - Foundational phase BLOCKS all user story phases
+   - User story phases at same priority level do NOT block each other (parallel)
+   - Polish phase blocked by ALL implementation phases
+
+   **Parallelizable Tasks** (no blocking needed):
+   - Tasks affecting different files with no shared data
+   - Independent UI components
+   - Separate endpoint implementations
+   - Documentation tasks
+
+   **Correct Pattern Example**:
+   ```
+   Setup → Foundational → US1 (feature)
+                         ├─→ Model Task → Service Task → Endpoint Task
+                         └─→ UI Task (blocked by Endpoint Task)
+           └─→ US2 (feature) [parallel to US1]
+              └─→ Model Task → Service Task
+   ```
+
+   **Incorrect Pattern** (avoid):
+   - ❌ Blocking tasks within same phase that modify different files
+   - ❌ Feature issues blocking their own task issues
+   - ❌ Circular dependencies (A blocks B, B blocks A)
+
 ## Issue Content Structure
 
-Each generated issue MUST have the following structured content in the `--description` field:
+Each generated issue MUST use the dedicated CLI flags for structured content:
 
-| Field | Purpose | Example |
-|-------|---------|---------|
+| Flag | Purpose | Content |
+|------|---------|---------|
 | `--title` | Concise summary (under 80 chars) | "Add user authentication to login page" |
-| `--description` | Multi-line content with sections | See format below |
+| `--description` | Problem statement only | WHY: What problem does this solve? |
+| `--design` | Technical approach | HOW: File paths, modules, approach |
+| `--acceptance-criteria` | Success criteria | WHAT: Measurable, testable outcomes |
+| `--dod` | Definition of Done items | Repeatable flag for checklist items |
 
-**Description Format** (all in one `--description` string):
-```
-WHY: [Problem statement - what to implement, where, inputs/outputs]
+**IMPORTANT**: Do NOT put structured content in `--description`. Use dedicated flags:
 
-DESIGN: [HOW to build - file paths, module references, approach decisions]
+```bash
+# CORRECT - Use dedicated flags
+sl issue create \
+  --title "Add PDF viewer support" \
+  --description "WHY: PDF example documents need to be viewable without leaving the form page." \
+  --design "File: frontend/src/pages/TemplateGeneratorPage.tsx. Add PDF viewer integration. Options: open in new tab, embedded viewer, or download." \
+  --acceptance-criteria "PDF opens in new tab or embedded viewer. User can view full document. No disruption to form filling." \
+  --dod "PDF opens in new tab option" \
+  --dod "Or embedded viewer option" \
+  --dod "Full document viewable" \
+  --dod "Form filling not disrupted" \
+  --type task \
+  --labels "spec:xxx,story:US1"
 
-ACCEPTANCE: [WHAT success looks like - measurable, testable outcomes]
-
-DEFINITION OF DONE:
-[ ] Item 1
-[ ] Item 2
-[ ] Item 3
+# WRONG - Do not put everything in description
+sl issue create --title "Add PDF viewer" --description "WHY: ... DESIGN: ... ACCEPTANCE: ... DoD: ..."
 ```
 
 **Field Guidelines**:
-- `--title`: Action-oriented, specific, concise
-- `--description`: Include WHY, DESIGN, ACCEPTANCE, and DEFINITION OF DONE sections
-- All structured content goes in description since `sl issue create` only supports `--title` and `--description` flags
+- `--title`: Action-oriented, specific, concise (under 80 chars)
+- `--description`: Brief problem statement only (WHY section)
+- `--design`: Technical approach, file paths, references (from plan.md)
+- `--acceptance-criteria`: What success looks like (stable, measurable criteria)
+- `--dod`: Definition of Done checklist items (use flag multiple times)
 
 ## Definition of Done Population
 
-When creating issues, derive `definition_of_done` items from the acceptance criteria in spec.md:
+When creating issues, derive Definition of Done items from the acceptance criteria in spec.md:
 
 1. **Extract acceptance criteria**: Parse each "Then" clause from acceptance scenarios in spec.md
 2. **Convert to checklist items**: Transform each criterion into a verifiable statement
-3. **Include in issue creation**: Add items to the `definition_of_done` field
+3. **Use `--dod` flag for each item**: Add each item as a separate `--dod` flag
 
 **Example conversion**:
 - Spec acceptance: "Then the user can log in with valid credentials"
-- DoD item: "User can authenticate with valid username/password"
+- DoD item: `--dod "User can authenticate with valid username/password"`
 - Spec acceptance: "Then invalid credentials show an error message"
-- DoD item: "Invalid credentials display appropriate error message"
+- DoD item: `--dod "Invalid credentials display appropriate error message"`
+
+**Example CLI usage**:
+```bash
+sl issue create \
+  --title "Implement login" \
+  --description "WHY: Users need to authenticate securely." \
+  --design "Use OAuth2 with PKCE flow." \
+  --acceptance-criteria "User can log in and receive session token." \
+  --dod "User can authenticate with valid credentials" \
+  --dod "Invalid credentials show error message" \
+  --dod "Session token stored securely" \
+  --type task
+```
 
 **DoD Summary in tasks.md**: After creating all issues, include a DoD Summary section in tasks.md:
 
@@ -252,16 +311,7 @@ sl issue create --title "Setup Phase" --description "Initialize project structur
 ### Task
 
 ```bash
-sl issue create --title "Add React LoginForm" --description "WHY: Users need to authenticate via the login form.
-
-DESIGN: Files: src/components/LoginForm.tsx, src/hooks/useAuth.ts. Use React Hook Form for validation.
-
-ACCEPTANCE: User can enter credentials, form validates input, submits to auth API.
-
-DEFINITION OF DONE:
-[ ] LoginForm component created
-[ ] Form validation working
-[ ] Auth API integration complete" --type task --labels "spec:006-login-auth,story:US1,component:webapp" --priority 2
+sl issue create --title "Add React LoginForm" --description "Users need to authenticate via the login form" --type task --parent SL-yyyyyy --acceptance-criteria "User can enter credentials, form validates input, submits to auth API" --design "Files: src/components/LoginForm.tsx, src/hooks/useAuth.ts. Use React Hook Form for validation" --dod "LoginForm component created" --dod "Form validation working" --dod "Auth API integration complete" --labels "spec:006-login-auth,story:US1,component:webapp" --priority 2
 ```
 
 ### Add Dependencies
@@ -270,16 +320,19 @@ DEFINITION OF DONE:
 sl issue link SL-xxxxx blocks SL-yyyyy
 ```
 
-**IMPORTANT**: The `sl issue create` command only supports these flags:
+**IMPORTANT**: The `sl issue create` command supports these flags:
 - `--title` (required)
-- `--description` (optional, but include all WHY/DESIGN/ACCEPTANCE/DoD content here)
+- `--description` (optional, brief problem statement)
 - `--type` (epic, feature, task, bug)
 - `--labels` (comma-separated)
 - `--priority` (0-5)
 - `--spec` (override spec context)
+- `--parent` (parent issue ID for hierarchy)
+- `--acceptance-criteria` (acceptance criteria text)
+- `--design` (design notes/approach)
+- `--dod` (definition of done item, can be repeated)
+- `--notes` (implementation notes)
 - `--force` (skip duplicate detection)
-
-There are NO separate `--design`, `--acceptance`, or `--definition_of_done` flags.
 
 ## Error Handling
 

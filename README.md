@@ -174,15 +174,30 @@ SpecLedger includes a built-in issue tracker for managing tasks within specs. Is
 | Command | Description |
 |---------|-------------|
 | `sl issue create --title "..." --type task` | Create a new issue |
+| `sl issue create --title "..." --type task --parent SL-abc123` | Create a subtask with parent |
 | `sl issue list` | List issues in current spec |
 | `sl issue list --all` | List issues across all specs |
-| `sl issue list --tree` | Show issues as dependency tree |
+| `sl issue list --tree` | Show parent-child hierarchy tree |
+| `sl issue list --graph` | Show blocking dependency graph |
 | `sl issue show <id>` | Show issue details |
 | `sl issue show <id> --tree` | Show issue with dependency context |
 | `sl issue ready` | List issues ready to work on (not blocked) |
 | `sl issue ready --all` | Ready issues across all specs |
 | `sl issue ready --json` | Ready issues as JSON (for scripting) |
 | `sl issue update <id> --status in_progress` | Update issue status |
+| `sl issue update <id> --title "New title"` | Update issue title |
+| `sl issue update <id> --priority 0` | Update priority (0-5, 0=highest) |
+| `sl issue update <id> --assignee alice` | Assign issue to user |
+| `sl issue update <id> --design "Approach..."` | Update design notes |
+| `sl issue update <id> --notes "Progress..."` | Update implementation notes |
+| `sl issue update <id> --acceptance-criteria "..."` | Update acceptance criteria |
+| `sl issue update <id> --add-label "urgent"` | Add a label |
+| `sl issue update <id> --remove-label "wontfix"` | Remove a label |
+| `sl issue update <id> --dod "Task 1" --dod "Task 2"` | Set Definition of Done items |
+| `sl issue update <id> --check-dod "Task 1"` | Mark DoD item as checked |
+| `sl issue update <id> --uncheck-dod "Task 1"` | Mark DoD item as unchecked |
+| `sl issue update <id> --parent SL-abc123` | Set parent issue |
+| `sl issue update <id> --parent ""` | Clear parent issue |
 | `sl issue close <id> --reason "..."` | Close an issue |
 | `sl issue link <from> blocks <to>` | Add dependency |
 | `sl issue unlink <from> blocks <to>` | Remove dependency |
@@ -194,7 +209,12 @@ SpecLedger includes a built-in issue tracker for managing tasks within specs. Is
 
 **Ready State**: An issue is "ready" when it has status `open` or `in_progress` AND all issues blocking it are `closed`. Use `sl issue ready` to quickly find unblocked work.
 
-**Tree View**: Use `--tree` flag to visualize dependencies. The tree shows which issues block others, helping you understand the critical path.
+**Tree View**:
+- `sl issue list --tree` - Shows parent-child hierarchy (Epic → Feature → Task)
+- `sl issue list --graph` - Shows blocking dependency graph (which issues block others)
+- `sl issue show <id> --tree` - Shows full hierarchy: parent, children, blockers, and blocked issues
+
+**Parent-Child Hierarchy**: Use `--parent` to create task breakdowns. View with `sl issue show <id> --tree` to see the full parent-child tree.
 
 ### Review Comments (`sl revise`)
 

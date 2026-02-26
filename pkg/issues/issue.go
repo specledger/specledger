@@ -48,6 +48,7 @@ type Issue struct {
 	Notes              string            `json:"notes,omitempty"`
 	Design             string            `json:"design,omitempty"`
 	AcceptanceCriteria string            `json:"acceptance_criteria,omitempty"`
+	ParentID           *string           `json:"parentId,omitempty"` // Parent issue ID
 
 	// Migration metadata (optional, for Beads migration)
 	BeadsMigration *BeadsMigration `json:"beads_migration,omitempty"`
@@ -88,8 +89,9 @@ type IssueUpdate struct {
 	BlockedBy          *[]string
 	Blocks             *[]string
 	DefinitionOfDone   *DefinitionOfDone
-	CheckDoDItem       string // Item to mark as checked
-	UncheckDoDItem     string // Item to mark as unchecked
+	CheckDoDItem       string  // Item to mark as checked
+	UncheckDoDItem     string  // Item to mark as unchecked
+	ParentID           *string // Set or clear parent
 }
 
 // ListFilter represents filtering options for listing issues
