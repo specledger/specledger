@@ -48,6 +48,9 @@ issues.jsonl.lock
 .specledger/credentials.json
 **/credentials.json
 
+# Migration logs
+.migration-log
+
 # Build outputs
 dist/
 build/
