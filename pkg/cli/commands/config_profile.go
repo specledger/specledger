@@ -56,21 +56,21 @@ When a profile is active, its values are merged into the agent configuration.`,
 }
 
 var profileListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "List all profiles",
-	Long:  `List all named profiles with their configuration summary.`,
+	Use:     "list",
+	Short:   "List all profiles",
+	Long:    `List all named profiles with their configuration summary.`,
 	Example: `  sl config profile list`,
-	Args: cobra.NoArgs,
-	RunE: runProfileList,
+	Args:    cobra.NoArgs,
+	RunE:    runProfileList,
 }
 
 var profileDeleteCmd = &cobra.Command{
-	Use:   "delete <name>",
-	Short: "Delete a profile",
-	Long:  `Delete a named profile. Cannot delete the currently active profile.`,
+	Use:     "delete <name>",
+	Short:   "Delete a profile",
+	Long:    `Delete a named profile. Cannot delete the currently active profile.`,
 	Example: `  sl config profile delete work`,
-	Args: cobra.ExactArgs(1),
-	RunE: runProfileDelete,
+	Args:    cobra.ExactArgs(1),
+	RunE:    runProfileDelete,
 }
 
 var profileUseNoneFlag bool
