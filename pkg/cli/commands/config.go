@@ -2,8 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/specledger/specledger/pkg/cli/config"
@@ -12,9 +10,8 @@ import (
 )
 
 var (
-	configGlobalFlag    bool
-	configPersonalFlag  bool
-	configScopeFlag     string
+	configGlobalFlag   bool
+	configPersonalFlag bool
 )
 
 var VarConfigCmd = &cobra.Command{
@@ -54,8 +51,8 @@ Use --personal to set in gitignored personal config (recommended for secrets).`,
 	Example: `  sl config set agent.base-url https://api.example.com
   sl config set --global agent.model sonnet
   sl config set --personal agent.auth-token sk-xxx`,
-	Args:  cobra.ExactArgs(2),
-	RunE:  runConfigSet,
+	Args: cobra.ExactArgs(2),
+	RunE: runConfigSet,
 }
 
 var configGetCmd = &cobra.Command{
@@ -64,17 +61,17 @@ var configGetCmd = &cobra.Command{
 	Long:  `Get a single configuration value with its scope indicator.`,
 	Example: `  sl config get agent.base-url
   sl config get agent.model`,
-	Args:  cobra.ExactArgs(1),
-	RunE:  runConfigGet,
+	Args: cobra.ExactArgs(1),
+	RunE: runConfigGet,
 }
 
 var configShowCmd = &cobra.Command{
-	Use:   "show",
-	Short: "Show all configuration values",
-	Long:  `Show all configuration values with their scope indicators.`,
+	Use:     "show",
+	Short:   "Show all configuration values",
+	Long:    `Show all configuration values with their scope indicators.`,
 	Example: `  sl config show`,
-	Args:  cobra.NoArgs,
-	RunE:  runConfigShow,
+	Args:    cobra.NoArgs,
+	RunE:    runConfigShow,
 }
 
 var configUnsetCmd = &cobra.Command{
@@ -85,8 +82,8 @@ var configUnsetCmd = &cobra.Command{
 The value will fall back to the next layer in the precedence hierarchy.`,
 	Example: `  sl config unset agent.base-url
   sl config unset --personal agent.auth-token`,
-	Args:  cobra.ExactArgs(1),
-	RunE:  runConfigUnset,
+	Args: cobra.ExactArgs(1),
+	RunE: runConfigUnset,
 }
 
 func init() {
@@ -408,8 +405,4 @@ func maskIfSensitive(value string, sensitive bool) string {
 		return maskSensitive(value)
 	}
 	return value
-}
-
-func getConfigPath() string {
-	return filepath.Join(os.Getenv("HOME"), ".specledger", "config.yaml")
 }

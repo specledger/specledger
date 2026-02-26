@@ -226,7 +226,9 @@ func TestProfileCRUD(t *testing.T) {
 func TestSetActiveProfile(t *testing.T) {
 	cfg := DefaultConfig()
 
-	cfg.CreateProfile("profile1", &AgentConfig{Model: "model1"})
+	if err := cfg.CreateProfile("profile1", &AgentConfig{Model: "model1"}); err != nil {
+		t.Fatalf("CreateProfile failed: %v", err)
+	}
 
 	err := cfg.SetActiveProfile("profile1")
 	if err != nil {

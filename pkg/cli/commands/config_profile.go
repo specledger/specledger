@@ -112,7 +112,9 @@ func runProfileUse(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("failed to load config: %w", err)
 		}
 
-		cfg.SetActiveProfile("")
+		if err := cfg.SetActiveProfile(""); err != nil {
+			return fmt.Errorf("failed to deactivate profile: %w", err)
+		}
 		if err := cfg.Save(); err != nil {
 			return fmt.Errorf("failed to save config: %w", err)
 		}

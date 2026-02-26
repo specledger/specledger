@@ -95,7 +95,7 @@ func (c *Config) GetActiveProfile() string {
 }
 
 func (c *Config) HasProfiles() bool {
-	return c.Profiles != nil && len(c.Profiles) > 0
+	return len(c.Profiles) > 0
 }
 
 func (c *Config) ProfileExists(name string) bool {

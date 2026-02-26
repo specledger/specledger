@@ -98,6 +98,7 @@ func (l *AgentLauncher) LaunchWithPrompt(prompt string) error {
 		return fmt.Errorf("no agent command configured")
 	}
 
+	// #nosec G204 -- l.Command is from a controlled DefaultAgents list, prompt is internal
 	cmd := exec.Command(l.Command, prompt)
 	cmd.Dir = l.Dir
 	cmd.Stdin = os.Stdin
