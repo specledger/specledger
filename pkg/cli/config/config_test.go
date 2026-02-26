@@ -8,15 +8,15 @@ import (
 
 func TestMergeConfigs(t *testing.T) {
 	tests := []struct {
-		name           string
-		defaults       *AgentConfig
-		global         *AgentConfig
-		profile        *AgentConfig
-		teamLocal      *AgentConfig
-		personalLocal  *AgentConfig
-		expectedKey    string
-		expectedValue  string
-		expectedScope  ConfigScope
+		name          string
+		defaults      *AgentConfig
+		global        *AgentConfig
+		profile       *AgentConfig
+		teamLocal     *AgentConfig
+		personalLocal *AgentConfig
+		expectedKey   string
+		expectedValue string
+		expectedScope ConfigScope
 	}{
 		{
 			name:          "default only",
@@ -37,12 +37,12 @@ func TestMergeConfigs(t *testing.T) {
 			global: &AgentConfig{
 				Provider: "bedrock",
 			},
-			expectedKey:    "agent.provider",
-			expectedValue:  "bedrock",
-			expectedScope:  ScopeGlobal,
+			expectedKey:   "agent.provider",
+			expectedValue: "bedrock",
+			expectedScope: ScopeGlobal,
 		},
 		{
-			name: "profile overrides global",
+			name:     "profile overrides global",
 			defaults: &AgentConfig{},
 			global: &AgentConfig{
 				Model: "claude-sonnet",
@@ -50,12 +50,12 @@ func TestMergeConfigs(t *testing.T) {
 			profile: &AgentConfig{
 				Model: "claude-opus",
 			},
-			expectedKey:    "agent.model",
-			expectedValue:  "claude-opus",
-			expectedScope:  ScopeProfile,
+			expectedKey:   "agent.model",
+			expectedValue: "claude-opus",
+			expectedScope: ScopeProfile,
 		},
 		{
-			name: "team-local overrides profile",
+			name:     "team-local overrides profile",
 			defaults: &AgentConfig{},
 			global: &AgentConfig{
 				Model: "global-model",
@@ -66,12 +66,12 @@ func TestMergeConfigs(t *testing.T) {
 			teamLocal: &AgentConfig{
 				Model: "team-model",
 			},
-			expectedKey:    "agent.model",
-			expectedValue:  "team-model",
-			expectedScope:  ScopeTeamLocal,
+			expectedKey:   "agent.model",
+			expectedValue: "team-model",
+			expectedScope: ScopeTeamLocal,
 		},
 		{
-			name: "personal-local highest precedence",
+			name:     "personal-local highest precedence",
 			defaults: &AgentConfig{},
 			global: &AgentConfig{
 				Model: "global-model",
@@ -85,9 +85,9 @@ func TestMergeConfigs(t *testing.T) {
 			personalLocal: &AgentConfig{
 				Model: "personal-model",
 			},
-			expectedKey:    "agent.model",
-			expectedValue:  "personal-model",
-			expectedScope:  ScopePersonalLocal,
+			expectedKey:   "agent.model",
+			expectedValue: "personal-model",
+			expectedScope: ScopePersonalLocal,
 		},
 		{
 			name: "empty value does not override",
@@ -97,9 +97,9 @@ func TestMergeConfigs(t *testing.T) {
 			global: &AgentConfig{
 				Model: "",
 			},
-			expectedKey:    "agent.model",
-			expectedValue:  "default-model",
-			expectedScope:  ScopeDefault,
+			expectedKey:   "agent.model",
+			expectedValue: "default-model",
+			expectedScope: ScopeDefault,
 		},
 	}
 

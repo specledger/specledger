@@ -13,16 +13,16 @@ import (
 
 // ProjectMetadata represents specledger.yaml
 type ProjectMetadata struct {
-	Version         string                     `yaml:"version"`
-	Project         ProjectInfo                `yaml:"project"`
-	Playbook        PlaybookInfo               `yaml:"playbook"`
-	TemplateVersion string                     `yaml:"template_version,omitempty"`
-	TaskTracker     TaskTrackerInfo            `yaml:"task_tracker,omitempty"`
-	ArtifactPath    string                     `yaml:"artifact_path,omitempty"`
-	Dependencies    []Dependency               `yaml:"dependencies,omitempty"`
-	Agent           *config.AgentConfig        `yaml:"agent,omitempty"`
+	Version         string                         `yaml:"version"`
+	Project         ProjectInfo                    `yaml:"project"`
+	Playbook        PlaybookInfo                   `yaml:"playbook"`
+	TemplateVersion string                         `yaml:"template_version,omitempty"`
+	TaskTracker     TaskTrackerInfo                `yaml:"task_tracker,omitempty"`
+	ArtifactPath    string                         `yaml:"artifact_path,omitempty"`
+	Dependencies    []Dependency                   `yaml:"dependencies,omitempty"`
+	Agent           *config.AgentConfig            `yaml:"agent,omitempty"`
 	Profiles        map[string]*config.AgentConfig `yaml:"profiles,omitempty"`
-	ActiveProfile   string                     `yaml:"active-profile,omitempty"`
+	ActiveProfile   string                         `yaml:"active-profile,omitempty"`
 }
 
 // ProjectInfo contains project identification

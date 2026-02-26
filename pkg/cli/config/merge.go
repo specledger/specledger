@@ -11,10 +11,10 @@ import (
 type ConfigScope string
 
 const (
-	ScopeDefault      ConfigScope = "default"
-	ScopeGlobal       ConfigScope = "global"
-	ScopeProfile      ConfigScope = "profile"
-	ScopeTeamLocal    ConfigScope = "local"
+	ScopeDefault       ConfigScope = "default"
+	ScopeGlobal        ConfigScope = "global"
+	ScopeProfile       ConfigScope = "profile"
+	ScopeTeamLocal     ConfigScope = "local"
 	ScopePersonalLocal ConfigScope = "personal"
 )
 

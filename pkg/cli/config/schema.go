@@ -8,23 +8,23 @@ import (
 type ConfigKeyType string
 
 const (
-	KeyTypeString      ConfigKeyType = "string"
-	KeyTypeBool        ConfigKeyType = "bool"
-	KeyTypeEnum        ConfigKeyType = "enum"
-	KeyTypeStringList  ConfigKeyType = "string-list"
-	KeyTypeStringMap   ConfigKeyType = "string-map"
+	KeyTypeString     ConfigKeyType = "string"
+	KeyTypeBool       ConfigKeyType = "bool"
+	KeyTypeEnum       ConfigKeyType = "enum"
+	KeyTypeStringList ConfigKeyType = "string-list"
+	KeyTypeStringMap  ConfigKeyType = "string-map"
 )
 
 type ConfigKeyDef struct {
-	Key          string        `json:"key"`
-	Type         ConfigKeyType `json:"type"`
-	EnvVar       string        `json:"env_var"`
-	CLIFlag      string        `json:"cli_flag"`
-	Default      interface{}   `json:"default"`
-	Sensitive    bool          `json:"sensitive"`
-	Description  string        `json:"description"`
-	EnumValues   []string      `json:"enum_values,omitempty"`
-	Category     string        `json:"category"`
+	Key         string        `json:"key"`
+	Type        ConfigKeyType `json:"type"`
+	EnvVar      string        `json:"env_var"`
+	CLIFlag     string        `json:"cli_flag"`
+	Default     interface{}   `json:"default"`
+	Sensitive   bool          `json:"sensitive"`
+	Description string        `json:"description"`
+	EnumValues  []string      `json:"enum_values,omitempty"`
+	Category    string        `json:"category"`
 }
 
 type SchemaRegistry struct {
