@@ -84,9 +84,9 @@ func ComputeDelta(transcriptPath string, lastOffset int64) ([]Message, int64, er
 
 	var messages []Message
 	scanner := bufio.NewScanner(file)
-	// Increase buffer size for long lines
+	// Increase buffer size for long lines (Claude transcripts can have very long lines)
 	buf := make([]byte, 0, 64*1024)
-	scanner.Buffer(buf, 1024*1024) // max 1MB per line
+	scanner.Buffer(buf, 10*1024*1024) // max 10MB per line
 
 	for scanner.Scan() {
 		line := scanner.Bytes()

@@ -22,6 +22,7 @@ type ProjectMetadata struct {
 
 // ProjectInfo contains project identification
 type ProjectInfo struct {
+	ID        string    `yaml:"id,omitempty"` // Supabase project UUID (for session capture)
 	Name      string    `yaml:"name"`
 	ShortCode string    `yaml:"short_code"`
 	Created   time.Time `yaml:"created"`

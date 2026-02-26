@@ -13,14 +13,18 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/specledger/specledger/pkg/cli/auth"
+	"github.com/specledger/specledger/pkg/cli/revise"
 	"gopkg.in/yaml.v3"
 )
 
-// gitCommitPattern matches git commit commands
-var gitCommitPattern = regexp.MustCompile(`^\s*git\s+commit\b`)
+// gitCommitPattern matches git commit commands (not commit-graph, commit-tree, etc.)
+var gitCommitPattern = regexp.MustCompile(`^\s*git\s+commit(\s|$)`)
 
 // gitAmendPattern matches git commit --amend commands
 var gitAmendPattern = regexp.MustCompile(`\s+--amend\b`)
+
+// chainSeparators splits commands by shell chain operators
+var chainSeparators = regexp.MustCompile(`\s*(?:&&|\|\||;)\s*`)
 
 // ParseHookInput parses the hook input from stdin
 func ParseHookInput(data []byte) (*HookInput, error) {
@@ -31,16 +35,21 @@ func ParseHookInput(data []byte) (*HookInput, error) {
 	return &input, nil
 }
 
-// IsGitCommit checks if the tool input is a git commit command (but not amend)
+// IsGitCommit checks if the tool input contains a git commit command (but not amend)
+// Handles chained commands like "git add . && git commit -m 'msg'"
 func IsGitCommit(toolInput string) bool {
-	if !gitCommitPattern.MatchString(toolInput) {
-		return false
+	// Split by chain operators (&&, ||, ;) and check each part
+	parts := chainSeparators.Split(toolInput, -1)
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if gitCommitPattern.MatchString(part) {
+			// Check this specific part for amend
+			if !gitAmendPattern.MatchString(part) {
+				return true
+			}
+		}
 	}
-	// Exclude amend commits (they create new sessions for the new hash)
-	if gitAmendPattern.MatchString(toolInput) {
-		return false
-	}
-	return true
+	return false
 }
 
 // GetCurrentCommitHash gets the current HEAD commit hash
@@ -110,6 +119,66 @@ func GetProjectID(workdir string) (string, error) {
 	return config.Project.ID, nil
 }
 
+// GetProjectIDFromRemote attempts to get project ID by looking up git remote in Supabase
+func GetProjectIDFromRemote(workdir string) (string, error) {
+	// Get git remote URL
+	cmd := exec.Command("git", "remote", "get-url", "origin")
+	cmd.Dir = workdir
+	output, err := cmd.Output()
+	if err != nil {
+		return "", fmt.Errorf("no git remote 'origin' found")
+	}
+
+	remoteURL := strings.TrimSpace(string(output))
+	owner, repo, err := parseGitRemote(remoteURL)
+	if err != nil {
+		return "", err
+	}
+
+	// Get access token
+	accessToken, err := auth.GetValidAccessToken()
+	if err != nil {
+		return "", fmt.Errorf("not authenticated: %w", err)
+	}
+
+	// Lookup project in Supabase
+	client := revise.NewReviseClient(accessToken)
+	project, err := client.GetProject(owner, repo)
+	if err != nil {
+		return "", fmt.Errorf("project not found for %s/%s: %w", owner, repo, err)
+	}
+
+	return project.ID, nil
+}
+
+// parseGitRemote extracts owner and repo from git remote URL
+func parseGitRemote(remoteURL string) (owner, repo string, err error) {
+	// SSH format: git@github.com:owner/repo.git
+	sshPattern := regexp.MustCompile(`git@[^:]+:([^/]+)/(.+?)(?:\.git)?$`)
+	if matches := sshPattern.FindStringSubmatch(remoteURL); len(matches) == 3 {
+		return matches[1], strings.TrimSuffix(matches[2], ".git"), nil
+	}
+
+	// HTTPS format: https://github.com/owner/repo.git
+	httpsPattern := regexp.MustCompile(`https?://[^/]+/([^/]+)/(.+?)(?:\.git)?$`)
+	if matches := httpsPattern.FindStringSubmatch(remoteURL); len(matches) == 3 {
+		return matches[1], strings.TrimSuffix(matches[2], ".git"), nil
+	}
+
+	return "", "", fmt.Errorf("unable to parse git remote URL: %s", remoteURL)
+}
+
+// GetProjectIDWithFallback tries specledger.yaml first, then falls back to git remote lookup
+func GetProjectIDWithFallback(workdir string) (string, error) {
+	// Try specledger.yaml first
+	if id, err := GetProjectID(workdir); err == nil && id != "" {
+		return id, nil
+	}
+
+	// Fallback to git remote lookup
+	return GetProjectIDFromRemote(workdir)
+}
+
 // Capture orchestrates the session capture flow
 func Capture(input *HookInput) *CaptureResult {
 	result := &CaptureResult{Captured: false}
@@ -120,7 +189,7 @@ func Capture(input *HookInput) *CaptureResult {
 	}
 
 	// Verify the tool succeeded
-	if !input.ToolSuccess {
+	if !input.ToolSuccess() {
 		return result // Commit failed, nothing to capture
 	}
 
@@ -153,8 +222,10 @@ func Capture(input *HookInput) *CaptureResult {
 	// Get project ID
 	projectID, err := GetProjectID(input.Cwd)
 	if err != nil {
-		// Log warning but don't fail - queue for later
-		fmt.Fprintf(os.Stderr, "Warning: %v\n", err)
+		// Give clear guidance on how to fix
+		fmt.Fprintf(os.Stderr, "⚠️  Session capture skipped: %v\n", err)
+		fmt.Fprintf(os.Stderr, "    To enable session capture, ensure specledger.yaml has project.id set.\n")
+		fmt.Fprintf(os.Stderr, "    Run 'sl init' or add manually: project:\\n  id: <your-project-id>\n")
 		result.Error = err
 		return result
 	}
@@ -281,7 +352,7 @@ func queueSession(result *CaptureResult, compressed []byte, projectID, branch st
 		RetryCount:    0,
 	}
 
-	if err := queue.Enqueue(result.SessionID, compressed, entry); err != nil {
+	if err := queue.Enqueue(entry, compressed); err != nil {
 		result.Error = fmt.Errorf("failed to queue session: %w", err)
 		return result
 	}
@@ -370,47 +441,32 @@ func CaptureTestMode() *CaptureResult {
 	}
 	fmt.Printf("✓ Authenticated as: %s\n", creds.UserEmail)
 
-	// Check for Claude Code transcript
+	// Check for Claude Code transcript in projects directory
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return &CaptureResult{Error: fmt.Errorf("failed to get home directory: %w", err)}
 	}
 
-	// Look for Claude Code session directory
-	claudeDir := filepath.Join(homeDir, ".claude", "sessions")
-	settingsPath := filepath.Join(homeDir, ".claude", "settings.json")
+	// Look for Claude Code projects directory (where transcripts are stored)
+	projectsDir := filepath.Join(homeDir, ".claude", "projects")
 
-	if _, err := os.Stat(claudeDir); os.IsNotExist(err) {
+	if _, err := os.Stat(projectsDir); os.IsNotExist(err) {
 		return &CaptureResult{
-			Error: fmt.Errorf(`Claude Code sessions directory not found at %s
+			Error: fmt.Errorf(`Claude Code projects directory not found at %s
 
-Session capture requires Claude Code to save transcripts.
+Session capture requires an active Claude Code session.
 
-To enable:
-1. Add to %s:
-   {
-     "saveTranscripts": true,
-     "transcriptsDirectory": "%s"
-   }
-
-2. Create the directory:
-   mkdir -p %s
-
-3. Restart Claude Code
-
-4. Start a new conversation
-
-5. Run: sl session capture --test-mode
-
-More info: https://docs.claude.ai/session-capture`,
-				claudeDir, settingsPath, claudeDir, claudeDir),
+To test:
+1. Start a Claude Code session in this project
+2. Run: sl session capture --test-mode`,
+				projectsDir),
 		}
 	}
 
-	fmt.Printf("✓ Claude Code sessions directory found\n")
+	fmt.Printf("✓ Claude Code projects directory found\n")
 
-	// Find most recent transcript file
-	transcriptPath, sessionID, err := findMostRecentTranscript(claudeDir)
+	// Find most recent transcript file in projects
+	transcriptPath, sessionID, err := findMostRecentTranscript(projectsDir)
 	if err != nil {
 		return &CaptureResult{Error: fmt.Errorf("failed to find transcript: %w", err)}
 	}
@@ -424,10 +480,10 @@ More info: https://docs.claude.ai/session-capture`,
 		SessionID:      sessionID,
 		TranscriptPath: transcriptPath,
 		Cwd:            cwd,
-		HookEventName:  "tool-post",
+		HookEventName:  "PostToolUse",
 		ToolName:       "Bash",
 		ToolInput:      ToolInput{Raw: json.RawMessage(`{"command":"git commit -m \"test\""}`)},
-		ToolSuccess:    true,
+		ToolResponse:   ToolResponse{Interrupted: false}, // Simulate successful command
 	}
 
 	// Note: This won't actually capture because we need a real commit
@@ -451,8 +507,9 @@ More info: https://docs.claude.ai/session-capture`,
 }
 
 // findMostRecentTranscript finds the most recent Claude Code transcript
-func findMostRecentTranscript(claudeDir string) (string, string, error) {
-	entries, err := os.ReadDir(claudeDir)
+// Searches in ~/.claude/projects/<project-slug>/<session-uuid>.jsonl
+func findMostRecentTranscript(projectsDir string) (string, string, error) {
+	entries, err := os.ReadDir(projectsDir)
 	if err != nil {
 		return "", "", err
 	}
@@ -466,23 +523,35 @@ func findMostRecentTranscript(claudeDir string) (string, string, error) {
 			continue
 		}
 
-		sessionID := entry.Name()
-		transcriptPath := filepath.Join(claudeDir, sessionID, "transcript.jsonl")
-
-		info, err := os.Stat(transcriptPath)
+		projectDir := filepath.Join(projectsDir, entry.Name())
+		files, err := os.ReadDir(projectDir)
 		if err != nil {
 			continue
 		}
 
-		if newestTranscript == "" || info.ModTime().After(newestTime) {
-			newestTranscript = transcriptPath
-			newestSessionID = sessionID
-			newestTime = info.ModTime()
+		// Find .jsonl files (session transcripts)
+		for _, file := range files {
+			if file.IsDir() || !strings.HasSuffix(file.Name(), ".jsonl") {
+				continue
+			}
+
+			transcriptPath := filepath.Join(projectDir, file.Name())
+			info, err := os.Stat(transcriptPath)
+			if err != nil {
+				continue
+			}
+
+			if newestTranscript == "" || info.ModTime().After(newestTime) {
+				newestTranscript = transcriptPath
+				// Extract session ID from filename (remove .jsonl)
+				newestSessionID = strings.TrimSuffix(file.Name(), ".jsonl")
+				newestTime = info.ModTime()
+			}
 		}
 	}
 
 	if newestTranscript == "" {
-		return "", "", fmt.Errorf("no transcript files found in %s", claudeDir)
+		return "", "", fmt.Errorf("no transcript files found in %s", projectsDir)
 	}
 
 	return newestTranscript, newestSessionID, nil

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/specledger/specledger/pkg/cli/auth"
+	"github.com/specledger/specledger/pkg/cli/hooks"
 	"github.com/spf13/cobra"
 )
 
@@ -113,8 +114,24 @@ The token is automatically refreshed if expired.`,
 	RunE: runToken,
 }
 
+// VarAuthHookCmd represents the hook command
+var VarAuthHookCmd = &cobra.Command{
+	Use:   "hook",
+	Short: "Manage Claude Code session capture hook",
+	Long: `Check, install, or remove the session capture hook in Claude Code settings.
+
+The hook is automatically installed during 'sl auth login', but you can
+use this command to manually manage it.
+
+Examples:
+  sl auth hook           # Check if hook is installed
+  sl auth hook --install # Install the hook
+  sl auth hook --remove  # Remove the hook`,
+	RunE: runHook,
+}
+
 func init() {
-	VarAuthCmd.AddCommand(VarAuthLoginCmd, VarAuthLogoutCmd, VarAuthStatusCmd, VarAuthRefreshCmd, VarAuthSupabaseCmd, VarAuthTokenCmd)
+	VarAuthCmd.AddCommand(VarAuthLoginCmd, VarAuthLogoutCmd, VarAuthStatusCmd, VarAuthRefreshCmd, VarAuthSupabaseCmd, VarAuthTokenCmd, VarAuthHookCmd)
 
 	VarAuthSupabaseCmd.Flags().Bool("url", false, "Print only the Supabase URL")
 	VarAuthSupabaseCmd.Flags().Bool("key", false, "Print only the Supabase anon key")
@@ -122,6 +139,9 @@ func init() {
 	VarAuthLoginCmd.Flags().Bool("dev", false, "Use development server (localhost:3000)")
 	VarAuthLoginCmd.Flags().String("token", "", "Authenticate with an access token (for CI/headless environments)")
 	VarAuthLoginCmd.Flags().String("refresh", "", "Authenticate with a refresh token (exchanges for access token)")
+
+	VarAuthHookCmd.Flags().Bool("install", false, "Install the session capture hook")
+	VarAuthHookCmd.Flags().Bool("remove", false, "Remove the session capture hook")
 }
 
 func runLogin(cmd *cobra.Command, args []string) error {
@@ -232,6 +252,9 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Signed in as: %s\n", result.UserEmail)
 	fmt.Printf("Credentials stored at: %s\n", auth.GetCredentialsPath())
 
+	// Install session capture hook for Claude Code
+	installSessionHook()
+
 	return nil
 }
 
@@ -252,6 +275,9 @@ func runAccessTokenLogin(accessToken string) error {
 
 	fmt.Println("Authentication successful!")
 	fmt.Printf("Credentials stored at: %s\n", auth.GetCredentialsPath())
+
+	// Install session capture hook for Claude Code
+	installSessionHook()
 
 	return nil
 }
@@ -276,6 +302,9 @@ func runRefreshTokenLogin(refreshToken string) error {
 		fmt.Printf("Signed in as: %s\n", creds.UserEmail)
 	}
 	fmt.Printf("Credentials stored at: %s\n", auth.GetCredentialsPath())
+
+	// Install session capture hook for Claude Code
+	installSessionHook()
 
 	return nil
 }
@@ -384,5 +413,72 @@ func runToken(cmd *cobra.Command, args []string) error {
 
 	// Output only the token, no other text (for use in scripts)
 	fmt.Print(token)
+	return nil
+}
+
+// installSessionHook attempts to install the session capture hook and prints detailed status
+func installSessionHook() {
+	installed, err := hooks.InstallSessionCaptureHook()
+	if err != nil {
+		fmt.Printf("\nSession capture hook: FAILED\n")
+		fmt.Printf("  Error: %v\n", err)
+		fmt.Printf("  Fix: Run 'sl auth hook --install' manually\n")
+		return
+	}
+	if installed {
+		fmt.Println("\nSession capture hook: INSTALLED")
+		fmt.Println("  Location: ~/.claude/settings.json")
+	} else {
+		fmt.Println("\nSession capture hook: already installed")
+	}
+}
+
+func runHook(cmd *cobra.Command, args []string) error {
+	install, _ := cmd.Flags().GetBool("install")
+	remove, _ := cmd.Flags().GetBool("remove")
+
+	if install && remove {
+		return fmt.Errorf("cannot use --install and --remove together")
+	}
+
+	if install {
+		installed, err := hooks.InstallSessionCaptureHook()
+		if err != nil {
+			return fmt.Errorf("failed to install hook: %w", err)
+		}
+		if installed {
+			fmt.Println("Session capture hook installed successfully.")
+		} else {
+			fmt.Println("Session capture hook already installed.")
+		}
+		return nil
+	}
+
+	if remove {
+		removed, err := hooks.UninstallSessionCaptureHook()
+		if err != nil {
+			return fmt.Errorf("failed to remove hook: %w", err)
+		}
+		if removed {
+			fmt.Println("Session capture hook removed.")
+		} else {
+			fmt.Println("Session capture hook was not installed.")
+		}
+		return nil
+	}
+
+	// Default: check status
+	settings, err := hooks.LoadClaudeSettings()
+	if err != nil {
+		return fmt.Errorf("failed to load Claude settings: %w", err)
+	}
+
+	if hooks.HasSessionCaptureHook(settings) {
+		fmt.Println("Session capture hook: installed")
+	} else {
+		fmt.Println("Session capture hook: not installed")
+		fmt.Println("\nRun 'sl auth hook --install' to install it.")
+	}
+
 	return nil
 }

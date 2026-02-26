@@ -133,8 +133,9 @@ func (m *MetadataClient) Query(accessToken string, opts *QueryOptions) ([]Sessio
 	}
 	if opts.CommitHash != "" {
 		// Use like for partial commit hash (prefix match)
+		// PostgREST uses % as wildcard, not *
 		if len(opts.CommitHash) < 40 {
-			params.Set("commit_hash", "like."+opts.CommitHash+"*")
+			params.Set("commit_hash", "like."+opts.CommitHash+"%")
 		} else {
 			params.Set("commit_hash", "eq."+opts.CommitHash)
 		}
@@ -145,11 +146,15 @@ func (m *MetadataClient) Query(accessToken string, opts *QueryOptions) ([]Sessio
 	if opts.AuthorID != "" {
 		params.Set("author_id", "eq."+opts.AuthorID)
 	}
-	if opts.StartDate != nil {
+	// Date range filtering using PostgREST 'and' operator
+	if opts.StartDate != nil && opts.EndDate != nil {
+		// Both dates: use and() for proper AND logic
+		params.Set("and", fmt.Sprintf("(created_at.gte.%s,created_at.lte.%s)",
+			opts.StartDate.Format(time.RFC3339), opts.EndDate.Format(time.RFC3339)))
+	} else if opts.StartDate != nil {
 		params.Set("created_at", "gte."+opts.StartDate.Format(time.RFC3339))
-	}
-	if opts.EndDate != nil {
-		params.Add("created_at", "lte."+opts.EndDate.Format(time.RFC3339))
+	} else if opts.EndDate != nil {
+		params.Set("created_at", "lte."+opts.EndDate.Format(time.RFC3339))
 	}
 
 	// Order
