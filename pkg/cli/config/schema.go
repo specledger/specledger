@@ -198,12 +198,64 @@ func (r *SchemaRegistry) IsValidKey(key string) bool {
 func (r *SchemaRegistry) FindSimilar(key string) []string {
 	var similar []string
 	keyLower := strings.ToLower(key)
+
 	for k := range r.keys {
-		if strings.Contains(strings.ToLower(k), keyLower) || strings.Contains(keyLower, strings.ToLower(k)) {
+		kLower := strings.ToLower(k)
+		if strings.Contains(kLower, keyLower) || strings.Contains(keyLower, kLower) {
 			similar = append(similar, k)
+			continue
+		}
+
+		parts := strings.Split(keyLower, ".")
+		kParts := strings.Split(kLower, ".")
+		if len(parts) == len(kParts) && len(parts) > 1 {
+			matchScore := 0
+			for i := range parts {
+				if parts[i] == kParts[i] {
+					matchScore += 2
+				} else if levenshteinDistance(parts[i], kParts[i]) <= 2 {
+					matchScore += 1
+				}
+			}
+			if matchScore >= len(parts) {
+				similar = append(similar, k)
+			}
 		}
 	}
+
 	return similar
+}
+
+func levenshteinDistance(a, b string) int {
+	if len(a) == 0 {
+		return len(b)
+	}
+	if len(b) == 0 {
+		return len(a)
+	}
+
+	if a[0] == b[0] {
+		return levenshteinDistance(a[1:], b[1:])
+	}
+
+	return 1 + min(
+		levenshteinDistance(a[1:], b),
+		levenshteinDistance(a, b[1:]),
+		levenshteinDistance(a[1:], b[1:]),
+	)
+}
+
+func min(a, b, c int) int {
+	if a < b {
+		if a < c {
+			return a
+		}
+		return c
+	}
+	if b < c {
+		return b
+	}
+	return c
 }
 
 func GetRegistry() *SchemaRegistry {
