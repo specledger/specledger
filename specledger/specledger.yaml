@@ -1,9 +1,10 @@
-version: 1.0.0
+version: 1.1.0
 project:
+    id: e80b7e0b-9ae4-403e-9015-d9551d5b41bd
     name: specledger
     short_code: sl
     created: 2026-02-19T22:14:06.865049+07:00
-    modified: 2026-02-19T22:14:06.86505+07:00
+    modified: 2026-02-26T13:27:25.400382+07:00
     version: 0.1.0
 playbook:
     name: specledger
