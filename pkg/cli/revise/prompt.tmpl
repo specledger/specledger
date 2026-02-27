@@ -8,14 +8,15 @@ The following files contain comments that need to be addressed:
 
 You have full access to read and edit these files in the workspace.
 
+## Revision Strategy
+Before making any edits:
+1. Read ALL comments below
+2. Identify thematic clusters — comments that share intent, topic, or require coordinated changes across artifacts
+3. For each cluster, present a SINGLE AskUserQuestion covering all related comments with 2-3 distinct revision approaches
+4. Apply coordinated edits across all impacted artifacts for the chosen approach
+5. Track every option proposed and choices made in a dedicated revision log, create if it doesn't exist yet.
+
 ## Comments to Address
-For each comment below:
-1. Read the target location in the document
-2. Analyze the reviewer's feedback
-3. Generate 2-3 distinct edit suggestions
-4. Use AskUserQuestion to present options and get the user's preference
-5. Apply the chosen edit
-6. Track every option proposed to user and their choices in a dedicated revision log, create if it doesn't exist yet.
 {{- range .Comments}}
 
 ### Comment {{.Index}}
@@ -25,13 +26,22 @@ For each comment below:
 {{- if .Guidance}}
 - **Author Guidance**: "{{.Guidance}}"
 {{- end}}
+{{- if .Replies}}
+
+  **Thread:**
+{{- range .Replies}}
+  > **{{.AuthorName}}**: {{.Content}}
+{{- end}}
+{{- end}}
 {{- end}}
 
 ## Important Instructions
 - ALWAYS use AskUserQuestion before making any edit
-- Present clear, distinct options for each comment
-- Apply edits incrementally, one comment at a time across all impacted artifacts
-- After all edits, summarize what was changed
+- Group related comments together — do NOT address them one by one if they share a theme
+- Present clear, distinct options for each thematic cluster
+- When a thread has replies with additional context, factor that into your suggestions
+- Apply edits incrementally, one cluster at a time across all impacted artifacts
+- After all edits, summarize what was changed and which comments were addressed
 - Do NOT modify files beyond what the comments request
 
-Begin processing first document and comment.
+Begin by reading all comments, identifying clusters, then processing the first cluster.

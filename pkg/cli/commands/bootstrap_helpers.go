@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/specledger/specledger/pkg/cli/auth"
+	"github.com/specledger/specledger/pkg/cli/config"
 	"github.com/specledger/specledger/pkg/cli/launcher"
 	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/playbooks"
@@ -297,7 +298,6 @@ func romanNumeral(n int) string {
 // This is a non-fatal operation — project setup is still complete even if the agent
 // cannot be launched.
 func launchAgent(projectDir string, agentPref string) error {
-	// No agent selected
 	if agentPref == "" || agentPref == "None" {
 		fmt.Println()
 		ui.PrintSuccess("Project setup complete!")
@@ -305,7 +305,6 @@ func launchAgent(projectDir string, agentPref string) error {
 		return nil
 	}
 
-	// Find the matching agent option
 	var agent launcher.AgentOption
 	for _, a := range launcher.DefaultAgents {
 		if a.Name == agentPref {
@@ -320,7 +319,6 @@ func launchAgent(projectDir string, agentPref string) error {
 
 	al := launcher.NewAgentLauncher(agent, projectDir)
 
-	// Check availability
 	if !al.IsAvailable() {
 		fmt.Println()
 		ui.PrintWarning(fmt.Sprintf("%s is not installed.", agent.Name))
@@ -329,14 +327,27 @@ func launchAgent(projectDir string, agentPref string) error {
 		return nil
 	}
 
-	// Launch the agent
+	cfg, err := config.Load()
+	if err == nil && cfg.Agent != nil {
+		resolved := config.MergeConfigs(
+			config.DefaultAgentConfig(),
+			cfg.Agent,
+			nil,
+			nil,
+			nil,
+		)
+		envVars := resolved.GetEnvVars()
+		if len(envVars) > 0 {
+			al.SetEnv(envVars)
+		}
+	}
+
 	fmt.Println()
 	ui.PrintSection("Launching " + agent.Name)
 	fmt.Println(ui.Dim("  Type /specledger.onboard to start the guided workflow."))
 	fmt.Println()
 
 	if err := al.Launch(); err != nil {
-		// Agent exit is non-fatal — project is already set up
 		ui.PrintWarning(fmt.Sprintf("Agent exited: %v", err))
 	}
 

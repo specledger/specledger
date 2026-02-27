@@ -175,7 +175,7 @@ func TestPromptSnapshot(t *testing.T) {
 		t.Fatalf("unexpected warnings: %v", warnings)
 	}
 
-	ctx := BuildRevisionContext("136-revise-comments", matched)
+	ctx := BuildRevisionContext("136-revise-comments", matched, nil)
 	prompt, err := RenderPrompt(ctx)
 	if err != nil {
 		t.Fatalf("RenderPrompt error: %v", err)

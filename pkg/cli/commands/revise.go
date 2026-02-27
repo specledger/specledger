@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/specledger/specledger/pkg/cli/auth"
+	"github.com/specledger/specledger/pkg/cli/config"
 	cligit "github.com/specledger/specledger/pkg/cli/git"
 	"github.com/specledger/specledger/pkg/cli/launcher"
 	"github.com/specledger/specledger/pkg/cli/revise"
@@ -91,7 +92,7 @@ func runRevise(cmd *cobra.Command, args []string) error {
 	}
 
 	// Step 4: Fetch comments via PostgREST query chain
-	comments, err := fetchComments(cwd, specKey, client)
+	comments, changeID, err := fetchComments(cwd, specKey, client)
 	if err != nil {
 		return err
 	}
@@ -101,7 +102,21 @@ func runRevise(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	fmt.Printf("Fetched %d unresolved comment(s) for %s.\n", len(comments), specKey)
+	// Fetch thread replies for all comments in this change
+	replies, err := client.FetchReplies(changeID)
+	if err != nil {
+		// Non-fatal: proceed without threads
+		fmt.Fprintf(os.Stderr, "warning: failed to fetch thread replies: %v\n", err)
+		replies = nil
+	}
+	replyMap := revise.BuildReplyMap(replies)
+
+	replyCount := len(replies)
+	if replyCount > 0 {
+		fmt.Printf("Fetched %d unresolved comment(s) with %d thread reply(ies) for %s.\n", len(comments), replyCount, specKey)
+	} else {
+		fmt.Printf("Fetched %d unresolved comment(s) for %s.\n", len(comments), specKey)
+	}
 
 	// Step 5: Artifact multi-select (US2)
 	selectedComments, err := selectArtifacts(comments)
@@ -115,7 +130,7 @@ func runRevise(cmd *cobra.Command, args []string) error {
 	}
 
 	// Step 6: Comment processing loop (US3)
-	processed, err := processComments(selectedComments)
+	processed, err := processComments(selectedComments, replyMap)
 	if err != nil {
 		return err
 	}
@@ -128,7 +143,7 @@ func runRevise(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Processing %d comment(s).\n", len(processed))
 
 	// Step 7: Generate revision prompt (US4)
-	ctx := revise.BuildRevisionContext(specKey, processed)
+	ctx := revise.BuildRevisionContext(specKey, processed, replies)
 	prompt, err := revise.RenderPrompt(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to render prompt: %w", err)
@@ -170,6 +185,9 @@ func runRevise(cmd *cobra.Command, args []string) error {
 		fmt.Printf("No AI agent found. Install with: %s\n", al.InstallInstructions())
 		return writePromptToFile(finalPrompt)
 	}
+
+	// Inject config environment variables (base-url, auth-token, model overrides, etc.)
+	al.SetEnv(config.ResolveAgentEnv())
 
 	fmt.Printf("Launching %s...\n", al.Name)
 	if err := al.LaunchWithPrompt(finalPrompt); err != nil {
@@ -216,7 +234,7 @@ func runRevise(cmd *cobra.Command, args []string) error {
 	}
 
 	// US6: Comment resolution multi-select (sl-x1o)
-	if err := commentResolutionFlow(processed, client, stashUsed); err != nil {
+	if err := commentResolutionFlow(processed, replyMap, client, stashUsed); err != nil {
 		return err
 	}
 
@@ -318,8 +336,9 @@ func stagingAndCommitFlow(cwd string) (committed bool, err error) {
 
 // commentResolutionFlow shows a multi-select of processed comments and marks the
 // selected ones as resolved via the API (FR-017, FR-018, FR-021).
+// When a parent comment is resolved, its thread replies are also resolved (cascade).
 // Prints the stash pop reminder at session end if stashUsed.
-func commentResolutionFlow(processed []revise.ProcessedComment, client *revise.ReviseClient, stashUsed bool) error {
+func commentResolutionFlow(processed []revise.ProcessedComment, replyMap map[string][]revise.ReviewComment, client *revise.ReviseClient, stashUsed bool) error {
 	if len(processed) == 0 {
 		return nil
 	}
@@ -334,6 +353,13 @@ func commentResolutionFlow(processed []revise.ProcessedComment, client *revise.R
 			}
 			label = fmt.Sprintf("%s — %q", p.Comment.FilePath, excerpt)
 		}
+		if reps := replyMap[p.Comment.ID]; len(reps) > 0 {
+			noun := "reply"
+			if len(reps) != 1 {
+				noun = "replies"
+			}
+			label = fmt.Sprintf("%s [%d %s]", label, len(reps), noun)
+		}
 		options = append(options, huh.NewOption(label, p.Comment.ID).Selected(true))
 	}
 
@@ -341,7 +367,7 @@ func commentResolutionFlow(processed []revise.ProcessedComment, client *revise.R
 	err := huh.NewForm(huh.NewGroup(
 		huh.NewMultiSelect[string]().
 			Title("Mark comments as resolved?").
-			Description("Select the comments that were successfully addressed by the agent.").
+			Description("Select the comments that were successfully addressed by the agent. Thread replies will also be resolved.").
 			Options(options...).
 			Value(&selected),
 	)).Run()
@@ -359,15 +385,35 @@ func commentResolutionFlow(processed []revise.ProcessedComment, client *revise.R
 	}
 
 	resolved := 0
+	resolvedReplies := 0
 	for _, id := range selected {
-		if err := client.ResolveComment(id); err != nil {
-			fmt.Fprintf(os.Stderr, "warning: failed to resolve comment %s: %v\n", id, err)
-			continue
+		replyIDs := make([]string, 0)
+		if reps, ok := replyMap[id]; ok {
+			for _, r := range reps {
+				replyIDs = append(replyIDs, r.ID)
+			}
+		}
+
+		if len(replyIDs) > 0 {
+			if err := client.ResolveCommentWithReplies(id, replyIDs); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: failed to resolve comment %s: %v\n", id, err)
+				continue
+			}
+			resolvedReplies += len(replyIDs)
+		} else {
+			if err := client.ResolveComment(id); err != nil {
+				fmt.Fprintf(os.Stderr, "warning: failed to resolve comment %s: %v\n", id, err)
+				continue
+			}
 		}
 		resolved++
 	}
 
-	fmt.Printf("Resolved %d of %d comment(s).\n", resolved, len(processed))
+	if resolvedReplies > 0 {
+		fmt.Printf("Resolved %d of %d comment(s) + %d thread reply(ies).\n", resolved, len(processed), resolvedReplies)
+	} else {
+		fmt.Printf("Resolved %d of %d comment(s).\n", resolved, len(processed))
+	}
 	if resolved < len(processed) {
 		fmt.Println("Unresolved comments remain. Re-run sl revise after pushing to resolve them.")
 	}
@@ -530,34 +576,35 @@ func checkoutIfNeeded(cwd, targetBranch string) (stashUsed bool, err error) {
 	return stashUsed, nil
 }
 
-// fetchComments runs the 4-step PostgREST query chain and returns unresolved comments.
-func fetchComments(cwd, specKey string, client *revise.ReviseClient) ([]revise.ReviewComment, error) {
+// fetchComments runs the 4-step PostgREST query chain and returns unresolved comments
+// along with the changeID (needed for fetching thread replies).
+func fetchComments(cwd, specKey string, client *revise.ReviseClient) ([]revise.ReviewComment, string, error) {
 	repoOwner, repoName, err := cligit.GetRepoOwnerName(cwd)
 	if err != nil {
-		return nil, fmt.Errorf("failed to detect repo: %w", err)
+		return nil, "", fmt.Errorf("failed to detect repo: %w", err)
 	}
 
 	project, err := client.GetProject(repoOwner, repoName)
 	if err != nil {
-		return nil, networkHint(fmt.Errorf("failed to fetch project: %w", err))
+		return nil, "", networkHint(fmt.Errorf("failed to fetch project: %w", err))
 	}
 
 	spec, err := client.GetSpec(project.ID, specKey)
 	if err != nil {
-		return nil, networkHint(fmt.Errorf("failed to fetch spec %q: %w", specKey, err))
+		return nil, "", networkHint(fmt.Errorf("failed to fetch spec %q: %w", specKey, err))
 	}
 
 	change, err := client.GetChange(spec.ID)
 	if err != nil {
-		return nil, networkHint(fmt.Errorf("failed to fetch change for spec %q: %w", specKey, err))
+		return nil, "", networkHint(fmt.Errorf("failed to fetch change for spec %q: %w", specKey, err))
 	}
 
 	comments, err := client.FetchComments(change.ID)
 	if err != nil {
-		return nil, networkHint(fmt.Errorf("failed to fetch comments: %w", err))
+		return nil, "", networkHint(fmt.Errorf("failed to fetch comments: %w", err))
 	}
 
-	return comments, nil
+	return comments, change.ID, nil
 }
 
 // selectArtifacts groups comments by file_path, shows a huh multi-select with counts,
@@ -619,12 +666,14 @@ func selectArtifacts(comments []revise.ReviewComment) ([]revise.ReviewComment, e
 
 // processComments shows each comment with lipgloss styling and lets the user
 // choose to Process (with optional guidance), Skip, or Quit the loop.
-func processComments(comments []revise.ReviewComment) ([]revise.ProcessedComment, error) {
+// Thread replies from replyMap are displayed inline below each parent comment.
+func processComments(comments []revise.ReviewComment, replyMap map[string][]revise.ReviewComment) ([]revise.ProcessedComment, error) {
 	// Lipgloss styles for comment display
 	headerStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))
 	labelStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
 	textStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("7"))
 	dividerStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("8"))
+	threadStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 
 	const (
 		actionProcess = "process"
@@ -686,6 +735,23 @@ func processComments(comments []revise.ReviewComment) ([]revise.ProcessedComment
 		}
 		fmt.Printf("%s %s\n", labelStyle.Render("Author:"), textStyle.Render(author))
 		fmt.Printf("%s %s\n", labelStyle.Render("Feedback:"), textStyle.Render(c.Content))
+
+		// Display thread replies inline
+		if reps, ok := replyMap[c.ID]; ok && len(reps) > 0 {
+			fmt.Println()
+			fmt.Printf("  %s\n", threadStyle.Render("Thread:"))
+			for _, r := range reps {
+				replyAuthor := r.AuthorName
+				if replyAuthor == "" {
+					replyAuthor = r.AuthorEmail
+				}
+				replyContent := r.Content
+				if len(replyContent) > 200 {
+					replyContent = replyContent[:197] + "..."
+				}
+				fmt.Printf("  %s %s\n", threadStyle.Render("└─ "+replyAuthor+":"), textStyle.Render(replyContent))
+			}
+		}
 
 		// Per-comment action prompt
 		var action string
@@ -758,10 +824,13 @@ func runAuto(cwd string, args []string, fixturePath string) error {
 		}
 	}
 
-	comments, err := fetchComments(cwd, specKey, client)
+	comments, changeID, err := fetchComments(cwd, specKey, client)
 	if err != nil {
 		return err
 	}
+
+	// Fetch thread replies (non-fatal if it fails)
+	replies, _ := client.FetchReplies(changeID)
 
 	matched, warnings := revise.MatchFixtureComments(fixture, comments)
 	for _, w := range warnings {
@@ -773,7 +842,7 @@ func runAuto(cwd string, args []string, fixturePath string) error {
 		os.Exit(1)
 	}
 
-	ctx := revise.BuildRevisionContext(specKey, matched)
+	ctx := revise.BuildRevisionContext(specKey, matched, replies)
 	prompt, err := revise.RenderPrompt(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to render prompt: %w", err)
@@ -975,7 +1044,7 @@ func runSummary(cwd string, args []string) error {
 		specKey = currentBranch
 	}
 
-	comments, err := fetchComments(cwd, specKey, client)
+	comments, changeID, err := fetchComments(cwd, specKey, client)
 	if err != nil {
 		// Silent exit on any fetch error
 		os.Exit(1)
@@ -987,7 +1056,11 @@ func runSummary(cwd string, args []string) error {
 		return nil
 	}
 
-	// Compact format: file_path:line  'selected_text'  (author)
+	// Fetch thread replies (non-fatal)
+	replies, _ := client.FetchReplies(changeID)
+	replyMap := revise.BuildReplyMap(replies)
+
+	// Compact format: file_path:line  'selected_text'  (author)  [N replies]
 	artifacts := make(map[string]struct{})
 	for _, c := range comments {
 		artifacts[c.FilePath] = struct{}{}
@@ -1012,7 +1085,16 @@ func runSummary(cwd string, args []string) error {
 			author = c.AuthorEmail
 		}
 
-		fmt.Printf("%s:%s  %q  (%s)\n", c.FilePath, lineStr, selectedText, author)
+		replyInfo := ""
+		if reps := replyMap[c.ID]; len(reps) > 0 {
+			noun := "reply"
+			if len(reps) != 1 {
+				noun = "replies"
+			}
+			replyInfo = fmt.Sprintf("  [%d %s]", len(reps), noun)
+		}
+
+		fmt.Printf("%s:%s  %q  (%s)%s\n", c.FilePath, lineStr, selectedText, author, replyInfo)
 	}
 
 	fmt.Printf("\n%d unresolved comment(s) across %d artifact(s)\n", len(comments), len(artifacts))

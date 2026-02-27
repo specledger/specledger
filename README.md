@@ -282,6 +282,95 @@ sl auth login --refresh "$SPECLEDGER_REFRESH_TOKEN"
 | `SPECLEDGER_SUPABASE_ANON_KEY` | Override the Supabase anon key |
 | `SPECLEDGER_ENV` | Set to `dev` or `development` for local development |
 
+### Configuration
+
+SpecLedger supports persistent configuration for agent launch settings. Configuration is stored in a three-tier hierarchy:
+
+**Config Locations:**
+| Scope | Path | Description |
+|-------|------|-------------|
+| Global | `~/.specledger/config.yaml` | User-wide defaults |
+| Team-local | `specledger/specledger.yaml` | Project-level, git-tracked |
+| Personal-local | `specledger/specledger.local.yaml` | Project-level, gitignored |
+
+**Precedence:** personal-local > team-local > global > default
+
+| Command | Description |
+|---------|-------------|
+| `sl config set <key> <value>` | Set a config value |
+| `sl config set --global <key> <value>` | Set in global config |
+| `sl config set --personal <key> <value>` | Set in gitignored personal config |
+| `sl config get <key>` | Get a single value |
+| `sl config show` | Show all config with scope indicators |
+| `sl config unset <key>` | Remove a config value |
+
+**Agent Config Keys:**
+
+| Key | Env Var | Description |
+|-----|---------|-------------|
+| `agent.base-url` | `ANTHROPIC_BASE_URL` | Custom API endpoint |
+| `agent.auth-token` | `ANTHROPIC_AUTH_TOKEN` | Auth token (sensitive) |
+| `agent.api-key` | `ANTHROPIC_API_KEY` | API key (sensitive) |
+| `agent.model` | `ANTHROPIC_MODEL` | Default model |
+| `agent.model.sonnet` | `ANTHROPIC_DEFAULT_SONNET_MODEL` | Sonnet model alias |
+| `agent.model.opus` | `ANTHROPIC_DEFAULT_OPUS_MODEL` | Opus model alias |
+| `agent.model.haiku` | `ANTHROPIC_DEFAULT_HAIKU_MODEL` | Haiku model alias |
+| `agent.subagent-model` | `CLAUDE_CODE_SUBAGENT_MODEL` | Model for subagents |
+| `agent.provider` | - | Provider: `anthropic`, `bedrock`, `vertex` |
+| `agent.permission-mode` | - | Permission mode |
+| `agent.skip-permissions` | - | Skip permission prompts |
+| `agent.effort` | - | Effort level: `low`, `medium`, `high` |
+| `agent.env.<KEY>` | - | Arbitrary env vars |
+
+**Examples:**
+```bash
+# Set global model preference
+sl config set --global agent.model claude-sonnet-4-20250514
+
+# Set personal auth token (gitignored)
+sl config set --personal agent.auth-token sk-ant-xxx
+
+# Set team-local base URL
+sl config set agent.base-url https://api.company.com/v1
+
+# Add custom environment variable
+sl config set agent.env.CLAUDE_CODE_EFFORT_LEVEL high
+
+# View all config
+sl config show
+```
+
+**Profiles:**
+
+Profiles bundle multiple config values for quick switching:
+
+| Command | Description |
+|---------|-------------|
+| `sl config profile create <name>` | Create a new profile |
+| `sl config profile use <name>` | Activate a profile |
+| `sl config profile use --none` | Deactivate all profiles |
+| `sl config profile list` | List all profiles |
+| `sl config profile delete <name>` | Delete a profile |
+
+```bash
+# Create a work profile
+sl config profile create work
+sl config set agent.base-url https://corp-api.example.com
+
+# Switch to personal profile
+sl config profile create personal
+sl config profile use personal
+```
+
+**Sensitive Values:**
+
+Auth tokens and API keys are automatically masked in output (`****[last4]`). Use `--personal` flag to store sensitive values in `specledger.local.yaml` (gitignored):
+
+```bash
+# Recommended: store secrets in personal config
+sl config set --personal agent.auth-token sk-ant-xxx
+```
+
 ## Claude Code Slash Commands
 
 SpecLedger provides slash commands for [Claude Code](https://claude.ai/claude-code) integration:

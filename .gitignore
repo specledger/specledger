@@ -54,6 +54,13 @@ issues.jsonl.lock
 .specledger/credentials.json
 **/credentials.json
 
+# Personal-local config (gitignored per-user overrides)
+specledger.local.yaml
+**/specledger.local.yaml
+
+# Migration logs
+.migration-log
+
 # Build outputs
 dist/
 build/

@@ -73,6 +73,8 @@ func TestRenderPrompt(t *testing.T) {
 		{"comment 2 header", "### Comment 2"},
 		{"artifacts section", "## Artifacts to Revise"},
 		{"comments section", "## Comments to Address"},
+		{"revision strategy", "## Revision Strategy"},
+		{"thematic clusters", "thematic clusters"},
 	}
 
 	for _, c := range checks {
@@ -135,7 +137,7 @@ func TestBuildRevisionContext(t *testing.T) {
 		},
 	}
 
-	ctx := BuildRevisionContext("test-spec", processed)
+	ctx := BuildRevisionContext("test-spec", processed, nil)
 
 	if ctx.SpecKey != "test-spec" {
 		t.Errorf("SpecKey: got %q, want %q", ctx.SpecKey, "test-spec")
@@ -177,12 +179,145 @@ func TestBuildRevisionContext_Truncation(t *testing.T) {
 		},
 	}
 
-	ctx := BuildRevisionContext("spec", processed)
+	ctx := BuildRevisionContext("spec", processed, nil)
 
 	if len(ctx.Comments[0].Target) != 200 {
 		t.Errorf("Target truncation: got len %d, want 200", len(ctx.Comments[0].Target))
 	}
 	if !strings.HasSuffix(ctx.Comments[0].Target, "...") {
 		t.Errorf("Target should end with '...', got suffix %q", ctx.Comments[0].Target[197:])
+	}
+}
+
+func TestBuildRevisionContext_WithReplies(t *testing.T) {
+	processed := []ProcessedComment{
+		{
+			Comment: ReviewComment{
+				ID:           "parent-1",
+				FilePath:     "spec.md",
+				Content:      "Fix this section.",
+				SelectedText: "some text",
+			},
+			Guidance: "",
+			Index:    1,
+		},
+		{
+			Comment: ReviewComment{
+				ID:           "parent-2",
+				FilePath:     "plan.md",
+				Content:      "Update approach.",
+				SelectedText: "other text",
+			},
+			Guidance: "",
+			Index:    2,
+		},
+	}
+
+	replies := []ReviewComment{
+		{
+			ID:              "reply-1",
+			ParentCommentID: "parent-1",
+			AuthorName:      "alice",
+			Content:         "Also affects user story 2",
+			CreatedAt:       "2026-01-01T00:00:00Z",
+		},
+		{
+			ID:              "reply-2",
+			ParentCommentID: "parent-1",
+			AuthorName:      "bob",
+			Content:         "Agreed, needs coordinated fix",
+			CreatedAt:       "2026-01-01T01:00:00Z",
+		},
+	}
+
+	ctx := BuildRevisionContext("test-spec", processed, replies)
+
+	// Parent-1 should have 2 replies
+	if len(ctx.Comments[0].Replies) != 2 {
+		t.Fatalf("Comments[0].Replies length: got %d, want 2", len(ctx.Comments[0].Replies))
+	}
+	if ctx.Comments[0].Replies[0].AuthorName != "alice" {
+		t.Errorf("Replies[0].AuthorName: got %q, want %q", ctx.Comments[0].Replies[0].AuthorName, "alice")
+	}
+	if ctx.Comments[0].Replies[0].ID != "reply-1" {
+		t.Errorf("Replies[0].ID: got %q, want %q", ctx.Comments[0].Replies[0].ID, "reply-1")
+	}
+	if ctx.Comments[0].Replies[1].Content != "Agreed, needs coordinated fix" {
+		t.Errorf("Replies[1].Content: got %q", ctx.Comments[0].Replies[1].Content)
+	}
+
+	// Parent-2 should have no replies
+	if len(ctx.Comments[1].Replies) != 0 {
+		t.Errorf("Comments[1].Replies length: got %d, want 0", len(ctx.Comments[1].Replies))
+	}
+}
+
+func TestRenderPrompt_WithThreads(t *testing.T) {
+	ctx := RevisionContext{
+		SpecKey: "test-threads",
+		Comments: []PromptComment{
+			{
+				Index:    1,
+				ID:       "uuid-1",
+				FilePath: "spec.md",
+				Target:   "some target",
+				Feedback: "Fix this section.",
+				Replies: []ThreadReply{
+					{ID: "r1", AuthorName: "alice", Content: "Also affects story 2"},
+					{ID: "r2", AuthorName: "bob", Content: "Agreed"},
+				},
+			},
+		},
+	}
+
+	prompt, err := RenderPrompt(ctx)
+	if err != nil {
+		t.Fatalf("RenderPrompt returned error: %v", err)
+	}
+
+	checks := []string{
+		"**Thread:**",
+		"**alice**",
+		"Also affects story 2",
+		"**bob**",
+		"Agreed",
+		"Revision Strategy",
+		"thematic clusters",
+	}
+
+	for _, want := range checks {
+		if !strings.Contains(prompt, want) {
+			t.Errorf("RenderPrompt output missing %q\nGot:\n%s", want, prompt)
+		}
+	}
+}
+
+func TestBuildReplyMap(t *testing.T) {
+	replies := []ReviewComment{
+		{ID: "r1", ParentCommentID: "p1", Content: "reply 1"},
+		{ID: "r2", ParentCommentID: "p1", Content: "reply 2"},
+		{ID: "r3", ParentCommentID: "p2", Content: "reply 3"},
+	}
+
+	m := BuildReplyMap(replies)
+
+	if len(m["p1"]) != 2 {
+		t.Errorf("p1 replies: got %d, want 2", len(m["p1"]))
+	}
+	if len(m["p2"]) != 1 {
+		t.Errorf("p2 replies: got %d, want 1", len(m["p2"]))
+	}
+	if len(m["p3"]) != 0 {
+		t.Errorf("p3 replies: got %d, want 0", len(m["p3"]))
+	}
+}
+
+func TestBuildReplyMap_Nil(t *testing.T) {
+	m := BuildReplyMap(nil)
+	if m == nil {
+		t.Error("BuildReplyMap(nil) should return non-nil empty map")
+	}
+	if len(m) != 0 {
+		t.Errorf("BuildReplyMap(nil) should return empty map, got %d entries", len(m))
 	}
 }
