@@ -220,6 +220,39 @@ A developer wants to update their project's AI skills and commands to the latest
 
 ---
 
+### User Story 9 - Update CLI README After Streamlining (Priority: P2)
+
+After the CLI command streamlining is complete and stable, the project README.md must be updated to reflect the new simplified command structure and workflow. The README should highlight the streamlined workflow, show clear examples of each command, and guide new users through the improved developer experience.
+
+**Why this priority**: Documentation is essential for adoption. Users discovering SpecLedger via the README need accurate, up-to-date information about the simplified commands. P2 because the commands must be implemented and stable first, but documentation should follow closely.
+
+**Independent Test**: Can be tested by reviewing the updated README.md to verify it documents all streamlined commands with accurate usage examples.
+
+**Acceptance Scenarios**:
+
+1. **Given** the CLI streamlining feature is complete, **When** the README is updated, **Then** it documents all remaining commands with usage examples.
+2. **Given** a new user reading the README, **When** they follow the quickstart instructions, **Then** the commands shown match the actual CLI behavior.
+3. **Given** the README is updated, **When** a user searches for workflow instructions, **Then** the README provides a clear, step-by-step guide.
+
+---
+
+### User Story 10 - Add CHANGELOG.md for AI Commands/Skills Templates (Priority: P3)
+
+When embedded AI commands (`.opencode/commands/`) and skills (`.opencode/skills/`) templates are updated, a CHANGELOG.md should be included in the embedded templates to track these changes. This allows projects initialized with SpecLedger to understand what changes have been made to their command/skill files over time and decide whether to adopt updates.
+
+**Why this priority**: Provides transparency for template evolution but is not critical to the core workflow experience. P3 because it's a nice-to-have for maintainability but doesn't block user adoption.
+
+**Independent Test**: Can be tested by verifying a CHANGELOG.md exists in the embedded templates and documents changes to command/skill files with version references.
+
+**Acceptance Scenarios**:
+
+1. **Given** the embedded templates directory, **When** a CHANGELOG.md is added, **Then** it lists all AI command and skill files with their initial versions.
+2. **Given** a command or skill template is modified, **When** the change is released, **Then** the CHANGELOG.md is updated with the change description, affected files, and version.
+3. **Given** a user running `sl bootstrap` or `sl init`, **When** templates are copied to their project, **Then** the CHANGELOG.md is included so they can track template changes.
+4. **Given** a user reviewing their project's CHANGELOG.md, **When** they want to update their commands/skills, **Then** the CHANGELOG provides enough information to decide which changes to adopt.
+
+---
+
 ### Edge Cases
 
 - What happens to existing projects using removed commands? Document migration path.
