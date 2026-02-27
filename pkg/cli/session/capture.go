@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/specledger/specledger/pkg/cli/auth"
+	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/revise"
 	"gopkg.in/yaml.v3"
 )
@@ -168,7 +169,8 @@ func parseGitRemote(remoteURL string) (owner, repo string, err error) {
 	return "", "", fmt.Errorf("unable to parse git remote URL: %s", remoteURL)
 }
 
-// GetProjectIDWithFallback tries specledger.yaml first, then falls back to git remote lookup
+// GetProjectIDWithFallback tries specledger.yaml first, then falls back to git remote lookup.
+// If found via fallback, persists the ID to specledger.yaml for future use.
 func GetProjectIDWithFallback(workdir string) (string, error) {
 	// Try specledger.yaml first
 	if id, err := GetProjectID(workdir); err == nil && id != "" {
@@ -176,7 +178,34 @@ func GetProjectIDWithFallback(workdir string) (string, error) {
 	}
 
 	// Fallback to git remote lookup
-	return GetProjectIDFromRemote(workdir)
+	projectID, err := GetProjectIDFromRemote(workdir)
+	if err != nil {
+		return "", err
+	}
+
+	// Persist to specledger.yaml for future use
+	if err := persistProjectID(workdir, projectID); err != nil {
+		fmt.Fprintf(os.Stderr, "⚠️  Could not save project.id to specledger.yaml: %v\n", err)
+	} else {
+		fmt.Fprintf(os.Stderr, "✓ Found project.id via git remote, saved to specledger.yaml\n")
+	}
+
+	return projectID, nil
+}
+
+// persistProjectID saves the project ID to specledger.yaml for future use
+func persistProjectID(workdir string, projectID string) error {
+	projectMetadata, err := metadata.LoadFromProject(workdir)
+	if err != nil {
+		return fmt.Errorf("failed to load specledger.yaml: %w", err)
+	}
+
+	projectMetadata.Project.ID = projectID
+	if err := metadata.SaveToProject(projectMetadata, workdir); err != nil {
+		return fmt.Errorf("failed to save specledger.yaml: %w", err)
+	}
+
+	return nil
 }
 
 // Capture orchestrates the session capture flow
@@ -210,8 +239,8 @@ func Capture(input *HookInput) *CaptureResult {
 		return result
 	}
 
-	// Get project ID
-	projectID, err := GetProjectID(input.Cwd)
+	// Get project ID (with fallback to git remote lookup and auto-persist)
+	projectID, err := GetProjectIDWithFallback(input.Cwd)
 	if err != nil {
 		// Give clear guidance on how to fix
 		fmt.Fprintf(os.Stderr, "⚠️  Session capture skipped: %v\n", err)
