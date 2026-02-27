@@ -1,0 +1,72 @@
+# Mockup Generation
+
+Generate a **{{ .Format }}** mockup for **"{{ .SpecTitle }}"**.
+
+## Spec
+
+Read `{{ .SpecPath }}` for full requirements, user stories, and acceptance criteria.
+
+## Output
+
+Write to `{{ .OutputDir }}`:
+
+```
+{{ .OutputDir }}
+├── mockup.{{ .Format }}     ← Main entry, includes ALL components
+└── components/
+    └── <Section>.{{ .Format }}
+```
+{{ if eq (printf "%s" .Format) "html" }}
+**Main mockup.html** loads components via `fetch()` + `innerHTML`:
+
+```html
+<div id="section-name"></div>
+<script>
+  function loadComponent(id, file) {
+    fetch(file).then(r => r.text()).then(h => document.getElementById(id).innerHTML = h);
+  }
+  loadComponent('section-name', 'components/SectionName.html');
+</script>
+```
+
+Component files are HTML **fragments** (no `<html>`/`<body>` wrapper), sharing the main page's styles.
+{{ else }}
+**Main mockup.jsx** imports and renders all components:
+
+```jsx
+import SectionName from './components/SectionName';
+export default function Mockup() {
+  return <div><SectionName /></div>;
+}
+```
+
+Component files export default React function components.
+{{ end }}
+## Context
+
+**Framework**: {{ .Framework }} | **Format**: {{ .Format }}
+{{ if .HasStyle }}
+**Styling**: {{ .Style.CSSFramework }}{{ if .Style.Preprocessor }} ({{ .Style.Preprocessor }}){{ end }} — {{ .Style.StylingApproach }}
+{{ if .Style.ThemeColors }}
+Theme colors:
+{{ range $name, $value := .Style.ThemeColors }}- `{{ $name }}`: `{{ $value }}`
+{{ end }}{{ end }}{{ if .Style.FontFamilies }}Fonts: {{ range $i, $f := .Style.FontFamilies }}{{ if $i }}, {{ end }}`{{ $f }}`{{ end }}
+{{ end }}{{ if .Style.SampleImports }}Import patterns: {{ range .Style.SampleImports }}`{{ . }}` {{ end }}
+{{ end }}{{ end }}
+{{ if .HasDesignSystem }}
+## Available Components
+
+```
+{{ .ComponentTree }}```
+{{ if .ExternalLibs }}Libraries: {{ range $i, $lib := .ExternalLibs }}{{ if $i }}, {{ end }}{{ $lib }}{{ end }}
+{{ end }}{{ end }}
+## Rules
+{{ if eq (printf "%s" .Format) "html" }}
+- Semantic HTML with inline CSS{{ if and .HasStyle (eq .Style.CSSFramework "Tailwind CSS") }} + Tailwind CDN{{ end }}
+- Component files = HTML fragments loaded via `fetch()`{{ else }}
+- Each component exports a default function
+- {{ if and .HasStyle (eq .Style.StylingApproach "css-in-js") }}Styled components/emotion{{ else if and .HasStyle (eq .Style.StylingApproach "utility-first") }}Tailwind utility classes{{ else if and .HasStyle (eq .Style.StylingApproach "css-modules") }}CSS modules{{ else }}Inline style objects{{ end }}{{ end }}
+- Cover ALL screens from user stories with realistic content
+- Annotate UI elements with design system component names
+- Split by screen/feature area — agent decides the split
+{{ if .HasStyle }}- Match project's visual style, colors, typography{{ end }}

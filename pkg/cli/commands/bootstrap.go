@@ -390,6 +390,9 @@ func runInit(l *logger.Logger) error {
 	fmt.Printf("  %s <repo-url> %s\n", ui.Cyan("sl deps add"), ui.Dim("# Add a dependency"))
 	fmt.Println()
 
+	// Frontend detection and design system initialization
+	initFrontendDesignSystem(projectPath, isInteractive)
+
 	// Launch agent if selected and in interactive mode
 	if isInteractive && shouldLaunchAgent() {
 		if err := launchAgent(projectPath, agentPref); err != nil {
