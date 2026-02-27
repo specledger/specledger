@@ -5,7 +5,7 @@
 
 ## Summary
 
-Add `sl mockup <spec-name>` and `sl mockup update` commands that detect frontend frameworks, scan codebases for UI components, build a design system index (`specledger/design_system.md`), and generate HTML or JSX mockups from feature specs mapped to the project's actual components. Output is saved to `specledger/<spec-name>/mockup.html` (default) or `mockup.jsx` (via `--format jsx`). Extends `sl init` to auto-create the design system for frontend projects during onboarding.
+Add `sl mockup [spec-name]` and `sl mockup update` commands with an interactive TUI flow matching the `sl revise` pattern. The command auto-detects the spec from the branch, guides the user through framework detection, design system setup, component selection, and format choice, then builds an AI agent prompt from templates and context. The user reviews the prompt in their editor, launches the agent to generate the mockup (HTML or JSX), and optionally commits/pushes the result. Shared editor/prompt utilities are extracted from `revise` into `pkg/cli/prompt/` for reuse. The AI agent generates the mockup content — Go code orchestrates the interactive flow.
 
 ## Technical Context
 
@@ -60,24 +60,35 @@ specledger/598-mockup-command/
 
 ```text
 pkg/cli/
+├── prompt/                    # Shared editor/prompt utilities (NEW — extracted from revise)
+│   ├── editor.go              # DetectEditor(), EditPrompt() — moved from revise/editor.go
+│   ├── editor_test.go         # Editor tests
+│   ├── prompt.go              # RenderTemplate(), EstimateTokens(), PrintTokenWarnings()
+│   └── prompt_test.go         # Prompt rendering tests
 ├── commands/
 │   └── mockup.go              # Cobra command definitions (VarMockupCmd, mockupUpdateCmd)
-└── mockup/                    # Domain logic package (NEW)
-    ├── detector.go            # Frontend framework detection (Tier 1-3 heuristics)
-    ├── detector_test.go       # Detection unit tests
-    ├── scanner.go             # Component scanning per framework
-    ├── scanner_test.go        # Scanner unit tests
-    ├── designsystem.go        # Design system index read/write/merge
-    ├── designsystem_test.go   # Design system I/O tests
-    ├── generator.go           # Mockup generation from spec + design system
-    ├── generator_test.go      # Generator unit tests
-    └── types.go               # Shared types (FrameworkType, Component, etc.)
+├── mockup/                    # Domain logic package (NEW)
+│   ├── detector.go            # Frontend framework detection (Tier 1-3 heuristics)
+│   ├── detector_test.go       # Detection unit tests
+│   ├── scanner.go             # Component scanning per framework
+│   ├── scanner_test.go        # Scanner unit tests
+│   ├── designsystem.go        # Design system index read/write/merge
+│   ├── designsystem_test.go   # Design system I/O tests
+│   ├── specparser.go          # Parse spec.md content (title, user stories, requirements)
+│   ├── specparser_test.go     # Spec parser tests
+│   ├── prompt.go              # MockupPromptContext builder, template renderer
+│   ├── prompt_test.go         # Prompt builder tests (golden file tests)
+│   ├── prompt.tmpl            # Embedded Go template for AI agent instructions
+│   └── types.go               # Shared types (FrameworkType, Component, MockupPromptContext, etc.)
+└── revise/                    # MODIFIED — refactor to use pkg/cli/prompt/
+    ├── editor.go              # REPLACED — thin wrapper around prompt.EditPrompt()
+    └── prompt.go              # MODIFIED — delegates to prompt.RenderTemplate()
 
 pkg/cli/commands/
 └── bootstrap.go               # MODIFIED — add frontend detection + design system init
 ```
 
-**Structure Decision**: Follows the established pattern of domain logic in `pkg/cli/<feature>/` (like `revise/`, `session/`, `playbooks/`) with command definitions in `pkg/cli/commands/mockup.go`. All new types live in `pkg/cli/mockup/types.go` to avoid circular imports.
+**Structure Decision**: Follows the established pattern of domain logic in `pkg/cli/<feature>/` (like `revise/`, `session/`, `playbooks/`) with command definitions in `pkg/cli/commands/mockup.go`. Shared editor/prompt utilities are extracted from `revise` into `pkg/cli/prompt/` so both `revise` and `mockup` can reuse them. The `revise` package is refactored to delegate to the shared package (thin wrappers for backward compatibility).
 
 ## Previous Work
 
@@ -94,47 +105,74 @@ pkg/cli/commands/
 ### Command Flow
 
 ```
-sl mockup <spec-name>
+sl mockup [spec-name]
   │
-  ├─ 1. Validate spec exists (specledger/<spec-name>/spec.md)
-  ├─ 2. Detect frontend framework (detector.go)
+  ├─ 1. Resolve spec
+  │     ├─ If arg given: use directly
+  │     ├─ If on feature branch: auto-detect via issues.NewContextDetector
+  │     └─ If neither: interactive spec picker (huh.Select)
+  ├─ 2. Framework detection (detector.go)
   │     ├─ Tier 1: Config files (next.config.js, angular.json, etc.)
   │     ├─ Tier 2: package.json dependencies
-  │     └─ Tier 3: File extension scan
-  ├─ 3. Check --force flag if not frontend
-  ├─ 4. Load or generate design system (designsystem.go)
-  │     ├─ If exists: parse YAML frontmatter + markdown
-  │     └─ If missing: scan components (scanner.go) → write file
-  ├─ 5. Parse spec user stories and requirements
-  ├─ 6. Generate mockup screens (generator.go)
-  │     ├─ Map UI needs to design system components
-  │     ├─ Generate ASCII layouts per screen
-  │     └─ Build component mapping table
-  ├─ 7. Determine output format (--format flag, default: html)
-  └─ 8. Write mockup.html or mockup.jsx to feature directory
+  │     ├─ Tier 3: File extension scan
+  │     └─ Display result with lipgloss → huh.Confirm (or --force bypass)
+  ├─ 3. Design system check/generate (designsystem.go)
+  │     ├─ If exists: load and display component count
+  │     ├─ If missing: prompt to generate → scan (scanner.go) → write file
+  │     └─ If malformed: warn and re-generate
+  ├─ 4. Component selection (huh.MultiSelect)
+  │     └─ All design system components listed, user picks subset for prompt
+  ├─ 5. Format selection
+  │     ├─ If --format flag set: use directly
+  │     └─ If interactive: huh.Select (html/jsx)
+  ├─ 6. Generate mockup prompt (mockup/prompt.go + prompt.tmpl)
+  │     ├─ Parse spec content (specparser.go)
+  │     ├─ Build MockupPromptContext from gathered data
+  │     └─ Render template → prompt string
+  ├─ 7. Edit & confirm prompt (pkg/cli/prompt/editor.go)
+  │     ├─ Open $EDITOR with generated prompt
+  │     └─ Action menu: Launch / Re-edit / Write to file / Cancel
+  ├─ 8. Launch AI agent (pkg/cli/launcher/)
+  │     ├─ If agent available: launcher.LaunchWithPrompt(prompt)
+  │     └─ If no agent: writePromptToFile() + install instructions
+  ├─ 9. Post-agent commit/push (stagingAndCommitFlow pattern)
+  │     ├─ Detect changed files → display summary
+  │     ├─ huh.Confirm → file multi-select → commit message input
+  │     └─ Stage → commit → push
+  └─ 10. Summary
+        └─ Display mockup path, components used, format
 
 sl mockup update
   │
   ├─ 1. Validate design_system.md exists
   ├─ 2. Load existing design system (preserve manual entries)
-  ├─ 3. Rescan components (scanner.go)
-  ├─ 4. Merge: add new, remove stale, keep manual
-  └─ 5. Write updated design_system.md
+  ├─ 3. Confirm rescan (huh.Confirm in interactive mode)
+  ├─ 4. Rescan components (scanner.go)
+  ├─ 5. Merge: add new, remove stale, keep manual
+  └─ 6. Write updated design_system.md
 ```
 
 ### Key Design Decisions
 
-1. **Domain package at `pkg/cli/mockup/`** — Follows `revise/`, `session/` pattern. Keeps detection, scanning, and generation logic separate from Cobra command wiring.
+1. **AI agent generates mockup content, not Go code** — The Go command orchestrates the interactive flow (framework detection, component selection, prompt building) and launches the AI agent. The agent produces the actual HTML/JSX mockup file. This leverages the agent's ability to understand UI requirements and produce high-quality layouts, while Go handles the structured context gathering that agents struggle with.
 
-2. **Tiered framework detection** — Config files first (99% confidence), package.json fallback, file extension last resort. Returns `DetectionResult` with confidence score; `IsFrontend` only if confidence >= 70.
+2. **Extract shared `pkg/cli/prompt/` package from `revise`** — Editor detection (`DetectEditor`), prompt editing (`EditPrompt`), template rendering, and token estimation are shared concerns. Extracting them avoids code duplication and ensures consistent UX between `revise` and `mockup`. The `revise` package delegates to `prompt` via thin wrappers.
 
-3. **YAML frontmatter + Markdown for design_system.md** — Machine-parseable metadata (version, framework, last_scanned) in frontmatter, human-readable component index in markdown body. Supports manual edits via `<!-- MANUAL -->` markers.
+3. **Reuse `stagingAndCommitFlow` for post-agent git operations** — The commit/push flow (changed file display, multi-select, commit message, push) is identical to `revise`. Rather than duplicating, `mockup.go` calls the same flow function.
 
-4. **Glob + regex scanning per framework** — Framework-specific glob patterns (`**/*.tsx`, `**/*.vue`, etc.) with content-based component identification. Skips `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`.
+4. **Spec-name is optional — auto-detect from branch** — Uses `issues.NewContextDetector` to extract spec name from the current branch (e.g., `598-mockup-command` → spec name). Falls back to interactive picker if not on a feature branch. Matches how other `sl` commands resolve context.
 
-5. **HTML/JSX mockup output** — HTML (default) uses semantic HTML with inline styles for immediate browser preview. JSX outputs React-compatible component code referencing design system components. Both formats are version-controllable and diffable. Output is saved to `specledger/<spec-name>/mockup.html` or `mockup.jsx`.
+5. **Domain package at `pkg/cli/mockup/`** — Follows `revise/`, `session/` pattern. Keeps detection, scanning, and prompt logic separate from Cobra command wiring.
 
-6. **No new external dependencies** — Uses stdlib (`path/filepath`, `os`, `regexp`, `strings`, `encoding/json`) plus existing `gopkg.in/yaml.v3`. Avoids adding bloat.
+6. **Tiered framework detection** — Config files first (99% confidence), package.json fallback, file extension last resort. Returns `DetectionResult` with confidence score; `IsFrontend` only if confidence >= 70.
+
+7. **YAML frontmatter + Markdown for design_system.md** — Machine-parseable metadata (version, framework, last_scanned) in frontmatter, human-readable component index in markdown body. Supports manual edits via `<!-- MANUAL -->` markers.
+
+8. **Glob + regex scanning per framework** — Framework-specific glob patterns (`**/*.tsx`, `**/*.vue`, etc.) with content-based component identification. Skips `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`.
+
+9. **HTML/JSX mockup output** — Generated by the AI agent. HTML (default) uses semantic HTML with inline styles for immediate browser preview. JSX outputs React-compatible component code. Output is saved to `specledger/<spec-name>/mockup.html` or `mockup.jsx`.
+
+10. **No new external dependencies** — Uses stdlib plus existing `gopkg.in/yaml.v3`, `huh`, `lipgloss`, and `launcher`. Avoids adding bloat.
 
 ### Codebase Integration Points
 
@@ -145,14 +183,19 @@ sl mockup update
 | Init flow | `pkg/cli/commands/bootstrap.go` | Add frontend detection + design system init after base setup |
 | Spec context | `pkg/issues/context.go` | Reuse `NewContextDetector` for auto-detecting spec name |
 | UI output | `pkg/cli/ui/` | Reuse `ui.Checkmark()`, `ui.Bold()` for consistent output |
+| Agent launch | `pkg/cli/launcher/launcher.go` | Reuse `NewAgentLauncher`, `LaunchWithPrompt`, `DefaultAgents` |
+| Shared prompt | `pkg/cli/prompt/` | **New package** — extracted editor/prompt utilities |
+| Revise refactor | `pkg/cli/revise/editor.go` | Refactor to delegate to `pkg/cli/prompt/editor.go` |
+| Revise refactor | `pkg/cli/revise/prompt.go` | Refactor to delegate to `pkg/cli/prompt/prompt.go` |
+| Commit flow | `pkg/cli/commands/revise.go` | Reuse `stagingAndCommitFlow` pattern (may extract to shared package) |
 
 ## Complexity Tracking
 
-> No violations identified. Single package addition follows established patterns.
+> No violations identified. Two package additions follow established patterns. Shared extraction reduces long-term duplication.
 
 | Aspect | Decision | Rationale |
 |--------|----------|-----------|
-| Package count | +1 (`pkg/cli/mockup/`) | Follows existing domain package pattern |
-| New files | ~9 (4 source + 4 test + 1 command) | Standard for a feature of this scope |
-| External deps | 0 new | All needed functionality in stdlib + yaml.v3 |
-| Modified files | 2 (`main.go`, `bootstrap.go`) | Minimal integration surface |
+| Package count | +2 (`pkg/cli/mockup/`, `pkg/cli/prompt/`) | `mockup` for domain logic, `prompt` for shared editor/template utilities |
+| New files | ~15 (7 source + 6 test + 1 command + 1 template) | Larger than typical due to shared extraction + template |
+| External deps | 0 new | All needed functionality in stdlib + yaml.v3 + existing huh/lipgloss/launcher |
+| Modified files | 3 (`main.go`, `bootstrap.go`, `revise.go`) + 2 refactored (`revise/editor.go`, `revise/prompt.go`) | Shared extraction requires refactoring revise |
