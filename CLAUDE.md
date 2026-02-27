@@ -52,7 +52,7 @@ make install        # Install sl to $GOBIN
 - Go 1.24.2 + Cobra (CLI), go-git v5, YAML v3, Supabase (GoTrue, PostgREST) (597-issue-create-fields)
 - File-based JSONL for issues (597-issue-create-fields)
 - Go 1.24.2 + Cobra (CLI), go-git v5 (git), gopkg.in/yaml.v3 (YAML parsing) (598-mockup-command)
-- File-based — Markdown with YAML frontmatter (`design_system.md`), Markdown (`mockup.md`) (598-mockup-command)
+- File-based — Markdown with YAML frontmatter (`design_system.md`), HTML (`mockup.html`) or JSX (`mockup.jsx`) (598-mockup-command)
 
 ## Recent Changes
 - 597-issue-create-fields: Added Go 1.24.2 + Cobra (CLI), YAML v3 (config), JSONL (storage)

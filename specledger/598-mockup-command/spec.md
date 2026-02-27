@@ -13,7 +13,7 @@ As a frontend developer working on a feature, I want to run `sl mockup <spec-nam
 
 **Why this priority**: This is the core value proposition — generating mockups that are grounded in the project's actual design system ensures consistency and reduces rework.
 
-**Independent Test**: Can be fully tested by running `sl mockup <spec-name>` in a frontend project that has both a `specledger/<spec-name>/spec.md` and a `specledger/design_system.md`. The output should be a mockup artifact that references existing components from the design system.
+**Independent Test**: Can be fully tested by running `sl mockup <spec-name>` in a frontend project that has both a `specledger/<spec-name>/spec.md` and a `specledger/design_system.md`. The output should be an HTML or JSX mockup file that references existing components from the design system.
 
 **Acceptance Scenarios**:
 
@@ -104,7 +104,8 @@ As a new user onboarding a frontend project to SpecLedger, I want the `sl init` 
 - **FR-004**: System MUST generate a mockup based on the feature's `specledger/<spec-name>/spec.md`, mapping UI needs to existing design system components wherever possible.
 - **FR-005**: System MUST auto-generate `specledger/design_system.md` by scanning the codebase for UI components when the file does not exist.
 - **FR-006**: System MUST integrate with the `sl init` onboarding flow to create `specledger/design_system.md` for frontend projects during initialization.
-- **FR-007**: System MUST output the generated mockup to the feature directory (e.g., `specledger/<spec-name>/mockup.md`).
+- **FR-007**: System MUST output the generated mockup to the feature directory as HTML or JSX (e.g., `specledger/<spec-name>/mockup.html` or `specledger/<spec-name>/mockup.jsx`), defaulting to HTML.
+- **FR-013**: System MUST support a `--format` flag accepting `html` or `jsx` to control the mockup output format.
 - **FR-008**: System MUST support at minimum React (.tsx/.jsx), Vue (.vue), Svelte (.svelte), and Angular (.component.ts) component detection.
 - **FR-009**: System MUST handle the case where `spec.md` contains no user scenarios by displaying a helpful error message directing the user to run the specify workflow first.
 - **FR-010**: System MUST allow users to manually edit `specledger/design_system.md` and respect manual additions/modifications on subsequent runs.
@@ -114,7 +115,7 @@ As a new user onboarding a frontend project to SpecLedger, I want the `sl init` 
 ### Key Entities
 
 - **Design System Index**: A markdown file (`specledger/design_system.md`) that catalogs all UI components in the project — each entry includes the component name, file path, a brief description, and optionally its props/inputs.
-- **Mockup**: A markdown-based visual representation of the feature's UI, referencing components from the design system index. Contains screen layouts, component placements, user interaction flows, and annotations.
+- **Mockup**: An HTML or JSX file representing the feature's UI, referencing components from the design system index. Contains screen layouts with component placements, user interaction flows, and annotations. HTML format uses semantic HTML with inline styles; JSX format outputs React-compatible component code.
 - **Frontend Detection Result**: The outcome of the repository type check — identifies the frontend framework(s) in use, the component directory structure, and whether the project qualifies as a frontend repository.
 
 ## Success Criteria _(mandatory)_
@@ -142,13 +143,14 @@ As a new user onboarding a frontend project to SpecLedger, I want the `sl init` 
 - New `sl mockup update` CLI command
 - Frontend repository detection logic
 - Design system index file format and auto-generation
-- Mockup generation from spec + design system
+- Mockup generation from spec + design system (HTML or JSX output)
+- `--format` flag to choose between `html` (default) and `jsx` output
 - Integration with `sl init` for design system initialization
 - `--force` flag to bypass frontend detection
 
 ### Out of Scope
 
-- Interactive visual mockup editor (mockups are static markdown)
+- Interactive visual mockup editor (mockups are static HTML/JSX files)
 - Design token extraction (colors, typography, spacing)
 - Component screenshot generation or rendering
 - Figma/Sketch/design tool integration
@@ -159,7 +161,7 @@ As a new user onboarding a frontend project to SpecLedger, I want the `sl init` 
 
 ### Assumptions
 
-- The mockup output format is markdown-based (ASCII mockups, component references, and flow descriptions), not graphical
+- The mockup output format is HTML or JSX (component-based layouts with annotations), not graphical design files
 - Frontend detection uses file-based heuristics (checking for package.json, framework configs, component file extensions) rather than requiring user configuration
 - The design system index follows a structured markdown format that both humans and the system can read/update
 - Component scanning is limited to the project's source directories and does not traverse node_modules or vendor directories

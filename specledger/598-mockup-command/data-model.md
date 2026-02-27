@@ -114,7 +114,26 @@ type DesignSystem struct {
 
 ---
 
-### 5. Mockup
+### 5. MockupFormat (Enum)
+
+Output format for the generated mockup file.
+
+```go
+type MockupFormat string
+
+const (
+    MockupFormatHTML MockupFormat = "html"
+    MockupFormatJSX  MockupFormat = "jsx"
+)
+```
+
+**Validation Rules**:
+- Must be one of the defined constants
+- Defaults to `html` if not specified
+
+---
+
+### 6. Mockup
 
 Generated mockup artifact for a feature spec.
 
@@ -124,6 +143,7 @@ type Mockup struct {
     SpecPath      string         `yaml:"spec_path" json:"spec_path"`
     Generated     time.Time      `yaml:"generated" json:"generated"`
     Framework     FrameworkType  `yaml:"framework" json:"framework"`
+    Format        MockupFormat   `yaml:"format" json:"format"`
     Screens       []Screen       `yaml:"screens" json:"screens"`
     ComponentMap  []ComponentRef `yaml:"component_map" json:"component_map"`
 }
@@ -131,7 +151,7 @@ type Mockup struct {
 type Screen struct {
     Name        string `yaml:"name" json:"name"`
     Description string `yaml:"description,omitempty" json:"description,omitempty"`
-    ASCII       string `yaml:"ascii" json:"ascii"`       // ASCII art representation
+    Content     string `yaml:"content" json:"content"`   // HTML or JSX content for this screen
     Flow        string `yaml:"flow,omitempty" json:"flow,omitempty"` // User flow description
 }
 
@@ -145,11 +165,12 @@ type ComponentRef struct {
 **Validation Rules**:
 - `SpecName` must match an existing spec directory
 - `Screens` must have at least one entry
-- `ASCII` must be valid ASCII art (no binary characters)
+- `Format` must be valid `MockupFormat`
+- `Content` must be valid HTML or JSX depending on `Format`
 
 ---
 
-### 6. ScanResult
+### 7. ScanResult
 
 Result of component scanning operation.
 
@@ -181,7 +202,8 @@ type ScanError struct {
 | Artifact | Path | Format |
 |----------|------|--------|
 | Design System Index | `specledger/design_system.md` | Markdown + YAML frontmatter |
-| Mockup Output | `specledger/<spec-name>/mockup.md` | Markdown |
+| Mockup Output (HTML) | `specledger/<spec-name>/mockup.html` | HTML |
+| Mockup Output (JSX) | `specledger/<spec-name>/mockup.jsx` | JSX (React) |
 | Project Config | `specledger/specledger.yaml` | YAML |
 
 ---

@@ -271,69 +271,119 @@ Used components: `Box`, `Flex`, `Button`, `Input`
 ## Decision 4: Mockup Output Format
 
 ### Decision
-ASCII-style markdown mockups with component annotations.
+HTML or JSX mockup files with component annotations, stored at `specledger/<spec-name>/mockup.html` or `mockup.jsx`.
 
 ### Rationale
-Text-based mockups are version-controllable, diffable, and don't require external rendering. Component annotations link to design system index.
+HTML provides an immediately previewable format that can be opened in any browser. JSX provides React-compatible component code that developers can directly reference or adapt. Both formats are version-controllable, diffable, and support component annotations linking to the design system index. A `--format` flag (`html` default, `jsx` optional) lets the user choose.
 
-### Format
+### Format — HTML (default)
 
-```markdown
-# Mockup: User Registration Flow
+```html
+<!-- specledger/042-user-registration/mockup.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mockup: User Registration Flow</title>
+  <style>
+    /* Inline styles for self-contained preview */
+    body { font-family: system-ui, sans-serif; margin: 0; padding: 20px; }
+    .screen { border: 1px solid #ccc; padding: 24px; margin-bottom: 32px; max-width: 480px; }
+    .component-ref { color: #666; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <h1>Mockup: User Registration Flow</h1>
+  <p>Spec: <code>specledger/042-user-registration/spec.md</code></p>
+  <p>Generated: 2026-02-27</p>
 
-**Spec**: `specledger/042-user-registration/spec.md`
-**Generated**: 2026-02-27
+  <!-- Screen 1: Registration Form -->
+  <section class="screen">
+    <header><!-- Navbar → src/components/Navbar.tsx --></header>
+    <h2>Create Account</h2>
+    <label>Email</label>
+    <input type="email" placeholder="email" /> <!-- TextField → @mui/material -->
+    <label>Password</label>
+    <input type="password" placeholder="password" /> <!-- TextField → @mui/material -->
+    <button>Sign Up</button> <!-- Button → src/components/Button.tsx -->
+    <p>Already have an account? <a href="#">Login</a></p> <!-- Link → src/components/Link.tsx -->
+  </section>
 
-## Screen 1: Registration Form
+  <!-- Component Mapping -->
+  <!--
+  | UI Element      | Component  | Source                      |
+  |-----------------|------------|-----------------------------|
+  | Email input     | TextField  | @mui/material               |
+  | Password input  | TextField  | @mui/material               |
+  | Submit button   | Button     | src/components/Button.tsx    |
+  | Login link      | Link       | src/components/Link.tsx      |
+  -->
 
-```text
-+------------------------------------------+
-|  HEADER [Navbar]                         |
-+------------------------------------------+
-|                                          |
-|   Create Account                         |
-|   ─────────────────                      |
-|                                          |
-|   Email                                  |
-|   [TextField: email] ← @mui/material     |
-|                                          |
-|   Password                               |
-|   [TextField: password]                  |
-|                                          |
-|   [Button: "Sign Up"] ← src/Button.tsx   |
-|                                          |
-|   Already have an account? [Link: Login] |
-|                                          |
-+------------------------------------------+
+  <!-- User Flow:
+  1. User enters email and password
+  2. User clicks "Sign Up"
+  3. System validates input (FR-003)
+  4. On success: redirect to dashboard
+  5. On error: display inline error messages
+  -->
+</body>
+</html>
 ```
 
-### Component Mapping
+### Format — JSX (with `--format jsx`)
 
-| UI Element | Design System Component | Source |
-|------------|------------------------|--------|
-| Email input | TextField | @mui/material |
-| Password input | TextField | @mui/material |
-| Submit button | Button | src/components/Button.tsx |
-| Login link | Link | src/components/Link.tsx |
+```jsx
+// specledger/042-user-registration/mockup.jsx
+// Mockup: User Registration Flow
+// Spec: specledger/042-user-registration/spec.md
+// Generated: 2026-02-27
 
-### User Flow
+import React from "react";
+// Component references from design system:
+// TextField → @mui/material
+// Button → src/components/Button.tsx
+// Link → src/components/Link.tsx
 
-1. User enters email and password
-2. User clicks "Sign Up"
-3. System validates input (FR-003)
-4. On success: redirect to dashboard
-5. On error: display inline error messages
+export default function MockupUserRegistration() {
+  return (
+    <div style={{ fontFamily: "system-ui, sans-serif", padding: 20 }}>
+      <h1>User Registration Flow</h1>
 
----
+      {/* Screen 1: Registration Form */}
+      <section style={{ border: "1px solid #ccc", padding: 24, maxWidth: 480 }}>
+        {/* Navbar → src/components/Navbar.tsx */}
+        <header />
+        <h2>Create Account</h2>
+        <label>Email</label>
+        {/* TextField → @mui/material */}
+        <input type="email" placeholder="email" />
+        <label>Password</label>
+        {/* TextField → @mui/material */}
+        <input type="password" placeholder="password" />
+        {/* Button → src/components/Button.tsx */}
+        <button>Sign Up</button>
+        <p>
+          Already have an account? <a href="#">Login</a>
+          {/* Link → src/components/Link.tsx */}
+        </p>
+      </section>
 
-## Screen 2: Success Confirmation
-...
+      {/* User Flow:
+        1. User enters email and password
+        2. User clicks "Sign Up"
+        3. System validates input (FR-003)
+        4. On success: redirect to dashboard
+        5. On error: display inline error messages
+      */}
+    </div>
+  );
+}
 ```
 
 ### Alternatives Considered
 
-1. **SVG/Image Generation** - Rejected: Requires rendering engine, not diffable
-2. **HTML Mockups** - Rejected: Heavy for text-based workflow
+1. **ASCII Markdown** - Rejected: Not previewable in browser, less useful for frontend developers
+2. **SVG/Image Generation** - Rejected: Requires rendering engine, not diffable
 3. **Figma Export** - Rejected: External dependency, out of scope
 
 ---

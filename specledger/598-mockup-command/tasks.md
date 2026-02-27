@@ -158,7 +158,7 @@ The MVP delivers **User Story 1** — generating mockups from specs using an exi
 - `sl mockup <spec-name>` command registered and functional
 - Frontend detection, component scanning, design system I/O
 - Spec parsing and mockup generation
-- End-to-end flow producing `mockup.md`
+- End-to-end flow producing `mockup.html` or `mockup.jsx`
 
 **MVP scope**: 8 tasks (T001-T008), priority 1.
 
@@ -174,7 +174,7 @@ The MVP delivers **User Story 1** — generating mockups from specs using an exi
 
 | Story | Independently Testable? | Test Criteria |
 |-------|------------------------|---------------|
-| US1   | Yes | Run `sl mockup <spec>` with existing design_system.md → mockup.md generated |
+| US1   | Yes | Run `sl mockup <spec>` with existing design_system.md → mockup.html generated |
 | US2   | Yes | Run `sl mockup <spec>` without design_system.md → file auto-created, mockup generated |
 | US3   | Yes | Run `sl mockup <spec>` on React/Go project → correct detection/error behavior |
 | US4   | Yes | Run `sl mockup update` → design system refreshed with stats |

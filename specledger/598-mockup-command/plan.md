@@ -5,13 +5,13 @@
 
 ## Summary
 
-Add `sl mockup <spec-name>` and `sl mockup update` commands that detect frontend frameworks, scan codebases for UI components, build a design system index (`specledger/design_system.md`), and generate ASCII mockups from feature specs mapped to the project's actual components. Extends `sl init` to auto-create the design system for frontend projects during onboarding.
+Add `sl mockup <spec-name>` and `sl mockup update` commands that detect frontend frameworks, scan codebases for UI components, build a design system index (`specledger/design_system.md`), and generate HTML or JSX mockups from feature specs mapped to the project's actual components. Output is saved to `specledger/<spec-name>/mockup.html` (default) or `mockup.jsx` (via `--format jsx`). Extends `sl init` to auto-create the design system for frontend projects during onboarding.
 
 ## Technical Context
 
 **Language/Version**: Go 1.24.2
 **Primary Dependencies**: Cobra (CLI), go-git v5 (git), gopkg.in/yaml.v3 (YAML parsing)
-**Storage**: File-based — Markdown with YAML frontmatter (`design_system.md`), Markdown (`mockup.md`)
+**Storage**: File-based — Markdown with YAML frontmatter (`design_system.md`), HTML (`mockup.html`) or JSX (`mockup.jsx`)
 **Testing**: `go test` (unit tests), table-driven tests following existing patterns
 **Target Platform**: macOS, Linux (CLI binary via GoReleaser)
 **Project Type**: Single CLI binary
@@ -110,7 +110,8 @@ sl mockup <spec-name>
   │     ├─ Map UI needs to design system components
   │     ├─ Generate ASCII layouts per screen
   │     └─ Build component mapping table
-  └─ 7. Write mockup.md to feature directory
+  ├─ 7. Determine output format (--format flag, default: html)
+  └─ 8. Write mockup.html or mockup.jsx to feature directory
 
 sl mockup update
   │
@@ -131,7 +132,7 @@ sl mockup update
 
 4. **Glob + regex scanning per framework** — Framework-specific glob patterns (`**/*.tsx`, `**/*.vue`, etc.) with content-based component identification. Skips `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`.
 
-5. **ASCII mockup output** — Version-controllable, diffable, no rendering dependencies. Each screen is a text box with component annotations linking to design system entries.
+5. **HTML/JSX mockup output** — HTML (default) uses semantic HTML with inline styles for immediate browser preview. JSX outputs React-compatible component code referencing design system components. Both formats are version-controllable and diffable. Output is saved to `specledger/<spec-name>/mockup.html` or `mockup.jsx`.
 
 6. **No new external dependencies** — Uses stdlib (`path/filepath`, `os`, `regexp`, `strings`, `encoding/json`) plus existing `gopkg.in/yaml.v3`. Avoids adding bloat.
 

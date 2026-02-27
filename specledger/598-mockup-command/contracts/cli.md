@@ -11,6 +11,7 @@ Generate a mockup from a feature specification.
 **Usage**:
 ```bash
 sl mockup <spec-name>
+sl mockup <spec-name> --format jsx
 sl mockup <spec-name> --force
 sl mockup <spec-name> --json
 ```
@@ -23,6 +24,7 @@ sl mockup <spec-name> --json
 **Flags**:
 | Flag | Short | Type | Default | Description |
 |------|-------|------|---------|-------------|
+| `--format` | | string | `html` | Output format: `html` or `jsx` |
 | `--force` | `-f` | bool | false | Bypass frontend detection check |
 | `--json` | | bool | false | Output result as JSON |
 
@@ -31,7 +33,8 @@ sl mockup <spec-name> --json
 - `specledger/design_system.md` - Design system index (auto-generated if missing)
 
 **Outputs**:
-- `specledger/<spec-name>/mockup.md` - Generated mockup
+- `specledger/<spec-name>/mockup.html` - Generated mockup (HTML format, default)
+- `specledger/<spec-name>/mockup.jsx` - Generated mockup (JSX format, when `--format jsx`)
 - `specledger/design_system.md` - Created if missing
 
 **Exit Codes**:
@@ -42,6 +45,7 @@ sl mockup <spec-name> --json
 | 2 | Not a frontend project (without `--force`) |
 | 3 | Spec has no user scenarios |
 | 4 | File write error |
+| 5 | Invalid format value |
 
 **Example Output** (success):
 ```
@@ -54,7 +58,7 @@ Design system not found. Generating...
 
 Generating mockup for 042-user-registration...
 ✓ Generated 3 screens from 2 user stories
-✓ Mockup saved to specledger/042-user-registration/mockup.md
+✓ Mockup saved to specledger/042-user-registration/mockup.html
 ```
 
 **Example Output** (JSON):
@@ -63,7 +67,8 @@ Generating mockup for 042-user-registration...
   "status": "success",
   "framework": "nextjs",
   "spec_name": "042-user-registration",
-  "mockup_path": "specledger/042-user-registration/mockup.md",
+  "mockup_path": "specledger/042-user-registration/mockup.html",
+  "format": "html",
   "design_system_created": true,
   "components_scanned": 47,
   "screens_generated": 3
@@ -168,6 +173,7 @@ SpecLedger initialized successfully!
 | No user scenarios | `Error: Spec has no user scenarios\n\nThe spec.md file has no user scenarios to generate mockups from.\nAdd user scenarios with: sl clarify xyz` |
 | Not frontend | `Error: Not a frontend project\n\nNo frontend framework detected in this repository.\nUse --force to bypass this check, or run from a frontend project directory.` |
 | Design system missing (update) | `Error: Design system not found\n\nNo design system at specledger/design_system.md\nGenerate one first with: sl mockup <spec-name>` |
+| Invalid format | `Error: Invalid format 'xyz'\n\nSupported formats: html, jsx` |
 | Write permission | `Error: Cannot write to specledger/\n\nCheck file permissions and try again.` |
 
 ---
@@ -190,6 +196,9 @@ Examples:
   # Generate mockup for a spec
   sl mockup 042-user-registration
 
+  # Generate mockup as JSX
+  sl mockup 042-user-registration --format jsx
+
   # Force generation even if not a frontend project
   sl mockup 042-user-registration --force
 
@@ -197,9 +206,10 @@ Examples:
   sl mockup 042-user-registration --json
 
 Flags:
-  -f, --force   Bypass frontend detection check
-      --json    Output result as JSON
-  -h, --help    help for mockup
+      --format string   Output format: html or jsx (default "html")
+  -f, --force           Bypass frontend detection check
+      --json            Output result as JSON
+  -h, --help            help for mockup
 
 Use "sl mockup [command] --help" for more information about a command.
 ```
