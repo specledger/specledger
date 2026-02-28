@@ -9,12 +9,12 @@
 
 Audit and consolidate the overlapping SDD (Specification-Driven Development) workflow components across three layers:
 1. **AI Skills** (`.opencode/skills/`) - 2 skills
-2. **AI Commands** (`.opencode/commands/`) - 15 commands
-3. **CLI Commands** (`sl` binary) - 11 commands (+1 new: `sl update`)
+2. **AI Commands** (`.opencode/commands/`) - 11 commands
+3. **CLI Commands** (`sl` binary) - 9 commands (+1 new: `sl update`)
 
 Goal: Reduce redundancy, clarify responsibilities, streamline the developer experience, and add new workflow capabilities.
 
-**Future Work** (out of scope): Migrate interactive commands (`sl bootstrap`, `sl init`, `sl revise`) to a separate TUI tool.
+**Future Work** (out of scope): Migrate interactive commands (`sl init`, `sl revise`) to a separate TUI tool.
 
 ## Clarifications
 
@@ -37,32 +37,26 @@ Goal: Reduce redundancy, clarify responsibilities, streamline the developer expe
 | `sl-issue-tracking` | Issue management with `sl issue` commands |
 | `specledger-deps` | Dependency management with `sl deps` commands |
 
-### Commands (15)
+### Commands (11)
 | Command | Purpose | Overlap Concern |
 |---------|---------|-----------------|
-| `add-deps` | Add spec dependencies | Overlaps with `sl deps add` CLI |
+| `deps` | Manage spec dependencies (add/remove) | Orchestrates `sl deps` CLI |
 | `adopt` | Adopt existing code | Unique |
-| `analyze` | Codebase analysis | Similar to `audit` |
-| `audit` | Full codebase audit | Similar to `analyze` |
-| `checklist` | Create checklists | Unique |
+| `verify` | Codebase verification (analysis + audit) | Merged from `analyze` + `audit` |
 | `clarify` | Clarify spec ambiguities | Unique |
 | `constitution` | Project constitution | Unique |
 | `help` | Help documentation | Unique |
 | `implement` | Implementation guidance | Core workflow |
 | `onboard` | Project onboarding | Unique |
 | `plan` | Create implementation plan | Core workflow |
-| `remove-deps` | Remove spec dependencies | Overlaps with `sl deps remove` CLI |
-| `resume` | Resume work session | Unique |
 | `specify` | Create feature spec | Core workflow |
 | `tasks` | Generate tasks | Core workflow |
 
-### CLI Commands (11 → 12 with `sl update`)
+### CLI Commands (9 → 10 with `sl update`)
 | Command | Purpose | Overlap Concern | Future: Migrate to TUI? |
 |---------|---------|-----------------|------------------------|
-| `sl bootstrap` | Create new project | Unique | **Yes** - interactive wizard better in TUI |
-| `sl init` | Initialize in existing project | Unique | **Yes** - interactive wizard better in TUI |
-| `sl deps` | Manage dependencies | Overlaps with `add-deps`/`remove-deps` commands | No |
-| `sl graph` | Dependency graph | Unique | No |
+| `sl init` | Initialize project (new or existing) | Unique | **Yes** - interactive wizard better in TUI |
+| `sl deps` | Manage dependencies (add/remove/graph) | Orchestrated by `deps` AI command | No |
 | `sl doctor` | System diagnostics | Unique | No |
 | `sl playbook` | Run playbooks | Unique | Maybe |
 | `sl auth` | Authentication | Unique | No |
@@ -76,8 +70,8 @@ Goal: Reduce redundancy, clarify responsibilities, streamline the developer expe
 
 ## Identified Overlaps
 
-1. **Dependency Management**: `add-deps`/`remove-deps` commands vs `sl deps add`/`sl deps remove` CLI
-2. **Analysis**: `analyze` vs `audit` commands (similar purposes)
+1. **Dependency Management**: `deps` AI command now orchestrates `sl deps` CLI (merged `add-deps`/`remove-deps`, `sl graph` merged into `sl deps graph`)
+2. **Analysis/Audit**: Merged into single `verify` command (was `analyze` + `audit`)
 3. **Issue Tracking**: `sl-issue-tracking` skill vs `sl issue` CLI (should be complementary, not duplicate)
 
 ### Proposed: `sl update` vs `sl init` Overlap Evaluation
@@ -111,31 +105,32 @@ A developer or maintainer needs a clear map of all workflow components to unders
 
 ### User Story 2 - Consolidate Dependency Commands (Priority: P1)
 
-A developer wants a single, clear way to manage spec dependencies without confusion between AI commands and CLI commands.
+A developer wants a single AI command for dependency management that orchestrates the CLI, plus a consolidated `sl deps` CLI with graph functionality.
 
 **Why this priority**: Dependency management has the most obvious overlap and user confusion.
 
-**Independent Test**: Can be fully tested by removing redundant commands and verifying `sl deps` CLI handles all dependency operations.
+**Independent Test**: Can be fully tested by verifying `deps` AI command orchestrates `sl deps` CLI and `sl deps graph` subcommand exists.
 
 **Acceptance Scenarios**:
 
-1. **Given** overlapping `add-deps`/`remove-deps` commands and `sl deps` CLI, **When** consolidation is complete, **Then** only one interface exists for dependency management
-2. **Given** the consolidated interface, **When** user needs to manage dependencies, **Then** the workflow is clear and documented
+1. **Given** consolidated `deps` AI command, **When** user runs it, **Then** it orchestrates `sl deps add`/`remove`/`graph` CLI commands
+2. **Given** the consolidated CLI, **When** user needs to view dependency graph, **Then** `sl deps graph` provides the visualization
+3. **Given** the consolidated interface, **When** user needs to manage dependencies, **Then** the workflow is clear and documented
 
 ---
 
 ### User Story 3 - Consolidate Analysis Commands (Priority: P2)
 
-A developer wants clear distinction between codebase analysis and audit commands.
+A developer wants a single command for codebase verification that combines analysis and audit functionality.
 
 **Why this priority**: Reduces confusion but less critical than dependency management.
 
-**Independent Test**: Can be fully tested by merging or clearly distinguishing `analyze` and `audit` commands.
+**Independent Test**: Can be fully tested by running `verify` command and verifying it performs both quick reconnaissance and deep analysis with dependency graphs and JSON cache.
 
 **Acceptance Scenarios**:
 
-1. **Given** overlapping `analyze` and `audit` commands, **When** consolidation is complete, **Then** each has a distinct, documented purpose or they are merged
-2. **Given** the consolidated commands, **When** user needs codebase analysis, **Then** the appropriate command is obvious
+1. **Given** merged `verify` command, **When** user runs it, **Then** it performs both quick codebase analysis and deep audit with dependency graphs
+2. **Given** the verify command, **When** user needs codebase analysis, **Then** the single command provides all verification capabilities
 
 ---
 
@@ -299,7 +294,7 @@ When embedded AI commands (`.opencode/commands/`) and skills (`.opencode/skills/
 
 ### Measurable Outcomes
 
-- **SC-001**: Total command count reduced by at least 20% (from 15 to 12 or fewer AI commands)
+- **SC-001**: Total command count reduced by at least 20% (from 11 to 9 or fewer AI commands)
 - **SC-002**: Zero overlapping purposes between skills, commands, and CLI
 - **SC-003**: Each workflow component has a single, documented responsibility
 - **SC-004**: New developers can understand the SDD workflow in under 5 minutes of reading
@@ -309,15 +304,15 @@ When embedded AI commands (`.opencode/commands/`) and skills (`.opencode/skills/
 
 ### Previous work
 
-Existing infrastructure in `.opencode/skills/` (2 skills) and `.opencode/commands/` (15 commands). CLI commands in `pkg/cli/commands/` (11 commands).
+Existing infrastructure in `.opencode/skills/` (2 skills) and `.opencode/commands/` (11 commands). CLI commands in `pkg/cli/commands/` (9 commands).
 
 Existing session capture in `sl session capture` command stores in `specledger/[spec-id]/sessions/` but lacks checkpoint verification features.
 
 ### Dependencies & Assumptions
 
 **Out of Scope** (future spec):
-- TUI tool creation and migration of `sl bootstrap`, `sl init`, `sl revise` to TUI
-- Interactive wizard mode for bootstrapping
+- TUI tool creation and migration of `sl init`, `sl revise` to TUI
+- Interactive wizard mode for initialization
 
 **Assumptions**:
 - CLI commands (`sl deps`, `sl issue`, etc.) are the source of truth for operations
