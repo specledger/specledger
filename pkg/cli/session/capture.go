@@ -13,7 +13,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/specledger/specledger/pkg/cli/auth"
-	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/revise"
 	"gopkg.in/yaml.v3"
 )
@@ -169,8 +168,7 @@ func parseGitRemote(remoteURL string) (owner, repo string, err error) {
 	return "", "", fmt.Errorf("unable to parse git remote URL: %s", remoteURL)
 }
 
-// GetProjectIDWithFallback tries specledger.yaml first, then falls back to git remote lookup.
-// If found via fallback, persists the ID to specledger.yaml for future use.
+// GetProjectIDWithFallback tries specledger.yaml first, then falls back to git remote lookup
 func GetProjectIDWithFallback(workdir string) (string, error) {
 	// Try specledger.yaml first
 	if id, err := GetProjectID(workdir); err == nil && id != "" {
@@ -178,38 +176,10 @@ func GetProjectIDWithFallback(workdir string) (string, error) {
 	}
 
 	// Fallback to git remote lookup
-	projectID, err := GetProjectIDFromRemote(workdir)
-	if err != nil {
-		return "", err
-	}
-
-	// Persist to specledger.yaml for future use
-	if err := persistProjectID(workdir, projectID); err != nil {
-		fmt.Fprintf(os.Stderr, "⚠️  Could not save project.id to specledger.yaml: %v\n", err)
-	} else {
-		fmt.Fprintf(os.Stderr, "✓ Found project.id via git remote, saved to specledger.yaml\n")
-	}
-
-	return projectID, nil
-}
-
-// persistProjectID saves the project ID to specledger.yaml for future use
-func persistProjectID(workdir string, projectID string) error {
-	projectMetadata, err := metadata.LoadFromProject(workdir)
-	if err != nil {
-		return fmt.Errorf("failed to load specledger.yaml: %w", err)
-	}
-
-	projectMetadata.Project.ID = projectID
-	if err := metadata.SaveToProject(projectMetadata, workdir); err != nil {
-		return fmt.Errorf("failed to save specledger.yaml: %w", err)
-	}
-
-	return nil
+	return GetProjectIDFromRemote(workdir)
 }
 
 // Capture orchestrates the session capture flow
-// Implements graceful degradation: captures metadata even without transcript
 func Capture(input *HookInput) *CaptureResult {
 	result := &CaptureResult{Captured: false}
 
@@ -223,7 +193,17 @@ func Capture(input *HookInput) *CaptureResult {
 		return result // Commit failed, nothing to capture
 	}
 
-	// === Core metadata (always available from git) ===
+	// Check for transcript path
+	if input.TranscriptPath == "" {
+		result.Error = fmt.Errorf("no transcript path in hook input")
+		return result
+	}
+
+	// Check transcript exists
+	if _, err := os.Stat(input.TranscriptPath); err != nil {
+		result.Error = fmt.Errorf("transcript not found: %w", err)
+		return result
+	}
 
 	// Get commit hash
 	commitHash, err := GetCurrentCommitHash(input.Cwd)
@@ -239,8 +219,8 @@ func Capture(input *HookInput) *CaptureResult {
 		return result
 	}
 
-	// Get project ID (with fallback to git remote lookup and auto-persist)
-	projectID, err := GetProjectIDWithFallback(input.Cwd)
+	// Get project ID
+	projectID, err := GetProjectID(input.Cwd)
 	if err != nil {
 		// Give clear guidance on how to fix
 		fmt.Fprintf(os.Stderr, "⚠️  Session capture skipped: %v\n", err)
@@ -250,39 +230,24 @@ func Capture(input *HookInput) *CaptureResult {
 		return result
 	}
 
-	// === Transcript (nice-to-have, graceful degradation) ===
-
-	var messages []Message
-	var newOffset int64
-
-	// Try to get transcript path - provided or search by session_id
-	transcriptPath := input.TranscriptPath
-	if transcriptPath == "" && input.SessionID != "" {
-		if found, err := findTranscriptBySessionID(input.SessionID); err == nil {
-			transcriptPath = found
-		}
+	// Get last offset for this session
+	offsetInfo, err := GetSessionOffset(input.SessionID)
+	if err != nil {
+		result.Error = fmt.Errorf("failed to get session offset: %w", err)
+		return result
 	}
 
-	// If we have a transcript, compute delta
-	if transcriptPath != "" {
-		if _, err := os.Stat(transcriptPath); err == nil {
-			input.TranscriptPath = transcriptPath
-
-			// Get last offset for this session
-			offsetInfo, err := GetSessionOffset(input.SessionID)
-			if err == nil {
-				// Compute delta
-				msgs, offset, err := ComputeDelta(transcriptPath, offsetInfo.LastOffset)
-				if err == nil {
-					messages = msgs
-					newOffset = offset
-				}
-			}
-		}
+	// Compute delta
+	messages, newOffset, err := ComputeDelta(input.TranscriptPath, offsetInfo.LastOffset)
+	if err != nil {
+		result.Error = fmt.Errorf("failed to compute delta: %w", err)
+		return result
 	}
 
-	// Even without transcript messages, we still capture metadata
-	// A session record with commit linkage is valuable
+	// Check if there's anything to capture
+	if len(messages) == 0 {
+		return result // No new messages since last capture
+	}
 
 	// Get credentials
 	creds, err := auth.LoadCredentials()
@@ -363,11 +328,9 @@ func Capture(input *HookInput) *CaptureResult {
 		return queueSession(result, compressed, projectID, branch, &commitHash, nil, creds.UserID)
 	}
 
-	// Update offset tracking (only if we have transcript data)
-	if input.TranscriptPath != "" && newOffset > 0 {
-		if err := UpdateSessionOffset(input.SessionID, newOffset, commitHash, input.TranscriptPath); err != nil {
-			fmt.Fprintf(os.Stderr, "Warning: failed to update session offset: %v\n", err)
-		}
+	// Update offset tracking
+	if err := UpdateSessionOffset(input.SessionID, newOffset, commitHash, input.TranscriptPath); err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: failed to update session offset: %v\n", err)
 	}
 
 	result.Captured = true
@@ -541,34 +504,6 @@ To test:
 	fmt.Println("\nTo view sessions: sl session list")
 
 	return &CaptureResult{Captured: false}
-}
-
-// findTranscriptBySessionID searches for a transcript file by session ID
-// Searches in ~/.claude/projects/<project-slug>/<session-id>.jsonl
-func findTranscriptBySessionID(sessionID string) (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-
-	projectsDir := filepath.Join(homeDir, ".claude", "projects")
-	entries, err := os.ReadDir(projectsDir)
-	if err != nil {
-		return "", err
-	}
-
-	filename := sessionID + ".jsonl"
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-		transcriptPath := filepath.Join(projectsDir, entry.Name(), filename)
-		if _, err := os.Stat(transcriptPath); err == nil {
-			return transcriptPath, nil
-		}
-	}
-
-	return "", fmt.Errorf("transcript not found for session %s", sessionID)
 }
 
 // findMostRecentTranscript finds the most recent Claude Code transcript
