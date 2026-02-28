@@ -386,66 +386,119 @@ A developer wants a single AI command (`clarify`) that handles both spec ambigui
 
 ### Functional Requirements
 
-- **FR-001**: System MUST have documented inventory of all skills, commands, and CLI commands with their purposes
-- **FR-002**: Dependency management MUST be consolidated to a single interface (prefer `sl deps` CLI)
-- **FR-003**: Analysis commands MUST have distinct purposes or be merged
-- **FR-004**: Skills MUST complement CLI functionality, not duplicate it
-- **FR-005**: Removed/deprecated commands MUST have migration documentation
-- **FR-006**: Updated workflow MUST be documented in AGENTS.md or equivalent
-- **FR-007**: All remaining commands MUST have clear, non-overlapping purposes
-- **FR-008**: System MUST provide spike command to create exploratory research documents in `specledger/[spec-id]/research/yyyy-mm-dd-[name].md`
-- **FR-009**: Spike files MUST include research question, approach explored, findings, and recommendations
-- **FR-010**: System MUST provide checkpoint command to verify implementation against specs in `specledger/[spec-id]/sessions/yyyy-mm-dd-[name].md`
-- **FR-011**: Checkpoint files MUST include spec compliance status, changed files summary, implementation notes, and any deviations
-- **FR-012**: Checkpoint MUST detect and summarize git file changes since last checkpoint (or branch creation)
-- **FR-013**: Both spike and checkpoint MUST auto-create target directories if they don't exist
-- **FR-014**: System MUST provide `sl update` CLI command to update built-in skills and commands to latest embedded template versions
-- **FR-015**: `sl update` MUST preserve custom (non-built-in) skills and commands (detected by filename matching against embedded template list)
-- **FR-016**: `sl update` MUST prompt for conflict resolution when built-in files were locally modified
-- **FR-017**: `sl update --dry-run` MUST show pending updates without making changes
-- **FR-018**: `sl update --list` MUST show available embedded templates and versions
+**Layer Model & Constitution (US1)**
+- **FR-001**: System MUST have documented inventory of all skills, commands, and CLI commands organized by layer (Hook/CLI/Command/Skill) with pattern classification (D1, D16)
+- **FR-002**: A CLI development constitution MUST define the 5 established patterns (Data CRUD, Launcher, Hook trigger, Environment, Template mgmt) with review gates and constraints
+- **FR-003**: All remaining commands MUST have clear, non-overlapping purposes with a single documented layer assignment
+
+**Dependency Management (US2)**
+- **FR-004**: Agent MUST call `sl deps` CLI directly for dependency operations. No AI command wrapper needed (D4)
+- **FR-005**: `sl deps graph` MUST provide spec dependency visualization (absorbing `sl graph`) (D6)
+
+**Analysis & Audit (US3)**
+- **FR-006**: `analyze` and `audit` MUST remain separate commands with distinct inputs and outputs (D4, D18)
+- **FR-007**: `analyze` MUST check spec artifacts (spec.md, plan.md, tasks.md) for consistency, coverage gaps, and constitution alignment
+- **FR-008**: `audit` MUST scan source code for tech stack, modules, and dependency graphs
+
+**Skills (US4)**
+- **FR-009**: Skills MUST complement CLI functionality, not duplicate it (D5)
+- **FR-010**: A `sl-comment` skill MUST be created following the same pattern as `sl-issue-tracking` (D5)
+- **FR-011**: Skills MUST be progressively loaded — AI commands reference CLI tools briefly, triggering skill injection
+
+**Spike (US6)**
+- **FR-012**: System MUST provide spike AI command to create exploratory research documents in `specledger/[spec-id]/research/yyyy-mm-dd-[name].md`
+- **FR-013**: Spike files MUST include research question, approach explored, findings, recommendations, and impact on spec/plan
+
+**Checkpoint + Session Log (US7)**
+- **FR-014**: System MUST provide checkpoint AI command to verify implementation against specs in `specledger/[spec-id]/sessions/yyyy-mm-dd-[name].md`
+- **FR-015**: Checkpoint files MUST include spec compliance status, changed files summary, implementation notes, and deviations found
+- **FR-016**: Checkpoint MUST detect and summarize git file changes since last checkpoint (or branch creation)
+- **FR-017**: Checkpoint session log MUST capture: tasks worked on (by issue ID), planned vs actual, divergences with justifications, key decisions, unfinished work, and impact on downstream tasks (D14)
+- **FR-018**: Both spike and checkpoint MUST auto-create target directories if they don't exist
+
+**Template Lifecycle (US8)**
+- **FR-019**: `sl doctor --template` MUST update built-in skills and commands to latest embedded template versions (D3)
+- **FR-020**: `sl doctor --template` MUST preserve custom (non-built-in) skills and commands (detected by filename matching against embedded template list)
+- **FR-021**: `sl doctor --template` MUST prompt for conflict resolution when built-in files were locally modified
+- **FR-022**: `sl doctor --template --dry-run` MUST show pending updates without making changes
+- **FR-023**: `sl doctor --template` MUST detect stale `specledger.` prefixed commands no longer in the playbook and prompt for removal (D3)
+
+**Review Comment Management (US11)**
+- **FR-024**: System MUST provide `sl comment` CLI with subcommands: list, show, reply, resolve (D4)
+- **FR-025**: `sl comment` MUST support `--status open|resolved|all` filtering
+- **FR-026**: `sl comment reply` MUST link replies to parent comments with detailed content
+- **FR-027**: `sl comment resolve` MUST record a resolution reason
+
+**Context Detection (US12)**
+- **FR-028**: `ContextDetector` MUST implement a 4-step fallback chain: regex match → yaml alias → git heuristic → interactive prompt (D9)
+- **FR-029**: Branch aliases MUST be stored in `specledger.yaml` and version-controlled
+- **FR-030**: Non-interactive mode (`--spec` flag) MUST override all detection steps
+
+**Bash Script Migration (US13)**
+- **FR-031**: All bash scripts in `.specledger/scripts/bash/` MUST have documented `sl` CLI equivalents (D10)
+- **FR-032**: Branch number generation (currently in bash) MUST prevent numeric prefix collisions when migrated to `sl` CLI ([#46](https://github.com/specledger/specledger/issues/46))
+
+**Clarify + Revise (US14)**
+- **FR-033**: `/specledger.clarify` MUST detect open review comments (via `sl comment list --status open`) and offer to process them alongside spec ambiguity scanning (D4)
+- **FR-034**: Removed/deprecated AI commands MUST have migration documentation (D3)
+- **FR-035**: Updated workflow MUST be documented in AGENTS.md or equivalent
 
 ### Key Entities
 
-- **Skill**: AI context file that guides agent behavior for specific domains
-- **Command**: AI command file that orchestrates multi-step workflows
-- **CLI Command**: Binary command that performs concrete operations
-- **Spike**: Time-boxed exploratory research document stored in `research/` folder with date prefix, capturing investigation results
-- **Checkpoint**: Implementation verification document stored in `sessions/` folder with date prefix, capturing progress against spec
-- **Built-in template**: Skills or commands embedded in the `sl` binary, identified by matching filename against the embedded template list
+- **Layer**: One of four tiers in the tooling model — Hook (L0), CLI (L1), Command (L2), Skill (L3) (D1)
+- **CLI Pattern**: One of 5 established patterns for `sl` subcommands — Data CRUD, Launcher, Hook trigger, Environment, Template mgmt (D16)
+- **Skill**: AI context file that guides agent behavior for specific CLI domains. Lean, isolated, progressively loaded. (L3)
+- **Command**: AI command file that orchestrates multi-step workflows using AI reasoning. (L2)
+- **CLI Command**: Go binary command that performs deterministic data operations. (L1)
+- **Launcher**: CLI command that gathers context and spawns an AI agent session (L1→L2 cross-layer). (D2)
+- **Spike**: Time-boxed exploratory research document stored in `research/` folder with date prefix
+- **Checkpoint**: Implementation verification + session log document stored in `sessions/` folder with date prefix (D14)
+- **Branch Alias**: Mapping from non-conforming branch name to spec slug, stored in `specledger.yaml` (D9)
+- **Built-in template**: Skills or commands embedded in the `sl` binary, owned by the `specledger.` prefix (D3)
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: Total command count reduced by at least 20% (from 11 to 9 or fewer AI commands)
-- **SC-002**: Zero overlapping purposes between skills, commands, and CLI
-- **SC-003**: Each workflow component has a single, documented responsibility
-- **SC-004**: New developers can understand the SDD workflow in under 5 minutes of reading
+- **SC-001**: AI command count reduced from 16 to 12 (remove 6, add 2: spike + checkpoint)
+- **SC-002**: Zero overlapping purposes between layers — each component has exactly one layer assignment
+- **SC-003**: Each `sl` CLI command maps to at least one established pattern (D16)
+- **SC-004**: New developers can understand the 4-layer model and core workflow in under 5 minutes of reading
 - **SC-005**: Spike command creates research document in under 2 minutes
-- **SC-006**: Checkpoint command captures implementation state in under 30 seconds
+- **SC-006**: Checkpoint command captures implementation state + session log in under 30 seconds
 - **SC-007**: All spike and checkpoint files follow consistent `yyyy-mm-dd-[name].md` naming convention
+- **SC-008**: `sl comment` provides granular comment management (no more bulk resolution)
+- **SC-009**: `ContextDetector` resolves non-conforming branch names without user running a separate command
+- **SC-010**: All `sl` commands work on macOS, Linux, and Windows without bash dependency
 
 ### Previous work
 
-Existing infrastructure in `.opencode/skills/` (2 skills) and `.opencode/commands/` (11 commands). CLI commands in `pkg/cli/commands/` (9 commands).
+Existing infrastructure in agent shell skills (2 skills) and commands (16 commands across `.claude/commands/` and `.opencode/commands/`). CLI commands in `pkg/cli/commands/` (9 commands).
 
-Existing session capture in `sl session capture` command stores in `specledger/[spec-id]/sessions/` but lacks checkpoint verification features.
+Existing session capture in `sl session capture` (Layer 0 hook) stores in `specledger/[spec-id]/sessions/` but lacks checkpoint verification and session log features.
+
+Cross-team decision log with 20 decisions: [research/2026-02-28-command-consolidation-decisions.md](research/2026-02-28-command-consolidation-decisions.md)
 
 ### Dependencies & Assumptions
 
 **Out of Scope** (future spec):
-- TUI tool creation and migration of `sl init`, `sl revise` to TUI
-- Interactive wizard mode for initialization
+- TUI tool for human-focused interactive flows (`sl init` wizard, `sl revise` review) (D2)
+- Playbook management in webapp — skill bundles for ML/backend/frontend/fullstack teams (D17)
+- `sl skill` command for external skill discovery/install (D19)
+- Mockup command improvements — pending feedback on current implementation (D15)
 
 **Assumptions**:
-- CLI commands (`sl deps`, `sl issue`, etc.) are the source of truth for operations
-- AI commands should orchestrate workflows and provide context, not duplicate CLI logic
-- Skills should provide domain knowledge, not operational instructions
-- Spike and checkpoint are AI commands (`.opencode/commands/specledger.spike.md` and `.opencode/commands/specledger.checkpoint.md`)
-- Git is available for detecting file changes in checkpoint
+- CLI commands (`sl deps`, `sl issue`, `sl comment`) are the source of truth for data operations (D2)
+- AI commands orchestrate workflows using AI reasoning, calling CLI tools for data ops (D2)
+- Skills provide domain knowledge, progressively loaded, not operational instructions (D5)
+- Core workflow (specify→clarify→plan→tasks→implement) is immutable — playbooks customize content, not stages (D11)
+- Spike and checkpoint are AI commands (agent shell command templates)
+- Git is available for checkpoint change detection and context detection heuristic (D9)
+- `specledger.` prefix in command filenames is owned by the playbook (D3)
 
 **Dependencies**:
-- Existing `.opencode/` directory structure
-- Current CLI command implementations
-- Git for checkpoint change detection
+- Existing agent shell directory structure (`.claude/` or `.opencode/`)
+- Current CLI command implementations in `pkg/cli/commands/`
+- Supabase `review_comments` table for `sl comment` (columns: id, change_id, content, file_path, start_line, line, selected_text, is_resolved, author_id, parent_comment_id)
+- Git for checkpoint change detection and context detection fallback chain
+- Branch number collision prevention when migrating bash scripts ([#46](https://github.com/specledger/specledger/issues/46))

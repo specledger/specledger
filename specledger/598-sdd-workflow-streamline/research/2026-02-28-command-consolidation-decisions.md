@@ -483,7 +483,7 @@ Checkpoint command addresses this tension directly. The session log component pr
 | D7 | `sl init` → onboard launcher | Prompt user to launch onboarding after init (default yes, opt-out for advanced) | 2026-02-28 |
 | D8 | Full CLI ↔ layer mapping | Complete mapping documented; spike + checkpoint added | 2026-02-28 |
 | D9 | Adopt → context detection | No new command; enhance ContextDetector with 4-step fallback chain (regex → yaml alias → git heuristic → prompt) | 2026-02-28 |
-| D10 | Phase out bash scripts | Replace with cross-platform `sl` CLI subcommands | 2026-02-28 |
+| D10 | Phase out bash scripts | Replace with cross-platform `sl` CLI subcommands. Branch number generation must address collision issue ([#46](https://github.com/specledger/specledger/issues/46)). | 2026-02-28 |
 | D11 | Core workflow immutability | specify→plan→tasks→implement is fixed; playbooks = skill bundles | 2026-02-28 |
 | D12 | Checklist fate | Keep as optional standalone; not merged into analyze | 2026-02-28 |
 | D13 | Spike command | New `/specledger.spike` for time-boxed exploratory research | 2026-02-28 |
