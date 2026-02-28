@@ -39,11 +39,17 @@ These cross-layer interactions are **convenience patterns**, not additional laye
 | Analyzing, reasoning, deciding | Slash command (L2) | `/specledger.clarify` analyzes gaps |
 | Applying changes based on reasoning | Slash command (L2) | Agent edits files, then calls `sl comment resolve` |
 
-**The revise middle ground**: `sl revise` (CLI) remains as an optional launcher that pre-filters comments and spawns an agent. The agent's behavior is defined by the slash command (`/specledger.clarify --comments`), and the agent uses `sl comment reply/resolve` for granular, detailed resolution. This eliminates the current tension where:
+**The revise middle ground**: `sl revise` (CLI) remains as an optional launcher that pre-filters comments and spawns an agent. The agent's behavior is defined by the `/specledger.clarify` slash command, and the agent uses `sl comment reply/resolve` for granular, detailed resolution. This eliminates the current tension where:
 - The CLI tried to interpret agent results post-session (clunky)
 - Comments were bulk-resolved without detail
 
-**Key principle**: The agent should have proper CLI tools to perform data operations with full context, rather than the CLI guessing what the agent accomplished. When control flow resumes in the CLI, it should warn and prompt the user to let the agent do commits/resolve comments directly for better traceability and remove logic to resolve comments or do git operations from the CLI (except from the beginning where the CLI does help make sure the right branch is checked out and any changes are taken care (stash or allow user to cancel and commit first before relaunching revise)).
+**Key principle**: The agent should have proper CLI tools to perform data operations with full context, rather than the CLI guessing what the agent accomplished. When control flow resumes in the CLI after the agent session:
+- **Detect**: Check if (1) no commit was made during the session, and/or (2) review comments remain unresolved
+- **Warn**: If either condition is true, print a clear warning explaining what was missed
+- **Guide**: Print the resume command (e.g., `claude --resume` or equivalent) so the user can re-enter the session and explicitly instruct the agent to commit and/or resolve comments
+- **No auto-resolution**: The CLI does NOT resolve comments or do git operations post-session — that's the agent's job. AI command prompts should remind the agent to commit and resolve, but since this is non-deterministic, the CLI warning is a critical fallback.
+
+The CLI only handles pre-session setup: ensure correct branch is checked out, stash/warn about uncommitted changes, offer to cancel and commit first before launching.
 
 ---
 
@@ -73,11 +79,11 @@ These cross-layer interactions are **convenience patterns**, not additional laye
 | `/specledger.implement` | `/specledger.resume` | Core pipeline |
 | `/specledger.spike` | — | **New** — exploratory research (D13) |
 | `/specledger.checkpoint` | — | **New** — implementation verification + session log (D14) |
-| `/specledger.analyze` | — | Quality validation (keeps SpecKit brand name) |
+| `/specledger.verify` | — | Quality validation (renamed from `analyze`, aligned with OpenSpec; SpecKit users: `verify` = `analyze`) |
 | `/specledger.checklist` | — | Optional quality gate (standalone, per-feature custom gates) |
 | `/specledger.onboard` | `/specledger.help` | Setup |
 | `/specledger.constitution` | — | Setup (runs rarely) |
-| `/specledger.audit` | — | Codebase analysis |
+| ~~`/specledger.audit`~~ | ~~Codebase analysis~~ | Moved to `sl-audit` skill (codebase reconnaissance is passive context, not AI workflow) |
 
 ### Removed (6 commands)
 
@@ -101,11 +107,11 @@ These cross-layer interactions are **convenience patterns**, not additional laye
 **Decision**: Keep skills separate, lean, and progressively loaded
 
 - Skills are silently injected into agent context as needed
-- Each CLI domain gets its own skill (`sl-issue-tracking`, `specledger-deps`, future `sl-comment`)
+- Each CLI domain gets its own skill (`sl-issue-tracking`, `sl-deps`, future `sl-comment`)
 - Skills must be focused and isolated — not consolidated into a monolith
 - Slash commands reference CLI tools briefly (triggering skill loading), skills provide the deep usage patterns
 - Skill discovery/install is a separate concern (future `sl skill` command, part of bootstrap/template management — see D19)
-- **Two types of skills**: (1) CLI-embedded skills (`sl-issue-tracking`, `specledger-deps`, `sl-comment`) that ship with the `sl` binary and teach agents to use `sl` commands, and (2) external registry skills (e.g., vercel-labs/skills) that provide domain expertise (security, React best practices, etc.). `sl skill` would manage type (2); type (1) is handled by `sl doctor --template`.
+- **Two types of skills**: (1) CLI-embedded skills (`sl-issue-tracking`, `sl-deps`, `sl-comment`) that ship with the `sl` binary and teach agents to use `sl` commands, and (2) external registry skills (e.g., vercel-labs/skills) that provide domain expertise (security, React best practices, etc.). `sl skill` would manage type (2); type (1) is handled by `sl doctor --template`.
 
 **Pattern**: `sl comment` follows the same pattern as `sl issue`:
 - No dedicated slash command mapping
@@ -179,11 +185,11 @@ This mirrors the `sl revise` launcher pattern (D2) and gives new users a seamles
 | `/specledger.implement` | Core pipeline | `sl issue update/close` |
 | `/specledger.spike` | Research (any stage) | — |
 | `/specledger.checkpoint` | Verification + session log | `sl issue show` (compare plan vs actual) |
-| `/specledger.analyze` | Quality validation | `sl comment list --status open` (flag unresolved) |
+| `/specledger.verify` | Quality validation | `sl comment list --status open` (flag unresolved) |
 | `/specledger.checklist` | Optional quality gate | — |
 | `/specledger.onboard` | Setup | Orchestrates other slash commands |
 | `/specledger.constitution` | Setup | — |
-| `/specledger.audit` | Codebase analysis | — |
+| ~~`/specledger.audit`~~ | ~~Codebase analysis~~ | Moved to `sl-audit` skill |
 
 ---
 
@@ -311,9 +317,11 @@ Several slash commands (notably `/specledger.specify`) call bash scripts like `c
 
 ## D12: Checklist — Keep as Optional Standalone
 
-**Decision**: `/specledger.checklist` remains as a standalone optional command, not merged into `/specledger.analyze`
+**Decision**: `/specledger.checklist` remains as a standalone optional command, not merged into `/specledger.verify`
 
-**Rationale**: Checklist was a late addition from SpecKit that never fully landed. Its purpose (custom per-feature quality gates on top of the constitution) is distinct from analyze (cross-artifact consistency). Keeping it optional lets teams that want custom gates use it without cluttering the core pipeline.
+**Rationale**: Checklist is essentially a "constitution but scoped to the spec level" — it defines custom per-feature quality gates on top of the project-wide constitution. This is distinct from verify (cross-artifact consistency). Keeping it optional lets teams that want custom gates per feature use it without cluttering the core pipeline.
+
+**Clarification**: The constitution defines project-wide standards and constraints. Checklist lets individual features define additional quality criteria specific to that feature's domain (e.g., a payments feature might add PCI compliance checks, a performance feature might add benchmark gates). Think of it as: constitution = org/repo-level guardrails, checklist = feature-level guardrails.
 
 **Note**: May evolve to become a constitution-level feature in the future. Defer deeper design.
 
@@ -462,9 +470,9 @@ Checkpoint command addresses this tension directly. The session log component pr
 | # | Question | Status |
 |---|----------|--------|
 | Q1 | Should the CLI launcher pattern generalize beyond `sl revise` and `sl init`? | Tension T2 — deferred |
-| Q2 | How should `sl doctor --template` handle stale commands from older playbook versions? | D3 — needs template lifecycle proposal |
-| Q3 | Should `sl skill` discover/install skills based on repo tech stack? | Deferred — separate proposal. See D19. |
-| Q4 | Inventory of bash scripts to replace with CLI commands? | D10 — needs script audit |
+| Q2 | How should `sl doctor --template` handle stale commands from older playbook versions? | Clarified: `specledger.` prefix is owned by the playbook. `sl doctor --template` strongly suggests removing stale commands. Experimental commands MUST use a different prefix (e.g., `specledger-beta.`) until formally embedded. See D3. |
+| Q3 | Should `sl skill` discover/install skills based on repo tech stack? | Deferred — file as GH issue for `sl skill` command group. Reference this spec (598). See D19. |
+| Q4 | Inventory of bash scripts to replace with CLI commands? | D10 — needs script audit. This means: enumerate all `.specledger/scripts/bash/*.sh` files, document what each does, and map each to its `sl` CLI equivalent. |
 | Q5 | ~~How to track plan→actual deviations during implementation?~~ | Resolved by D14 (checkpoint) |
 | ~~Q6~~ | ~~Naming for branch→spec mapping CLI command?~~ | Resolved — D9 revised: no new command, context detector fallback chain |
 
@@ -485,12 +493,12 @@ Checkpoint command addresses this tension directly. The session log component pr
 | D9 | Adopt → context detection | No new command; enhance ContextDetector with 4-step fallback chain (regex → yaml alias → git heuristic → prompt) | 2026-02-28 |
 | D10 | Phase out bash scripts | Replace with cross-platform `sl` CLI subcommands. Branch number generation must address collision issue ([#46](https://github.com/specledger/specledger/issues/46)). | 2026-02-28 |
 | D11 | Core workflow immutability | specify→plan→tasks→implement is fixed; playbooks = skill bundles | 2026-02-28 |
-| D12 | Checklist fate | Keep as optional standalone; not merged into analyze | 2026-02-28 |
+| D12 | Checklist fate | Keep as optional standalone; not merged into verify | 2026-02-28 |
 | D13 | Spike command | New `/specledger.spike` for time-boxed exploratory research | 2026-02-28 |
 | D14 | Checkpoint + session log | New `/specledger.checkpoint` for implementation verification + deviation tracking (resolves T1) | 2026-02-28 |
 | D15 | Mockup command | Launcher pattern, not new pipeline stage. Spike: Magic Patterns is complementary, not replacement. | 2026-02-28 |
 | D16 | CLI development constitution | 5 established patterns (Data CRUD, Launcher, Hook trigger, Environment, Template mgmt) with review gates | 2026-02-28 |
 | D17 | Playbook frozen until webapp | `sl playbook` stays in CLI but no new features. Skill bundles (ML, backend, frontend, fullstack) designed in webapp first, then flows back to CLI. | 2026-02-28 |
-| D18 | Audit vs `/simplify` | Keep `/specledger.audit` — it's codebase reconnaissance (onboarding, module graphs). Claude Code `/simplify` is complementary (PR-level code quality). | 2026-02-28 |
-| D19 | `sl skill` command | Deferred. Future command for skill discovery/install based on repo tech stack (similar to vercel-labs/skills find.ts). Depends on playbook management (D17) and webapp design. Skills embedded in CLI (sl-issue-tracking, specledger-deps, sl-comment) are distinct from external skill registries. | 2026-02-28 |
-| D20 | US1 "Audit" naming | US1 is a workflow review/inventory exercise, NOT the `/specledger.audit` AI command (which scans source code). Naming must stay distinct. Review carefully before finalizing. | 2026-02-28 |
+| D18 | Audit → skill | `/specledger.audit` dropped as AI command, shipped as `sl-audit` skill (codebase reconnaissance is passive context, not AI workflow). Claude Code `/simplify` is complementary (PR-level code quality). | 2026-02-28 |
+| D19 | `sl skill` command | Deferred. Future command for skill discovery/install based on repo tech stack (similar to vercel-labs/skills find.ts). Depends on playbook management (D17) and webapp design. Skills embedded in CLI (sl-issue-tracking, sl-deps, sl-comment) are distinct from external skill registries. | 2026-02-28 |
+| D20 | US1 "Audit" naming | US1 is a workflow review/inventory exercise, NOT the `sl-audit` skill (which provides codebase reconnaissance context). Naming must stay distinct. Review carefully before finalizing. | 2026-02-28 |

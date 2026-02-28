@@ -28,7 +28,7 @@ Goal: Reduce redundancy, clarify layer responsibilities, streamline the develope
 **Future Work** (out of scope):
 - **TUI tool**: Separate binary for human-focused interactive flows (`sl init` wizard, `sl revise` review flow). The `sl` CLI stays agent-focused (no PTY). Until TUI exists, interactive commands remain in `sl` as launcher shortcuts.
 - **Playbook management**: Skill bundles (ML, backend, frontend, fullstack teams) designed in webapp/backend first, then flow back to CLI. `sl playbook` CLI frozen until then.
-- **`/simplify` overlap**: Claude Code's built-in `/simplify` command handles PR-level code quality. Our `/specledger.audit` remains for codebase-level reconnaissance (onboarding, module graphs, tech stack discovery). These are complementary, not overlapping. Re-evaluate if `/simplify` expands scope.
+- **`/simplify` overlap**: Claude Code's built-in `/simplify` command handles PR-level code quality. Codebase reconnaissance (onboarding, module graphs, tech stack discovery) is shipped as the `sl-audit` skill rather than a dedicated AI command. Re-evaluate if `/simplify` expands scope.
 
 ## Clarifications
 
@@ -40,13 +40,13 @@ Goal: Reduce redundancy, clarify layer responsibilities, streamline the develope
 ### Session 2026-02-28 (cross-team review)
 
 - Q: Should `sl update` be a separate command? → A: No — fold into `sl doctor --template` (template management is repo health, not a separate concern). See decision log D3.
-- Q: Should analyze and audit be merged into `verify`? → A: No — keep separate. `analyze` (SpecKit brand) checks spec artifact consistency; `audit` scans the codebase. Different inputs, different stages. See decision log D4/D18.
+- Q: Should analyze and audit be merged into `verify`? → A: Yes — drop `audit` as an AI command (ship as `sl-audit` skill instead), rename `analyze` to `verify` (aligned with OpenSpec terminology). Users from SpecKit: `verify` replaces `analyze`. See decision log D4/D18.
 - Q: How should non-conforming branch names resolve to spec folders? → A: Enhance `ContextDetector` with a 4-step fallback chain (regex → yaml alias → git heuristic → interactive prompt). Removes need for `adopt` command entirely. See decision log D9.
 - Q: Where does review comment management belong? → A: New `sl comment` CLI subcommand (data CRUD). `clarify` AI command absorbs revise's spec-refinement logic. `sl revise` stays as CLI launcher shortcut until TUI. See decision log D2/D4.
 
 ## New Capabilities to Add
 
-1. **Spike** (AI command) - Exploratory research for time-boxed investigations. Output: `specledger/<spec>/research/yyyy-mm-dd-<name>.md`
+1. **Spike** (AI command) - Exploratory research for time-boxed investigations. Output: `specledger/<spec>/research/yyyy-mm-dd-<name>.md`. Template: [research/spike-template.md](research/spike-template.md)
 2. **Checkpoint** (AI command) - Implementation verification + session log with deviation tracking. Output: `specledger/<spec>/sessions/yyyy-mm-dd-<name>.md`
 3. **`sl comment`** (CLI) - Review comment CRUD (list/show/reply/resolve/pull/push). Enables agents to manage comments with granular detail.
 4. **`sl doctor --template`** enhancement - Update AI skills/commands to latest embedded templates (replaces proposed `sl update`)
@@ -54,16 +54,17 @@ Goal: Reduce redundancy, clarify layer responsibilities, streamline the develope
 
 ## Current State Inventory
 
-### Skills (2 → 3)
+### Skills (2 → 4)
 | Skill | Purpose | Status |
 |-------|---------|--------|
 | `sl-issue-tracking` | Teaches agent when/how to use `sl issue` | Existing |
-| `specledger-deps` | Teaches agent when/how to use `sl deps` | Existing |
+| `sl-deps` | Teaches agent when/how to use `sl deps` | Existing |
 | `sl-comment` | Teaches agent when/how to use `sl comment` | **New** (D4) |
+| `sl-audit` | Codebase reconnaissance — tech stack, modules, dependency graphs | **New** (audit moved from AI command to skill) |
 
 Skills are lean, isolated, and progressively loaded. Each CLI domain gets its own skill. AI commands reference CLI tools briefly, which triggers the relevant skill to load.
 
-### AI Commands (11 → 12)
+### AI Commands (11 → 11)
 | Command | Purpose | Change | Stage |
 |---------|---------|--------|-------|
 | `specify` | Create feature spec | Unchanged | Core pipeline |
@@ -73,20 +74,20 @@ Skills are lean, isolated, and progressively loaded. Each CLI domain gets its ow
 | `implement` | Implementation guidance | **Absorbs** resume (D4) | Core pipeline |
 | `spike` | Exploratory research | **New** (D13) | Escape hatch (any stage) |
 | `checkpoint` | Implementation verification + session log | **New** (D14) | During implement |
-| `analyze` | Cross-artifact consistency check | **Reverted** from `verify` — keep SpecKit name (D4) | Quality validation |
-| `audit` | Codebase reconnaissance | **Reverted** from `verify` — separate from analyze (D18) | Codebase analysis |
+| `verify` | Cross-artifact consistency check | **Renamed** from `analyze` (aligned with OpenSpec terminology; SpecKit users: `verify` = `analyze`) | Quality validation |
 | `checklist` | Custom per-feature quality gates | **Kept** as optional standalone (D12) | Optional |
 | `onboard` | Project onboarding | **Absorbs** help (D4) | Setup |
 | `constitution` | Project constitution | Unchanged | Setup |
 
-**Removed AI commands** (6):
+**Removed AI commands** (7):
 - `resume` → duplicate of implement
 - `help` → absorbed by onboard
 - `adopt` → replaced by context detection fallback chain (D9)
 - `add-deps` / `remove-deps` → agent calls `sl deps` CLI directly
 - `revise` → absorbed by clarify; `sl revise` stays as CLI launcher
+- `audit` → shipped as `sl-audit` skill (codebase reconnaissance is passive context, not AI workflow)
 
-### CLI Commands (9 → 10)
+### CLI Commands (9 → 14)
 | Command | Purpose | Pattern (D16) | Future: TUI? |
 |---------|---------|---------------|--------------|
 | `sl init` | Initialize project (new or existing) | Environment + Launcher (D7) | **Yes** |
@@ -97,6 +98,10 @@ Skills are lean, isolated, and progressively loaded. Each CLI domain gets its ow
 | `sl session` | Session capture | Hook trigger | No |
 | `sl issue` | Issue tracking | Data CRUD | No |
 | `sl comment` | Review comment management | Data CRUD | **New** (D4) |
+| `sl spec info` | Feature context + prerequisite validation | Data CRUD | No | **New** (US16, replaces `check-prerequisites.sh`) |
+| `sl spec create` | Create feature branch + spec dir + template | Data CRUD | No | **New** (US16, replaces `create-new-feature.sh`) |
+| `sl spec setup-plan` | Copy plan template into feature dir | Data CRUD | No | **New** (US16, replaces `setup-plan.sh`) |
+| `sl context update` | Update agent context files from plan data | Environment | No | **New** (US16, replaces `update-agent-context.sh`) |
 | `sl revise` | Launch agent with comment context | Launcher | **Yes** |
 | `sl mockup` | Launch agent with design system context | Launcher | **Yes** |
 
@@ -110,7 +115,7 @@ Skills are lean, isolated, and progressively loaded. Each CLI domain gets its ow
 ## Identified Overlaps (Resolved)
 
 1. **Dependency Management**: Agent calls `sl deps` CLI directly. No AI command wrapper needed. `sl graph` folded into `sl deps graph` (D6).
-2. **Analysis/Audit**: Kept separate — `analyze` = spec artifact consistency, `audit` = codebase reconnaissance. Different inputs, different stages (D4/D18). Claude Code `/simplify` covers PR-level code quality (complementary).
+2. **Analysis/Audit**: `analyze` renamed to `verify` (aligned with OpenSpec). `audit` dropped as AI command, shipped as `sl-audit` skill (codebase reconnaissance is passive context injection, not AI workflow orchestration). Claude Code `/simplify` covers PR-level code quality (complementary).
 3. **Issue Tracking**: `sl-issue-tracking` skill teaches agent when/how to use `sl issue` CLI. Complementary, not duplicate (D5).
 4. **Comment Management**: New `sl comment` CLI + `sl-comment` skill. Same pattern as issues (D4/D5).
 5. **Template Updates**: `sl doctor --template` handles template lifecycle. Owns `specledger.` prefix, detects stale/deprecated commands (D3). No separate `sl update` needed.
@@ -122,7 +127,7 @@ Skills are lean, isolated, and progressively loaded. Each CLI domain gets its ow
 
 A developer or maintainer needs a clear inventory of all workflow components **organized by layer** (Hooks, CLI, Commands, Skills) to understand responsibilities, overlaps, and established CLI patterns. (D1, D16)
 
-> **Note**: This is a workflow review exercise, not the `/specledger.audit` AI command (which scans source code). Naming kept distinct to avoid confusion.
+> **Note**: This is a workflow review exercise, not the `sl-audit` skill (which provides codebase reconnaissance context). Naming kept distinct to avoid confusion.
 
 **Why this priority**: Cannot streamline without understanding current state. The 4-layer model and CLI constitution provide the framework for all subsequent consolidation decisions.
 
@@ -153,20 +158,20 @@ A developer wants a single AI command for dependency management that orchestrate
 
 ---
 
-### User Story 3 - Clarify Analyze vs Audit Responsibilities (Priority: P2)
+### User Story 3 - Verify Spec Artifact Consistency + Audit as Skill (Priority: P2)
 
-A developer wants clear, distinct purposes for `analyze` and `audit` commands so they know which to use and when. (D4, D18)
+A developer wants a single `verify` command (renamed from `analyze`, aligned with OpenSpec terminology) for spec artifact consistency checks. Codebase reconnaissance (formerly `audit`) is shipped as the `sl-audit` skill for passive context injection. (D4, D18)
 
-**Why this priority**: These commands serve different stages and have different inputs. Merging them (as previously proposed as `verify`) conflates codebase understanding with spec document validation.
+**Why this priority**: Renaming `analyze` to `verify` aligns with OpenSpec conventions. Moving `audit` to a skill reflects that codebase reconnaissance is passive context (L3), not AI workflow orchestration (L2).
 
-**Independent Test**: Can be fully tested by running each command separately and verifying they have distinct inputs, outputs, and help text.
+**Independent Test**: Can be fully tested by running `/specledger.verify` after task generation and verifying it checks spec artifacts. Separately, verify `sl-audit` skill loads when codebase context is needed.
 
 **Acceptance Scenarios**:
 
-1. **Given** the `analyze` command, **When** a developer runs it after task generation, **Then** it reads spec.md, plan.md, and tasks.md and reports consistency issues (duplication, ambiguity, coverage gaps, constitution alignment)
-2. **Given** the `audit` command, **When** a developer runs it on an unfamiliar codebase, **Then** it scans source code for tech stack, modules, dependency graphs and produces a JSON cache
-3. **Given** both commands, **When** a developer reads their help text, **Then** the distinction is clear: `analyze` = "validate your design documents", `audit` = "understand this codebase"
-4. **Given** Claude Code's built-in `/simplify`, **When** a developer needs PR-level code quality checks, **Then** they use `/simplify` (complementary, not overlapping with analyze or audit)
+1. **Given** the `verify` command (formerly `analyze`), **When** a developer runs it after task generation, **Then** it reads spec.md, plan.md, and tasks.md and reports consistency issues (duplication, ambiguity, coverage gaps, constitution alignment)
+2. **Given** the `sl-audit` skill, **When** an AI command needs codebase context (tech stack, modules, dependency graphs), **Then** the skill is progressively loaded to provide reconnaissance context
+3. **Given** a developer familiar with SpecKit, **When** they look for `analyze`, **Then** documentation notes that `verify` is the successor (aligned with OpenSpec terminology)
+4. **Given** Claude Code's built-in `/simplify`, **When** a developer needs PR-level code quality checks, **Then** they use `/simplify` (complementary, not overlapping with `verify` or `sl-audit`)
 
 ---
 
@@ -181,7 +186,7 @@ A developer wants AI skills that enhance CLI functionality rather than duplicate
 **Acceptance Scenarios**:
 
 1. **Given** `sl-issue-tracking` skill and `sl issue` CLI, **When** skill is updated, **Then** skill provides AI context about issue workflow without duplicating CLI functionality
-2. **Given** `specledger-deps` skill and `sl deps` CLI, **When** skill is updated, **Then** skill provides AI context about dependency workflow without duplicating CLI functionality
+2. **Given** `sl-deps` skill and `sl deps` CLI, **When** skill is updated, **Then** skill provides AI context about dependency workflow without duplicating CLI functionality
 3. **Given** the new `sl comment` CLI, **When** a `sl-comment` skill is created, **Then** it follows the same pattern as `sl-issue-tracking` — teaches agent when/how to use `sl comment list/show/reply/resolve`
 4. **Given** the `/specledger.clarify` AI command references review comments, **When** the agent encounters this reference, **Then** the `sl-comment` skill is progressively loaded to provide usage details
 
@@ -369,6 +374,68 @@ A developer wants a single AI command (`clarify`) that handles both spec ambigui
 
 ---
 
+### User Story 15 - Session Lifecycle Hooks for Checkpoint Reliability (Priority: P3)
+
+A developer wants checkpoints to run reliably as part of agent coding sessions, ensuring progress and deviations are captured even when sessions end unexpectedly. Currently, only `PostToolUse` (Bash matcher for `git commit`) is used. Additional lifecycle hooks like `SessionEnd` would enable automatic checkpoint triggers and data freshness checks.
+
+**Why this priority**: P3 because the current manual checkpoint invocation works. Lifecycle hooks are a reliability improvement for ensuring no session ends without captured progress. Future work depends on agent shell hook capabilities expanding.
+
+**Independent Test**: Can be tested by verifying that a SessionEnd hook triggers a checkpoint capture, and that the system warns if session data appears stale.
+
+**Acceptance Scenarios**:
+
+1. **Given** a `SessionEnd` lifecycle hook, **When** an agent session ends (normally or via context compaction), **Then** a checkpoint is triggered to capture final session state
+2. **Given** the checkpoint system, **When** the database shows stale session data (no capture since last commit), **Then** the system warns the user and suggests running a checkpoint
+3. **Given** an agent session, **When** the agent's AI prompts are clear enough, **Then** the agent commits changes and resolves comments directly (the hooks serve as a safety net, not the primary mechanism)
+4. **Given** the hook system, **When** a session ends without a commit or comment resolution, **Then** the CLI warns and instructs the user to have the agent perform those actions
+
+**Future hooks to consider**:
+- `SessionEnd`: Trigger checkpoint before session teardown
+- `PreContextCompaction`: Capture reasoning that would be lost during compaction
+- `PostSessionCapture`: Verify database freshness after raw session capture
+
+---
+
+### User Story 16 - Bash Script Audit and CLI Replacement (Priority: P1)
+
+A developer (or agent) needs every deterministic operation currently performed by bash scripts in `.specledger/scripts/bash/` to be available as `sl` CLI commands instead. This user story is the prerequisite inventory and implementation work that feeds US13 (Phase Out Bash Scripts). The agent will call these new `sl` commands in place of the bash scripts.
+
+**Why this priority**: P1 because every AI command template currently calls these bash scripts as its first step. Until the `sl` CLI equivalents exist, AI commands cannot work cross-platform and remain coupled to bash. This is the critical path for US13.
+
+**Independent Test**: Can be tested by running each new `sl` command and verifying it produces the same output (JSON mode) as the corresponding bash script, then updating one AI command template to call `sl` instead and verifying it works.
+
+#### Script Inventory
+
+| # | Script | Purpose | AI Commands That Call It | Proposed `sl` CLI Equivalent |
+|---|--------|---------|------------------------|------------------------------|
+| 1 | `common.sh` | Shared utilities: repo root detection, branch detection, `branch-map.json` lookup, feature dir resolution, path generation | All other scripts (sourced) | Absorbed into `sl` internal packages — `ContextDetector` (D9) + `pkg/cli/` shared logic. No standalone command needed. |
+| 2 | `check-prerequisites.sh` | Validates SDD stage prerequisites (branch, feature dir, plan.md, tasks.md exist); outputs JSON with `FEATURE_DIR`, `AVAILABLE_DOCS` | `clarify`, `plan`, `tasks`, `implement`, `verify`, `checklist`, `resume` | **`sl spec info --json`** — outputs feature dir, available docs, branch info. With `--require-tasks` / `--require-plan` flags for stage validation. |
+| 3 | `create-new-feature.sh` | Creates feature branch + `specledger/<slug>/` dir + `spec.md` from template; handles branch number generation (collision-safe), stop-word filtering, GitHub 244-byte limit | `specify` | **`sl spec create --json --number N --short-name "name" "description"`** — deterministic feature creation. Must address branch number collision prevention ([#46](https://github.com/specledger/specledger/issues/46)). |
+| 4 | `setup-plan.sh` | Copies plan template into feature dir, validates branch, outputs JSON paths (`FEATURE_SPEC`, `IMPL_PLAN`, `SPECS_DIR`, `BRANCH`) | `plan` | **`sl spec setup-plan --json`** — template copy + path output. Simple enough to fold into `sl spec info` with a `--init-plan` flag. |
+| 5 | `adopt-feature-branch.sh` | Maps non-conforming branch → spec: generates branch name, creates spec dir, updates `branch-map.json` | `adopt` | **Superseded by D9** — `ContextDetector` fallback chain handles branch→spec mapping. `branch-map.json` replaced by `specledger.yaml` branch_aliases. No new command needed. |
+| 6 | `update-agent-context.sh` | Parses plan.md, updates agent context files (CLAUDE.md, GEMINI.md, AGENTS.md, etc.) with tech stack, framework, DB info from plan data | `plan` (post-planning step) | **`sl context update [agent-type]`** — parses plan.md, updates agent context files. Supports 17+ agent formats. Cross-platform Go implementation. |
+
+#### New `sl` Commands to Create
+
+| Command | Pattern (D16) | Replaces Script(s) | Key Flags |
+|---------|---------------|---------------------|-----------|
+| `sl spec info` | Data CRUD | `check-prerequisites.sh` | `--json`, `--require-tasks`, `--require-plan`, `--paths-only` |
+| `sl spec create` | Data CRUD | `create-new-feature.sh` | `--json`, `--number N`, `--short-name "name"` |
+| `sl spec setup-plan` | Data CRUD | `setup-plan.sh` | `--json` |
+| `sl context update` | Environment | `update-agent-context.sh` | `[agent-type]` (claude\|gemini\|copilot\|...), no arg = update all |
+
+**Acceptance Scenarios**:
+
+1. **Given** `check-prerequisites.sh --json`, **When** replaced by `sl spec info --json`, **Then** output JSON is identical (`FEATURE_DIR`, `AVAILABLE_DOCS` fields) and all 7 AI commands that call it work unchanged after template update
+2. **Given** `create-new-feature.sh --json --number 5 --short-name "user-auth" "Add user authentication"`, **When** replaced by `sl spec create --json --number 5 --short-name "user-auth" "Add user authentication"`, **Then** output JSON is identical (`BRANCH_NAME`, `SPEC_FILE`, `FEATURE_NUM` fields), branch is created, spec dir + spec.md from template exist
+3. **Given** `setup-plan.sh --json`, **When** replaced by `sl spec setup-plan --json`, **Then** output JSON is identical (`FEATURE_SPEC`, `IMPL_PLAN`, `SPECS_DIR`, `BRANCH` fields) and plan template is copied
+4. **Given** `update-agent-context.sh claude`, **When** replaced by `sl context update claude`, **Then** CLAUDE.md is updated with identical tech stack, framework, and recent changes entries parsed from plan.md
+5. **Given** `adopt-feature-branch.sh`, **When** the `ContextDetector` fallback chain (D9) is implemented, **Then** the script is no longer needed — branch→spec mapping is automatic
+6. **Given** all 4 new `sl` commands exist, **When** each AI command template (specify, clarify, plan, tasks, implement, verify, checklist) is updated to call `sl` instead of bash scripts, **Then** all AI commands work on macOS, Linux, and Windows without bash dependency
+7. **Given** the `sl spec create` command, **When** it generates branch numbers, **Then** it checks both local `specledger/` directories AND remote git branches to prevent numeric prefix collisions ([#46](https://github.com/specledger/specledger/issues/46))
+
+---
+
 ### Edge Cases
 
 - What happens to existing projects using removed commands? Document migration path.
@@ -395,10 +462,10 @@ A developer wants a single AI command (`clarify`) that handles both spec ambigui
 - **FR-004**: Agent MUST call `sl deps` CLI directly for dependency operations. No AI command wrapper needed (D4)
 - **FR-005**: `sl deps graph` MUST provide spec dependency visualization (absorbing `sl graph`) (D6)
 
-**Analysis & Audit (US3)**
-- **FR-006**: `analyze` and `audit` MUST remain separate commands with distinct inputs and outputs (D4, D18)
-- **FR-007**: `analyze` MUST check spec artifacts (spec.md, plan.md, tasks.md) for consistency, coverage gaps, and constitution alignment
-- **FR-008**: `audit` MUST scan source code for tech stack, modules, and dependency graphs
+**Verify & Audit Skill (US3)**
+- **FR-006**: `verify` (renamed from `analyze`, aligned with OpenSpec) MUST check spec artifacts (spec.md, plan.md, tasks.md) for consistency, coverage gaps, and constitution alignment (D4)
+- **FR-007**: `sl-audit` skill MUST provide codebase reconnaissance context (tech stack, modules, dependency graphs) via progressive loading (D18)
+- **FR-008**: `verify` command help text MUST note it replaces `analyze` for users migrating from SpecKit
 
 **Skills (US4)**
 - **FR-009**: Skills MUST complement CLI functionality, not duplicate it (D5)
@@ -407,7 +474,7 @@ A developer wants a single AI command (`clarify`) that handles both spec ambigui
 
 **Spike (US6)**
 - **FR-012**: System MUST provide spike AI command to create exploratory research documents in `specledger/[spec-id]/research/yyyy-mm-dd-[name].md`
-- **FR-013**: Spike files MUST include research question, approach explored, findings, recommendations, and impact on spec/plan
+- **FR-013**: Spike files MUST follow the [spike template](research/spike-template.md) structure: objective, investigation plan, research & findings, prototype results, and decision/recommendation
 
 **Checkpoint + Session Log (US7)**
 - **FR-014**: System MUST provide checkpoint AI command to verify implementation against specs in `specledger/[spec-id]/sessions/yyyy-mm-dd-[name].md`
@@ -434,9 +501,14 @@ A developer wants a single AI command (`clarify`) that handles both spec ambigui
 - **FR-029**: Branch aliases MUST be stored in `specledger.yaml` and version-controlled
 - **FR-030**: Non-interactive mode (`--spec` flag) MUST override all detection steps
 
-**Bash Script Migration (US13)**
+**Bash Script Migration (US13, US16)**
 - **FR-031**: All bash scripts in `.specledger/scripts/bash/` MUST have documented `sl` CLI equivalents (D10)
 - **FR-032**: Branch number generation (currently in bash) MUST prevent numeric prefix collisions when migrated to `sl` CLI ([#46](https://github.com/specledger/specledger/issues/46))
+- **FR-036**: `sl spec info` MUST output JSON-compatible prerequisite data (`FEATURE_DIR`, `AVAILABLE_DOCS`) matching `check-prerequisites.sh` output format
+- **FR-037**: `sl spec create` MUST handle branch naming (stop-word filtering, GitHub 244-byte limit), branch number generation, git branch creation, spec dir + template copy
+- **FR-038**: `sl context update` MUST parse plan.md and update agent context files for 17+ agent formats (Claude, Gemini, Copilot, Cursor, etc.)
+- **FR-039**: All new `sl spec` / `sl context` commands MUST support `--json` flag for machine-readable output consumed by AI command templates
+- **FR-040**: AI command templates MUST be updated to call `sl` CLI commands instead of bash scripts after CLI equivalents are implemented
 
 **Clarify + Revise (US14)**
 - **FR-033**: `/specledger.clarify` MUST detect open review comments (via `sl comment list --status open`) and offer to process them alongside spec ambiguity scanning (D4)
@@ -460,7 +532,7 @@ A developer wants a single AI command (`clarify`) that handles both spec ambigui
 
 ### Measurable Outcomes
 
-- **SC-001**: AI command count reduced from 16 to 12 (remove 6, add 2: spike + checkpoint)
+- **SC-001**: AI command count reduced from 16 to 11 (remove 7 including audit→skill, add 2: spike + checkpoint)
 - **SC-002**: Zero overlapping purposes between layers — each component has exactly one layer assignment
 - **SC-003**: Each `sl` CLI command maps to at least one established pattern (D16)
 - **SC-004**: New developers can understand the 4-layer model and core workflow in under 5 minutes of reading
