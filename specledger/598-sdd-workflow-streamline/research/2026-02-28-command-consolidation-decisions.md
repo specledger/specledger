@@ -478,6 +478,46 @@ Checkpoint command addresses this tension directly. The session log component pr
 
 ---
 
+## D21: Token-Efficient CLI Output for Agent Consumption
+
+**Decision**: All `sl` CLI commands whose output is consumed by AI agents MUST default to compact, token-efficient output. Detail is available on demand via drill-down commands.
+
+**Context**: During plan review, production data analysis revealed that dumping full review comments with thread replies could consume 3000-5000 tokens for a spec with 25 comments. The same overview in compact format costs ~500 tokens. Since AI commands run inside agent context windows with finite budgets, verbose defaults waste context on data the agent may never need.
+
+**Rules**:
+
+| Rule | Description | Example |
+|------|-------------|---------|
+| **List = compact** | List commands produce scannable overviews with truncated previews | `sl comment list` → `content_preview` (120 chars), `reply_count` (int) |
+| **Show = full** | Detail commands provide complete untruncated data | `sl comment show <id>` → full `content`, full `replies[]` |
+| **Counts replace nesting** | Nested arrays replaced with counts in list output | `reply_count: 2` instead of `replies: [{...}, {...}]` |
+| **Footer hints** | Truncated output includes follow-up instructions | `"hint": "Use 'sl comment show <id> --json' for full content"` |
+| **Warnings to stderr** | Warnings and diagnostics go to stderr, not stdout | Truncation warnings, auth warnings → stderr |
+| **Idempotent** | Running the same command twice produces identical output | No append-only growth (see R9 in research.md) |
+
+**Applies to**: `sl comment list`, `sl spec info`, `sl spec create`, `sl spec setup-plan`, `sl context update`, and all future `sl` commands consumed by AI agents.
+
+**Does NOT apply to**: Detail commands (`sl comment show`, `sl issue show`) which are explicitly intended to return full data.
+
+**Token budget targets**:
+
+| Command | Target | Rationale |
+|---------|--------|-----------|
+| `sl comment list` (25 comments) | ~500 tokens | ~20 tokens/comment (ID + file + author + previews + count) |
+| `sl comment show` (1 comment, 3 replies) | ~200 tokens | Full content + thread |
+| `sl spec info --paths-only` | ~50 tokens | Paths consumed once at command start |
+| `sl spec create` | ~30 tokens | Minimal output, warnings to stderr |
+| `sl context update` | ~15 tokens/agent | One-line status per agent file |
+
+**Agent workflow pattern** (two-level retrieval):
+```
+SCAN:  sl comment list --status open --json    → compact overview, identify targets
+DRILL: sl comment show <id1> <id2> --json      → full detail for selected comments
+ACT:   sl comment reply/resolve <id>           → mutate specific comments
+```
+
+---
+
 ## Decision Log
 
 | # | Question | Decision | Date |
@@ -502,3 +542,4 @@ Checkpoint command addresses this tension directly. The session log component pr
 | D18 | Audit → skill | `/specledger.audit` dropped as AI command, shipped as `sl-audit` skill (codebase reconnaissance is passive context, not AI workflow). Claude Code `/simplify` is complementary (PR-level code quality). | 2026-02-28 |
 | D19 | `sl skill` command | Deferred. Future command for skill discovery/install based on repo tech stack (similar to vercel-labs/skills find.ts). Depends on playbook management (D17) and webapp design. Skills embedded in CLI (sl-issue-tracking, sl-deps, sl-comment) are distinct from external skill registries. | 2026-02-28 |
 | D20 | US1 "Audit" naming | US1 is a workflow review/inventory exercise, NOT the `sl-audit` skill (which provides codebase reconnaissance context). Naming must stay distinct. Review carefully before finalizing. | 2026-02-28 |
+| D21 | Token-efficient CLI output | All `sl` commands consumed by AI agents MUST default to compact output. List = truncated previews + counts; Show = full detail on demand. Footer hints guide agents to drill-down commands. Prevents context window exhaustion. | 2026-03-01 |

@@ -37,12 +37,56 @@ type CommentThread struct {
     Replies []ReviewComment `json:"replies"`
 }
 
-// CommentListOutput is the JSON output for sl comment list.
+// CommentSummary is the compact JSON output for sl comment list (D21).
+// Previews are truncated; reply_count replaces full thread data.
+type CommentSummary struct {
+    ID                  string `json:"id"`
+    FilePath            string `json:"file_path"`
+    ContentPreview      string `json:"content_preview"`       // First 120 chars
+    SelectedTextPreview string `json:"selected_text_preview"` // First 80 chars
+    AuthorName          string `json:"author_name"`
+    ReplyCount          int    `json:"reply_count"`
+    IsResolved          bool   `json:"is_resolved"`
+    CreatedAt           string `json:"created_at"`
+}
+
+// CommentListOutput is the JSON output for sl comment list (compact).
 type CommentListOutput struct {
     SpecKey    string           `json:"spec_key"`
     ChangeID   string           `json:"change_id"`
-    Comments   []CommentThread  `json:"comments"`
+    Comments   []CommentSummary `json:"comments"`
     TotalCount int              `json:"total_count"`
+    Hint       string           `json:"hint"` // Follow-up instruction for agents
+}
+
+// CommentDetail is the full JSON output for sl comment show.
+// Includes complete content, full thread replies — no truncation.
+type CommentDetail struct {
+    ID              string         `json:"id"`
+    FilePath        string         `json:"file_path"`
+    Content         string         `json:"content"`
+    SelectedText    *string        `json:"selected_text"`
+    Line            *int           `json:"line"`
+    StartLine       *int           `json:"start_line"`
+    IsResolved      bool           `json:"is_resolved"`
+    AuthorName      *string        `json:"author_name"`
+    AuthorEmail     *string        `json:"author_email"`
+    IsAIGenerated   *bool          `json:"is_ai_generated"`
+    CreatedAt       string         `json:"created_at"`
+    Replies         []ReplyDetail  `json:"replies"`
+}
+
+// ReplyDetail is a single reply in sl comment show output.
+type ReplyDetail struct {
+    ID         string `json:"id"`
+    Content    string `json:"content"`
+    AuthorName string `json:"author_name"`
+    CreatedAt  string `json:"created_at"`
+}
+
+// CommentShowOutput is the JSON output for sl comment show.
+type CommentShowOutput struct {
+    Comments []CommentDetail `json:"comments"`
 }
 
 // CommentReplyInput is the input for sl comment reply.

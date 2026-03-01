@@ -13,6 +13,8 @@ Streamline the SDD workflow across two work streams:
 
 Both streams are independent and can be implemented in parallel.
 
+**Cross-cutting principle (D21)**: All `sl` CLI commands MUST produce token-efficient output. List commands default to compact overviews (truncated previews, counts instead of nested data). Detail commands (`show`) provide full content on demand. Every truncated output includes a follow-up hint for agents. See contracts for specifics.
+
 ## Technical Context
 
 **Language/Version**: Go 1.24.2
@@ -135,9 +137,11 @@ pkg/embedded/skills/             # MODIFIED
 **Phase 2: Implement `sl comment` CLI**
 1. Create `pkg/cli/commands/comment.go` with subcommands: list, show, reply, resolve
 2. Wire `sl comment` into `cmd/sl/main.go`
-3. Implement human-readable output (grouped by file_path, threaded)
-4. Implement `--json` output matching contract
-5. Implement `--status` filter (open/resolved/all)
+3. Implement `list` with **compact output** (D21): truncated previews, reply counts, follow-up hints
+4. Implement `show` with **full output**: complete content, full thread replies, action hints
+5. `show` accepts multiple IDs for batch drill-down
+6. Implement `--json` output matching contract (compact for list, full for show)
+7. Implement `--status` filter (open/resolved/all)
 
 **Phase 3: Create `sl-comment` skill**
 1. Create `pkg/embedded/skills/sl-comment.md` following `sl-issue-tracking` pattern
@@ -213,11 +217,18 @@ The `sl-comment` skill follows the same pattern as `sl-issue-tracking`:
 
 Changes to `/specledger.clarify`:
 1. **Step 2**: Replace `sl revise --summary` → `sl comment list --status open --json`
-2. **Comment processing**: After each clarification that addresses a comment:
+   - Agent receives compact overview (~20 tokens/comment): IDs, file paths, content previews, reply counts
+   - Agent identifies which comments relate to spec ambiguities from previews
+2. **Step 2b** (new): For comments the agent will process, drill down:
+   - `sl comment show <id1> <id2> --json` — batch fetch full content + thread context
+   - Agent now has complete feedback text and thread discussion for reasoning
+3. **Comment processing**: After each clarification that addresses a comment:
    - `sl comment reply <id> --content "Addressed: <explanation>"`
    - `sl comment resolve <id> --reason "Resolved via clarify session"`
-3. **Skill loading**: Reference to `sl comment` triggers `sl-comment` skill injection
-4. **Backward compat**: If `sl comment` not available, skip silently (same as current `sl revise --summary` behavior)
+4. **Skill loading**: Reference to `sl comment` triggers `sl-comment` skill injection
+5. **Backward compat**: If `sl comment` not available, skip silently (same as current `sl revise --summary` behavior)
+
+**Token efficiency**: The two-level retrieval (list overview → show detail) means the agent only pays the full context cost for comments it actually processes. A spec with 25 comments costs ~500 tokens to scan, then ~200 tokens per comment drilled into, vs ~3000-5000 tokens for a verbose dump of all 25.
 
 ## Complexity Tracking
 
