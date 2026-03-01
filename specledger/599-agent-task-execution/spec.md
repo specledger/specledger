@@ -5,6 +5,14 @@
 **Status**: Draft
 **Input**: User description: "Create a service to execute spec tasks for SpecLedger users via AI agents (Goose), authenticated with Supabase tokens, inspired by Stripe's minions architecture"
 
+## Clarifications
+
+### Session 2026-03-01
+
+- Q: How should the agent organize its git commits? → A: Single branch per run — all tasks commit sequentially to the spec's feature branch (e.g., `599-agent-task-execution`). No new branches are created per task.
+- Q: How should the system verify a task is successfully completed? → A: Exit code (0) + Definition of Done checklist verification for individual tasks. Human review is required for the final merge (not per-task auto-close to main). Some tasks with manual verification steps trigger a confirmation message via bot to a human reviewer. Test infrastructure is not yet available — DoD abstracts test requirements and will integrate when available.
+- Q: What scope should `sl agent run` target by default? → A: Auto-detect spec context from the current git branch name, consistent with other `sl` commands. Allow `--spec` flag to override.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Local Agent Task Pickup (Priority: P1)
@@ -74,10 +82,11 @@ A developer wants to customize how the agent executes tasks — specifying which
 ### Edge Cases
 
 - What happens when a task has circular dependencies (T1 blocks T2, T2 blocks T1)? System detects the cycle and reports it as an error, skipping both tasks.
-- What happens when the agent modifies files that conflict with another concurrent agent's changes? In MVP (single local agent), this is avoided by sequential execution. For cloud parallel mode, each agent works on an isolated git branch/worktree.
+- What happens when the agent modifies files that conflict with another concurrent agent's changes? In MVP (single local agent), this is avoided by sequential execution on the spec's feature branch. For cloud parallel mode, each agent works on an isolated git worktree of the same branch.
 - What happens when the Goose process crashes mid-task? The task remains in `in_progress` status. On the next `sl agent run`, the system detects stale in-progress tasks and offers to retry or skip them.
 - What happens when the user's LLM provider rate-limits the agent? The system respects Goose's built-in retry and backoff behavior. If the provider remains unavailable, the task is paused with an appropriate error message.
-- What happens when a task's definition of done includes manual verification steps? The agent marks the task as `needs_review` instead of `closed`, flagging it for human verification.
+- What happens when a task's definition of done includes manual verification steps? The agent marks the task as `needs_review` instead of `closed` and sends a confirmation message via bot to the designated human reviewer.
+- What happens when all tasks in a run are completed? The system produces a summary and the spec branch remains ready for human-reviewed merge to main — no auto-merge occurs.
 
 ## Requirements *(mandatory)*
 
@@ -88,7 +97,7 @@ A developer wants to customize how the agent executes tasks — specifying which
 - **FR-003**: System MUST resolve task dependencies using `blocked_by` and `blocks` fields, executing tasks only when all their blockers are completed.
 - **FR-004**: System MUST construct an execution context for each task containing: task title, description, acceptance criteria, definition of done, design notes, and relevant repository file paths.
 - **FR-005**: System MUST launch a Goose agent session with the constructed execution context, passing it as an instruction to `goose run`.
-- **FR-006**: System MUST update task status in the JSONL store as execution progresses: `open` → `in_progress` → `closed` (or back to `open` on failure).
+- **FR-006**: System MUST update task status in the JSONL store as execution progresses: `open` → `in_progress` → `closed` (or `needs_review` for tasks requiring manual verification, or back to `open` on failure). Completion requires Goose exit code 0 AND all Definition of Done checklist items addressed.
 - **FR-007**: System MUST capture and store agent execution logs for each task, accessible via `sl agent status` or `sl agent logs <task-id>`.
 - **FR-008**: System MUST verify Goose is installed and accessible before attempting task execution, providing clear installation guidance if missing.
 - **FR-009**: System MUST support headless execution mode (no interactive prompts) for cloud/CI environments via `--headless` flag.
@@ -96,6 +105,10 @@ A developer wants to customize how the agent executes tasks — specifying which
 - **FR-011**: System MUST support executing a single specific task via `sl agent run --task <task-id>` in addition to automatic task pickup.
 - **FR-012**: System MUST prevent concurrent execution of the same task by using a locking mechanism (file lock or status-based claim).
 - **FR-013**: System MUST support stopping a running agent gracefully via `sl agent stop`, allowing the current Goose session to complete its turn before terminating.
+- **FR-014**: System MUST auto-detect the target spec context from the current git branch name (e.g., `599-agent-task-execution` → `specledger/599-agent-task-execution/`), with a `--spec` flag to override.
+- **FR-015**: System MUST commit all agent work to the spec's feature branch (the current branch). No per-task branches are created.
+- **FR-016**: System MUST send a notification via bot to a designated reviewer when a task is marked `needs_review` due to manual verification steps in its Definition of Done.
+- **FR-017**: System MUST NOT auto-merge the spec branch to main. Final merge requires human review.
 
 ### Key Entities
 
@@ -137,4 +150,6 @@ A developer wants to customize how the agent executes tasks — specifying which
 - The repository is in a clean git state (no uncommitted changes) before agent execution begins.
 - For MVP, tasks are executed sequentially (one at a time) on the local machine. Parallel execution is a P3 enhancement for cloud environments.
 - Goose's `goose run` CLI command is the primary integration point — SpecLedger does not embed or fork the Goose runtime.
-- Agent execution creates commits on a feature branch, not directly on main.
+- Agent execution creates commits on the spec's feature branch (the current branch), not directly on main. No per-task branches are created.
+- Final merge to main always requires human review — the agent never auto-merges.
+- Test infrastructure is not yet available. Definition of Done checklist abstracts test requirements; test runner integration will be added when infrastructure exists.
