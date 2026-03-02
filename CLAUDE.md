@@ -51,6 +51,8 @@ make install        # Install sl to $GOBIN
 - File-based JSONL at `specledger/<spec>/issues.jsonl` (597-issue-create-fields)
 - Go 1.24.2 + Cobra (CLI), go-git v5, YAML v3, Supabase (GoTrue, PostgREST) (597-issue-create-fields)
 - File-based JSONL for issues (597-issue-create-fields)
+- Go 1.24.2 + Cobra (CLI), gofrs/flock (file locking), go-git v5 (git operations), gopkg.in/yaml.v3 (config) (599-agent-task-execution)
+- File-based — JSONL for issues (existing), JSON for agent run metadata, log files for output capture (599-agent-task-execution)
 
 ## Recent Changes
 - 597-issue-create-fields: Added Go 1.24.2 + Cobra (CLI), YAML v3 (config), JSONL (storage)
