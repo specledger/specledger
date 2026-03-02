@@ -6,17 +6,16 @@
 
 From 598-sdd-workflow-streamline spec, the following consolidation decisions were made:
 
-### AI Commands: Remove (7)
+### AI Commands: Remove (6)
 
-| Command | Fate | Rationale |
-|---------|------|-----------|
-| `resume` | Remove | Duplicate of `implement` |
-| `help` | Remove | Absorbed by `onboard` |
-| `adopt` | Remove | Replaced by context detection (D9) |
-| `add-deps` | Remove | Agent calls `sl deps` CLI directly |
-| `remove-deps` | Remove | Agent calls `sl deps` CLI directly |
-| `revise` | Remove | Absorbed by `clarify`; CLI launcher remains |
-| `audit` | Convert to skill | `sl-audit` skill for codebase reconnaissance |
+| Command | Rationale | Absorbed By |
+|---------|-----------|-------------|
+| `resume` | Duplicate of `implement` | implement |
+| `help` | Absorbed by `onboard` | onboard |
+| `adopt` | Replaced by context detection (D9) | — |
+| `add-deps` | Agent calls `sl deps` CLI directly | — |
+| `remove-deps` | Agent calls `sl deps` CLI directly | — |
+| `revise` | Absorbed by `clarify` | clarify |
 
 ### AI Commands: Rename (1)
 
@@ -24,18 +23,62 @@ From 598-sdd-workflow-streamline spec, the following consolidation decisions wer
 |-----|-----|-----------|
 | `analyze` | `verify` | OpenSpec terminology alignment |
 
-### AI Commands: Add (2)
+### AI Commands: Convert to Skill (1)
 
-| Command | Purpose |
-|---------|---------|
-| `spike` | Exploratory research documents |
-| `checkpoint` | Session capture verification |
+| Command | Becomes | Rationale |
+|---------|---------|-----------|
+| `audit` | `sl-audit` skill | Codebase reconnaissance is passive context, not workflow orchestration |
 
 ### Final AI Command Count
 
 - **Before**: 16 commands
-- **After**: 11 commands (remove 7, add 2)
+- **After**: 11 commands (remove 6, rename 1, convert 1)
 - **Per 598 SC-001**: "AI command count reduced from 16 to 11"
+
+---
+
+## Merge Analysis
+
+### resume → implement
+
+**Resume content to merge**:
+- Check for in-progress tasks
+- Continue from last checkpoint
+- Update notes field with progress
+
+**Implement changes needed**:
+- Add "Resume or Start Fresh" section at start
+- Check `sl issue list --status in_progress` for current spec
+- If found, prompt to resume
+
+### help → onboard
+
+**Help content to merge**:
+- Command overview list
+- Core workflow description
+- Quick reference
+
+**Onboard changes needed**:
+- Add "Command Overview" section after workflow intro
+- List all commands with one-line descriptions
+- Keep onboarding flow as primary purpose
+
+### revise → clarify
+
+**Revise content to merge**:
+- Fetch open comments via `sl comment list`
+- Process each comment
+- Reply and resolve via `sl comment reply`/`sl comment resolve`
+
+**Clarify changes needed**:
+- Add comment processing after ambiguity scan
+- Replace `sl revise --summary` with `sl comment list --status open --json`
+- Add `sl comment reply` and `sl comment resolve` instructions
+- Note: Depends on 598 Stream 1 (`sl comment` CLI)
+
+---
+
+## Layer Architecture Analysis
 
 ---
 

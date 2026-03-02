@@ -7,31 +7,30 @@
 
 ## Overview
 
-Standardize and align AI skills, AI commands, and CLI patterns across the SDD workflow to reduce overlapping responsibilities and ensure consistent layer interactions.
-
-**Scope Note**: This is **Stream 1** of a 3-stream alignment effort:
+Consolidate AI commands from 16 to 11 by removing redundant commands, renaming for clarity, and converting audit to a skill. This is **Stream 1** of a 3-stream alignment effort.
 
 | Stream | Focus | Feature | Status |
 |--------|-------|---------|--------|
-| **1** | AI skills/commands/CLI alignment | 599-alignment | **This spec** |
+| **1** | AI command consolidation | 599-alignment | **This spec** |
 | 2 | Bash script → Go CLI migration | TBD | Planned |
 | 3 | New CLI + skills (comment, checkpoint, research) | TBD | Future |
 
-**Stream 1 Scope** (this spec):
-- Layer responsibility documentation
-- Overlap audit of existing commands/skills
-- AI command and skill templates
-- Cross-layer interaction patterns
+**Stream 1 Scope** (this spec - code changes):
+- Remove 6 redundant AI commands
+- Rename 1 command (analyze → verify)
+- Convert 1 command to skill (audit → sl-audit)
+- Update 3 commands to absorb removed functionality
 
-**Stream 2 Scope** (TBD):
-- Replace bash scripts with Go CLI commands
-- `sl spec info/create/setup-plan`
-- `sl context update`
+**Consolidation Summary** (from 598):
 
-**Stream 3 Scope** (TBD):
-- `sl comment` CLI + skill
-- `sl checkpoint` CLI + skill
-- `sl research` CLI + skill
+| Action | Count | Commands |
+|--------|-------|----------|
+| **KEEP** | 8 | specify, tasks, checklist, implement, clarify, plan, onboard, constitution |
+| **REMOVE** | 6 | resume, help, adopt, add-deps, remove-deps, revise |
+| **RENAME** | 1 | analyze → verify |
+| **→ SKILL** | 1 | audit → sl-audit skill |
+
+**Final count**: 16 → 11 commands
 
 **Layer Architecture** (from 598):
 | Layer | Name | Runtime | Purpose |
@@ -41,99 +40,111 @@ Standardize and align AI skills, AI commands, and CLI patterns across the SDD wo
 | 2 | AI Commands | Agent shell prompts | AI workflow orchestration (specify→implement) |
 | 3 | Skills | Passive context injection | Domain knowledge, progressively loaded |
 
-**Core Problem**: Overlapping responsibilities between layers cause confusion:
-- AI commands (L2) contain business logic that belongs in CLI (L1)
-- Skills (L3) duplicate information already in CLI help text
-- Inconsistent patterns across commands increase cognitive load
-- No clear boundaries between what's CLI vs. AI command responsibility
-
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Define Layer Responsibilities (Priority: P1)
+### User Story 1 - Remove Redundant Commands (Priority: P1)
 
-As a SpecLedger maintainer, I need clear documentation of what belongs in each layer (CLI vs. AI Commands vs. Skills) so that future development follows consistent patterns.
+As a SpecLedger user, I want redundant AI commands removed so that the command set is smaller and easier to navigate.
 
-**Why this priority**: Without clear boundaries, layers become entangled and maintenance burden increases.
+**Why this priority**: Reduces maintenance burden and user confusion immediately.
 
-**Independent Test**: Review layer responsibility doc; verify it provides decision criteria for "should this go in CLI or AI command?"
+**Independent Test**: Run `ls .claude/commands/` and verify 6 fewer files.
 
 **Acceptance Scenarios**:
 
-1. **Given** a new feature idea, **When** applying layer decision criteria, **Then** it's clear whether it belongs in L1 (CLI), L2 (AI Command), or L3 (Skill)
-2. **Given** existing overlapping functionality, **When** reviewing layer doc, **Then** it's clear which layer owns it
-3. **Given** the CLI constitution (from 598), **When** layer doc is created, **Then** it references and extends CLI patterns
+1. **Given** `.claude/commands/`, **When** consolidation complete, **Then** `resume.md` is deleted (merged into implement)
+2. **Given** `.claude/commands/`, **When** consolidation complete, **Then** `help.md` is deleted (merged into onboard)
+3. **Given** `.claude/commands/`, **When** consolidation complete, **Then** `adopt.md` is deleted (context detection replaces)
+4. **Given** `.claude/commands/`, **When** consolidation complete, **Then** `add-deps.md` and `remove-deps.md` are deleted (agent calls `sl deps` directly)
+5. **Given** `.claude/commands/`, **When** consolidation complete, **Then** `revise.md` is deleted (absorbed by clarify)
 
 ---
 
-### User Story 2 - Audit Existing Overlaps (Priority: P1)
+### User Story 2 - Rename Analyze to Verify (Priority: P1)
 
-As a SpecLedger maintainer, I need an audit of where AI commands and skills duplicate CLI functionality so that I can identify consolidation opportunities.
+As a SpecLedger user, I want the `analyze` command renamed to `verify` to align with OpenSpec terminology.
 
-**Why this priority**: Cannot reduce overlap without first identifying where it exists.
+**Why this priority**: Terminology alignment improves discoverability.
 
-**Independent Test**: Review audit output; verify it lists specific files/functions with overlap classification.
+**Independent Test**: Run `/specledger.verify` and verify it works; verify `/specledger.analyze` does not exist.
 
 **Acceptance Scenarios**:
 
-1. **Given** all AI command files, **When** audited, **Then** each file is classified: pure-orchestration / has-business-logic / duplicates-CLI
-2. **Given** all skill files, **When** audited, **Then** each skill is classified: unique-knowledge / duplicates-help / outdated
-3. **Given** the audit report, **When** reviewed, **Then** it provides actionable recommendations (keep/merge/remove) for each item
+1. **Given** `specledger.analyze.md`, **When** renamed, **Then** file is `specledger.verify.md`
+2. **Given** the verify command, **When** description reads, **Then** it notes successor to analyze
+3. **Given** users familiar with SpecKit, **When** looking for analyze, **Then** documentation notes verify is successor
 
 ---
 
-### User Story 3 - Standardize AI Command Patterns (Priority: P2)
+### User Story 3 - Convert Audit to Skill (Priority: P1)
 
-As an AI agent developer, I need AI commands to follow a consistent structure so that I can easily understand and modify any command.
+As a SpecLedger user, I want codebase audit as a skill (not AI command) since it provides passive context, not workflow orchestration.
 
-**Why this priority**: Consistency reduces cognitive load; P2 because commands work today but are hard to maintain.
+**Why this priority**: Proper layer placement - audit is reconnaissance context, not multi-step workflow.
 
-**Independent Test**: Compare 3 AI command files; verify they follow the same structural template.
+**Independent Test**: Load `sl-audit` skill; verify it provides audit patterns without being an AI command.
 
 **Acceptance Scenarios**:
 
-1. **Given** an AI command file, **When** reading it, **Then** it follows the standard sections: Purpose, When to Use, Outline, Behavior Rules
-2. **Given** multiple AI commands, **When** comparing them, **Then** they use consistent terminology for CLI invocations
-3. **Given** an AI command that calls CLI, **When** reviewing the call pattern, **Then** it uses `--json` for structured data and documents expected output
+1. **Given** `specledger.audit.md`, **When** converted, **Then** skill exists at `skills/sl-audit/skill.md`
+2. **Given** the sl-audit skill, **When** loaded, **Then** it provides codebase reconnaissance patterns
+3. **Given** `.claude/commands/`, **When** conversion complete, **Then** `specledger.audit.md` is deleted
 
 ---
 
-### User Story 4 - Standardize Skill Patterns (Priority: P2)
+### User Story 4 - Update Implement to Absorb Resume (Priority: P2)
 
-As a skill author, I need a template for what skills should contain so that skills are focused on domain knowledge, not CLI documentation.
+As a SpecLedger user, I want `implement` to handle resumption so I don't need a separate `resume` command.
 
-**Why this priority**: Skills currently mix domain knowledge with CLI syntax; separating them improves maintainability.
+**Why this priority**: Consolidates related functionality; implement already handles task execution.
 
-**Independent Test**: Review existing skills against template; verify they focus on "when to use" not "how to use".
+**Independent Test**: Start implementation, exit, run `/specledger.implement` again; verify it resumes correctly.
 
 **Acceptance Scenarios**:
 
-1. **Given** the skill template, **When** authoring a new skill, **Then** it contains: When to Load, Key Concepts, Decision Patterns, CLI Reference (link only)
-2. **Given** an existing skill, **When** reviewing against template, **Then** CLI syntax examples are minimal or delegated to `--help`
-3. **Given** skills reference CLI commands, **When** CLI changes, **Then** skill updates are minimal (no embedded syntax to update)
+1. **Given** `specledger.implement.md`, **When** updated, **Then** it checks for in-progress tasks and resumes
+2. **Given** an in-progress task, **When** implement runs, **Then** it continues from last checkpoint
+3. **Given** the implement command, **When** reading, **Then** it has explicit resume behavior documented
 
 ---
 
-### User Story 5 - Document Cross-Layer Interactions (Priority: P3)
+### User Story 5 - Update Onboard to Absorb Help (Priority: P2)
 
-As a developer, I need examples of how layers should interact so that I understand the launcher pattern and data flow.
+As a SpecLedger user, I want `onboard` to include help information so I don't need a separate `help` command.
 
-**Why this priority**: Helps new contributors understand architecture; P3 because code works today.
+**Why this priority**: Onboarding is the natural place for workflow overview and command discovery.
 
-**Independent Test**: Review interaction doc; verify it shows L2→L1 call patterns with examples.
+**Independent Test**: Run `/specledger.onboard`; verify it includes command overview previously in help.
 
 **Acceptance Scenarios**:
 
-1. **Given** the interaction doc, **When** reading it, **Then** it shows the launcher pattern (AI command → CLI → parse output)
-2. **Given** the interaction doc, **When** reading it, **Then** it shows the skill loading trigger pattern
-3. **Given** the interaction doc, **When** reading it, **Then** it documents L1→L0 (CLI configures hooks) convenience patterns
+1. **Given** `specledger.onboard.md`, **When** updated, **Then** it includes command overview section
+2. **Given** the onboard command, **When** running, **Then** it shows available commands with descriptions
+3. **Given** the onboard command, **When** complete, **Then** user knows core workflow and available commands
+
+---
+
+### User Story 6 - Update Clarify to Absorb Revise (Priority: P2)
+
+As a SpecLedger user, I want `clarify` to handle review comments so I don't need a separate `revise` command.
+
+**Why this priority**: Comment processing belongs with spec refinement; clarify is the single command for spec updates.
+
+**Independent Test**: Run `/specledger.clarify` with open comments; verify it processes them.
+
+**Acceptance Scenarios**:
+
+1. **Given** `specledger.clarify.md`, **When** updated, **Then** it fetches open comments via `sl comment list`
+2. **Given** open comments, **When** clarify runs, **Then** it processes each comment and replies/resolves
+3. **Given** the clarify command, **When** reading, **Then** it has comment processing section
 
 ---
 
 ### Edge Cases
 
-- What if an AI command has business logic that can't move to CLI? → Document as exception with justification
-- What if a skill needs CLI syntax examples for clarity? → Keep minimal, link to `--help` for full syntax
-- What if layers have legitimate shared concerns? → Document in both places with DRY principle noted
+- What if user has muscle memory for old commands? → Document migration path in AGENTS.md
+- What about external docs referencing removed commands? → Add deprecation notices, update docs
+- What if removed commands had unique functionality? → Verify all functionality is absorbed before deletion
 
 ---
 
@@ -141,44 +152,43 @@ As a developer, I need examples of how layers should interact so that I understa
 
 ### Session 2026-03-02
 
-- Q: What is the scope of this feature? → A: Stream 1 only - AI skills/commands/CLI alignment. Stream 2 (bash migration) in 598, Stream 3 (new CLI/skills) in future features.
+- Q: What is the scope of this feature? → A: Stream 1 only - AI command consolidation (code changes)
+- Q: Should output be documentation or code? → A: Code changes - remove/rename/convert/update AI commands
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: Layer responsibility document MUST be created with clear decision criteria for L1/L2/L3 placement
-- **FR-002**: Audit report MUST classify all existing AI commands and skills by overlap status
-- **FR-003**: AI command template MUST be defined with standard sections (Purpose, When to Use, Outline, Behavior Rules)
-- **FR-004**: Skill template MUST be defined focusing on domain knowledge, not CLI syntax duplication
-- **FR-005**: Cross-layer interaction patterns MUST be documented with examples
-- **FR-006**: All AI commands MUST use `--json` for CLI data retrieval (not parsing human output)
-- **FR-007**: Skills MUST link to CLI `--help` for syntax rather than duplicating it
-- **FR-008**: Layer responsibility document MUST reference and extend CLI constitution from 598
+- **FR-001**: 6 AI commands MUST be deleted: resume, help, adopt, add-deps, remove-deps, revise
+- **FR-002**: `specledger.analyze.md` MUST be renamed to `specledger.verify.md`
+- **FR-003**: `specledger.audit.md` MUST be converted to `skills/sl-audit/skill.md`
+- **FR-004**: `specledger.implement.md` MUST be updated to absorb resume functionality
+- **FR-005**: `specledger.onboard.md` MUST be updated to absorb help functionality
+- **FR-006**: `specledger.clarify.md` MUST be updated to absorb revise functionality
+- **FR-007**: Final command count MUST be 11 (down from 16)
 
 ### Key Entities
 
-- **Layer Responsibility Doc**: Document defining what belongs in L0 (Hooks), L1 (CLI), L2 (AI Commands), L3 (Skills) with decision criteria
-- **Overlap Audit**: Report classifying existing commands/skills by overlap status and recommending actions
-- **AI Command Template**: Standard structure for `.claude/commands/*.md` files
-- **Skill Template**: Standard structure for skill markdown files focusing on domain knowledge
+- **AI Command**: Markdown file in `.claude/commands/` that orchestrates AI workflows
+- **Skill**: Markdown file in `skills/` that provides passive domain knowledge
+- **Consolidation**: Process of removing, renaming, or converting commands to reduce redundancy
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: Layer responsibility document exists with decision criteria for L1/L2/L3 placement
-- **SC-002**: Audit report covers 100% of AI commands (`.claude/commands/*.md`) with classification
-- **SC-003**: Audit report covers 100% of skills with classification
-- **SC-004**: AI command template defined and documented
-- **SC-005**: Skill template defined and documented
-- **SC-006**: Cross-layer interaction examples documented for L2→L1 and L3 loading patterns
+- **SC-001**: 6 command files deleted from `.claude/commands/`
+- **SC-002**: 1 command file renamed (analyze → verify)
+- **SC-003**: 1 skill created (`sl-audit`), 1 command deleted (audit)
+- **SC-004**: 3 commands updated (implement, onboard, clarify)
+- **SC-005**: Final command count is 11
+- **SC-006**: All removed functionality is absorbed by remaining commands
 
 ### Previous work
 
 ### Epic: 598 - SDD Workflow Streamline
 
-- **CLI Constitution**: Patterns for `sl` CLI commands (Data CRUD, token-efficient output, etc.)
+- **Consolidation Decisions**: Remove 7, rename 1, convert 1 (audit → skill)
 - **Layer Architecture**: Four-layer model (Hooks, CLI, AI Commands, Skills)
 - **Launcher Pattern**: AI commands invoke CLI, parse JSON output
 
@@ -186,18 +196,17 @@ As a developer, I need examples of how layers should interact so that I understa
 
 ### Dependencies
 
-- **598-sdd-workflow-streamline**: Layer architecture and CLI constitution defined in 598 provide foundation for this alignment work.
+- **598-sdd-workflow-streamline**: Consolidation decisions from 598 spec define what to remove/rename/convert
 
 ### Assumptions
 
-- CLI constitution from 598 is stable and can be extended
-- Existing AI commands and skills can be audited without modifying them
-- Templates are documentation-only (no code generation required)
+- All functionality in removed commands can be absorbed by remaining commands
+- Users will be notified of command removal via documentation
+- `sl deps` CLI exists for dependency management (replacing add-deps/remove-deps)
 
 ## Out of Scope
 
 - **Stream 2** (TBD): Bash script → Go CLI migration - `sl spec info/create/setup-plan`, `sl context update`
 - **Stream 3** (TBD): New CLI commands and skills - `sl comment`, `sl checkpoint`, `sl research`
-- Modifying existing AI commands or skills (audit only)
+- Changes to CLI binary (`sl`)
 - Changes to the core SDD workflow (specify→clarify→plan→tasks→implement is immutable)
-- Code implementation - this is a documentation/audit feature
