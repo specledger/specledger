@@ -51,6 +51,8 @@ make install        # Install sl to $GOBIN
 - File-based JSONL at `specledger/<spec>/issues.jsonl` (597-issue-create-fields)
 - Go 1.24.2 + Cobra (CLI), go-git v5, YAML v3, Supabase (GoTrue, PostgREST) (597-issue-create-fields)
 - File-based JSONL for issues (597-issue-create-fields)
+- Go 1.24.2 + Cobra (CLI), go-git v5 (git), Bubble Tea + Bubbles + Lipgloss (TUI), YAML v3 (config) (598-sdd-workflow-streamline)
+- Supabase PostgREST (review_comments table), file-based (JSONL for issues, YAML for config) (598-sdd-workflow-streamline)
 
 ## Recent Changes
 - 597-issue-create-fields: Added Go 1.24.2 + Cobra (CLI), YAML v3 (config), JSONL (storage)

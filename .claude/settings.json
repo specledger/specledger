@@ -1,15 +1,3 @@
 {
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "sl session capture"
-          }
-        ]
-      }
-    ]
-  }
+  "hooks": {}
 }
