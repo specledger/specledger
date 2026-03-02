@@ -61,6 +61,7 @@ func init() {
 	rootCmd.AddCommand(commands.VarIssueCmd)
 	rootCmd.AddCommand(commands.VarReviseCmd)
 	rootCmd.AddCommand(commands.VarConfigCmd)
+	rootCmd.AddCommand(commands.VarSpecCmd)
 
 	// Add version command
 	rootCmd.AddCommand(&cobra.Command{
