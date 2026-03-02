@@ -55,6 +55,7 @@ make install        # Install sl to $GOBIN
 - Supabase PostgREST (review_comments table), file-based (JSONL for issues, YAML for config) (598-sdd-workflow-streamline)
 - N/A (documentation-only feature) + Markdown, existing `.claude/commands/` and `pkg/embedded/skills/` files (599-alignment)
 - Git (version-controlled documentation) (599-alignment)
+- Go 1.24.2 + Cobra (CLI), go-git/v5 (git operations), YAML v3 (config), encoding/json (600-bash-cli-migration)
 
 ## Recent Changes
 - 597-issue-create-fields: Added Go 1.24.2 + Cobra (CLI), YAML v3 (config), JSONL (storage)
