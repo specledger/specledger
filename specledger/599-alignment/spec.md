@@ -7,7 +7,7 @@
 
 ## Overview
 
-Consolidate AI commands from 16 to 11 by removing redundant commands, renaming for clarity, and converting audit to a skill. This is **Stream 1** of a 3-stream alignment effort.
+Consolidate AI commands from 15 to 9 by removing redundant commands, renaming for clarity, and converting audit to a skill. This is **Stream 1** of a 3-stream alignment effort.
 
 | Stream | Focus | Feature | Status |
 |--------|-------|---------|--------|
@@ -26,11 +26,11 @@ Consolidate AI commands from 16 to 11 by removing redundant commands, renaming f
 | Action | Count | Commands |
 |--------|-------|----------|
 | **KEEP** | 8 | specify, tasks, checklist, implement, clarify, plan, onboard, constitution |
-| **REMOVE** | 6 | resume, help, adopt, add-deps, remove-deps, revise |
+| **REMOVE** | 6 | resume, help, adopt, add-deps, remove-deps, revise (pre-deleted) |
 | **RENAME** | 1 | analyze → verify |
 | **→ SKILL** | 1 | audit → sl-audit skill |
 
-**Final count**: 16 → 11 commands
+**Final count**: 15 → 9 commands (revise.md was pre-deleted in commit 773a293)
 
 **Layer Architecture** (from 598):
 | Layer | Name | Runtime | Purpose |
@@ -165,7 +165,7 @@ As a SpecLedger user, I want `clarify` to handle review comments so I don't need
 - **FR-004**: `specledger.implement.md` MUST be updated to absorb resume functionality
 - **FR-005**: `specledger.onboard.md` MUST be updated to absorb help functionality
 - **FR-006**: `specledger.clarify.md` MUST be updated to absorb revise functionality
-- **FR-007**: Final command count MUST be 11 (down from 16)
+- **FR-007**: Final command count MUST be 9 (down from 15)
 
 ### Key Entities
 
@@ -181,7 +181,7 @@ As a SpecLedger user, I want `clarify` to handle review comments so I don't need
 - **SC-002**: 1 command file renamed (analyze → verify)
 - **SC-003**: 1 skill created (`sl-audit`), 1 command deleted (audit)
 - **SC-004**: 3 commands updated (implement, onboard, clarify)
-- **SC-005**: Final command count is 11
+- **SC-005**: Final command count is 9
 - **SC-006**: All removed functionality is absorbed by remaining commands
 
 ### Previous work
