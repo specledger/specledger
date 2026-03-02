@@ -30,8 +30,6 @@ SL-6cf43d (Epic: SDD Layer Alignment)
 │   └── SL-804592 Add resume logic to implement
 ├── SL-a035df (US5: Update Onboard) [P2]
 │   └── SL-0d634a Add command overview to onboard
-└── SL-29dfd9 (US6: Update Clarify) [P2]
-    └── SL-8e9e49 Add comment processing to clarify
 ```
 
 ## Execution Phases
@@ -74,31 +72,29 @@ SL-6cf43d (Epic: SDD Layer Alignment)
 
 **Independent Test**: `skills/sl-audit/skill.md` exists, `specledger.audit.md` does not
 
-### Phase 4-6: Update Commands (US4, US5, US6) [P2]
+### Phase 4-5: Update Commands (US4, US5) [P2]
 
-**Features**: SL-e06e81, SL-a035df, SL-29dfd9
+**Features**: SL-e06e81, SL-a035df
 **Depends on**: Phase 3
-**Parallel**: Yes - US4, US5, US6 can run in parallel
+**Parallel**: Yes - US4, US5 can run in parallel
 
 | Task ID | Title | Status | Dependencies |
 |---------|-------|--------|--------------|
 | SL-804592 | Add resume logic to implement | open | SL-6f5bf7 |
 | SL-0d634a | Add command overview to onboard | open | SL-265810 |
-| SL-8e9e49 | Add comment processing to clarify | open | SL-721fa7 |
 
 **Independent Tests**:
 - US4: `/specledger.implement` resumes in-progress tasks
 - US5: `/specledger.onboard` shows command overview
-- US6: `/specledger.clarify` processes review comments
 
 ## Dependency Graph
 
 ```
-Phase 1 (US1) ─┬─ SL-6f5bf7 ─────────────────────┬─► SL-804592 (US4)
-               ├─ SL-265810 ─────────────────────┼─► SL-0d634a (US5)
-               ├─ SL-284d88                       │
-               ├─ SL-91c1c7                       │
-               └─ SL-721fa7 ─────────────────────┴─► SL-8e9e49 (US6)
+Phase 1 (US1) ─┬─ SL-6f5bf7 ──────────────────────► SL-804592 (US4)
+               ├─ SL-265810 ──────────────────────► SL-0d634a (US5)
+               ├─ SL-284d88
+               ├─ SL-91c1c7
+               └─ SL-721fa7
                         │
                         ▼
                Phase 2 (US2) ── SL-00fe17 ─► SL-b802e8
@@ -143,16 +139,15 @@ sl issue show SL-6cf43d
 | SL-3137ed | audit.md deleted, Git shows removed, ls returns 11 |
 | SL-804592 | In-progress check, Resume prompt, Checkpoint logic, Behavior rules |
 | SL-0d634a | Command Overview section, Core commands, Utility commands, Descriptions |
-| SL-8e9e49 | Comment fetching, Processing logic, Reply/resolve instructions, sl revise replaced |
 
 ## Success Criteria
 
 - [ ] SC-001: 6 command files deleted from `.claude/commands/`
 - [ ] SC-002: 1 command file renamed (analyze → verify)
 - [ ] SC-003: 1 skill created (`sl-audit`), 1 command deleted (audit)
-- [ ] SC-004: 3 commands updated (implement, onboard, clarify)
-- [ ] SC-005: Final command count is 11
-- [ ] SC-006: All removed functionality is absorbed by remaining commands
+- [ ] SC-004: 2 commands updated (implement, onboard)
+- [ ] SC-005: Final command count is 9
+- [ ] SC-006: All removed functionality (except revise) is absorbed by remaining commands
 
 ## MVP Scope
 

@@ -36,21 +36,12 @@ Execution steps:
    - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
 
 2. **Fetch unresolved reviewer comments** (if available):
-   - Run `sl comment list --status open --json` from the repo root.
-   - If exit code is 0 and output is non-empty, parse the JSON output. Each comment has: `id`, `file_path`, `line`, `selected_text`, `author`, `body`.
+   - Run `sl revise --summary` from the repo root.
+   - If exit code is 0 and output is non-empty, parse the output lines. Each line represents a reviewer comment in the format: `file_path:line  "selected_text"  (author)`.
    - If exit code is non-zero or output is empty, skip this step silently.
    - Store the parsed comments as additional context for step 3 (ambiguity scan): reviewer comments are high-signal inputs — they indicate areas the spec author or reviewers found unclear, incomplete, or ambiguous. Treat each as a candidate clarification opportunity.
 
-3. **Process reviewer comments** (if any were found):
-   - For each open comment:
-     - Read the comment body and context
-     - Determine if it requires spec clarification or just a reply
-     - **For spec clarifications**: Add to the ambiguity scan queue in step 4
-     - **For simple replies**: Use `sl comment reply <comment-id> --body "Your response"` to respond
-     - **For resolved items**: Use `sl comment resolve <comment-id> --reason "Addressed in spec clarification"` to close
-   - After processing, proceed to step 4
-
-4. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
+3. Load the current spec file. Perform a structured ambiguity & coverage scan using this taxonomy. For each category, mark status: Clear / Partial / Missing. Produce an internal coverage map used for prioritization (do not output raw map unless no questions will be asked).
 
    Functional Scope & Behavior:
    - Core user goals & success criteria
@@ -106,7 +97,7 @@ Execution steps:
    - Clarification would not materially change implementation or validation strategy
    - Information is better deferred to planning phase (note internally)
 
-5. Generate (internally) a prioritized queue of candidate clarification questions (maximum 10). Apply these constraints:
+3. Generate (internally) a prioritized queue of candidate clarification questions (maximum 10). Apply these constraints:
     - Maximum of 10 total questions across the whole session.
     - Ask user questions in batches using the AskUserQuestion tool
     - Each question must be answerable with EITHER:
@@ -118,7 +109,7 @@ Execution steps:
     - Favor clarifications that reduce downstream rework risk or prevent misaligned acceptance tests.
     - If more than 5 categories remain unresolved, select the top 5 by (Impact * Uncertainty) heuristic.
 
-6. Ask the user question with the ask user question tool for their preferences with details such as:
+4. Ask the user question with the ask user question tool for their preferences with details such as:
     - For multiple‑choice questions:
        - **Analyze all options** and determine the **most suitable option** based on:
           - Best practices for the project type
@@ -138,7 +129,7 @@ Execution steps:
        - You reach maximum of 10 total asked questions.
     - If no valid questions exist at start, immediately report no critical ambiguities.
 
-7. Integration after EACH accepted answer (incremental update approach):
+5. Integration after EACH accepted answer (incremental update approach):
     - Maintain in-memory representation of the spec (loaded once at start) plus the raw file contents.
     - For the first integrated answer in this session:
        - Ensure a `## Clarifications` section exists (create it just after the highest-level contextual/overview section per the spec template if missing).
@@ -156,7 +147,7 @@ Execution steps:
     - Preserve formatting: do not reorder unrelated sections; keep heading hierarchy intact.
     - Keep each inserted clarification minimal and testable (avoid narrative drift).
 
-8. Validation (performed after EACH write plus final pass):
+6. Validation (performed after EACH write plus final pass):
    - Clarifications session contains exactly one bullet per accepted answer (no duplicates).
    - Total asked (accepted) questions ≤ 5.
    - Updated sections contain no lingering vague placeholders the new answer was meant to resolve.
@@ -164,9 +155,9 @@ Execution steps:
    - Markdown structure valid; only allowed new headings: `## Clarifications`, `### Session YYYY-MM-DD`.
    - Terminology consistency: same canonical term used across all updated sections.
 
-9. Write the updated spec back to `FEATURE_SPEC`.
+7. Write the updated spec back to `FEATURE_SPEC`.
 
-10. Report completion (after questioning loop ends or early termination):
+8. Report completion (after questioning loop ends or early termination):
    - Number of questions asked & answered.
    - Path to updated spec.
    - Sections touched (list names).

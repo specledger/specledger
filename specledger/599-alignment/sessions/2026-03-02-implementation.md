@@ -35,10 +35,10 @@ Consolidated AI commands from 15 to 9 by removing redundant commands, renaming f
 - Utility commands: constitution, checklist
 - Skills reference: sl-issue-tracking, sl-audit
 
-### Phase 6: Update Clarify (US6)
-- Replaced `sl revise --summary` with `sl comment list --status open --json`
-- Added comment processing section with reply/resolve instructions
-- Renumbered steps 3-10 after inserting new step 3
+### Phase 6: Update Clarify (US6) - DEFERRED TO STREAM 3
+- **Decision**: Deferred to Stream 3 (depends on `sl comment` CLI)
+- Reverted clarify.md changes that used `sl comment` commands
+- Clarify will be updated in Stream 3 when `sl comment` is implemented
 
 ## Files Changed
 
@@ -46,8 +46,10 @@ Consolidated AI commands from 15 to 9 by removing redundant commands, renaming f
 |--------|-------|
 | Deleted | resume.md, help.md, adopt.md, add-deps.md, remove-deps.md, audit.md |
 | Renamed | analyze.md → verify.md |
-| Updated | implement.md, onboard.md, clarify.md |
+| Updated | implement.md, onboard.md |
 | Created | sl-audit/skill.md |
+
+**Note**: clarify.md update deferred to Stream 3 (depends on `sl comment` CLI)
 
 ## Final Command Count
 
@@ -77,3 +79,4 @@ https://github.com/specledger/specledger/pull/53
 1. **Template compliance matters**: Initially missed CLI Reference and Troubleshooting sections in skill template - caught by user review
 2. **Baseline verification**: Spec assumed 16 commands but actual baseline was 15 (revise pre-deleted)
 3. **DoD verification**: `sl issue close` enforces DoD checks before allowing closure
+4. **Stream dependencies**: clarify.md update using `sl comment` was premature - `sl comment` is Stream 3, so reverted changes

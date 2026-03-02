@@ -5,11 +5,13 @@
 
 ## Summary
 
-Consolidate AI commands from 16 to 11 by:
+Consolidate AI commands from 15 to 9 by:
 1. **Remove 6 commands**: resume, help, adopt, add-deps, remove-deps, revise
 2. **Rename 1 command**: analyze → verify
 3. **Convert 1 to skill**: audit → sl-audit skill
-4. **Update 3 commands**: implement, onboard, clarify (absorb removed functionality)
+4. **Update 2 commands**: implement, onboard (absorb removed functionality)
+
+**Note**: clarify update to use `sl comment` is Stream 3 (depends on `sl comment` CLI)
 
 **Scope**: Stream 1 - AI command consolidation (code changes)
 
@@ -147,20 +149,6 @@ Merge help functionality into onboard:
 
 **Output**: Updated `specledger.onboard.md`
 
-### Phase 6: Update Clarify (US6)
-
-Merge revise functionality into clarify:
-
-1. Read current `specledger.clarify.md` and `specledger.revise.md`
-2. Add comment processing section to clarify:
-   - Fetch open comments via `sl comment list --status open`
-   - Process each comment
-   - Reply and resolve via `sl comment reply` and `sl comment resolve`
-3. Update to use `sl comment` instead of `sl revise --summary`
-4. Note: This depends on 598 Stream 1 (`sl comment` CLI) being available
-
-**Output**: Updated `specledger.clarify.md`
-
 ## Success Metrics
 
 | Criterion | Verification Method |
@@ -168,9 +156,9 @@ Merge revise functionality into clarify:
 | SC-001: 6 commands deleted | `ls .claude/commands/` shows 6 fewer files |
 | SC-002: analyze renamed to verify | `specledger.verify.md` exists, `specledger.analyze.md` does not |
 | SC-003: audit converted to skill | `skills/sl-audit/skill.md` exists, `specledger.audit.md` does not |
-| SC-004: 3 commands updated | implement, onboard, clarify have new sections |
-| SC-005: Final count is 11 | `ls .claude/commands/*.md | wc -l` returns 11 |
-| SC-006: All functionality absorbed | Manual testing of resume, help, revise flows |
+| SC-004: 2 commands updated | implement, onboard have new sections |
+| SC-005: Final count is 9 | `ls .claude/commands/*.md | wc -l` returns 9 |
+| SC-006: All functionality absorbed (except revise) | Manual testing of resume, help flows |
 
 ## Complexity Tracking
 

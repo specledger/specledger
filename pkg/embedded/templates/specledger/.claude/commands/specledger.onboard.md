@@ -45,6 +45,30 @@ Present a brief welcome message:
 >
 > Let's start by describing your first feature!
 
+### Step 2.5: Command Overview
+
+Before we begin, here's a quick reference of the available SpecLedger commands:
+
+**Core Workflow Commands:**
+| Command | Description |
+|---------|-------------|
+| `/specledger.specify` | Create a feature specification from user requirements |
+| `/specledger.clarify` | Resolve ambiguities and answer spec questions |
+| `/specledger.plan` | Generate technical implementation plan |
+| `/specledger.tasks` | Create ordered, dependency-linked task list |
+| `/specledger.implement` | Execute implementation tasks in order |
+| `/specledger.verify` | Cross-artifact consistency and quality check |
+
+**Utility Commands:**
+| Command | Description |
+|---------|-------------|
+| `/specledger.constitution` | Create or update project guiding principles |
+| `/specledger.checklist` | Generate quality checklists for specs |
+
+**Skills (auto-loaded context):**
+- `sl-issue-tracking` - Issue management patterns and best practices
+- `sl-audit` - Codebase reconnaissance and module discovery
+
 ### Step 3: Feature Description
 
 Ask the user: **"What feature would you like to build? Describe it in a few sentences."**

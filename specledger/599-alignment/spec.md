@@ -19,7 +19,7 @@ Consolidate AI commands from 15 to 9 by removing redundant commands, renaming fo
 - Remove 6 redundant AI commands
 - Rename 1 command (analyze → verify)
 - Convert 1 command to skill (audit → sl-audit)
-- Update 3 commands to absorb removed functionality
+- Update 2 commands to absorb removed functionality
 
 **Consolidation Summary** (from 598):
 
@@ -124,22 +124,6 @@ As a SpecLedger user, I want `onboard` to include help information so I don't ne
 
 ---
 
-### User Story 6 - Update Clarify to Absorb Revise (Priority: P2)
-
-As a SpecLedger user, I want `clarify` to handle review comments so I don't need a separate `revise` command.
-
-**Why this priority**: Comment processing belongs with spec refinement; clarify is the single command for spec updates.
-
-**Independent Test**: Run `/specledger.clarify` with open comments; verify it processes them.
-
-**Acceptance Scenarios**:
-
-1. **Given** `specledger.clarify.md`, **When** updated, **Then** it fetches open comments via `sl comment list`
-2. **Given** open comments, **When** clarify runs, **Then** it processes each comment and replies/resolves
-3. **Given** the clarify command, **When** reading, **Then** it has comment processing section
-
----
-
 ### Edge Cases
 
 - What if user has muscle memory for old commands? → Document migration path in AGENTS.md
@@ -164,8 +148,7 @@ As a SpecLedger user, I want `clarify` to handle review comments so I don't need
 - **FR-003**: `specledger.audit.md` MUST be converted to `skills/sl-audit/skill.md`
 - **FR-004**: `specledger.implement.md` MUST be updated to absorb resume functionality
 - **FR-005**: `specledger.onboard.md` MUST be updated to absorb help functionality
-- **FR-006**: `specledger.clarify.md` MUST be updated to absorb revise functionality
-- **FR-007**: Final command count MUST be 9 (down from 15)
+- **FR-006**: Final command count MUST be 9 (down from 15)
 
 ### Key Entities
 
@@ -180,9 +163,9 @@ As a SpecLedger user, I want `clarify` to handle review comments so I don't need
 - **SC-001**: 6 command files deleted from `.claude/commands/`
 - **SC-002**: 1 command file renamed (analyze → verify)
 - **SC-003**: 1 skill created (`sl-audit`), 1 command deleted (audit)
-- **SC-004**: 3 commands updated (implement, onboard, clarify)
+- **SC-004**: 2 commands updated (implement, onboard)
 - **SC-005**: Final command count is 9
-- **SC-006**: All removed functionality is absorbed by remaining commands
+- **SC-006**: All removed functionality (except revise) is absorbed by remaining commands
 
 ### Previous work
 
@@ -208,5 +191,6 @@ As a SpecLedger user, I want `clarify` to handle review comments so I don't need
 
 - **Stream 2** (TBD): Bash script → Go CLI migration - `sl spec info/create/setup-plan`, `sl context update`
 - **Stream 3** (TBD): New CLI commands and skills - `sl comment`, `sl checkpoint`, `sl research`
+  - **Note**: `clarify.md` update to use `sl comment` is Stream 3 (depends on `sl comment` CLI)
 - Changes to CLI binary (`sl`)
 - Changes to the core SDD workflow (specify→clarify→plan→tasks→implement is immutable)
