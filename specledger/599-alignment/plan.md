@@ -13,7 +13,14 @@ Create documentation and audit artifacts to standardize SDD layer interactions:
 4. **Skill Template** (US4): Standard structure focusing on domain knowledge
 5. **Cross-Layer Interaction Doc** (US5): Examples of launcher pattern and skill loading
 
-**Scope**: Stream 1 only - documentation/audit, no code changes. Streams 2-3 handled separately.
+**Scope**: Stream 1 only - documentation/audit, no code changes.
+
+**Related Streams** (TBD):
+| Stream | Focus | Feature | Status |
+|--------|-------|---------|--------|
+| 1 | AI skills/commands/CLI alignment | 599-alignment | **This plan** |
+| 2 | Bash script → Go CLI migration | TBD | Planned |
+| 3 | New CLI + skills | TBD | Future |
 
 **Reference**: 598-sdd-workflow-streamline spec contains the consolidation decisions:
 - **Remove 7 AI commands**: resume, help, adopt, add-deps, remove-deps, revise, audit

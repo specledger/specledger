@@ -10,11 +10,28 @@
 Standardize and align AI skills, AI commands, and CLI patterns across the SDD workflow to reduce overlapping responsibilities and ensure consistent layer interactions.
 
 **Scope Note**: This is **Stream 1** of a 3-stream alignment effort:
-| Stream | Focus | Feature |
-|--------|-------|---------|
-| **1** | AI skills/commands/CLI alignment (this spec) | 599-alignment |
-| 2 | Bash script → Go CLI migration | 598-sdd-workflow-streamline |
-| 3 | New CLI + skills (comment, checkpoint, research) | Future |
+
+| Stream | Focus | Feature | Status |
+|--------|-------|---------|--------|
+| **1** | AI skills/commands/CLI alignment | 599-alignment | **This spec** |
+| 2 | Bash script → Go CLI migration | TBD | Planned |
+| 3 | New CLI + skills (comment, checkpoint, research) | TBD | Future |
+
+**Stream 1 Scope** (this spec):
+- Layer responsibility documentation
+- Overlap audit of existing commands/skills
+- AI command and skill templates
+- Cross-layer interaction patterns
+
+**Stream 2 Scope** (TBD):
+- Replace bash scripts with Go CLI commands
+- `sl spec info/create/setup-plan`
+- `sl context update`
+
+**Stream 3 Scope** (TBD):
+- `sl comment` CLI + skill
+- `sl checkpoint` CLI + skill
+- `sl research` CLI + skill
 
 **Layer Architecture** (from 598):
 | Layer | Name | Runtime | Purpose |
@@ -179,8 +196,8 @@ As a developer, I need examples of how layers should interact so that I understa
 
 ## Out of Scope
 
-- **Stream 2**: Bash script → Go CLI migration (covered by 598)
-- **Stream 3**: New CLI commands and skills (comment, checkpoint, research) - future features
+- **Stream 2** (TBD): Bash script → Go CLI migration - `sl spec info/create/setup-plan`, `sl context update`
+- **Stream 3** (TBD): New CLI commands and skills - `sl comment`, `sl checkpoint`, `sl research`
 - Modifying existing AI commands or skills (audit only)
 - Changes to the core SDD workflow (specify→clarify→plan→tasks→implement is immutable)
 - Code implementation - this is a documentation/audit feature
