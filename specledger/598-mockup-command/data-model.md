@@ -1,6 +1,6 @@
 # Data Model: Mockup Command
 
-**Branch**: `598-mockup-command` | **Date**: 2026-02-27
+**Branch**: `598-mockup-command` | **Date**: 2026-02-27 | **Updated**: 2026-03-03
 
 ## Entities
 
@@ -12,20 +12,20 @@ Identifies the frontend framework in use.
 type FrameworkType string
 
 const (
-    FrameworkReact    FrameworkType = "react"
-    FrameworkNextJS   FrameworkType = "nextjs"
-    FrameworkVue      FrameworkType = "vue"
-    FrameworkNuxt     FrameworkType = "nuxt"
-    FrameworkSvelte   FrameworkType = "svelte"
+    FrameworkReact     FrameworkType = "react"
+    FrameworkNextJS    FrameworkType = "nextjs"
+    FrameworkVue       FrameworkType = "vue"
+    FrameworkNuxt      FrameworkType = "nuxt"
+    FrameworkSvelte    FrameworkType = "svelte"
     FrameworkSvelteKit FrameworkType = "sveltekit"
-    FrameworkAngular  FrameworkType = "angular"
-    FrameworkUnknown  FrameworkType = "unknown"
+    FrameworkAngular   FrameworkType = "angular"
+    FrameworkUnknown   FrameworkType = "unknown"
 )
 ```
 
 **Validation Rules**:
 - Must be one of the defined constants
-- `unknown` is valid for non-frontend projects
+- `unknown` is valid for non-frontend projects or when using `--force`
 
 ---
 
@@ -49,72 +49,9 @@ type DetectionResult struct {
 - `IsFrontend` is `true` only if `Confidence >= 70`
 - `ComponentDirs` may be empty if framework detected but no components found
 
-**State Transitions**:
-- N/A (stateless result object)
-
 ---
 
-### 3. Component
-
-A single UI component discovered in the codebase.
-
-```go
-type Component struct {
-    Name        string     `yaml:"name" json:"name"`
-    FilePath    string     `yaml:"path" json:"path"`
-    Description string     `yaml:"description,omitempty" json:"description,omitempty"`
-    Props       []PropInfo `yaml:"props,omitempty" json:"props,omitempty"`
-    IsExternal  bool       `yaml:"external,omitempty" json:"external,omitempty"`
-    Library     string     `yaml:"library,omitempty" json:"library,omitempty"`
-}
-
-type PropInfo struct {
-    Name     string `yaml:"name" json:"name"`
-    Type     string `yaml:"type,omitempty" json:"type,omitempty"`
-    Required bool   `yaml:"required,omitempty" json:"required,omitempty"`
-}
-```
-
-**Validation Rules**:
-- `Name` is required, must be valid identifier (alphanumeric + underscore)
-- `FilePath` is required for project components, empty for external
-- `IsExternal` and `Library` must both be set if component is from external library
-
----
-
-### 4. DesignSystem
-
-The full design system index for a project.
-
-```go
-type DesignSystem struct {
-    Version       int         `yaml:"version" json:"version"`
-    Framework     FrameworkType `yaml:"framework" json:"framework"`
-    LastScanned   time.Time   `yaml:"last_scanned" json:"last_scanned"`
-    ComponentDirs []string    `yaml:"component_dirs" json:"component_dirs"`
-    ExternalLibs  []string    `yaml:"external_libs,omitempty" json:"external_libs,omitempty"`
-    Components    []Component `yaml:"components" json:"components"`
-    ManualEntries []Component `yaml:"manual_entries,omitempty" json:"manual_entries,omitempty"`
-}
-```
-
-**Validation Rules**:
-- `Version` must be `1` (current schema version)
-- `Framework` must be valid `FrameworkType`
-- `Components` may be empty for newly initialized projects
-- `ManualEntries` preserved across `sl mockup update` operations
-
-**State Transitions**:
-```
-[Not Exists] --sl mockup--> [Generated]
-[Generated] --sl mockup update--> [Updated]
-[Updated] --manual edit--> [Modified]
-[Modified] --sl mockup update--> [Merged]
-```
-
----
-
-### 5. MockupFormat (Enum)
+### 3. MockupFormat (Enum)
 
 Output format for the generated mockup file.
 
@@ -129,121 +66,59 @@ const (
 
 **Validation Rules**:
 - Must be one of the defined constants
-- Defaults to `html` if not specified
+- Defaults to `html` if not specified via `--format` flag
 
 ---
 
-### 6. Mockup
+### 4. DesignSystem
 
-Generated mockup artifact for a feature spec.
+The design system document containing CSS tokens and styling conventions. Does NOT index individual components — the AI agent discovers those via codebase search.
 
 ```go
-type Mockup struct {
-    SpecName      string         `yaml:"spec_name" json:"spec_name"`
-    SpecPath      string         `yaml:"spec_path" json:"spec_path"`
-    Generated     time.Time      `yaml:"generated" json:"generated"`
-    Framework     FrameworkType  `yaml:"framework" json:"framework"`
-    Format        MockupFormat   `yaml:"format" json:"format"`
-    Screens       []Screen       `yaml:"screens" json:"screens"`
-    ComponentMap  []ComponentRef `yaml:"component_map" json:"component_map"`
-}
-
-type Screen struct {
-    Name        string `yaml:"name" json:"name"`
-    Description string `yaml:"description,omitempty" json:"description,omitempty"`
-    Content     string `yaml:"content" json:"content"`   // HTML or JSX content for this screen
-    Flow        string `yaml:"flow,omitempty" json:"flow,omitempty"` // User flow description
-}
-
-type ComponentRef struct {
-    UIElement      string `yaml:"ui_element" json:"ui_element"`
-    ComponentName  string `yaml:"component" json:"component"`
-    Source         string `yaml:"source" json:"source"` // File path or library name
+type DesignSystem struct {
+    Version      int           `yaml:"version" json:"version"`
+    Framework    FrameworkType `yaml:"framework" json:"framework"`
+    LastScanned  time.Time     `yaml:"last_scanned" json:"last_scanned"`
+    ExternalLibs []string      `yaml:"external_libs,omitempty" json:"external_libs,omitempty"`
+    Style        *StyleInfo    `yaml:"style,omitempty" json:"style,omitempty"`
 }
 ```
 
 **Validation Rules**:
-- `SpecName` must match an existing spec directory
-- `Screens` must have at least one entry
-- `Format` must be valid `MockupFormat`
-- `Content` must be valid HTML or JSX depending on `Format`
-
----
-
-### 7. ScanResult
-
-Result of component scanning operation.
-
-```go
-type ScanResult struct {
-    Components    []Component   `json:"components"`
-    Framework     FrameworkType `json:"framework"`
-    ComponentDirs []string      `json:"component_dirs"`
-    ExternalLibs  []string      `json:"external_libs"`
-    ScanDuration  time.Duration `json:"scan_duration"`
-    FilesScanned  int           `json:"files_scanned"`
-    Errors        []ScanError   `json:"errors,omitempty"`
-}
-
-type ScanError struct {
-    FilePath string `json:"file_path"`
-    Error    string `json:"error"`
-}
-```
-
-**Validation Rules**:
+- `Version` must be `1` (current schema version)
 - `Framework` must be valid `FrameworkType`
-- `Errors` contains non-fatal scan issues (e.g., permission denied on one file)
+- `Style` contains extracted CSS tokens and styling patterns
+
+**State Transitions**:
+```
+[Not Exists] --sl mockup--> [Generated]
+[Generated] --sl mockup update--> [Updated]
+```
 
 ---
 
-### 8. MockupPromptContext
+### 5. StyleInfo
 
-Template rendering context for the AI agent prompt.
+Describes the project's CSS/styling patterns and design tokens.
 
 ```go
-type MockupPromptContext struct {
-    SpecName       string            `json:"spec_name"`
-    SpecContent    SpecContent       `json:"spec_content"`
-    Framework      FrameworkType     `json:"framework"`
-    Format         MockupFormat      `json:"format"`
-    OutputPath     string            `json:"output_path"`
-    Components     []PromptComponent `json:"components"`
-    ExternalLibs   []string          `json:"external_libs,omitempty"`
-    HasDesignSystem bool             `json:"has_design_system"`
+type StyleInfo struct {
+    CSSFramework    string            `json:"css_framework"`              // e.g., "Tailwind CSS", "Bootstrap"
+    Preprocessor    string            `json:"preprocessor,omitempty"`     // e.g., "sass", "less"
+    StylingApproach string            `json:"styling_approach"`           // e.g., "utility-first", "css-in-js", "css-modules"
+    ThemeColors     map[string]string `json:"theme_colors,omitempty"`     // Extracted color tokens
+    FontFamilies    []string          `json:"font_families,omitempty"`    // Extracted font families
+    CSSVariables    []string          `json:"css_variables,omitempty"`    // Extracted CSS custom properties
+    SampleImports   []string          `json:"sample_imports,omitempty"`   // Sample import patterns
 }
 ```
 
 **Validation Rules**:
-- `SpecName` is required, must match an existing spec directory
-- `Components` is the user-selected subset from the design system
-- `OutputPath` is the full path to the expected mockup output file
-- `Format` must be valid `MockupFormat`
+- At least one of `CSSFramework`, `StylingApproach`, or `ThemeColors` should be non-empty
 
 ---
 
-### 9. PromptComponent
-
-A component entry included in the agent prompt (subset of Component with prompt-relevant fields).
-
-```go
-type PromptComponent struct {
-    Name        string `json:"name"`
-    FilePath    string `json:"path"`
-    Description string `json:"description,omitempty"`
-    Props       string `json:"props,omitempty"` // Formatted props summary for prompt
-    IsExternal  bool   `json:"external,omitempty"`
-    Library     string `json:"library,omitempty"`
-}
-```
-
-**Validation Rules**:
-- `Name` is required
-- `Props` is a human-readable summary (e.g., `"variant: string, onClick: func, disabled: bool"`) not the full `[]PropInfo`
-
----
-
-### 10. SpecContent
+### 6. SpecContent
 
 Parsed content from a `spec.md` file used to build the agent prompt.
 
@@ -264,16 +139,74 @@ type SpecContent struct {
 
 ---
 
+### 7. MockupPromptContext
+
+Template rendering context for the AI agent prompt.
+
+```go
+type MockupPromptContext struct {
+    SpecName        string        `json:"spec_name"`
+    SpecPath        string        `json:"spec_path"`
+    SpecTitle       string        `json:"spec_title"`
+    Framework       FrameworkType `json:"framework"`
+    Format          MockupFormat  `json:"format"`
+    OutputPath      string        `json:"output_path"`
+    ExternalLibs    []string      `json:"external_libs,omitempty"`
+    HasDesignSystem bool          `json:"has_design_system"`
+    Style           *StyleInfo    `json:"style,omitempty"`
+    HasStyle        bool          `json:"has_style"`
+}
+```
+
+**Validation Rules**:
+- `SpecName` is required, must match an existing spec directory
+- `OutputPath` is the path to the expected mockup output file
+- `Format` must be valid `MockupFormat`
+
+---
+
+### 8. MockupResult
+
+JSON output for `sl mockup --json` mode.
+
+```go
+type MockupResult struct {
+    Status              string `json:"status"`
+    Framework           string `json:"framework"`
+    SpecName            string `json:"spec_name"`
+    MockupPath          string `json:"mockup_path"`
+    PromptPath          string `json:"prompt_path,omitempty"`
+    Format              string `json:"format"`
+    DesignSystemCreated bool   `json:"design_system_created"`
+    AgentLaunched       bool   `json:"agent_launched"`
+    Committed           bool   `json:"committed"`
+}
+```
+
+---
+
+### 9. UpdateResult
+
+JSON output for `sl mockup update --json` mode.
+
+```go
+type UpdateResult struct {
+    Status         string `json:"status"`
+    ScanDurationMs int64  `json:"scan_duration_ms"`
+}
+```
+
+---
+
 ## File Locations
 
 | Artifact | Path | Format |
 |----------|------|--------|
-| Design System Index | `specledger/design_system.md` | Markdown + YAML frontmatter |
+| Design System | `specledger/design-system.md` | Markdown + YAML frontmatter |
 | Mockup Output (HTML) | `specledger/<spec-name>/mockup.html` | HTML (generated by AI agent) |
 | Mockup Output (JSX) | `specledger/<spec-name>/mockup.jsx` | JSX (generated by AI agent) |
 | Agent Prompt | `specledger/<spec-name>/mockup-prompt.md` | Markdown (generated by `--dry-run`) |
 | Prompt Template | `pkg/cli/mockup/prompt.tmpl` | Go template (embedded) |
-| Project Config | `specledger/specledger.yaml` | YAML |
 
 ---
 
@@ -288,14 +221,14 @@ type SpecContent struct {
                                    | contains
                                    v
                            +------------------+
-                           | Component[]      |
+                           | StyleInfo        |
+                           | (CSS tokens)     |
                            +------------------+
                                    |
-                                   | user selects subset
                                    v
 +------------------+       +----------------------+
-| Spec.md          |------>| MockupPromptContext   |
-| (parsed into     |       | (template context)    |
+| Spec.md          |------>| MockupPromptContext  |
+| (parsed into     |       | (template context)   |
 |  SpecContent)    |       +----------------------+
 +------------------+              |
                                   | rendered via prompt.tmpl
@@ -315,15 +248,8 @@ type SpecContent struct {
                                   | produces
                                   v
                            +------------------+
-                           | Mockup           |
+                           | Mockup File      |
                            | (HTML or JSX)    |
-                           +------------------+
-                                  |
-                                  | contains
-                                  v
-                           +------------------+
-                           | Screen[]         |
-                           | ComponentRef[]   |
                            +------------------+
 ```
 
@@ -332,12 +258,22 @@ type SpecContent struct {
 ```
 SpecContent ─────────┐
                      ├──→ MockupPromptContext ──→ prompt.tmpl ──→ Agent Prompt
-DesignSystem ────────┤                                                │
-  (selected          │                                                v
-   PromptComponent[])│                                          AI Agent
+StyleInfo ───────────┤                                                │
+  (CSS tokens,       │                                                v
+   theme colors)     │                                           AI Agent
                      │                                                │
-DetectionResult ─────┘                                                v
-  (Framework, Format)                                           Mockup File
+DetectionResult ─────┘                                     reads primary sources
+  (Framework)                                                         │
+                                                                      v
+                                                   ┌──────────────────────────────┐
+                                                   │ Primary Sources (READ FIRST) │
+                                                   │ 1. spec.md                   │
+                                                   │ 2. requirements.md           │
+                                                   │ 3. data-model.md             │
+                                                   └──────────────────────────────┘
+                                                                      │
+                                                                      v
+                                                                Mockup File
 ```
 
 ---
@@ -349,10 +285,12 @@ The design system file uses a `version` field in YAML frontmatter:
 ```yaml
 ---
 version: 1
+framework: react
+last_scanned: 2026-02-27T10:00:00Z
 ---
 ```
 
 **Migration Strategy**:
-- Version 1: Initial schema (this implementation)
+- Version 1: Initial schema (CSS tokens only, no component indexing)
 - Future versions: Add `migrate()` function to upgrade older schemas
 - Unknown versions: Warn user but attempt to parse as latest

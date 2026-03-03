@@ -48,7 +48,7 @@ sl issue list --label "component:cli" --label "spec:598-mockup-command"
 
 ```
 Epic: SL-675f7d (Mockup Command)
-├── Phase 1: Shared Infrastructure (SL-TBD) ─ Extract prompt/editor from revise
+├── Phase 1: Shared Infrastructure (SL-a1b2c3) ─ Extract prompt/editor from revise
 │   ├── T000: Extract shared editor utilities into pkg/cli/prompt/editor.go
 │   │         (DetectEditor, EditPrompt moved from revise/editor.go)
 │   ├── T000b: Extract shared prompt utilities into pkg/cli/prompt/prompt.go
@@ -58,54 +58,52 @@ Epic: SL-675f7d (Mockup Command)
 │
 ├── Phase 2: Setup (SL-acaa90) ─ Package + command skeleton
 │   ├── T001: Create shared types in pkg/cli/mockup/types.go
-│   │         (FrameworkType, Component, DesignSystem, MockupPromptContext,
-│   │          PromptComponent, SpecContent, MockupFormat)
+│   │         (FrameworkType, DesignSystem, MockupPromptContext, StyleInfo,
+│   │          SpecContent, MockupFormat — NO component types)
 │   └── T002: Create mockup command skeleton + register in main.go
 │             (VarMockupCmd with --format, --force, --dry-run, --summary, --json flags)
 │
-├── Phase 3: Domain Logic (SL-e6485b) ─ Detector, scanner, design system, spec parser
+├── Phase 3: Domain Logic (SL-e6485b) ─ Detector, style scanner, design system, spec parser
 │   ├── T003: Implement frontend framework detector
-│   ├── T004: Implement component scanner with framework-specific handlers
+│   ├── T004: Implement CSS token extraction (stylescan.go)
+│   │         (Extract colors, fonts, CSS variables — NO component scanning)
 │   ├── T005: Implement design system file I/O with YAML frontmatter
 │   └── T006: Implement spec parser (specparser.go)
 │             (Parse spec.md into SpecContent: title, user stories, requirements)
 │
-├── Phase 4: Prompt & Template (SL-TBD) ─ Prompt builder + template + golden tests
+├── Phase 4: Prompt & Template (SL-d4e5f6) ─ Prompt builder + template + tests
 │   ├── T007: Create mockup prompt template (prompt.tmpl)
-│   │         (Agent instructions with spec content, components, framework, format)
-│   ├── T008: Implement MockupPromptContext builder (mockup/prompt.go)
+│   │         (Agent instructions with spec, design tokens, framework, format)
+│   ├── T008: Implement MockupPromptContext builder (mockupprompt.go)
 │   │         (Assemble context from gathered data, render template)
-│   └── T009: Add golden file tests for prompt generation
-│             (Verify prompt output matches expected for various contexts)
+│   └── T009: Add tests for prompt generation
 │
-├── Phase 5: Interactive Flow (SL-TBD) ─ Full 10-step wiring in mockup.go
+├── Phase 5: Interactive Flow (SL-f7a8b9) ─ 6-step wiring in mockup.go
 │   ├── T010: Wire spec resolution (arg / branch detection / picker)
 │   │         (Reuse issues.NewContextDetector, fallback to huh.Select)
-│   ├── T011: Wire framework detection with interactive confirmation
-│   │         (lipgloss display, huh.Confirm, --force bypass)
+│   ├── T011: Wire auto framework detection (NO confirmation)
+│   │         (lipgloss display only, --force bypass for non-frontend)
 │   ├── T012: Wire design system check/generate with prompts
-│   │         (Auto-generate flow, component count display)
-│   ├── T013: Wire component multi-select and format selection
-│   │         (huh.MultiSelect for components, huh.Select for format)
-│   ├── T014: Wire prompt generation → editor review → action menu
+│   │         (Extract CSS tokens, no component scanning)
+│   ├── T013: Wire prompt generation → editor review → action menu
 │   │         (Uses pkg/cli/prompt/editor.go, Launch/Re-edit/Write/Cancel)
-│   ├── T015: Wire agent launch with fallback
+│   ├── T014: Wire agent launch with fallback
 │   │         (launcher.LaunchWithPrompt, writePromptToFile fallback)
-│   └── T016: Wire post-agent commit/push flow
+│   └── T015: Wire post-agent commit/push flow
 │             (Reuse stagingAndCommitFlow pattern from revise.go)
 │
 ├── Phase 6: Update Command (SL-a00981) ─ sl mockup update handler
-│   ├── T017: Implement sl mockup update handler with interactive confirm
-│   └── T018: Add merge logic with manual preservation
+│   └── T016: Implement sl mockup update handler
+│             (Re-extract CSS tokens, update design-system.md)
 │
 ├── Phase 7: Init Integration (SL-b0f5d0) ─ bootstrap.go
-│   └── T019: Add frontend detection to bootstrap.go
+│   └── T017: Add frontend detection to bootstrap.go
 │
 └── Phase 8: Polish (SL-c71d1f) ─ JSON, errors, tests
-    ├── T020: Add --json non-interactive path for both commands
-    ├── T021: Comprehensive error handling and edge cases
+    ├── T018: Add --json non-interactive path for both commands
+    ├── T019: Comprehensive error handling and edge cases
     │         (Agent not found, mockup exists, user cancel, malformed design system)
-    └── T022: Unit tests for all domain modules
+    └── T020: Unit tests for all domain modules
 ```
 
 ## Convention Summary
@@ -121,18 +119,16 @@ Epic: SL-675f7d (Mockup Command)
 ```
 T000 (shared editor) ──┬──→ T000b (shared prompt) ──→ T000c (revise refactor)
                        │                                      │
-                       └──────────────────────────────────────┼──→ T014 (editor/action menu)
+                       └──────────────────────────────────────┼──→ T013 (editor/action menu)
                                                               │
-T001 (types) ──┬──→ T003 (detector) ──┬──→ T011 (detection confirm)
-               │                       │
-               ├──→ T004 (scanner) ────┤
-               │         │             │
+T001 (types) ──┬──→ T003 (detector) ──→ T011 (auto detection)
+               │                                │
+               ├──→ T004 (style scanner) ───────┤
+               │         │                      │
                │         └──→ T012 (design system flow)
                │                       │
-               ├──→ T005 (designsystem)┤
-               │         │             │
-               │         ├──→ T017 (update handler) → T018 (merge)
-               │         └──→ T019 (bootstrap)
+               ├──→ T005 (designsystem)┼──→ T016 (update handler)
+               │                       └──→ T017 (bootstrap)
                │
                ├──→ T006 (specparser) ──→ T008 (prompt builder)
                │                               │
@@ -140,21 +136,19 @@ T001 (types) ──┬──→ T003 (detector) ──┬──→ T011 (detecti
                        │                       │
                        └───────────────────────┴──→ T010 (spec resolution)
                                                         │
-T007 (prompt.tmpl) ──→ T008 (prompt builder) ──→ T009 (golden tests)
+T007 (prompt.tmpl) ──→ T008 (prompt builder) ──→ T009 (tests)
                               │
-                              └──→ T013 (component/format select)
+                              └──→ T013 (editor/action menu)
                                         │
-                                        └──→ T014 (editor/action menu)
+                                        └──→ T014 (agent launch)
                                                   │
-                                                  └──→ T015 (agent launch)
-                                                            │
-                                                            └──→ T016 (commit/push)
+                                                  └──→ T015 (commit/push)
 
-T010-T016 (interactive flow) ──┬──→ T020 (JSON output)
-                               └──→ T021 (error handling)
-T017-T018 (update)           ──┬──→ T020 (JSON output)
-                               └──→ T021 (error handling)
-T020 + T021                    ──→ T022 (all tests)
+T010-T015 (interactive flow) ──┬──→ T018 (JSON output)
+                               └──→ T019 (error handling)
+T016 (update)                ──┬──→ T018 (JSON output)
+                               └──→ T019 (error handling)
+T018 + T019                    ──→ T020 (all tests)
 ```
 
 ### Parallel Execution Opportunities
@@ -178,45 +172,43 @@ T020 + T021                    ──→ T022 (all tests)
 | T000     | editor.go in pkg/cli/prompt/ with DetectEditor, EditPrompt; compiles; tests pass |
 | T000b    | prompt.go in pkg/cli/prompt/ with RenderTemplate, EstimateTokens; compiles; tests pass |
 | T000c    | revise/editor.go and revise/prompt.go delegate to prompt package; all existing revise tests still pass |
-| T001     | types.go with all entities including MockupPromptContext, PromptComponent, SpecContent; compiles |
-| T002     | mockup.go with VarMockupCmd, all flags (--format, --force, --dry-run, --summary, --json), registered in main.go, help text matches contract |
+| T001     | types.go with FrameworkType, DesignSystem, StyleInfo, MockupPromptContext, SpecContent; compiles |
+| T002     | mockup.go with VarMockupCmd, all flags (--format, --force, --dry-run, --summary, --json), registered in main.go |
 | T003     | 3-tier detection, all frameworks, IsFrontend=false for non-frontend |
-| T004     | Per-framework scanning, props extraction, excluded dirs skipped |
-| T005     | Load/Write/Init design system, manual markers preserved, edge case handling |
+| T004     | CSS token extraction: colors, fonts, CSS variables; excluded dirs skipped |
+| T005     | Load/Write design system with YAML frontmatter; edge case handling |
 | T006     | ParseSpec extracts title, user stories, requirements; error on empty; SpecContent populated |
 | T007     | prompt.tmpl with agent instructions template; embedded in binary |
 | T008     | BuildMockupPrompt assembles context and renders template; prompt string output |
-| T009     | Golden file tests verify prompt output for React HTML, React JSX, Vue HTML, empty components |
+| T009     | Tests verify prompt output for various contexts |
 | T010     | Spec resolved from arg, branch, or picker; correct error for missing spec |
-| T011     | Framework displayed with lipgloss, confirmed with huh.Confirm, --force bypasses |
-| T012     | Design system loaded or auto-generated with interactive prompts |
-| T013     | Component multi-select and format select work; selections stored in context |
-| T014     | Editor opens, action menu works (all 4 options), uses shared prompt package |
-| T015     | Agent launched if available, prompt written to file if not, install instructions shown |
-| T016     | Post-agent commit/push flow works with file multi-select and push |
-| T017     | Update handler validates existence, rescans with confirm, displays stats |
-| T018     | Merge preserves manual entries, add/remove/unchanged stats correct |
-| T019     | Bootstrap integration, interactive prompt, CI auto-create, skip non-frontend |
-| T020     | JSON output for both commands, non-JSON suppressed, jq-parseable |
-| T021     | All edge cases handled per contract error messages |
-| T022     | All test files pass, table-driven tests, coverage on domain modules |
+| T011     | Framework auto-detected and displayed with lipgloss (no confirmation), --force bypasses |
+| T012     | Design system loaded or auto-generated with CSS token extraction |
+| T013     | Editor opens, action menu works (all 4 options), uses shared prompt package |
+| T014     | Agent launched if available, prompt written to file if not, install instructions shown |
+| T015     | Post-agent commit/push flow works with file multi-select and push |
+| T016     | Update handler re-extracts CSS tokens, updates design-system.md |
+| T017     | Bootstrap integration, interactive prompt, CI auto-create, skip non-frontend |
+| T018     | JSON output for both commands, non-JSON suppressed, jq-parseable |
+| T019     | All edge cases handled per contract error messages |
+| T020     | All test files pass, table-driven tests, coverage on domain modules |
 
 ## Implementation Strategy
 
 ### MVP (Suggested: Phase 1 + 2 + 3 + 4 + 5)
 
-The MVP delivers **User Story 1** — the full interactive mockup flow from spec to agent-generated mockup. This covers:
+The MVP delivers **User Story 1** — the full mockup flow from spec to agent-generated mockup. This covers:
 - Shared `pkg/cli/prompt/` package (extracted from revise)
 - `pkg/cli/mockup/` package with all types, domain logic, and prompt builder
-- `sl mockup [spec-name]` command with complete 10-step interactive flow
-- Spec resolution, framework detection, design system, component selection, prompt, agent launch, commit/push
+- `sl mockup [spec-name]` command with streamlined 6-step flow
+- Spec resolution, auto framework detection, design system (CSS tokens), prompt, agent launch, commit/push
 - `--dry-run` flag for non-agent workflow
 
-**MVP scope**: T000-T016 (16 tasks), priority 1.
+**MVP scope**: T000-T015 (15 tasks), priority 1.
 
 ### Incremental Delivery
 
-1. **MVP**: Phase 1-5 (Shared Infra + Setup + Domain + Prompt + Interactive Flow) — Full interactive mockup generation
+1. **MVP**: Phase 1-5 (Shared Infra + Setup + Domain + Prompt + Interactive Flow) — Full mockup generation
 2. **Increment 1**: Phase 6 (Update Command) — `sl mockup update`
 3. **Increment 2**: Phase 7 (Init Integration) — `sl init` design system setup
 4. **Final**: Phase 8 (Polish) — JSON output, error handling, comprehensive tests
@@ -225,11 +217,11 @@ The MVP delivers **User Story 1** — the full interactive mockup flow from spec
 
 | Story | Independently Testable? | Test Criteria |
 |-------|------------------------|---------------|
-| US1   | Yes | Run `sl mockup` on feature branch → interactive flow completes, agent generates mockup |
-| US2   | Yes | Run `sl mockup` without design_system.md → prompted to generate, file created, flow continues |
-| US3   | Yes | Run `sl mockup` on React/Go project → correct detection displayed, confirm/error behavior |
-| US4   | Yes | Run `sl mockup update` → design system refreshed with interactive confirm + stats |
-| US5   | Yes | Run `sl init` on frontend project → design_system.md created |
+| US1   | Yes | Run `sl mockup` on feature branch → flow completes, agent generates mockup |
+| US2   | Yes | Run `sl mockup` without design-system.md → prompted to generate, file created, flow continues |
+| US3   | Yes | Run `sl mockup` on React/Go project → correct detection displayed, auto-proceed or error |
+| US4   | Yes | Run `sl mockup update` → design system refreshed with CSS tokens |
+| US5   | Yes | Run `sl init` on frontend project → design-system.md created |
 
 ---
 

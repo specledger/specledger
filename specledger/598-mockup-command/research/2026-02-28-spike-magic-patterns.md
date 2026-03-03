@@ -54,14 +54,14 @@ The current implementation is ~4,000 lines of Go code:
 |---------|-------|---------|
 | `pkg/cli/mockup/detector.go` | ~242 | Frontend framework detection (React/Vue/Svelte/Angular) |
 | `pkg/cli/mockup/scanner.go` | ~465 | Component scanning from source files |
-| `pkg/cli/mockup/designsystem.go` | ~508 | Read/write `specledger/design_system.md` |
+| `pkg/cli/mockup/designsystem.go` | ~508 | Read/write `specledger/design-system.md` |
 | `pkg/cli/mockup/stylescan.go` | ~317 | Style/theme scanning |
 | `pkg/cli/mockup/specparser.go` | ~134 | Parse spec.md for mockup context |
 | `pkg/cli/mockup/mockupprompt.go` | ~85 | Prompt template rendering |
 | `pkg/cli/commands/mockup.go` | ~765 | TUI command with huh forms |
 | `pkg/cli/prompt/` | ~107 | Shared editor/prompt utilities |
 
-Flow: detect framework → scan components → build/read design_system.md → parse spec → build prompt → editor review → launch AI agent → commit/push.
+Flow: detect framework → scan components → build/read design-system.md → parse spec → build prompt → editor review → launch AI agent → commit/push.
 
 ## Comparison
 
@@ -75,7 +75,7 @@ Flow: detect framework → scan components → build/read design_system.md → p
 | Integration | CLI only | MCP server, Figma, GitHub sync |
 | Offline | Yes | No (SaaS) |
 | Cost | Free (uses local AI agent) | Unknown (SaaS pricing not public) |
-| Design system format | Custom markdown (`design_system.md`) | Magic Patterns internal format |
+| Design system format | Custom markdown (`design-system.md`) | Magic Patterns internal format |
 | Self-hosted | Yes | No |
 
 ## Findings
@@ -93,7 +93,7 @@ Flow: detect framework → scan components → build/read design_system.md → p
 **What blocks full replacement:**
 1. **SaaS dependency** — Magic Patterns is cloud-only. The `sl mockup` command works offline with local AI agents. Adding a SaaS dependency conflicts with SpecLedger's design principle of CLI-first, offline-capable tooling.
 2. **Pricing unknown** — No public pricing for API/MCP access. Could be expensive at scale.
-3. **Design system format lock-in** — Magic Patterns uses its own internal format. The current `design_system.md` is portable and human-readable.
+3. **Design system format lock-in** — Magic Patterns uses its own internal format. The current `design-system.md` is portable and human-readable.
 4. **Framework coverage** — Magic Patterns focuses on React ecosystem (ShadCN, Chakra, Mantine). The current scanner supports Vue, Svelte, Angular too.
 5. **No spec integration** — Magic Patterns takes free-form prompts. The `sl mockup` pipeline builds structured prompts from `spec.md` user stories + design system components. This spec-grounded approach is core to SpecLedger's value proposition.
 
@@ -136,7 +136,7 @@ This changes the calculus significantly. The question shifts from "can Magic Pat
 
 ### Key Insight
 
-The current implementation puts too much logic in Go (framework detection, component scanning, style scanning) and too little in the AI agent prompt. The launcher pattern (D2) says CLI = data ops, AI = reasoning. Component discovery and mockup generation are both **reasoning tasks** — they should be in the agent's prompt, not in Go code. The Go side should only handle: detect spec context, check for existing design_system.md, build prompt, launch agent.
+The current implementation puts too much logic in Go (framework detection, component scanning, style scanning) and too little in the AI agent prompt. The launcher pattern (D2) says CLI = data ops, AI = reasoning. Component discovery and mockup generation are both **reasoning tasks** — they should be in the agent's prompt, not in Go code. The Go side should only handle: detect spec context, check for existing design-system.md, build prompt, launch agent.
 
 ### Impact on spec/plan
 

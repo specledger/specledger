@@ -2,9 +2,15 @@
 
 Generate a **{{ .Format }}** mockup for **"{{ .SpecTitle }}"**.
 
-## Spec
+## Primary Sources (READ FIRST)
 
-Read `{{ .SpecPath }}` for full requirements, user stories, and acceptance criteria.
+**IMPORTANT**: Read these files BEFORE generating any mockup:
+
+1. **Spec**: `{{ .SpecPath }}` — Contains user stories, acceptance criteria, and feature description
+2. **Requirements**: `specledger/{{ .SpecName }}/requirements.md` — Contains functional requirements (if exists)
+3. **Data Model**: `specledger/{{ .SpecName }}/data-model.md` — Contains data structures, types, and schemas (if exists)
+
+Extract UI screens, user flows, and interaction patterns directly from these source files.
 
 ## Output
 

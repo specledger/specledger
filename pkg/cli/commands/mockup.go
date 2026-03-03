@@ -26,13 +26,11 @@ var VarMockupCmd = &cobra.Command{
 
 Flow:
   1. Resolve spec (from arg, branch, or picker)
-  2. Detect frontend framework
-  3. Check/generate design system
-  4. Select components for mockup
-  5. Choose output format (html/jsx)
-  6. Generate and review prompt
-  7. Launch AI agent to generate mockup
-  8. Commit and push changes
+  2. Auto-detect frontend framework
+  3. Check/generate design system (extracts CSS tokens)
+  4. Generate and review prompt
+  5. Launch AI agent to generate mockup
+  6. Commit and push changes
 
 Examples:
   sl mockup                              # Auto-detect spec from branch
@@ -122,22 +120,6 @@ func runMockup(cmd *cobra.Command, args []string) error {
 			ui.Checkmark(),
 			headerStyle.Render(detection.Framework.String()),
 			detection.Confidence)
-
-		if !mockupForce && !mockupJSON {
-			var confirmed bool
-			err = huh.NewForm(huh.NewGroup(
-				huh.NewConfirm().
-					Title("Confirm framework?").
-					Value(&confirmed),
-			)).Run()
-			if err != nil {
-				return fmt.Errorf("framework confirmation: %w", err)
-			}
-			if !confirmed {
-				fmt.Println("Cancelled.")
-				return nil
-			}
-		}
 	}
 
 	framework := detection.Framework
@@ -146,14 +128,14 @@ func runMockup(cmd *cobra.Command, args []string) error {
 	}
 
 	// Step 3: Design system check/generate (extracts global CSS/design tokens only)
-	dsPath := filepath.Join(cwd, "specledger", "design_system.md")
+	dsPath := filepath.Join(cwd, "specledger", "design-system.md")
 	var ds *mockup.DesignSystem
 	dsCreated := false
 
 	if _, err := os.Stat(dsPath); os.IsNotExist(err) {
 		fmt.Println("Design system not found.")
 		if !mockupJSON {
-			var generate bool
+			generate := true
 			err = huh.NewForm(huh.NewGroup(
 				huh.NewConfirm().
 					Title("Generate design system now?").
@@ -183,7 +165,7 @@ func runMockup(cmd *cobra.Command, args []string) error {
 				return fmt.Errorf("Error: Cannot write to specledger/\n\nCheck file permissions and try again.")
 			}
 			fmt.Printf("%s Extracted design tokens\n", ui.Checkmark())
-			fmt.Printf("%s Created specledger/design_system.md\n", ui.Checkmark())
+			fmt.Printf("%s Created specledger/design-system.md\n", ui.Checkmark())
 			dsCreated = true
 		}
 	} else {
@@ -206,25 +188,7 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Step 4: Format selection
-	if !mockupJSON && mockupFormat == "html" {
-		var formatChoice string
-		err = huh.NewForm(huh.NewGroup(
-			huh.NewSelect[string]().
-				Title("Output format").
-				Options(
-					huh.NewOption("html", "html"),
-					huh.NewOption("jsx", "jsx"),
-				).
-				Value(&formatChoice),
-		)).Run()
-		if err != nil {
-			return fmt.Errorf("format selection: %w", err)
-		}
-		format = mockup.MockupFormat(formatChoice)
-	}
-
-	// Step 6: Generate prompt
+	// Step 4: Generate prompt
 	fmt.Println("\nGenerating prompt...")
 	specContent, err := mockup.ParseSpec(specFile)
 	if err != nil {
@@ -256,8 +220,13 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Scan project styling patterns
-	styleInfo := mockup.ScanStyles(cwd)
+	// Use style from design system (already extracted), or scan fresh if missing
+	var styleInfo *mockup.StyleInfo
+	if ds != nil && ds.Style != nil {
+		styleInfo = ds.Style
+	} else {
+		styleInfo = mockup.ScanStyles(cwd)
+	}
 
 	promptCtx := mockup.BuildMockupPromptContext(specName, specFile, specContent.Title, framework, format, outputPath, ds, styleInfo)
 	promptText, err := mockup.RenderMockupPrompt(promptCtx)
@@ -294,7 +263,7 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Step 7: Edit & confirm prompt
+	// Edit & confirm prompt
 	finalPrompt, err := mockupEditAndConfirm(promptText)
 	if err != nil {
 		return err
@@ -303,7 +272,7 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		return nil // user cancelled or wrote to file
 	}
 
-	// Step 8: Launch agent
+	// Step 5: Launch agent
 	agentCmd := os.Getenv("SPECLEDGER_AGENT")
 	var agentOpt launcher.AgentOption
 	if agentCmd != "" {
@@ -337,7 +306,7 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		agentLaunched = true
 	}
 
-	// Step 9: Post-agent commit/push flow
+	// Step 6: Post-agent commit/push flow
 	committed := false
 	if agentLaunched {
 		changesAfterAgent, err := cligit.HasUncommittedChanges(cwd)
@@ -353,7 +322,7 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Step 10: Summary
+	// Summary
 	fmt.Printf("\n%s Mockup saved to %s\n", ui.Checkmark(), outputPath)
 
 	if mockupJSON {
@@ -379,9 +348,9 @@ func runMockupUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	dsPath := filepath.Join(cwd, "specledger", "design_system.md")
+	dsPath := filepath.Join(cwd, "specledger", "design-system.md")
 	if _, err := os.Stat(dsPath); os.IsNotExist(err) {
-		return fmt.Errorf("Error: Design system not found\n\nNo design system at specledger/design_system.md\nGenerate one first with: sl mockup <spec-name>")
+		return fmt.Errorf("Error: Design system not found\n\nNo design system at specledger/design-system.md\nGenerate one first with: sl mockup <spec-name>")
 	}
 
 	existing, err := mockup.LoadDesignSystem(dsPath)
@@ -430,7 +399,7 @@ func runMockupUpdate(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("%s Extracted design tokens\n", ui.Checkmark())
-	fmt.Printf("%s Updated specledger/design_system.md\n", ui.Checkmark())
+	fmt.Printf("%s Updated specledger/design-system.md\n", ui.Checkmark())
 
 	if updateJSON {
 		result := mockup.UpdateResult{

@@ -9,7 +9,7 @@ import (
 
 func TestWriteAndLoadDesignSystem(t *testing.T) {
 	dir := t.TempDir()
-	dsPath := filepath.Join(dir, "design_system.md")
+	dsPath := filepath.Join(dir, "design-system.md")
 
 	ds := &DesignSystem{
 		Version:      1,
@@ -55,7 +55,7 @@ func TestWriteAndLoadDesignSystem(t *testing.T) {
 
 func TestWriteDesignSystem_WithStyleInfo(t *testing.T) {
 	dir := t.TempDir()
-	dsPath := filepath.Join(dir, "design_system.md")
+	dsPath := filepath.Join(dir, "design-system.md")
 
 	ds := &DesignSystem{
 		Version:   1,
@@ -87,7 +87,7 @@ func TestWriteDesignSystem_WithStyleInfo(t *testing.T) {
 
 func TestWriteDesignSystem_MarkdownFormat(t *testing.T) {
 	dir := t.TempDir()
-	dsPath := filepath.Join(dir, "design_system.md")
+	dsPath := filepath.Join(dir, "design-system.md")
 
 	ds := &DesignSystem{
 		Version:      1,
@@ -128,7 +128,7 @@ func TestWriteDesignSystem_MarkdownFormat(t *testing.T) {
 
 func TestLoadDesignSystem_MalformedFrontmatter(t *testing.T) {
 	dir := t.TempDir()
-	dsPath := filepath.Join(dir, "design_system.md")
+	dsPath := filepath.Join(dir, "design-system.md")
 	os.WriteFile(dsPath, []byte("no frontmatter here"), 0600)
 
 	_, err := LoadDesignSystem(dsPath)
@@ -139,7 +139,7 @@ func TestLoadDesignSystem_MalformedFrontmatter(t *testing.T) {
 
 func TestLoadDesignSystem_EmptyStyle(t *testing.T) {
 	dir := t.TempDir()
-	dsPath := filepath.Join(dir, "design_system.md")
+	dsPath := filepath.Join(dir, "design-system.md")
 
 	ds := &DesignSystem{
 		Version:   1,

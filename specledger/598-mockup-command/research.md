@@ -110,116 +110,86 @@ func DetectFramework(projectPath string) (*DetectionResult, error)
 
 ---
 
-## Decision 2: Component Scanning Strategy
+## Decision 2: CSS Token Extraction Strategy
 
 ### Decision
-Use glob patterns + regex content analysis per framework.
+Extract global CSS tokens (colors, fonts, variables) instead of scanning individual components. The AI agent discovers and uses components via codebase search.
 
 ### Rationale
-Each framework has distinct file patterns and component identification markers. A unified scanner with framework-specific handlers provides consistency while supporting variations.
+Component scanning is complex and error-prone (different patterns per framework, nested components, dynamic imports). The AI agent is better equipped to discover components via codebase search since it understands code context. The design system should focus on design tokens (colors, typography, spacing) that define the project's visual identity.
 
-### Scanning Patterns by Framework
+### CSS Token Sources
 
-**React/Next.js**
-
+**Tailwind CSS**
 ```text
-Globs:
-  src/components/**/*.{tsx,jsx}
-  components/**/*.{tsx,jsx}
-  app/components/**/*.{tsx,jsx}
+Files:
+  tailwind.config.js
+  tailwind.config.ts
 
-Component Identification:
-  - export default function ComponentName
-  - export const ComponentName =
-  - Return statement contains JSX (<div>, <Component>)
+Extract:
+  - theme.colors
+  - theme.fontFamily
+  - theme.extend.colors
 ```
 
-**Vue**
-
+**CSS Variables**
 ```text
-Globs:
-  src/components/**/*.vue
-  components/**/*.vue
+Files:
+  src/index.css
+  src/globals.css
+  src/styles/*.css
 
-Component Identification:
-  - <template> tag present
-  - <script setup> or export default {}
-  - defineProps<> for props extraction
+Extract:
+  --color-primary
+  --color-secondary
+  --font-family-*
+  --spacing-*
 ```
 
-**Svelte**
-
+**CSS-in-JS Themes**
 ```text
-Globs:
-  src/components/**/*.svelte
-  src/lib/**/*.svelte
+Files:
+  src/theme.ts
+  src/styles/theme.js
 
-Component Identification:
-  - <script> tag present
-  - export let propName for props
+Detect:
+  - styled-components ThemeProvider
+  - emotion ThemeProvider
+  - Chakra UI theme
 ```
-
-**Angular**
-
-```text
-Globs:
-  src/app/**/*.component.ts
-
-Component Identification:
-  - @Component({ decorator
-  - @Input() for props
-  - selector: 'app-name' for component name
-```
-
-### Third-Party Library Detection
-
-```text
-Material UI:  import { X } from '@mui/material'
-Ant Design:   import { X } from 'antd'
-Chakra UI:    import { X } from '@chakra-ui/react'
-Headless UI:  import { X } from '@headlessui/react'
-Radix UI:     import { X } from '@radix-ui/react-*'
-```
-
-### Alternatives Considered
-
-1. **AST Parsing** - Rejected: Complex, slow, framework-specific AST libraries needed
-2. **Component Library Manifest** - Rejected: Not all projects have this
-3. **Source Map Analysis** - Rejected: Requires build step
 
 ### Implementation
 
 ```go
-// pkg/cli/mockup/scanner.go
+// pkg/cli/mockup/stylescan.go
 
-type Component struct {
-    Name        string
-    FilePath    string
-    Description string      // Auto-generated from file/context
-    Props       []PropInfo  // Extracted props/inputs
-    IsExternal  bool        // From third-party library
-    Library     string      // e.g., "@mui/material"
+type StyleInfo struct {
+    CSSFramework    string            // e.g., "Tailwind CSS"
+    Preprocessor    string            // e.g., "sass"
+    StylingApproach string            // "utility-first", "css-in-js", "css-modules"
+    ThemeColors     map[string]string // Extracted color tokens
+    FontFamilies    []string          // Extracted font families
+    CSSVariables    []string          // Extracted CSS custom properties
 }
 
-type ScanResult struct {
-    Components      []Component
-    Framework       FrameworkType
-    ComponentDirs   []string
-    ExternalLibs    []string
-}
-
-func ScanComponents(projectPath string, framework FrameworkType) (*ScanResult, error)
+func ScanStyles(projectPath string) *StyleInfo
 ```
+
+### Alternatives Considered
+
+1. **Full Component Scanning** - Rejected: Complex, error-prone, AI agent does this better
+2. **Design Token JSON Export** - Rejected: Adds tooling requirement
+3. **Manual Configuration Only** - Rejected: Too much friction
 
 ---
 
-## Decision 3: Design System Index Format
+## Decision 3: Design System Format
 
 ### Decision
-Structured markdown with YAML frontmatter for machine readability.
+Structured markdown with YAML frontmatter containing CSS tokens only. No component indexing — the AI agent discovers components via codebase search.
 
 ### Rationale
-Markdown is human-editable (requirement FR-010), YAML frontmatter enables programmatic parsing while keeping the document readable.
+Markdown is human-editable (requirement FR-010), YAML frontmatter enables programmatic parsing. Focusing on CSS tokens (colors, fonts, variables) rather than component indexing keeps the design system lightweight and avoids complex scanning logic.
 
 ### Format
 
@@ -228,43 +198,50 @@ Markdown is human-editable (requirement FR-010), YAML frontmatter enables progra
 version: 1
 framework: react
 last_scanned: 2026-02-27T10:30:00Z
-component_dirs:
-  - src/components
 external_libs:
   - "@mui/material"
   - "@chakra-ui/react"
+style:
+  css_framework: Tailwind CSS
+  styling_approach: utility-first
+  theme_colors:
+    primary: "#3b82f6"
+    secondary: "#64748b"
+  font_families:
+    - Inter
+    - system-ui
+  css_variables:
+    - "--color-primary"
+    - "--spacing-lg"
 ---
 
-# Design System Index
+# Design System
 
-## Project Components
+This project uses **Tailwind CSS** with a utility-first approach.
 
-### Button
-- **Path**: `src/components/Button/Button.tsx`
-- **Props**: `variant`, `size`, `disabled`, `onClick`
-- **Description**: Primary action button with multiple variants
+## Theme Colors
 
-### Card
-- **Path**: `src/components/Card/Card.tsx`
-- **Props**: `title`, `children`, `elevated`
-- **Description**: Container component for grouped content
+| Name | Value |
+|------|-------|
+| primary | #3b82f6 |
+| secondary | #64748b |
 
-## External Library Components
+## Typography
 
-### @mui/material
+- **Primary Font**: Inter
+- **Fallback**: system-ui
 
-Used components: `TextField`, `Dialog`, `Snackbar`, `Tooltip`
+## Notes
 
-### @chakra-ui/react
-
-Used components: `Box`, `Flex`, `Button`, `Input`
+The AI agent will search the codebase to discover and use existing components.
+Add any manual styling notes or conventions below.
 ```
 
 ### Alternatives Considered
 
-1. **Pure YAML** - Rejected: Less human-readable, harder to edit manually
-2. **JSON** - Rejected: Not human-friendly for manual edits
-3. **Custom DSL** - Rejected: Learning curve, no tooling support
+1. **Component Indexing** - Rejected: Complex scanning, AI agent does this better
+2. **Pure YAML** - Rejected: Less human-readable
+3. **JSON** - Rejected: Not human-friendly for manual edits
 
 ---
 

@@ -5,13 +5,13 @@
 
 ## Summary
 
-Add `sl mockup [spec-name]` and `sl mockup update` commands with an interactive TUI flow matching the `sl revise` pattern. The command auto-detects the spec from the branch, guides the user through framework detection, design system setup, component selection, and format choice, then builds an AI agent prompt from templates and context. The user reviews the prompt in their editor, launches the agent to generate the mockup (HTML or JSX), and optionally commits/pushes the result. Shared editor/prompt utilities are extracted from `revise` into `pkg/cli/prompt/` for reuse. The AI agent generates the mockup content — Go code orchestrates the interactive flow.
+Add `sl mockup [spec-name]` and `sl mockup update` commands with a streamlined interactive TUI flow. The command auto-detects the spec from the branch, auto-detects the framework, checks/generates the design system (CSS tokens only), builds an AI agent prompt from templates and context, and lets the user review before launching the agent. The AI agent generates the mockup (HTML or JSX), and the user can optionally commit/push the result. Shared editor/prompt utilities are extracted from `revise` into `pkg/cli/prompt/` for reuse.
 
 ## Technical Context
 
 **Language/Version**: Go 1.24.2
 **Primary Dependencies**: Cobra (CLI), go-git v5 (git), gopkg.in/yaml.v3 (YAML parsing)
-**Storage**: File-based — Markdown with YAML frontmatter (`design_system.md`), HTML (`mockup.html`) or JSX (`mockup.jsx`)
+**Storage**: File-based — Markdown with YAML frontmatter (`design-system.md`), HTML (`mockup.html`) or JSX (`mockup.jsx`)
 **Testing**: `go test` (unit tests), table-driven tests following existing patterns
 **Target Platform**: macOS, Linux (CLI binary via GoReleaser)
 **Project Type**: Single CLI binary
@@ -70,16 +70,16 @@ pkg/cli/
 ├── mockup/                    # Domain logic package (NEW)
 │   ├── detector.go            # Frontend framework detection (Tier 1-3 heuristics)
 │   ├── detector_test.go       # Detection unit tests
-│   ├── scanner.go             # Component scanning per framework
-│   ├── scanner_test.go        # Scanner unit tests
-│   ├── designsystem.go        # Design system index read/write/merge
+│   ├── stylescan.go           # CSS token extraction (colors, fonts, variables)
+│   ├── stylescan_test.go      # Style scanning tests
+│   ├── designsystem.go        # Design system read/write (CSS tokens only)
 │   ├── designsystem_test.go   # Design system I/O tests
 │   ├── specparser.go          # Parse spec.md content (title, user stories, requirements)
 │   ├── specparser_test.go     # Spec parser tests
-│   ├── prompt.go              # MockupPromptContext builder, template renderer
-│   ├── prompt_test.go         # Prompt builder tests (golden file tests)
+│   ├── mockupprompt.go        # MockupPromptContext builder, template renderer
+│   ├── mockupprompt_test.go   # Prompt builder tests
 │   ├── prompt.tmpl            # Embedded Go template for AI agent instructions
-│   └── types.go               # Shared types (FrameworkType, Component, MockupPromptContext, etc.)
+│   └── types.go               # Shared types (FrameworkType, DesignSystem, MockupPromptContext, etc.)
 └── revise/                    # MODIFIED — refactor to use pkg/cli/prompt/
     ├── editor.go              # REPLACED — thin wrapper around prompt.EditPrompt()
     └── prompt.go              # MODIFIED — delegates to prompt.RenderTemplate()
@@ -111,45 +111,37 @@ sl mockup [spec-name]
   │     ├─ If arg given: use directly
   │     ├─ If on feature branch: auto-detect via issues.NewContextDetector
   │     └─ If neither: interactive spec picker (huh.Select)
-  ├─ 2. Framework detection (detector.go)
+  ├─ 2. Auto-detect framework (detector.go)
   │     ├─ Tier 1: Config files (next.config.js, angular.json, etc.)
   │     ├─ Tier 2: package.json dependencies
   │     ├─ Tier 3: File extension scan
-  │     └─ Display result with lipgloss → huh.Confirm (or --force bypass)
+  │     └─ Display result with lipgloss (no confirmation needed)
   ├─ 3. Design system check/generate (designsystem.go)
-  │     ├─ If exists: load and display component count
-  │     ├─ If missing: prompt to generate → scan (scanner.go) → write file
+  │     ├─ If exists: load and display
+  │     ├─ If missing: prompt to generate → extract CSS tokens → write file
   │     └─ If malformed: warn and re-generate
-  ├─ 4. Component selection (huh.MultiSelect)
-  │     └─ All design system components listed, user picks subset for prompt
-  ├─ 5. Format selection
-  │     ├─ If --format flag set: use directly
-  │     └─ If interactive: huh.Select (html/jsx)
-  ├─ 6. Generate mockup prompt (mockup/prompt.go + prompt.tmpl)
+  ├─ 4. Generate mockup prompt (mockup/prompt.go + prompt.tmpl)
   │     ├─ Parse spec content (specparser.go)
   │     ├─ Build MockupPromptContext from gathered data
   │     └─ Render template → prompt string
-  ├─ 7. Edit & confirm prompt (pkg/cli/prompt/editor.go)
+  ├─ 5. Edit & confirm prompt (pkg/cli/prompt/editor.go)
   │     ├─ Open $EDITOR with generated prompt
   │     └─ Action menu: Launch / Re-edit / Write to file / Cancel
-  ├─ 8. Launch AI agent (pkg/cli/launcher/)
+  ├─ 6. Launch AI agent (pkg/cli/launcher/)
   │     ├─ If agent available: launcher.LaunchWithPrompt(prompt)
   │     └─ If no agent: writePromptToFile() + install instructions
-  ├─ 9. Post-agent commit/push (stagingAndCommitFlow pattern)
-  │     ├─ Detect changed files → display summary
-  │     ├─ huh.Confirm → file multi-select → commit message input
-  │     └─ Stage → commit → push
-  └─ 10. Summary
-        └─ Display mockup path, components used, format
+  └─ 7. Post-agent commit/push (stagingAndCommitFlow pattern)
+        ├─ Detect changed files → display summary
+        ├─ huh.Confirm → file multi-select → commit message input
+        └─ Stage → commit → push
 
 sl mockup update
   │
-  ├─ 1. Validate design_system.md exists
-  ├─ 2. Load existing design system (preserve manual entries)
+  ├─ 1. Validate design-system.md exists
+  ├─ 2. Load existing design system
   ├─ 3. Confirm rescan (huh.Confirm in interactive mode)
-  ├─ 4. Rescan components (scanner.go)
-  ├─ 5. Merge: add new, remove stale, keep manual
-  └─ 6. Write updated design_system.md
+  ├─ 4. Re-extract CSS tokens (stylescan.go)
+  └─ 5. Write updated design-system.md
 ```
 
 ### Key Design Decisions
@@ -166,7 +158,7 @@ sl mockup update
 
 6. **Tiered framework detection** — Config files first (99% confidence), package.json fallback, file extension last resort. Returns `DetectionResult` with confidence score; `IsFrontend` only if confidence >= 70.
 
-7. **YAML frontmatter + Markdown for design_system.md** — Machine-parseable metadata (version, framework, last_scanned) in frontmatter, human-readable component index in markdown body. Supports manual edits via `<!-- MANUAL -->` markers.
+7. **YAML frontmatter + Markdown for design-system.md** — Machine-parseable metadata (version, framework, last_scanned) in frontmatter, human-readable component index in markdown body. Supports manual edits via `<!-- MANUAL -->` markers.
 
 8. **Glob + regex scanning per framework** — Framework-specific glob patterns (`**/*.tsx`, `**/*.vue`, etc.) with content-based component identification. Skips `node_modules/`, `vendor/`, `.git/`, `dist/`, `build/`.
 

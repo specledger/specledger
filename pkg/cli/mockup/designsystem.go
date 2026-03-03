@@ -14,7 +14,7 @@ const (
 	frontmatterSep = "---"
 )
 
-// LoadDesignSystem reads and parses a design_system.md file.
+// LoadDesignSystem reads and parses a design-system.md file.
 func LoadDesignSystem(path string) (*DesignSystem, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -32,7 +32,7 @@ func LoadDesignSystem(path string) (*DesignSystem, error) {
 	return ds, nil
 }
 
-// WriteDesignSystem writes a DesignSystem to a design_system.md file.
+// WriteDesignSystem writes a DesignSystem to a design-system.md file.
 func WriteDesignSystem(path string, ds *DesignSystem) error {
 	dir := filepath.Dir(path)
 	if err := os.MkdirAll(dir, 0755); err != nil {

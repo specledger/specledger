@@ -3,24 +3,24 @@
 **Feature Branch**: `598-mockup-command`
 **Created**: 2026-02-26
 **Status**: Draft
-**Input**: User description: "Create new command 'sl mockup' which checks if the repository is a frontend repository, reads specledger/design_system.md for UI component indexing, generates mockups based on spec.md using the design system, creates design_system.md if missing, and initializes it during onboarding."
+**Input**: User description: "Create new command 'sl mockup' which checks if the repository is a frontend repository, reads specledger/design-system.md for UI component indexing, generates mockups based on spec.md using the design system, creates design-system.md if missing, and initializes it during onboarding."
 
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Generate Mockup via Interactive Flow (Priority: P1)
 
-As a frontend developer working on a feature, I want to run `sl mockup [spec-name]` so that an interactive flow guides me through framework detection, design system setup, component selection, and prompt review before launching an AI agent to generate a mockup grounded in my project's actual UI components.
+As a frontend developer working on a feature, I want to run `sl mockup [spec-name]` so that an interactive flow guides me through design system setup and prompt review before launching an AI agent to generate a mockup grounded in my project's design tokens.
 
-**Why this priority**: This is the core value proposition — an interactive, agent-driven flow that generates mockups grounded in the project's actual design system ensures consistency, gives the developer control at each step, and produces higher-quality output than a non-interactive generator.
+**Why this priority**: This is the core value proposition — an agent-driven flow that generates mockups grounded in the project's design tokens ensures consistency and produces higher-quality output than a non-interactive generator.
 
 **Independent Test**: Can be fully tested by running `sl mockup` on a feature branch (or `sl mockup <spec-name>` explicitly) in a frontend project with both a spec and design system. The interactive flow should guide through each step and launch the AI agent to produce the mockup file.
 
 **Acceptance Scenarios**:
 
 1. **Given** a frontend repository on a feature branch `598-mockup-command`, **When** the user runs `sl mockup` (no argument), **Then** the system auto-detects the spec from the branch name and proceeds with the interactive flow.
-2. **Given** the interactive flow is running, **When** framework detection completes, **Then** the system displays the detected framework with lipgloss styling and asks for confirmation (or override).
+2. **Given** the interactive flow is running, **When** framework detection completes, **Then** the system displays the detected framework with lipgloss styling and proceeds automatically.
 3. **Given** a design system exists, **When** the flow proceeds, **Then** the system includes the design tokens in the AI agent prompt so mockups use consistent styling.
-4. **Given** the user has confirmed components and format, **When** the prompt is generated, **Then** the system opens the user's `$EDITOR` for prompt review and shows an action menu: Launch / Re-edit / Write to file / Cancel.
+4. **Given** the prompt is generated, **When** the user proceeds, **Then** the system opens the user's `$EDITOR` for prompt review and shows an action menu: Launch / Re-edit / Write to file / Cancel.
 5. **Given** the user selects "Launch", **When** an AI agent is available, **Then** the system launches the agent with the prompt via `launcher.LaunchWithPrompt()`.
 6. **Given** the agent session completes, **When** there are uncommitted changes, **Then** the system offers to commit and push using the `stagingAndCommitFlow` pattern (file multi-select, commit message input, push).
 7. **Given** a `--dry-run` flag, **When** the prompt is generated, **Then** the system writes the prompt to a file instead of launching the agent and exits.
@@ -30,33 +30,33 @@ As a frontend developer working on a feature, I want to run `sl mockup [spec-nam
 
 ### User Story 2 - Auto-Create Design System When Missing (Priority: P2)
 
-As a frontend developer in a project without a `specledger/design_system.md`, I want the interactive flow to detect the missing file, extract global CSS styles (design tokens, variables, theme configuration), and generate an initial design system document so that the AI agent can generate mockups consistent with my project's visual identity.
+As a frontend developer in a project without a `specledger/design-system.md`, I want the interactive flow to detect the missing file, extract global CSS styles (design tokens, variables, theme configuration), and generate an initial design system document so that the AI agent can generate mockups consistent with my project's visual identity.
 
 **Why this priority**: This removes a setup barrier and ensures mockups match the project's design language. Component discovery is left to the AI agent which can search and identify them directly.
 
-**Independent Test**: Can be tested by running `sl mockup` in a frontend repo that lacks `specledger/design_system.md`. The interactive flow should prompt the user to generate the design system, extract global CSS, and then proceed.
+**Independent Test**: Can be tested by running `sl mockup` in a frontend repo that lacks `specledger/design-system.md`. The interactive flow should prompt the user to generate the design system, extract global CSS, and then proceed.
 
 **Acceptance Scenarios**:
 
-1. **Given** a frontend repository without `specledger/design_system.md`, **When** the interactive flow reaches the design system step, **Then** the system prompts the user to generate the design system, extracts global CSS/tokens, and creates `specledger/design_system.md`.
+1. **Given** a frontend repository without `specledger/design-system.md`, **When** the interactive flow reaches the design system step, **Then** the system prompts the user to generate the design system, extracts global CSS/tokens, and creates `specledger/design-system.md`.
 2. **Given** a React project with Tailwind CSS configuration, **When** the design system is auto-generated, **Then** the user sees a lipgloss-styled summary of discovered design tokens (colors, spacing, typography) before proceeding.
 3. **Given** a project using CSS variables in global stylesheets, **When** the design system is generated, **Then** all CSS custom properties (--color-primary, --spacing-lg, etc.) are extracted and documented.
 
 ---
 
-### User Story 3 - Interactive Framework Detection and Confirmation (Priority: P2)
+### User Story 3 - Automatic Framework Detection (Priority: P2)
 
-As a developer working on a frontend project, I want the interactive flow to detect my frontend framework, display the result with lipgloss styling, and let me confirm or override it, so that the mockup context is always correct.
+As a developer working on a frontend project, I want the interactive flow to auto-detect my frontend framework and display the result with lipgloss styling, so that the mockup process can proceed quickly without unnecessary confirmation steps.
 
-**Why this priority**: This ensures the mockup command works seamlessly for frontend projects and gives the user control over framework selection.
+**Why this priority**: This ensures the mockup command works seamlessly for frontend projects with minimal friction.
 
-**Independent Test**: Can be tested by running `sl mockup` in a frontend repository. The system should detect the frontend framework, display it with confidence score, and allow the user to confirm or override.
+**Independent Test**: Can be tested by running `sl mockup` in a frontend repository. The system should detect the frontend framework, display it with confidence score, and proceed automatically.
 
 **Acceptance Scenarios**:
 
-1. **Given** a React/Vue/Svelte/Angular repository, **When** the interactive flow reaches framework detection, **Then** the system displays the detected framework with confidence score using lipgloss and prompts for confirmation.
-2. **Given** an ambiguous repository (e.g., a monorepo with both backend and frontend), **When** framework detection runs, **Then** the system presents multiple detected frameworks and lets the user pick one via `huh.Select`.
-3. **Given** a non-frontend repository without `--force`, **When** the user runs `sl mockup`, **Then** the system displays a styled error and exits with code 2.
+1. **Given** a React/Vue/Svelte/Angular repository, **When** the interactive flow reaches framework detection, **Then** the system displays the detected framework with confidence score using lipgloss and proceeds automatically.
+2. **Given** a non-frontend repository without `--force`, **When** the user runs `sl mockup`, **Then** the system displays a styled error and exits with code 2.
+3. **Given** a non-frontend repository with `--force`, **When** the user runs `sl mockup`, **Then** the system proceeds with framework=unknown.
 
 ---
 
@@ -66,11 +66,11 @@ As a developer who has updated my project's global CSS or design tokens, I want 
 
 **Why this priority**: Allows developers to keep the design system in sync with their codebase as styles evolve.
 
-**Independent Test**: Can be tested by modifying global CSS/tokens in a frontend project and running `sl mockup update`. The system should re-extract and update `specledger/design_system.md`.
+**Independent Test**: Can be tested by modifying global CSS/tokens in a frontend project and running `sl mockup update`. The system should re-extract and update `specledger/design-system.md`.
 
 **Acceptance Scenarios**:
 
-1. **Given** a frontend repository with an existing `specledger/design_system.md`, **When** the user modifies global CSS or Tailwind config and runs `sl mockup update`, **Then** the system re-extracts design tokens and updates the design system.
+1. **Given** a frontend repository with an existing `specledger/design-system.md`, **When** the user modifies global CSS or Tailwind config and runs `sl mockup update`, **Then** the system re-extracts design tokens and updates the design system.
 2. **Given** a design system that has been manually edited, **When** the user runs `sl mockup update`, **Then** the system respects manual additions/modifications and merges new discoveries with existing entries.
 3. **Given** a project where CSS variables have been removed, **When** the user runs `sl mockup update`, **Then** the system identifies and removes stale entries from the design system.
 
@@ -78,16 +78,16 @@ As a developer who has updated my project's global CSS or design tokens, I want 
 
 ### User Story 5 - Initialize Design System During Onboarding (Priority: P3)
 
-As a new user onboarding a frontend project to SpecLedger, I want the `sl init` / onboarding process to automatically create `specledger/design_system.md` so that the design system index is ready when I first use `sl mockup`.
+As a new user onboarding a frontend project to SpecLedger, I want the `sl init` / onboarding process to automatically create `specledger/design-system.md` so that the design system index is ready when I first use `sl mockup`.
 
 **Why this priority**: Improves the onboarding experience but is not blocking since US3 handles the case where the file is missing at mockup time.
 
-**Independent Test**: Can be tested by running `sl init` on a frontend project and verifying that `specledger/design_system.md` is created alongside other initialization artifacts.
+**Independent Test**: Can be tested by running `sl init` on a frontend project and verifying that `specledger/design-system.md` is created alongside other initialization artifacts.
 
 **Acceptance Scenarios**:
 
-1. **Given** a frontend repository being initialized with `sl init`, **When** onboarding completes, **Then** `specledger/design_system.md` exists in the specledger directory with an auto-generated index of UI components.
-2. **Given** a non-frontend repository being initialized with `sl init`, **When** onboarding completes, **Then** `specledger/design_system.md` is NOT created (since mockup is not applicable).
+1. **Given** a frontend repository being initialized with `sl init`, **When** onboarding completes, **Then** `specledger/design-system.md` exists in the specledger directory with an auto-generated index of UI components.
+2. **Given** a non-frontend repository being initialized with `sl init`, **When** onboarding completes, **Then** `specledger/design-system.md` is NOT created (since mockup is not applicable).
 
 ---
 
@@ -108,16 +108,16 @@ As a new user onboarding a frontend project to SpecLedger, I want the `sl init` 
 ### Functional Requirements
 
 - **FR-001**: System MUST detect whether the current repository is a frontend project by checking for frontend indicators (package.json with frontend dependencies, framework config files, or source directories with frontend component files).
-- **FR-002**: System MUST initialize the design system by extracting global CSS (design tokens, CSS variables, theme config) if the repository is a frontend project and `specledger/design_system.md` is missing.
-- **FR-003**: System MUST read and parse `specledger/design_system.md` to provide the AI agent with the project's design tokens and styling conventions.
-- **FR-004**: System MUST generate a mockup based on the feature's `specledger/<spec-name>/spec.md`, mapping UI needs to existing design system components wherever possible.
-- **FR-005**: System MUST auto-generate `specledger/design_system.md` by extracting global CSS styles, design tokens, and CSS variables when the file does not exist.
-- **FR-006**: System MUST integrate with the `sl init` onboarding flow to create `specledger/design_system.md` for frontend projects during initialization.
+- **FR-002**: System MUST initialize the design system by extracting global CSS (design tokens, CSS variables, theme config) if the repository is a frontend project and `specledger/design-system.md` is missing.
+- **FR-003**: System MUST read and parse `specledger/design-system.md` to provide the AI agent with the project's design tokens and styling conventions.
+- **FR-004**: System MUST generate a mockup based on the feature's primary source files — `spec.md` (user stories, acceptance criteria), `requirements.md` (functional requirements), and `data-model.md` (data structures) — mapping UI needs to existing design system components wherever possible.
+- **FR-005**: System MUST auto-generate `specledger/design-system.md` by extracting global CSS styles, design tokens, and CSS variables when the file does not exist.
+- **FR-006**: System MUST integrate with the `sl init` onboarding flow to create `specledger/design-system.md` for frontend projects during initialization.
 - **FR-007**: System MUST output the generated mockup to the feature directory as HTML or JSX (e.g., `specledger/<spec-name>/mockup.html` or `specledger/<spec-name>/mockup.jsx`), defaulting to HTML.
 - **FR-013**: System MUST support a `--format` flag accepting `html` or `jsx` to control the mockup output format.
 - **FR-008**: System MUST support extracting design tokens from common styling approaches: CSS variables, Tailwind config, styled-components themes, CSS-in-JS theme objects, and SCSS/Less variables.
 - **FR-009**: System MUST handle the case where `spec.md` contains no user scenarios by displaying a helpful error message directing the user to run the specify workflow first.
-- **FR-010**: System MUST allow users to manually edit `specledger/design_system.md` and respect manual additions/modifications on subsequent runs.
+- **FR-010**: System MUST allow users to manually edit `specledger/design-system.md` and respect manual additions/modifications on subsequent runs.
 - **FR-011**: System MUST provide a `--force` flag to bypass frontend detection for edge cases (e.g., uncommon frameworks).
 - **FR-012**: System MUST support `sl mockup update` command to refresh the design system by re-extracting global CSS and design tokens.
 - **FR-014**: System MUST support a `--dry-run` flag that writes the generated prompt to a file instead of launching the AI agent. _(US1)_
@@ -125,15 +125,15 @@ As a new user onboarding a frontend project to SpecLedger, I want the `sl init` 
 - **FR-016**: System MUST allow spec-name to be optional, auto-detecting from the current branch via `issues.NewContextDetector`. If not on a feature branch and no argument given, present an interactive spec picker. _(US1)_
 - **FR-017**: System MUST launch the configured AI agent with the generated prompt using `launcher.LaunchWithPrompt()`. If no agent is available, fall back to writing the prompt to a file with install instructions. _(US1)_
 - **FR-018**: System MUST offer to commit and push changes after the agent session completes, reusing the `stagingAndCommitFlow` pattern (file multi-select, commit message, push). _(US1)_
-- **FR-019**: System MUST display interactive confirmation at each major step — framework detection, design system generation, component selection, format selection, and prompt review — using `huh` forms and `lipgloss` displays. _(US1, US2, US3)_
+- **FR-019**: System MUST display interactive confirmation at key steps — design system generation and prompt review — using `huh` forms and `lipgloss` displays. Framework detection and format selection are automatic. _(US1, US2, US3)_
 - **FR-020**: System MUST extract shared editor and prompt utilities from the `revise` package into a reusable `pkg/cli/prompt/` package for use by both `revise` and `mockup` commands. _(US1)_
 
 ### Key Entities
 
-- **Design System**: A markdown file (`specledger/design_system.md`) that documents the project's global CSS styles, design tokens, and visual identity — includes color palettes, typography scales, spacing systems, CSS variables, and theme configuration. Does NOT index individual components (the AI agent discovers those via codebase search).
+- **Design System**: A markdown file (`specledger/design-system.md`) that documents the project's global CSS styles, design tokens, and visual identity — includes color palettes, typography scales, spacing systems, CSS variables, and theme configuration. Does NOT index individual components (the AI agent discovers those via codebase search).
 - **Mockup**: An HTML or JSX file representing the feature's UI, referencing components from the design system index. Contains screen layouts with component placements, user interaction flows, and annotations. HTML format uses semantic HTML with inline styles; JSX format outputs React-compatible component code. **Generated by the AI agent, not by Go code.**
 - **Frontend Detection Result**: The outcome of the repository type check — identifies the frontend framework(s) in use, the component directory structure, and whether the project qualifies as a frontend repository.
-- **Mockup Prompt Context**: The template rendering context passed to the agent prompt — includes spec name, parsed spec content, framework, format, output path, design tokens, and design system content.
+- **Mockup Prompt Context**: The template rendering context passed to the agent prompt — includes spec name, parsed spec content, framework, format, output path, design tokens, and design system content. The prompt instructs the AI agent to read primary source files (spec.md, requirements.md, data-model.md) BEFORE generating any mockup.
 - **Spec Content**: Parsed content from `spec.md` — title, user stories, requirements, and full content text used to build the agent prompt.
 
 ## Success Criteria _(mandatory)_
@@ -145,13 +145,13 @@ As a new user onboarding a frontend project to SpecLedger, I want the `sl init` 
 - **SC-003**: Frontend detection correctly identifies frontend projects across React, Vue, Svelte, and Angular projects.
 - **SC-004**: The auto-generated design system captures the project's design tokens (CSS variables, Tailwind config, theme objects).
 - **SC-005**: Users running `sl mockup <spec-name>` on a frontend repo receive a mockup within 30 seconds.
-- **SC-006**: After onboarding a frontend project, `specledger/design_system.md` is present and populated without additional user action.
+- **SC-006**: After onboarding a frontend project, `specledger/design-system.md` is present and populated without additional user action.
 - **SC-007**: Running `sl mockup update` refreshes the design system (re-extracts design tokens) in under 10 seconds.
 
 ### Previous work
 
 - **597-issue-create-fields**: Issue create fields enhancement — most recent CLI command addition, establishes patterns for new commands.
-- **011-streamline-onboarding**: Streamlined onboarding — directly related since this feature extends the onboarding flow to initialize design_system.md.
+- **011-streamline-onboarding**: Streamlined onboarding — directly related since this feature extends the onboarding flow to initialize design-system.md.
 
 ## Scope & Boundaries
 
@@ -159,7 +159,7 @@ As a new user onboarding a frontend project to SpecLedger, I want the `sl init` 
 
 - New `sl mockup [spec-name]` CLI command with interactive TUI flow
 - New `sl mockup update` CLI command
-- Frontend repository detection logic with interactive confirmation
+- Automatic frontend repository detection
 - Design system file format (global CSS/design tokens) and auto-generation
 - AI agent-driven mockup generation from spec + design system (HTML or JSX output)
 - `--format` flag to choose between `html` (default) and `jsx` output

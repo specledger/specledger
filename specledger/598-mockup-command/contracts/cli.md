@@ -35,13 +35,13 @@ sl mockup --json                       # Non-interactive JSON output
 
 **Inputs**:
 - `specledger/<spec-name>/spec.md` - Feature specification (required)
-- `specledger/design_system.md` - Design system index (auto-generated if missing)
+- `specledger/design-system.md` - Design system index (auto-generated if missing)
 
 **Outputs**:
 - `specledger/<spec-name>/mockup.html` - Generated mockup (HTML format, default) — created by AI agent
 - `specledger/<spec-name>/mockup.jsx` - Generated mockup (JSX format, when `--format jsx`) — created by AI agent
 - `specledger/<spec-name>/mockup-prompt.md` - Agent prompt (when `--dry-run`)
-- `specledger/design_system.md` - Created if missing
+- `specledger/design-system.md` - Created if missing
 
 **Exit Codes**:
 | Code | Meaning |
@@ -65,7 +65,7 @@ Detecting frontend framework...
 
 Design system not found. Generate now? [Y/n]: y
 ✓ Scanned 47 components in 2.3s
-✓ Created specledger/design_system.md
+✓ Created specledger/design-system.md
 
 Select components to include in mockup:
   src/components/
@@ -173,10 +173,10 @@ sl mockup update --json
 | `--json` | | bool | false | Output result as JSON |
 
 **Inputs**:
-- `specledger/design_system.md` - Existing design system (required)
+- `specledger/design-system.md` - Existing design system (required)
 
 **Outputs**:
-- `specledger/design_system.md` - Updated design system
+- `specledger/design-system.md` - Updated design system
 
 **Exit Codes**:
 | Code | Meaning |
@@ -193,7 +193,7 @@ Updating design system index...
 ✓ Scanned 52 components in 1.8s
 ✓ Added 5 new components
 ✓ Removed 2 stale components
-✓ Updated specledger/design_system.md
+✓ Updated specledger/design-system.md
 ```
 
 **Example Output** (JSON):
@@ -216,7 +216,7 @@ When `sl init` runs on a frontend project:
 **Modified Behavior**:
 1. After standard initialization, detect frontend framework
 2. If frontend detected, prompt user: "Initialize design system? [Y/n]"
-3. If yes (default), scan components and create `specledger/design_system.md`
+3. If yes (default), scan components and create `specledger/design-system.md`
 4. If no, skip design system initialization
 
 **Non-Interactive Mode** (`sl init --ci`):
@@ -231,7 +231,7 @@ When `sl init` runs on a frontend project:
 Detected frontend framework: React
 Initialize design system? [Y/n]: y
 ✓ Scanned 23 components in 1.2s
-✓ Created specledger/design_system.md
+✓ Created specledger/design-system.md
 
 SpecLedger initialized successfully!
 ```
@@ -246,7 +246,7 @@ SpecLedger initialized successfully!
 | No spec on branch | `Error: Cannot detect spec\n\nNot on a feature branch and no spec-name provided.\nProvide a spec name: sl mockup <spec-name>` |
 | No user scenarios | `Error: Spec has no user scenarios\n\nThe spec.md file has no user scenarios to generate mockups from.\nAdd user scenarios with: sl clarify xyz` |
 | Not frontend | `Error: Not a frontend project\n\nNo frontend framework detected in this repository.\nUse --force to bypass this check, or run from a frontend project directory.` |
-| Design system missing (update) | `Error: Design system not found\n\nNo design system at specledger/design_system.md\nGenerate one first with: sl mockup <spec-name>` |
+| Design system missing (update) | `Error: Design system not found\n\nNo design system at specledger/design-system.md\nGenerate one first with: sl mockup <spec-name>` |
 | Invalid format | `Error: Invalid format 'xyz'\n\nSupported formats: html, jsx` |
 | Write permission | `Error: Cannot write to specledger/\n\nCheck file permissions and try again.` |
 | Agent not found | `Error: No AI agent available\n\nPrompt written to specledger/<spec-name>/mockup-prompt.md\nInstall Claude Code: npm install -g @anthropic-ai/claude-code` |
