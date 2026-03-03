@@ -1,5 +1,19 @@
 #!/usr/bin/env bash
 
+# ⚠️  DEPRECATION NOTICE ⚠️
+# 
+# This bash script is deprecated and will be removed in a future version.
+# Please use the Go CLI command instead:
+# 
+#   sl spec setup-plan              # Create plan.md from template
+#   sl spec setup-plan --json       # JSON output
+# 
+# The Go CLI provides better cross-platform support and consistent JSON output.
+# See: https://specledger.io/docs for more information.
+#
+# This script will be removed in feature 599-alignment.
+#
+
 set -e
 
 # Parse command line arguments

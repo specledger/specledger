@@ -1,5 +1,21 @@
 #!/usr/bin/env bash
 
+# ⚠️  DEPRECATION NOTICE ⚠️
+# 
+# This bash script is deprecated and will be removed in a future version.
+# Please use the Go CLI command instead:
+# 
+#   sl spec info --json              # JSON output
+#   sl spec info --require-tasks     # Require tasks.md
+#   sl spec info --include-tasks     # Include tasks.md in output
+#   sl spec info --paths-only        # Output paths only
+# 
+# The Go CLI provides better cross-platform support and consistent JSON output.
+# See: https://specledger.io/docs for more information.
+#
+# This script will be removed in feature 599-alignment.
+#
+
 # Consolidated prerequisite checking script
 #
 # This script provides unified prerequisite checking for Spec-Driven Development workflow.
