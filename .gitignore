@@ -86,3 +86,4 @@ bin/main
 main
 /sl
 .beads/metadata.json
+branch-map.json
