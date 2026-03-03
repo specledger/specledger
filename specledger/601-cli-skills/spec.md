@@ -105,17 +105,16 @@ As an AI agent, I need the `sl-comment` skill to understand when and how to use 
 
 ### User Story 5 - spike AI Command (Priority: P2)
 
-As a developer exploring a new technology, I need the `spike` command to run time-boxed research so that findings are captured in a structured format.
+As a developer exploring a new technology, I need the `spike` command to run research so that findings are captured in a structured format.
 
 **Why this priority**: Enables exploratory work but not required for core workflow.
 
-**Independent Test**: Run `/specledger.spike "research auth patterns" --timebox 30m` and verify research file created.
+**Independent Test**: Run `/specledger.spike "research auth patterns"` and verify research file created.
 
 **Acceptance Scenarios**:
 
 1. **Given** a research topic, **When** running `/specledger.spike "topic"`, **Then** research file is created at `specledger/<spec>/research/yyyy-mm-dd-topic.md`
-2. **Given** `--timebox` flag, **When** run, **Then** agent is instructed to limit exploration time
-3. **Given** spike output, **When** complete, **Then** file includes Findings, Decisions, and Recommendations sections
+2. **Given** spike output, **When** complete, **Then** file includes Findings, Decisions, and Recommendations sections
 4. **Given** existing research files, **When** creating new spike, **Then** unique filename is generated (no overwrite)
 
 ---
@@ -141,7 +140,6 @@ As a developer implementing a feature, I need the `checkpoint` command to verify
 
 - What if Supabase API is unavailable? → `sl comment` commands return network error with retry hint
 - What if comment was deleted by another user? → `sl comment show` returns "comment not found"
-- What if spike runs over timebox? → Agent logs warning but continues to completion
 - What if checkpoint finds no progress? → Reports "no changes since last checkpoint"
 - What if multiple agents reply to same comment? → Both replies are preserved in thread order
 
@@ -169,7 +167,7 @@ As a developer implementing a feature, I need the `checkpoint` command to verify
 - **ThreadReply**: A reply in a comment thread
   - id, parent_id, content, author, created_at
 - **SpikeReport**: Research spike output
-  - topic, timebox, findings, decisions, recommendations, created_at
+  - topic, findings, decisions, recommendations, created_at
 - **CheckpointLog**: Session progress record
   - tasks_completed, tests_status, uncommitted_changes, timestamp
 

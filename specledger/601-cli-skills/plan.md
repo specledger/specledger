@@ -163,7 +163,7 @@ See [contracts/sl-comment-cli.md](./contracts/sl-comment-cli.md) for full contra
 
 ### AI Command Templates
 
-**spike**: Research spike with timebox
+**spike**: Research spike
 - Output: `specledger/<spec>/research/yyyy-mm-dd-<topic>.md`
 - Sections: Findings, Decisions, Recommendations
 
@@ -237,8 +237,7 @@ See [contracts/sl-comment-cli.md](./contracts/sl-comment-cli.md) for full contra
 **Tasks**:
 1. Create spike command template
 2. Define output format (research file structure)
-3. Add timebox guidance
-4. Include Findings/Decisions/Recommendations sections
+3. Include Findings/Decisions/Recommendations sections
 
 **Independent Test**: `/specledger.spike "topic"` creates research file
 

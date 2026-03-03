@@ -156,7 +156,7 @@ sl issue show SL-3a436b
 | SL-34e30 | Message posted to thread, --json includes reply_id, --json includes timestamp, Parent not found error |
 | SL-638e23 | Single ID resolves, Multiple IDs work, Cascade to replies, --json shows IDs |
 | SL-522810 | When to use documented, Decision criteria for list vs show, JSON parsing examples, Reply/resolve workflow |
-| SL-145f45 | Timebox included, Findings section, Decisions section, Recommendations section, Unique filename |
+| SL-145f45 | Findings section, Decisions section, Recommendations section, Unique filename |
 | SL-f21e96 | In-progress tasks checked, Tests verified, Uncommitted changes noted, Summary shows accomplishments |
 | SL-827e41 | sl revise --summary replaced, sl comment list used, Reply/resolve instructions updated |
 
