@@ -1,6 +1,7 @@
 package comment
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -318,4 +319,66 @@ func BuildReplyMap(replies []ReviewComment) ReplyMap {
 		m[r.ParentCommentID] = append(m[r.ParentCommentID], r)
 	}
 	return m
+}
+
+func (c *Client) CreateReply(parentID, content string) (*ThreadReply, error) {
+	reqURL := fmt.Sprintf("%s/rest/v1/review_comments", c.BaseURL)
+
+	body := map[string]interface{}{
+		"parent_comment_id": parentID,
+		"content":           content,
+	}
+
+	bodyBytes, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("CreateReply: failed to marshal request: %w", err)
+	}
+
+	postFn := func(token string) (*http.Response, error) {
+		req, err := http.NewRequest(http.MethodPost, reqURL, bytes.NewReader(bodyBytes))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("apikey", c.AnonKey)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Prefer", "return=representation")
+
+		return c.HTTPClient.Do(req)
+	}
+
+	resp, err := c.DoWithRetry(postFn)
+	if err != nil {
+		return nil, fmt.Errorf("CreateReply: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, fmt.Errorf("CreateReply: parent comment not found: %s", parentID)
+	}
+
+	if resp.StatusCode >= 400 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("CreateReply: API error (%d): %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	var replies []struct {
+		ID        string `json:"id"`
+		Content   string `json:"content"`
+		CreatedAt string `json:"created_at"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&replies); err != nil {
+		return nil, fmt.Errorf("CreateReply: failed to parse response: %w", err)
+	}
+
+	if len(replies) == 0 {
+		return nil, fmt.Errorf("CreateReply: no reply returned from API")
+	}
+
+	return &ThreadReply{
+		ID:        replies[0].ID,
+		ParentID:  parentID,
+		Content:   replies[0].Content,
+		CreatedAt: replies[0].CreatedAt,
+	}, nil
 }

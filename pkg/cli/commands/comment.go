@@ -76,10 +76,32 @@ Examples:
 	SilenceUsage: true,
 }
 
+var commentReplyCmd = &cobra.Command{
+	Use:   "reply <comment-id> <message>",
+	Short: "Reply to a comment thread",
+	Long: `Post a reply to an existing comment thread.
+
+Arguments:
+  comment-id: The ID of the parent comment
+  message:    The reply message text
+
+Output formats:
+  Default: Success message with reply ID
+  --json:  JSON object with reply_id and timestamp
+
+Examples:
+  sl comment reply abc123 "Fixed in commit def456"
+  sl comment reply abc123 "Addressed the issue" --json`,
+	Args:         cobra.ExactArgs(2),
+	RunE:         runCommentReply,
+	SilenceUsage: true,
+}
+
 var (
 	commentListJSON   bool
 	commentListStatus string
 	commentShowJSON   bool
+	commentReplyJSON  bool
 )
 
 func init() {
@@ -88,8 +110,11 @@ func init() {
 
 	commentShowCmd.Flags().BoolVar(&commentShowJSON, "json", false, "Output as JSON")
 
+	commentReplyCmd.Flags().BoolVar(&commentReplyJSON, "json", false, "Output as JSON")
+
 	VarCommentCmd.AddCommand(commentListCmd)
 	VarCommentCmd.AddCommand(commentShowCmd)
+	VarCommentCmd.AddCommand(commentReplyCmd)
 }
 
 func runCommentList(cmd *cobra.Command, args []string) error {
@@ -376,6 +401,45 @@ func outputCommentHuman(c *comment.ReviewComment, replies []comment.ReviewCommen
 			fmt.Printf("   %s\n", r.Content)
 		}
 	}
+
+	return nil
+}
+
+func runCommentReply(cmd *cobra.Command, args []string) error {
+	commentID := args[0]
+	message := args[1]
+
+	accessToken, err := auth.GetValidAccessToken()
+	if err != nil {
+		return fmt.Errorf("authentication required: %w\n\nRun 'sl auth login' to authenticate.", err)
+	}
+
+	client := comment.NewClient(accessToken)
+
+	reply, err := client.CreateReply(commentID, message)
+	if err != nil {
+		return fmt.Errorf("failed to post reply: %w", err)
+	}
+
+	if commentReplyJSON {
+		type ReplyOutput struct {
+			ID        string `json:"reply_id"`
+			Timestamp string `json:"timestamp"`
+		}
+
+		output := ReplyOutput{
+			ID:        reply.ID,
+			Timestamp: reply.CreatedAt,
+		}
+
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(output)
+	}
+
+	fmt.Printf("Reply posted successfully\n")
+	fmt.Printf("Reply ID: %s\n", reply.ID)
+	fmt.Printf("Timestamp: %s\n", reply.CreatedAt)
 
 	return nil
 }
