@@ -49,32 +49,72 @@ Lifecycle tracking for completed specs. Complements agent execution by providing
 - Instruction files (`-i`) allow rich, multi-line context without shell escaping issues
 - `--no-session` prevents session accumulation during automated runs
 - `--output-format json` enables structured result parsing
-- Exit code 0 = success, non-zero = failure (fixed in goose PR #4621)
+- Exit code 0 = success, non-zero = failure
+
+**Complete `goose run` flag reference** (verified 2026-03-03):
+```
+goose run \
+  -i <file>                    # --instructions: accept from file path (or - for stdin)
+  -t <text>                    # --text: inline text instruction
+  --no-session                 # No persistent session; routes to /dev/null
+  --with-builtin <names>       # Built-in extensions, comma-separated (e.g., "developer")
+  --provider <provider>        # Override LLM provider (anthropic, openai, etc.)
+  --model <model>              # Override model name
+  --max-turns <N>              # Max consecutive turns without user input (default: 1000)
+  --max-tool-repetitions <N>   # Max same tool calls with identical params
+  --output-format <fmt>        # text (default), json, stream-json
+  -q / --quiet                 # Suppress non-response output
+  -n <name> / --name           # Name the session for resumption
+  -r <name> / --resume         # Resume a named session
+  -s / --interactive           # Stay interactive after task
+  --debug                      # Verbose tool output
+  --recipe <file>              # Execute predefined recipe YAML
+  --params KEY=VALUE           # Recipe parameters
+```
 
 **Key CLI flags for our use case**:
 ```
 goose run \
   -i <instruction-file>       # Task execution context
   --no-session                 # No persistent session needed
-  --with-builtin developer     # Enable developer tools (file editing, shell)
-  --provider <provider>        # From agent config
-  --model <model>              # From agent config
-  --output-format json         # For structured result capture
-  --max-turns <N>              # Prevent runaway execution
-  -q                           # Quiet mode for log cleanliness
+  --with-builtin developer     # Enable developer tools (shell, text_editor, analyze)
+  --max-turns <N>              # Prevent runaway execution (default: 50 for us)
+  -q                           # Quiet mode for headless
 ```
+
+Note: `--provider` and `--model` flags can override env vars but we prefer env vars for consistency with the existing config system.
+
+**Developer builtin extension provides**:
+- `developer__shell` — Execute shell commands (tests, git, builds)
+- `developer__text_editor` — Read, write, and edit files
+- `developer__analyze` — Semantic code analysis (read-only)
+- `developer__screen_capture` — Screenshots
+- `developer__image_processor` — Image processing
+
+The developer extension is enabled by default in Goose, but we specify it explicitly via `--with-builtin` for clarity in `--no-session` mode.
 
 **Environment variables for headless mode**:
 ```
-GOOSE_MODE=auto                # Auto-approve tool operations
-GOOSE_DISABLE_SESSION_NAMING=true
-GOOSE_MAX_TURNS=50             # Configurable safety limit
+GOOSE_MODE=auto                         # Auto-approve tool operations (no prompts)
+GOOSE_DISABLE_SESSION_NAMING=true       # Skip AI-generated session names
+GOOSE_PROVIDER=<provider>               # e.g., anthropic, openai
+GOOSE_MODEL=<model>                     # Full model name
+GOOSE_PROVIDER__API_KEY=<key>           # Auth credentials
+GOOSE_PROVIDER__HOST=<url>              # Custom API endpoint
+ANTHROPIC_API_KEY=<key>                 # Provider-specific (set both for compat)
 ```
+
+**GOOSE_MODE values**: `auto` (no prompts), `approve` (every tool), `smart_approve` (default, selective), `chat` (no tools)
+
+**Variables set BY Goose** (in spawned processes): `GOOSE_TERMINAL=1`, `AGENT=goose`, `AGENT_SESSION_ID=<uuid>`
+
+**Exit codes**: 0 = success, non-zero = failure (standard Unix conventions, no documented specific codes beyond 0/non-0)
 
 **Alternatives considered**:
 - `goose session` (interactive) — rejected: requires human interaction, not suitable for automation
 - Embedding Goose as a library — rejected: Goose is a Rust binary, no Go SDK; CLI invocation is the documented integration point
-- Recipe files — considered for future: recipes provide parameterized workflows but add complexity for MVP
+- Recipe files — considered for future P4: recipes provide parameterized workflows but add complexity for MVP
+- `goose run -t <inline>` — rejected: character limits and shell escaping issues; file is safer
 
 ### 2. Goose Detection and Installation
 
@@ -82,9 +122,12 @@ GOOSE_MAX_TURNS=50             # Configurable safety limit
 
 **Rationale**: Consistent with existing `AgentLauncher.IsAvailable()` pattern. Version check ensures the installed goose is the Block Inc variant, not the unrelated `goose` Homebrew package.
 
+**Verification commands**: `which goose`, `goose --version`, `goose info` (shows config)
+
 **Installation guidance**:
 ```
-brew install block-goose-cli
+brew install block/tap/goose    # macOS (Homebrew)
+pipx install goose-ai           # Linux/pip
 ```
 
 **Alternative considered**: Auto-install via Homebrew — rejected: follows spec assumption that "Goose is installed locally by the user"
@@ -188,18 +231,22 @@ specledger/<spec>/.agent-runs/
 
 **Decision**: Map SpecLedger agent config to Goose environment variables
 
-**Mapping table**:
-| SpecLedger Config Key | Goose Env Var |
-|---|---|
-| `agent.provider` | `GOOSE_PROVIDER` |
-| `agent.model` | `GOOSE_MODEL` |
-| `agent.api-key` | `GOOSE_PROVIDER__API_KEY` + provider-specific (e.g., `ANTHROPIC_API_KEY`) |
-| `agent.base-url` | `GOOSE_PROVIDER__HOST` |
-| `agent.env.*` | Passed through directly |
-| (hardcoded) | `GOOSE_MODE=auto` (headless) |
-| (hardcoded) | `GOOSE_DISABLE_SESSION_NAMING=true` |
+**Mapping table** (verified against Goose docs 2026-03-03):
+| SpecLedger Config Key | Goose Env Var | Notes |
+|---|---|---|
+| `agent.provider` | `GOOSE_PROVIDER` | e.g., `anthropic`, `openai` |
+| `agent.model` | `GOOSE_MODEL` | Full model name |
+| `agent.api-key` | `GOOSE_PROVIDER__API_KEY` | Generic provider key |
+| `agent.api-key` (anthropic) | `ANTHROPIC_API_KEY` | Also set provider-specific for compat |
+| `agent.api-key` (openai) | `OPENAI_API_KEY` | Also set provider-specific for compat |
+| `agent.base-url` | `GOOSE_PROVIDER__HOST` | Custom endpoint |
+| `agent.base-url` (anthropic) | `ANTHROPIC_HOST` | Also set provider-specific for compat |
+| `agent.base-url` (openai) | `OPENAI_HOST` | Also set provider-specific for compat |
+| `agent.env.*` | Passed through directly | Custom env vars |
+| (hardcoded) | `GOOSE_MODE=auto` | No approval prompts |
+| (hardcoded) | `GOOSE_DISABLE_SESSION_NAMING=true` | Skip AI naming |
 
-**Implementation**: Extend `ResolvedConfig.GetEnvVars()` or create a Goose-specific adapter that reads the resolved config and produces Goose-compatible env vars. The existing `AgentLauncher.SetEnv()` + `BuildEnv()` pattern handles injection.
+**Implementation**: New `BuildGooseEnv()` function in `pkg/cli/agent/goose.go` that reads `*ResolvedConfig` and produces Goose-compatible env vars. Uses new `ResolveAgentConfig()` from `merge.go` (returns `*ResolvedConfig` not just env vars map) to access structured config values like `agent.provider`.
 
 ### 8. Logging and Output Capture
 

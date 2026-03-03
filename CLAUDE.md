@@ -53,6 +53,8 @@ make install        # Install sl to $GOBIN
 - File-based JSONL for issues (597-issue-create-fields)
 - Go 1.24.2 + Cobra (CLI), gofrs/flock (file locking), go-git v5 (git operations), gopkg.in/yaml.v3 (config) (599-agent-task-execution)
 - File-based — JSONL for issues (existing), JSON for agent run metadata, log files for output capture (599-agent-task-execution)
+- Go 1.24.2 + Cobra (CLI), go-git v5 (git), gofrs/flock (file locking), gopkg.in/yaml.v3 (config), text/template (instruction rendering) (599-agent-task-execution)
+- File-based — JSON for agent run metadata (`.agent-runs/`), JSONL for issues (existing), log files for output capture (599-agent-task-execution)
 
 ## Recent Changes
 - 597-issue-create-fields: Added Go 1.24.2 + Cobra (CLI), YAML v3 (config), JSONL (storage)
