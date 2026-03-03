@@ -1,0 +1,62 @@
+package prompt
+
+import (
+	"fmt"
+	"os"
+	"os/exec"
+)
+
+// DetectEditor returns the user's preferred editor from the environment.
+// It checks $EDITOR and $VISUAL first, then falls back to common editors.
+func DetectEditor() string {
+	for _, env := range []string{"EDITOR", "VISUAL"} {
+		if v := os.Getenv(env); v != "" {
+			return v
+		}
+	}
+	// Common fallbacks
+	for _, candidate := range []string{"vi", "nano", "vim"} {
+		if _, err := exec.LookPath(candidate); err == nil {
+			return candidate
+		}
+	}
+	return ""
+}
+
+// EditPrompt writes prompt content to a temp file, opens it in the user's editor,
+// and returns the (possibly modified) content after the editor exits.
+func EditPrompt(content string) (string, error) {
+	tmpFile, err := os.CreateTemp("", "sl-mockup-*.md")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.WriteString(content); err != nil {
+		tmpFile.Close()
+		return "", fmt.Errorf("failed to write prompt to temp file: %w", err)
+	}
+	tmpFile.Close()
+
+	editor := DetectEditor()
+	if editor == "" {
+		return "", fmt.Errorf("no editor found: set $EDITOR or $VISUAL environment variable")
+	}
+
+	// #nosec G204 — editor is from $EDITOR/$VISUAL env var, user-controlled
+	cmd := exec.Command(editor, tmpFile.Name())
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("editor exited with error: %w", err)
+	}
+
+	edited, err := os.ReadFile(tmpFile.Name())
+	if err != nil {
+		return "", fmt.Errorf("failed to read edited prompt: %w", err)
+	}
+
+	return string(edited), nil
+}
