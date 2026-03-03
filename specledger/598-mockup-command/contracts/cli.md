@@ -4,25 +4,25 @@
 
 ## Commands
 
-### sl mockup [spec-name]
+### sl mockup [prompt...]
 
-Generate a mockup from a feature specification via an interactive TUI flow.
+Generate a mockup from a feature specification. Spec is auto-detected from branch.
 
 **Usage**:
 ```bash
-sl mockup                              # Auto-detect spec from branch
-sl mockup 042-user-registration        # Explicit spec name
+sl mockup                              # Interactive flow with confirmations
+sl mockup focus on login form          # Skip confirmations, launch agent directly
+sl mockup -y                           # Auto-confirm all prompts
 sl mockup --format jsx                 # Specify output format
 sl mockup --force                      # Bypass frontend detection
 sl mockup --dry-run                    # Write prompt to file, skip agent
-sl mockup --summary                    # Compact output (agent/CI)
 sl mockup --json                       # Non-interactive JSON output
 ```
 
 **Arguments**:
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `spec-name` | No | Name of the spec directory (e.g., `042-user-registration`). Auto-detected from branch if omitted. |
+| `prompt...` | No | Additional instructions for the AI agent. When provided, confirmations are skipped. |
 
 **Flags**:
 | Flag | Short | Type | Default | Description |
@@ -32,16 +32,18 @@ sl mockup --json                       # Non-interactive JSON output
 | `--dry-run` | | bool | false | Write prompt to file instead of launching agent |
 | `--summary` | | bool | false | Compact output for agent/CI integration |
 | `--json` | | bool | false | Non-interactive path, output result as JSON |
+| `--yes` | `-y` | bool | false | Auto-confirm all prompts and launch agent directly |
+| `--prompt` | `-p` | string | | Additional instructions for the AI agent |
 
 **Inputs**:
 - `specledger/<spec-name>/spec.md` - Feature specification (required)
-- `specledger/design-system.md` - Design system index (auto-generated if missing)
+- `.specledger/memory/design-system.md` - Design system index (auto-generated if missing)
 
 **Outputs**:
 - `specledger/<spec-name>/mockup.html` - Generated mockup (HTML format, default) — created by AI agent
 - `specledger/<spec-name>/mockup.jsx` - Generated mockup (JSX format, when `--format jsx`) — created by AI agent
 - `specledger/<spec-name>/mockup-prompt.md` - Agent prompt (when `--dry-run`)
-- `specledger/design-system.md` - Created if missing
+- `.specledger/memory/design-system.md` - Created if missing
 
 **Exit Codes**:
 | Code | Meaning |
@@ -54,64 +56,55 @@ sl mockup --json                       # Non-interactive JSON output
 | 5 | Invalid format value |
 | 6 | Agent launch failed |
 
-**Example Output** (interactive success):
+**Example Output** (interactive - `sl mockup`):
 ```
 Resolving spec...
 ✓ Detected spec from branch: 042-user-registration
 
 Detecting frontend framework...
 ✓ Detected: Next.js (confidence: 99%)
-  Confirm framework? [Y/n]: y
 
-Design system not found. Generate now? [Y/n]: y
-✓ Scanned 47 components in 2.3s
-✓ Created specledger/design-system.md
-
-Select components to include in mockup:
-  src/components/
-    [x] Button (src/components/Button.tsx)
-    [x] Form (src/components/Form.tsx)
-    [x] Card (src/components/Card.tsx)
-    [ ] Sidebar (src/components/Sidebar.tsx)
-    [ ] Avatar (src/components/Avatar.tsx)
-  src/components/layout/
-    [ ] Header (src/components/layout/Header.tsx)
-    [ ] Footer (src/components/layout/Footer.tsx)
-  External (Material UI)
-    [ ] TextField (@mui/material)
-    [ ] Dialog (@mui/material)
-  ... (47 total, grouped by directory)
-
-Output format:
-  > html
-    jsx
+Design system not found.
+Generate design system now? [Y/n]: y
+✓ Extracted design tokens
+✓ Created .specledger/memory/design-system.md
 
 Generating prompt...
 ✓ Prompt generated (estimated 2,340 tokens)
 
-Opening editor for prompt review...
+Mockup prompt is ready.
+  > Review/edit the prompt in vim
+    Proceed with the generated prompt
+
 [editor opens with prompt]
 
-What would you like to do?
-  > Launch agent
-    Re-edit prompt
-    Write prompt to file
+Prompt ready - what next?
+  > Launch AI agent with this prompt
+    Re-edit the prompt
+    Write prompt to a file
     Cancel
 
 Launching Claude Code...
-[agent session runs]
+[agent session runs - agent asks user about commit]
 
-Agent session complete.
-Changed files:
-  M specledger/042-user-registration/mockup.html
+✓ Mockup saved to specledger/042-user-registration/mockup.html
+```
 
-Commit and push? [Y/n]: y
-Select files to commit:
-  [x] specledger/042-user-registration/mockup.html
+**Example Output** (with prompt - `sl mockup focus on login form`):
+```
+Resolving spec...
+✓ Detected spec from branch: 042-user-registration
 
-Commit message: feat: generate mockup for 042-user-registration
-✓ Committed: abc1234
-✓ Pushed to origin/042-user-registration
+Detecting frontend framework...
+✓ Detected: Next.js (confidence: 99%)
+
+✓ Loaded design system
+
+Generating prompt...
+✓ Prompt generated (estimated 2,450 tokens)
+
+Launching Claude Code...
+[agent session runs - agent asks user about commit]
 
 ✓ Mockup saved to specledger/042-user-registration/mockup.html
 ```
@@ -140,8 +133,6 @@ Detecting frontend framework...
   "prompt_path": "",
   "format": "html",
   "design_system_created": true,
-  "components_scanned": 47,
-  "components_selected": 3,
   "agent_launched": true,
   "committed": true
 }
@@ -159,7 +150,7 @@ Use --force to bypass this check, or run from a frontend project directory.
 
 ### sl mockup update
 
-Refresh the design system index by rescanning the codebase.
+Refresh the design system by re-extracting global CSS and design tokens.
 
 **Usage**:
 ```bash
@@ -173,10 +164,10 @@ sl mockup update --json
 | `--json` | | bool | false | Output result as JSON |
 
 **Inputs**:
-- `specledger/design-system.md` - Existing design system (required)
+- `.specledger/memory/design-system.md` - Existing design system (required)
 
 **Outputs**:
-- `specledger/design-system.md` - Updated design system
+- `.specledger/memory/design-system.md` - Updated design system
 
 **Exit Codes**:
 | Code | Meaning |
@@ -188,21 +179,16 @@ sl mockup update --json
 
 **Example Output** (success):
 ```
-Updating design system index...
-  Rescan components? [Y/n]: y
-✓ Scanned 52 components in 1.8s
-✓ Added 5 new components
-✓ Removed 2 stale components
-✓ Updated specledger/design-system.md
+Re-extract design tokens? [Y/n]: y
+Re-extracting design tokens...
+✓ Extracted design tokens
+✓ Updated .specledger/memory/design-system.md
 ```
 
 **Example Output** (JSON):
 ```json
 {
   "status": "success",
-  "components_total": 52,
-  "components_added": 5,
-  "components_removed": 2,
   "scan_duration_ms": 1800
 }
 ```
@@ -216,7 +202,7 @@ When `sl init` runs on a frontend project:
 **Modified Behavior**:
 1. After standard initialization, detect frontend framework
 2. If frontend detected, prompt user: "Initialize design system? [Y/n]"
-3. If yes (default), scan components and create `specledger/design-system.md`
+3. If yes (default), scan components and create `.specledger/memory/design-system.md`
 4. If no, skip design system initialization
 
 **Non-Interactive Mode** (`sl init --ci`):
@@ -231,7 +217,7 @@ When `sl init` runs on a frontend project:
 Detected frontend framework: React
 Initialize design system? [Y/n]: y
 ✓ Scanned 23 components in 1.2s
-✓ Created specledger/design-system.md
+✓ Created .specledger/memory/design-system.md
 
 SpecLedger initialized successfully!
 ```
@@ -246,7 +232,7 @@ SpecLedger initialized successfully!
 | No spec on branch | `Error: Cannot detect spec\n\nNot on a feature branch and no spec-name provided.\nProvide a spec name: sl mockup <spec-name>` |
 | No user scenarios | `Error: Spec has no user scenarios\n\nThe spec.md file has no user scenarios to generate mockups from.\nAdd user scenarios with: sl clarify xyz` |
 | Not frontend | `Error: Not a frontend project\n\nNo frontend framework detected in this repository.\nUse --force to bypass this check, or run from a frontend project directory.` |
-| Design system missing (update) | `Error: Design system not found\n\nNo design system at specledger/design-system.md\nGenerate one first with: sl mockup <spec-name>` |
+| Design system missing (update) | `Error: Design system not found\n\nNo design system at .specledger/memory/design-system.md\nGenerate one first with: sl mockup <spec-name>` |
 | Invalid format | `Error: Invalid format 'xyz'\n\nSupported formats: html, jsx` |
 | Write permission | `Error: Cannot write to specledger/\n\nCheck file permissions and try again.` |
 | Agent not found | `Error: No AI agent available\n\nPrompt written to specledger/<spec-name>/mockup-prompt.md\nInstall Claude Code: npm install -g @anthropic-ai/claude-code` |
@@ -260,33 +246,23 @@ SpecLedger initialized successfully!
 ### sl mockup --help
 
 ```
-Generate UI mockups from feature specifications using an interactive flow
+Generate UI mockups from feature specifications.
+
+Auto-detects spec from current branch. Pass instructions for the AI agent.
 
 Usage:
-  sl mockup [spec-name] [flags]
+  sl mockup [prompt...] [flags]
   sl mockup [command]
 
 Available Commands:
-  update      Refresh the design system index
+  update      Refresh the design system by re-extracting global CSS and design tokens
 
 Examples:
-  # Generate mockup (auto-detect spec from branch)
-  sl mockup
-
-  # Generate mockup for a specific spec
-  sl mockup 042-user-registration
-
-  # Generate mockup as JSX
-  sl mockup 042-user-registration --format jsx
-
-  # Write prompt to file without launching agent
-  sl mockup --dry-run
-
-  # Force generation even if not a frontend project
-  sl mockup 042-user-registration --force
-
-  # Non-interactive JSON output
-  sl mockup 042-user-registration --json
+  sl mockup                                    # Interactive flow
+  sl mockup help me gen mockup ui for spec     # With custom instructions
+  sl mockup focus on the login form            # With custom instructions
+  sl mockup -y                                 # Auto-confirm all prompts
+  sl mockup --format jsx                       # Generate JSX mockup
 
 Flags:
       --format string   Output format: html or jsx (default "html")
@@ -294,6 +270,8 @@ Flags:
       --dry-run         Write prompt to file instead of launching agent
       --summary         Compact output for agent/CI integration
       --json            Non-interactive path, output result as JSON
+  -y, --yes             Auto-confirm all prompts and launch agent directly
+  -p, --prompt string   Additional instructions for the AI agent
   -h, --help            help for mockup
 
 Use "sl mockup [command] --help" for more information about a command.
@@ -302,17 +280,16 @@ Use "sl mockup [command] --help" for more information about a command.
 ### sl mockup update --help
 
 ```
-Refresh the design system index by rescanning the codebase
+Refresh the design system by re-extracting global CSS and design tokens.
+
+Re-extracts CSS variables, theme colors, and styling patterns.
 
 Usage:
   sl mockup update [flags]
 
 Examples:
-  # Update design system
-  sl mockup update
-
-  # Output as JSON
-  sl mockup update --json
+  sl mockup update          # Interactive update
+  sl mockup update --json   # Output as JSON
 
 Flags:
       --json   Output result as JSON

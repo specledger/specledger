@@ -98,6 +98,7 @@ type MockupPromptContext struct {
 	HasDesignSystem bool          `json:"has_design_system"`
 	Style           *StyleInfo    `json:"style,omitempty"`
 	HasStyle        bool          `json:"has_style"`
+	UserPrompt      string        `json:"user_prompt,omitempty"`
 }
 
 // MockupResult is the JSON output for --json mode.

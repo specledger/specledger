@@ -20,26 +20,19 @@ import (
 
 // VarMockupCmd is the sl mockup command.
 var VarMockupCmd = &cobra.Command{
-	Use:   "mockup [spec-name]",
+	Use:   "mockup [prompt...]",
 	Short: "Generate UI mockups from feature specifications",
-	Long: `Generate UI mockups from feature specifications using an interactive flow.
+	Long: `Generate UI mockups from feature specifications.
 
-Flow:
-  1. Resolve spec (from arg, branch, or picker)
-  2. Auto-detect frontend framework
-  3. Check/generate design system (extracts CSS tokens)
-  4. Generate and review prompt
-  5. Launch AI agent to generate mockup
-  6. Commit and push changes
+Auto-detects spec from current branch. Pass instructions for the AI agent.
 
 Examples:
-  sl mockup                              # Auto-detect spec from branch
-  sl mockup 042-user-registration        # Explicit spec name
-  sl mockup --format jsx                 # Generate JSX mockup
-  sl mockup --dry-run                    # Write prompt to file, skip agent
-  sl mockup --force                      # Bypass frontend detection check
-  sl mockup --json                       # Non-interactive JSON output`,
-	Args:         cobra.MaximumNArgs(1),
+  sl mockup                                    # Interactive flow
+  sl mockup help me gen mockup ui for spec     # With custom instructions
+  sl mockup focus on the login form            # With custom instructions
+  sl mockup -y                                 # Auto-confirm all prompts
+  sl mockup --format jsx                       # Generate JSX mockup`,
+	Args:         cobra.ArbitraryArgs,
 	RunE:         runMockup,
 	SilenceUsage: true,
 }
@@ -64,6 +57,8 @@ var (
 	mockupDryRun  bool
 	mockupSummary bool
 	mockupJSON    bool
+	mockupYes     bool
+	mockupPrompt  string
 	updateJSON    bool
 )
 
@@ -73,6 +68,8 @@ func init() {
 	VarMockupCmd.Flags().BoolVar(&mockupDryRun, "dry-run", false, "Write prompt to file instead of launching agent")
 	VarMockupCmd.Flags().BoolVar(&mockupSummary, "summary", false, "Compact output for agent/CI integration")
 	VarMockupCmd.Flags().BoolVar(&mockupJSON, "json", false, "Non-interactive path, output result as JSON")
+	VarMockupCmd.Flags().BoolVarP(&mockupYes, "yes", "y", false, "Auto-confirm all prompts and launch agent directly")
+	VarMockupCmd.Flags().StringVarP(&mockupPrompt, "prompt", "p", "", "Additional instructions for the AI agent")
 
 	mockupUpdateCmd.Flags().BoolVar(&updateJSON, "json", false, "Output result as JSON")
 
@@ -85,14 +82,22 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 
+	// If args provided, use as user prompt and skip confirmations
+	hasUserInput := len(args) > 0
+	if hasUserInput {
+		mockupPrompt = strings.Join(args, " ")
+	}
+	// Skip confirmations when: --yes flag, --json flag, or user provided input
+	skipConfirm := mockupYes || mockupJSON || hasUserInput
+
 	// Validate format
 	format := mockup.MockupFormat(mockupFormat)
 	if !format.IsValid() {
 		return fmt.Errorf("Error: Invalid format '%s'\n\nSupported formats: html, jsx", mockupFormat)
 	}
 
-	// Step 1: Resolve spec
-	specName, err := resolveSpec(cwd, args)
+	// Step 1: Resolve spec (always auto-detect from branch)
+	specName, err := resolveSpec(cwd, nil)
 	if err != nil {
 		return err
 	}
@@ -128,13 +133,13 @@ func runMockup(cmd *cobra.Command, args []string) error {
 	}
 
 	// Step 3: Design system check/generate (extracts global CSS/design tokens only)
-	dsPath := filepath.Join(cwd, "specledger", "design-system.md")
+	dsPath := filepath.Join(cwd, ".specledger", "memory", "design-system.md")
 	var ds *mockup.DesignSystem
 	dsCreated := false
 
 	if _, err := os.Stat(dsPath); os.IsNotExist(err) {
 		fmt.Println("Design system not found.")
-		if !mockupJSON {
+		if !skipConfirm {
 			generate := true
 			err = huh.NewForm(huh.NewGroup(
 				huh.NewConfirm().
@@ -162,10 +167,10 @@ func runMockup(cmd *cobra.Command, args []string) error {
 				Style:     styleInfo,
 			}
 			if err := mockup.WriteDesignSystem(dsPath, ds); err != nil {
-				return fmt.Errorf("Error: Cannot write to specledger/\n\nCheck file permissions and try again.")
+				return fmt.Errorf("Error: Cannot write to .specledger/memory/\n\nCheck file permissions and try again.")
 			}
 			fmt.Printf("%s Extracted design tokens\n", ui.Checkmark())
-			fmt.Printf("%s Created specledger/design-system.md\n", ui.Checkmark())
+			fmt.Printf("%s Created .specledger/memory/design-system.md\n", ui.Checkmark())
 			dsCreated = true
 		}
 	} else {
@@ -204,7 +209,7 @@ func runMockup(cmd *cobra.Command, args []string) error {
 	fullOutputPath := filepath.Join(cwd, outputPath)
 
 	// Check for existing mockup
-	if _, err := os.Stat(fullOutputPath); err == nil && !mockupJSON {
+	if _, err := os.Stat(fullOutputPath); err == nil && !skipConfirm {
 		var overwrite bool
 		err = huh.NewForm(huh.NewGroup(
 			huh.NewConfirm().
@@ -228,7 +233,7 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		styleInfo = mockup.ScanStyles(cwd)
 	}
 
-	promptCtx := mockup.BuildMockupPromptContext(specName, specFile, specContent.Title, framework, format, outputPath, ds, styleInfo)
+	promptCtx := mockup.BuildMockupPromptContext(specName, specFile, specContent.Title, framework, format, outputPath, ds, styleInfo, mockupPrompt)
 	promptText, err := mockup.RenderMockupPrompt(promptCtx)
 	if err != nil {
 		return fmt.Errorf("failed to render prompt: %w", err)
@@ -263,13 +268,18 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Edit & confirm prompt
-	finalPrompt, err := mockupEditAndConfirm(promptText)
-	if err != nil {
-		return err
-	}
-	if finalPrompt == "" {
-		return nil // user cancelled or wrote to file
+	// Edit & confirm prompt (skip if --yes flag, --json, or user provided input)
+	var finalPrompt string
+	if skipConfirm {
+		finalPrompt = promptText
+	} else {
+		finalPrompt, err = mockupEditAndConfirm(promptText)
+		if err != nil {
+			return err
+		}
+		if finalPrompt == "" {
+			return nil // user cancelled or wrote to file
+		}
 	}
 
 	// Step 5: Launch agent
@@ -311,7 +321,7 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		agentLaunched = true
 	}
 
-	// Step 6: Post-agent commit/push flow
+	// Step 6: Post-agent commit/push flow (always handled by CLI, not AI agent)
 	committed := false
 	if agentLaunched {
 		changesAfterAgent, err := cligit.HasUncommittedChanges(cwd)
@@ -320,7 +330,8 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		}
 
 		if changesAfterAgent {
-			committed, err = mockupStagingAndCommitFlow(cwd, specName)
+			// With -y flag: auto-confirm commit, otherwise ask user
+			committed, err = mockupStagingAndCommitFlow(cwd, specName, mockupYes)
 			if err != nil {
 				return err
 			}
@@ -353,9 +364,9 @@ func runMockupUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	dsPath := filepath.Join(cwd, "specledger", "design-system.md")
+	dsPath := filepath.Join(cwd, ".specledger", "memory", "design-system.md")
 	if _, err := os.Stat(dsPath); os.IsNotExist(err) {
-		return fmt.Errorf("Error: Design system not found\n\nNo design system at specledger/design-system.md\nGenerate one first with: sl mockup <spec-name>")
+		return fmt.Errorf("Error: Design system not found\n\nNo design system at .specledger/memory/design-system.md\nGenerate one first with: sl mockup <spec-name>")
 	}
 
 	existing, err := mockup.LoadDesignSystem(dsPath)
@@ -400,11 +411,11 @@ func runMockupUpdate(cmd *cobra.Command, args []string) error {
 	existing.Framework = framework
 	existing.Style = styleInfo
 	if err := mockup.WriteDesignSystem(dsPath, existing); err != nil {
-		return fmt.Errorf("Error: Cannot write to specledger/\n\nCheck file permissions and try again.")
+		return fmt.Errorf("Error: Cannot write to .specledger/memory/\n\nCheck file permissions and try again.")
 	}
 
 	fmt.Printf("%s Extracted design tokens\n", ui.Checkmark())
-	fmt.Printf("%s Updated specledger/design-system.md\n", ui.Checkmark())
+	fmt.Printf("%s Updated .specledger/memory/design-system.md\n", ui.Checkmark())
 
 	if updateJSON {
 		result := mockup.UpdateResult{
@@ -587,7 +598,7 @@ func mockupWritePromptToFile(promptText string) error {
 }
 
 // mockupStagingAndCommitFlow handles post-agent commit/push for mockup command.
-func mockupStagingAndCommitFlow(cwd, specName string) (committed bool, err error) {
+func mockupStagingAndCommitFlow(cwd, specName string, autoConfirm bool) (committed bool, err error) {
 	changedFiles, err := cligit.GetChangedFiles(cwd)
 	if err != nil {
 		return false, fmt.Errorf("failed to list changed files: %w", err)
@@ -604,53 +615,65 @@ func mockupStagingAndCommitFlow(cwd, specName string) (committed bool, err error
 	fmt.Println()
 
 	var doCommit bool
-	err = huh.NewForm(huh.NewGroup(
-		huh.NewConfirm().
-			Title("Commit and push?").
-			Value(&doCommit),
-	)).Run()
-	if err != nil {
-		return false, fmt.Errorf("commit confirmation: %w", err)
+	if autoConfirm {
+		doCommit = true
+	} else {
+		err = huh.NewForm(huh.NewGroup(
+			huh.NewConfirm().
+				Title("Commit and push?").
+				Value(&doCommit),
+		)).Run()
+		if err != nil {
+			return false, fmt.Errorf("commit confirmation: %w", err)
+		}
 	}
 
 	if !doCommit {
 		return false, nil
 	}
 
-	options := make([]huh.Option[string], 0, len(changedFiles))
-	for _, f := range changedFiles {
-		options = append(options, huh.NewOption(f, f).Selected(true))
-	}
+	var selected []string
+	if autoConfirm {
+		selected = changedFiles
+	} else {
+		options := make([]huh.Option[string], 0, len(changedFiles))
+		for _, f := range changedFiles {
+			options = append(options, huh.NewOption(f, f).Selected(true))
+		}
 
-	selected := make([]string, 0, len(changedFiles))
-	err = huh.NewForm(huh.NewGroup(
-		huh.NewMultiSelect[string]().
-			Title("Select files to stage").
-			Options(options...).
-			Value(&selected),
-	)).Run()
-	if err != nil {
-		return false, fmt.Errorf("file selection: %w", err)
+		selected = make([]string, 0, len(changedFiles))
+		err = huh.NewForm(huh.NewGroup(
+			huh.NewMultiSelect[string]().
+				Title("Select files to stage").
+				Options(options...).
+				Value(&selected),
+		)).Run()
+		if err != nil {
+			return false, fmt.Errorf("file selection: %w", err)
+		}
 	}
 
 	if len(selected) == 0 {
 		return false, nil
 	}
 
-	var commitMsg string
 	defaultMsg := fmt.Sprintf("feat: generate mockup for %s", specName)
-	err = huh.NewForm(huh.NewGroup(
-		huh.NewInput().
-			Title("Commit message").
-			Placeholder(defaultMsg).
-			Value(&commitMsg),
-	)).Run()
-	if err != nil {
-		return false, fmt.Errorf("commit message input: %w", err)
-	}
-
-	if commitMsg == "" {
+	var commitMsg string
+	if autoConfirm {
 		commitMsg = defaultMsg
+	} else {
+		err = huh.NewForm(huh.NewGroup(
+			huh.NewInput().
+				Title("Commit message").
+				Placeholder(defaultMsg).
+				Value(&commitMsg),
+		)).Run()
+		if err != nil {
+			return false, fmt.Errorf("commit message input: %w", err)
+		}
+		if commitMsg == "" {
+			commitMsg = defaultMsg
+		}
 	}
 
 	if err := cligit.AddFiles(cwd, selected); err != nil {

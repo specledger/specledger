@@ -1,5 +1,7 @@
 # Tasks Index: Mockup Command
 
+**Status**: Complete | **Epic**: SL-675f7d (closed)
+
 Issue graph index for the tasks and phases of the mockup command feature implementation.
 This index does **not contain tasks directly** — those are fully managed through `sl issue`.
 
@@ -94,7 +96,7 @@ Epic: SL-675f7d (Mockup Command)
 │
 ├── Phase 6: Update Command (SL-a00981) ─ sl mockup update handler
 │   └── T016: Implement sl mockup update handler
-│             (Re-extract CSS tokens, update design-system.md)
+│             (Re-extract CSS tokens, update .specledger/memory/design-system.md)
 │
 ├── Phase 7: Init Integration (SL-b0f5d0) ─ bootstrap.go
 │   └── T017: Add frontend detection to bootstrap.go
@@ -187,7 +189,7 @@ T018 + T019                    ──→ T020 (all tests)
 | T013     | Editor opens, action menu works (all 4 options), uses shared prompt package |
 | T014     | Agent launched if available, prompt written to file if not, install instructions shown |
 | T015     | Post-agent commit/push flow works with file multi-select and push |
-| T016     | Update handler re-extracts CSS tokens, updates design-system.md |
+| T016     | Update handler re-extracts CSS tokens, updates .specledger/memory/design-system.md |
 | T017     | Bootstrap integration, interactive prompt, CI auto-create, skip non-frontend |
 | T018     | JSON output for both commands, non-JSON suppressed, jq-parseable |
 | T019     | All edge cases handled per contract error messages |
@@ -218,10 +220,10 @@ The MVP delivers **User Story 1** — the full mockup flow from spec to agent-ge
 | Story | Independently Testable? | Test Criteria |
 |-------|------------------------|---------------|
 | US1   | Yes | Run `sl mockup` on feature branch → flow completes, agent generates mockup |
-| US2   | Yes | Run `sl mockup` without design-system.md → prompted to generate, file created, flow continues |
+| US2   | Yes | Run `sl mockup` without .specledger/memory/design-system.md → prompted to generate, file created, flow continues |
 | US3   | Yes | Run `sl mockup` on React/Go project → correct detection displayed, auto-proceed or error |
 | US4   | Yes | Run `sl mockup update` → design system refreshed with CSS tokens |
-| US5   | Yes | Run `sl init` on frontend project → design-system.md created |
+| US5   | Yes | Run `sl init` on frontend project → .specledger/memory/design-system.md created |
 
 ---
 

@@ -1,7 +1,11 @@
 # Mockup Generation
 
 Generate a **{{ .Format }}** mockup for **"{{ .SpecTitle }}"**.
+{{ if .UserPrompt }}
+## User Instructions
 
+{{ .UserPrompt }}
+{{ end }}
 ## Primary Sources (READ FIRST)
 
 **IMPORTANT**: Read these files BEFORE generating any mockup:
@@ -79,3 +83,9 @@ Theme colors:
 - Cover ALL screens from user stories with realistic content
 {{ if .HasStyle }}- Match project's visual style, colors, typography{{ end }}
 - **Output limit: 64000 tokens** — Keep mockup concise, prioritize essential screens
+
+## Post-Generation
+
+After writing the mockup file, **ASK the user** if they want to commit:
+- If yes: stage, commit with message `feat: generate mockup for {{ .SpecName }}`, and push
+- If no: leave changes unstaged

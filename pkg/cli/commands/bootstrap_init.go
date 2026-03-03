@@ -20,7 +20,7 @@ func initFrontendDesignSystem(projectPath string, isInteractive bool) {
 
 	fmt.Printf("\nDetected frontend framework: %s\n", ui.Bold(result.Framework.String()))
 
-	dsPath := filepath.Join(projectPath, "specledger", "design-system.md")
+	dsPath := filepath.Join(projectPath, ".specledger", "memory", "design-system.md")
 
 	if isInteractive {
 		var generate bool
@@ -48,5 +48,5 @@ func initFrontendDesignSystem(projectPath string, isInteractive bool) {
 	}
 
 	fmt.Printf("%s Extracted design tokens\n", ui.Checkmark())
-	fmt.Printf("%s Created specledger/design-system.md\n", ui.Checkmark())
+	fmt.Printf("%s Created .specledger/memory/design-system.md\n", ui.Checkmark())
 }

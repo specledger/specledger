@@ -20,6 +20,7 @@ func BuildMockupPromptContext(
 	outputPath string,
 	ds *DesignSystem,
 	style *StyleInfo,
+	userPrompt string,
 ) *MockupPromptContext {
 	ctx := &MockupPromptContext{
 		SpecName:   specName,
@@ -28,6 +29,7 @@ func BuildMockupPromptContext(
 		Framework:  framework,
 		Format:     format,
 		OutputPath: outputPath,
+		UserPrompt: userPrompt,
 	}
 
 	if ds != nil {

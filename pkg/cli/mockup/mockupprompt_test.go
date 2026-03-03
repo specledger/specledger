@@ -17,7 +17,7 @@ func TestBuildMockupPromptContext(t *testing.T) {
 		},
 	}
 
-	ctx := BuildMockupPromptContext("042-registration", "specledger/042-registration/spec.md", "User Registration", FrameworkReact, MockupFormatHTML, "specledger/042-registration/mockup.html", ds, style)
+	ctx := BuildMockupPromptContext("042-registration", "specledger/042-registration/spec.md", "User Registration", FrameworkReact, MockupFormatHTML, "specledger/042-registration/mockup.html", ds, style, "")
 
 	if ctx.SpecName != "042-registration" {
 		t.Errorf("SpecName = %q, want %q", ctx.SpecName, "042-registration")

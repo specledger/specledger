@@ -54,7 +54,7 @@ The current implementation is ~4,000 lines of Go code:
 |---------|-------|---------|
 | `pkg/cli/mockup/detector.go` | ~242 | Frontend framework detection (React/Vue/Svelte/Angular) |
 | `pkg/cli/mockup/scanner.go` | ~465 | Component scanning from source files |
-| `pkg/cli/mockup/designsystem.go` | ~508 | Read/write `specledger/design-system.md` |
+| `pkg/cli/mockup/designsystem.go` | ~508 | Read/write `.specledger/memory/design-system.md` |
 | `pkg/cli/mockup/stylescan.go` | ~317 | Style/theme scanning |
 | `pkg/cli/mockup/specparser.go` | ~134 | Parse spec.md for mockup context |
 | `pkg/cli/mockup/mockupprompt.go` | ~85 | Prompt template rendering |
