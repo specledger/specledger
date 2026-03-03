@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/specledger/specledger/pkg/cli/auth"
@@ -381,4 +382,73 @@ func (c *Client) CreateReply(parentID, content string) (*ThreadReply, error) {
 		Content:   replies[0].Content,
 		CreatedAt: replies[0].CreatedAt,
 	}, nil
+}
+
+func (c *Client) ResolveComment(commentID string) error {
+	reqURL := fmt.Sprintf("%s/rest/v1/review_comments?id=eq.%s", c.BaseURL, url.QueryEscape(commentID))
+
+	body := []byte(`{"is_resolved":true}`)
+
+	patchFn := func(token string) (*http.Response, error) {
+		req, err := http.NewRequest(http.MethodPatch, reqURL, bytes.NewReader(body))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("apikey", c.AnonKey)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Prefer", "return=minimal")
+
+		return c.HTTPClient.Do(req)
+	}
+
+	resp, err := c.DoWithRetry(patchFn)
+	if err != nil {
+		return fmt.Errorf("ResolveComment: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("ResolveComment: API error (%d): %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	return nil
+}
+
+func (c *Client) ResolveCommentWithReplies(commentID string, replyIDs []string) error {
+	allIDs := make([]string, 0, 1+len(replyIDs))
+	allIDs = append(allIDs, commentID)
+	allIDs = append(allIDs, replyIDs...)
+	idList := "(" + strings.Join(allIDs, ",") + ")"
+
+	reqURL := fmt.Sprintf("%s/rest/v1/review_comments?id=in.%s", c.BaseURL, url.QueryEscape(idList))
+
+	body := []byte(`{"is_resolved":true}`)
+
+	patchFn := func(token string) (*http.Response, error) {
+		req, err := http.NewRequest(http.MethodPatch, reqURL, bytes.NewReader(body))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("apikey", c.AnonKey)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Prefer", "return=minimal")
+
+		return c.HTTPClient.Do(req)
+	}
+
+	resp, err := c.DoWithRetry(patchFn)
+	if err != nil {
+		return fmt.Errorf("ResolveCommentWithReplies: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		bodyBytes, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("ResolveCommentWithReplies: API error (%d): %s", resp.StatusCode, string(bodyBytes))
+	}
+
+	return nil
 }

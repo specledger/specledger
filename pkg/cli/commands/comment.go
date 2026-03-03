@@ -98,10 +98,11 @@ Examples:
 }
 
 var (
-	commentListJSON   bool
-	commentListStatus string
-	commentShowJSON   bool
-	commentReplyJSON  bool
+	commentListJSON    bool
+	commentListStatus  string
+	commentShowJSON    bool
+	commentReplyJSON   bool
+	commentResolveJSON bool
 )
 
 func init() {
@@ -112,9 +113,12 @@ func init() {
 
 	commentReplyCmd.Flags().BoolVar(&commentReplyJSON, "json", false, "Output as JSON")
 
+	commentResolveCmd.Flags().BoolVar(&commentResolveJSON, "json", false, "Output as JSON")
+
 	VarCommentCmd.AddCommand(commentListCmd)
 	VarCommentCmd.AddCommand(commentShowCmd)
 	VarCommentCmd.AddCommand(commentReplyCmd)
+	VarCommentCmd.AddCommand(commentResolveCmd)
 }
 
 func runCommentList(cmd *cobra.Command, args []string) error {
@@ -440,6 +444,89 @@ func runCommentReply(cmd *cobra.Command, args []string) error {
 	fmt.Printf("Reply posted successfully\n")
 	fmt.Printf("Reply ID: %s\n", reply.ID)
 	fmt.Printf("Timestamp: %s\n", reply.CreatedAt)
+
+	return nil
+}
+
+var commentResolveCmd = &cobra.Command{
+	Use:   "resolve <comment-id> [comment-id...]",
+	Short: "Mark comments as resolved",
+	Long: `Mark one or more review comments as resolved.
+
+When resolving a parent comment, all thread replies are also resolved (cascade).
+
+Arguments:
+  One or more comment IDs to resolve
+
+Output formats:
+  Default: Success message with resolved IDs
+  --json:  JSON array with resolved comment IDs
+
+Examples:
+  sl comment resolve abc123
+  sl comment resolve abc123 def456
+  sl comment resolve abc123 --json`,
+	Args:         cobra.MinimumNArgs(1),
+	RunE:         runCommentResolve,
+	SilenceUsage: true,
+}
+
+func runCommentResolve(cmd *cobra.Command, args []string) error {
+	accessToken, err := auth.GetValidAccessToken()
+	if err != nil {
+		return fmt.Errorf("authentication required: %w\n\nRun 'sl auth login' to authenticate.", err)
+	}
+
+	client := comment.NewClient(accessToken)
+
+	resolvedIDs := make([]string, 0, len(args))
+
+	for _, commentID := range args {
+		replies, err := client.FetchRepliesByParentID(commentID)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: failed to fetch replies for %s: %v\n", commentID, err)
+		}
+
+		if len(replies) > 0 {
+			replyIDs := make([]string, 0, len(replies))
+			for _, r := range replies {
+				replyIDs = append(replyIDs, r.ID)
+			}
+
+			if err := client.ResolveCommentWithReplies(commentID, replyIDs); err != nil {
+				return fmt.Errorf("failed to resolve comment %s with replies: %w", commentID, err)
+			}
+
+			allIDs := make([]string, 0, 1+len(replyIDs))
+			allIDs = append(allIDs, commentID)
+			allIDs = append(allIDs, replyIDs...)
+			resolvedIDs = append(resolvedIDs, allIDs...)
+		} else {
+			if err := client.ResolveComment(commentID); err != nil {
+				return fmt.Errorf("failed to resolve comment %s: %w", commentID, err)
+			}
+			resolvedIDs = append(resolvedIDs, commentID)
+		}
+	}
+
+	if commentResolveJSON {
+		type ResolveOutput struct {
+			ResolvedIDs []string `json:"resolved_ids"`
+		}
+
+		output := ResolveOutput{
+			ResolvedIDs: resolvedIDs,
+		}
+
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(output)
+	}
+
+	fmt.Printf("Resolved %d comment(s)\n", len(resolvedIDs))
+	for _, id := range resolvedIDs {
+		fmt.Printf("  - %s\n", id)
+	}
 
 	return nil
 }
