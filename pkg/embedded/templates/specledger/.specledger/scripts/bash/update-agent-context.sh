@@ -1,5 +1,20 @@
 #!/usr/bin/env bash
 
+# ⚠️  DEPRECATION NOTICE ⚠️
+# 
+# This bash script is deprecated and will be removed in a future version.
+# Please use the Go CLI command instead:
+# 
+#   sl context update claude          # Update CLAUDE.md
+#   sl context update gemini --json   # Update GEMINI.md with JSON output
+#   sl context update copilot         # Update GitHub Copilot instructions
+# 
+# The Go CLI provides better cross-platform support and consistent JSON output.
+# See: https://specledger.io/docs for more information.
+#
+# This script will be removed in feature 599-alignment.
+#
+
 # Update agent context files with information from plan.md
 #
 # This script maintains AI agent context files by parsing feature specifications 

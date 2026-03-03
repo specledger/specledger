@@ -50,6 +50,15 @@ func DetectFeatureContext(workDir string) (*FeatureContext, error) {
 	}
 
 	featureDir := filepath.Join(repoRoot, "specledger", featureBranch)
+
+	if !DirExists(featureDir) {
+		availableFeatures := ListAvailableFeatures(repoRoot)
+		if len(availableFeatures) > 0 {
+			return nil, fmt.Errorf("feature directory not found: %s\n\nAvailable features:\n  - %s\n\nSet SPECIFY_FEATURE=<feature-name> or checkout matching branch", featureBranch, strings.Join(availableFeatures, "\n  - "))
+		}
+		return nil, fmt.Errorf("feature directory not found: %s\n\nNo features available. Create one with: sl spec create", featureBranch)
+	}
+
 	specFile := filepath.Join(featureDir, "spec.md")
 	planFile := filepath.Join(featureDir, "plan.md")
 	tasksFile := filepath.Join(featureDir, "tasks.md")
@@ -63,6 +72,24 @@ func DetectFeatureContext(workDir string) (*FeatureContext, error) {
 		TasksFile:  tasksFile,
 		HasGit:     true,
 	}, nil
+}
+
+func ListAvailableFeatures(repoRoot string) []string {
+	specledgerDir := filepath.Join(repoRoot, "specledger")
+
+	entries, err := os.ReadDir(specledgerDir)
+	if err != nil {
+		return nil
+	}
+
+	var features []string
+	for _, entry := range entries {
+		if entry.IsDir() && strings.Contains(entry.Name(), "-") {
+			features = append(features, entry.Name())
+		}
+	}
+
+	return features
 }
 
 func isFeatureBranch(name string) bool {

@@ -1,5 +1,19 @@
 #!/usr/bin/env bash
 
+# ⚠️  DEPRECATION NOTICE ⚠️
+# 
+# This bash script is deprecated and will be removed in a future version.
+# Please use the Go CLI command instead:
+# 
+#   sl spec create --number 600 --short-name "feature-name"
+#   sl spec create --number 600 --short-name "feature" --json
+# 
+# The Go CLI provides better cross-platform support and consistent JSON output.
+# See: https://specledger.io/docs for more information.
+#
+# This script will be removed in feature 599-alignment.
+#
+
 set -e
 
 JSON_MODE=false
