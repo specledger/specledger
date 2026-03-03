@@ -21,7 +21,7 @@ Add new CLI commands and skills for comment management, research spikes, and imp
 **Testing**: `go test` with table-driven tests, contract tests for API
 **Target Platform**: Cross-platform (macOS, Linux, Windows)
 **Project Type**: CLI tool (single binary) + AI commands (markdown files)
-**Performance Goals**: All `sl comment` commands complete in <2s (network-dependent)
+**Performance Goals**: All `sl comment` commands complete in <2s P95 (CLI execution time excluding network RTT to Supabase)
 **Constraints**: Auth-required for comment API; no PTY requirement for CLI commands
 **Scale/Scope**: ~6 new Go files, ~800 LOC new code, ~400 LOC extracted from revise package
 
@@ -158,8 +158,15 @@ type ThreadReply struct {
 See [contracts/sl-comment-cli.md](./contracts/sl-comment-cli.md) for full contract.
 
 **Token-efficient output (D21)**:
-- `sl comment list`: Compact format with truncated previews, counts
-- `sl comment show`: Full content with all thread replies
+- **Compact mode** (default for `sl comment list`):
+  - Previews truncated to 80 chars with "..." ellipsis
+  - Shows count instead of full data (e.g., "3 replies")
+  - One comment per line in table format
+  - Example: `abc123 | src/main.go:42 | Fix error handling... | alice | 3 replies`
+- **Full mode** (`--json` flag or `sl comment show`):
+  - Complete data with no truncation
+  - All thread replies included
+  - Structured JSON for programmatic parsing
 
 ### AI Command Templates
 
@@ -168,8 +175,8 @@ See [contracts/sl-comment-cli.md](./contracts/sl-comment-cli.md) for full contra
 - Sections: Findings, Decisions, Recommendations
 
 **checkpoint**: Implementation verification
-- Output: Session log update
-- Actions: Verify tests, note uncommitted changes, summarize progress
+- Output: Session log update at `.specledger/sessions/<spec>-session.md`
+- Actions: Verify tests (`go test ./...` for modified packages, exit 0), note uncommitted changes, summarize progress
 
 ## Phase 2: Work Breakdown
 

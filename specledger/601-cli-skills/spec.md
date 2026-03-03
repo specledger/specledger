@@ -130,7 +130,7 @@ As a developer implementing a feature, I need the `checkpoint` command to verify
 **Acceptance Scenarios**:
 
 1. **Given** in-progress tasks, **When** running `/specledger.checkpoint`, **Then** session log is updated with completed items
-2. **Given** the command, **When** run, **Then** it verifies tests pass for completed work
+2. **Given** the command, **When** run, **Then** it verifies tests pass for completed work (runs `go test ./...` for modified packages, requires exit 0)
 3. **Given** uncommitted changes, **When** run, **Then** it prompts to commit or notes pending changes
 4. **Given** checkpoint output, **When** complete, **Then** summary shows what was accomplished this session
 
@@ -145,6 +145,21 @@ As a developer implementing a feature, I need the `checkpoint` command to verify
 
 ## Requirements *(mandatory)*
 
+### Token-Efficient Output Pattern (D21)
+
+CLI commands optimized for AI agent consumption minimize token usage:
+
+**Compact Mode (default for `sl comment list`)**:
+- Previews truncated to 80 characters with "..." ellipsis
+- Shows count instead of full data (e.g., "3 replies" instead of reply content)
+- One comment per line in table format
+- Example: `abc123 | src/main.go:42 | Fix error handling... | alice | 3 replies`
+
+**Full Mode (`--json` flag or `sl comment show`)**:
+- Complete data with no truncation
+- All thread replies included
+- Structured JSON for programmatic parsing
+
 ### Functional Requirements
 
 - **FR-001**: `sl comment list` MUST output JSON array with comment details when `--json` flag is set
@@ -155,10 +170,10 @@ As a developer implementing a feature, I need the `checkpoint` command to verify
 - **FR-006**: `sl comment reply` MUST post a reply to an existing comment thread
 - **FR-007**: `sl comment resolve` MUST mark comments as resolved
 - **FR-008**: `sl comment resolve` MUST cascade to thread replies when parent is resolved
-- **FR-009**: All `sl comment` commands MUST support `--json` output flag
+- **FR-009**: All `sl comment` subcommands defined in this spec (list, show, reply, resolve) MUST support `--json` output flag
 - **FR-010**: `sl-comment` skill MUST document when to use each subcommand
-- **FR-011**: `/specledger.spike` MUST create timestamped research files
-- **FR-012**: `/specledger.checkpoint` MUST update session logs with progress
+- **FR-011**: `/specledger.spike` MUST create timestamped research files at `specledger/<spec>/research/yyyy-mm-dd-<topic>.md`
+- **FR-012**: `/specledger.checkpoint` MUST update session logs with progress (session log format: `.specledger/sessions/<spec>-session.md`)
 
 ### Key Entities
 
@@ -170,6 +185,13 @@ As a developer implementing a feature, I need the `checkpoint` command to verify
   - topic, findings, decisions, recommendations, created_at
 - **CheckpointLog**: Session progress record
   - tasks_completed, tests_status, uncommitted_changes, timestamp
+  - Location: `.specledger/sessions/<spec>-session.md`
+  - Format: Markdown with timestamped entries
+
+### Non-Functional Requirements
+
+- **NFR-001**: All `sl comment` commands MUST complete in <2s (measured as P95 CLI execution time excluding network RTT to Supabase)
+- **NFR-002**: Token-efficient output MUST be enforced for compact mode (80 char truncation, counts over full data)
 
 ## Success Criteria *(mandatory)*
 

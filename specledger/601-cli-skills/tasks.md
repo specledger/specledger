@@ -104,6 +104,8 @@ SL-3a436b (Epic: New CLI Commands and Skills)
 
 **Independent Test**: `/specledger.clarify` uses `sl comment list`
 
+**Performance Verification**: Verify all `sl comment` commands meet <2s P95 target (NFR-001)
+
 ## Dependency Graph
 
 ```
@@ -149,15 +151,15 @@ sl issue show SL-3a436b
 |----------|-----------|
 | SL-b31f68 | ReviewComment moved, ThreadReply moved, ReplyMap moved, Revise imports updated, go build passes |
 | SL-f6e983 | FetchComments moved, PostgREST chain moved, Auth retry preserved, sl revise still works |
-| SL-a801e5 | --json valid JSON, --status open works, --status resolved works, Auth failure exits 1, Compact output truncated |
+| SL-a801e5 | --json valid JSON, --status open works, --status resolved works, Auth failure exits 1, Compact output 80-char truncation, Counts shown |
 | SL-035a5d | Imports updated in types.go, Imports updated in client.go, sl revise works, go test passes |
 | SL-c2922e | Single ID shows comment, Multiple IDs work, --json complete, Non-existent ID error, Replies chronological |
 | SL-d2f47b | POST to correct endpoint, Returns ThreadReply with ID, Auth retry works, 404 parent handled |
 | SL-34e30 | Message posted to thread, --json includes reply_id, --json includes timestamp, Parent not found error |
 | SL-638e23 | Single ID resolves, Multiple IDs work, Cascade to replies, --json shows IDs |
 | SL-522810 | When to use documented, Decision criteria for list vs show, JSON parsing examples, Reply/resolve workflow |
-| SL-145f45 | Findings section, Decisions section, Recommendations section, Unique filename |
-| SL-f21e96 | In-progress tasks checked, Tests verified, Uncommitted changes noted, Summary shows accomplishments |
+| SL-145f45 | Findings section, Decisions section, Recommendations section, Unique filename (yyyy-mm-dd-<topic>.md) |
+| SL-f21e96 | In-progress tasks checked, Tests verified (go test ./... exit 0), Uncommitted changes noted, Summary shows accomplishments |
 | SL-827e41 | sl revise --summary replaced, sl comment list used, Reply/resolve instructions updated |
 
 ## Success Criteria
