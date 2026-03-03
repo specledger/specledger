@@ -302,7 +302,7 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Launching %s...\n", al.Name)
 		opts := launcher.LaunchOptions{
 			SkipPermissions: true,
-			Model:           "claude-haiku-4-5",
+			Model:           "claude-sonnet-4-6",
 			MaxOutputTokens: 64000,
 		}
 		if err := al.LaunchWithPromptAndOptions(finalPrompt, opts); err != nil {
