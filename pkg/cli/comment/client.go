@@ -1,0 +1,249 @@
+package comment
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"time"
+
+	"github.com/specledger/specledger/pkg/cli/auth"
+)
+
+const clientTimeout = 30 * time.Second
+
+type apiProject struct {
+	ID            string `json:"id"`
+	DefaultBranch string `json:"default_branch"`
+}
+
+type apiSpec struct {
+	ID      string `json:"id"`
+	SpecKey string `json:"spec_key"`
+	Phase   string `json:"phase"`
+}
+
+type apiChange struct {
+	ID         string `json:"id"`
+	SpecID     string `json:"spec_id"`
+	HeadBranch string `json:"head_branch"`
+	BaseBranch string `json:"base_branch"`
+	State      string `json:"state"`
+}
+
+type Client struct {
+	BaseURL     string
+	AnonKey     string
+	accessToken string
+	HTTPClient  *http.Client
+}
+
+func NewClient(accessToken string) *Client {
+	return &Client{
+		BaseURL:     auth.GetSupabaseURL(),
+		AnonKey:     auth.GetSupabaseAnonKey(),
+		accessToken: accessToken,
+		HTTPClient:  &http.Client{Timeout: clientTimeout},
+	}
+}
+
+func (c *Client) DoWithRetry(fn func(token string) (*http.Response, error)) (*http.Response, error) {
+	resp, err := fn(c.accessToken)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		resp.Body.Close()
+
+		newToken, err := auth.ForceRefreshAccessToken()
+		if err != nil {
+			return nil, fmt.Errorf("token refresh failed: %w (run 'sl auth login')", err)
+		}
+		c.accessToken = newToken
+
+		resp, err = fn(c.accessToken)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return resp, nil
+}
+
+func (c *Client) Get(token, path string) (*http.Response, error) {
+	reqURL := c.BaseURL + path
+
+	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("apikey", c.AnonKey)
+	req.Header.Set("Accept", "application/json")
+
+	return c.HTTPClient.Do(req)
+}
+
+func ReadJSON(resp *http.Response, dest interface{}) error {
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		var errResp map[string]any
+		if json.Unmarshal(body, &errResp) == nil {
+			if msg, ok := errResp["message"].(string); ok {
+				return fmt.Errorf("API error (%d): %s", resp.StatusCode, msg)
+			}
+		}
+		return fmt.Errorf("API error (%d): %s", resp.StatusCode, string(body))
+	}
+
+	if err := json.Unmarshal(body, dest); err != nil {
+		return fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return nil
+}
+
+func (c *Client) GetProject(repoOwner, repoName string) (*apiProject, error) {
+	path := fmt.Sprintf(
+		"/rest/v1/projects?repo_owner=eq.%s&repo_name=eq.%s&select=id,default_branch",
+		url.QueryEscape(repoOwner),
+		url.QueryEscape(repoName),
+	)
+
+	resp, err := c.DoWithRetry(func(token string) (*http.Response, error) {
+		return c.Get(token, path)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("GetProject: %w", err)
+	}
+
+	var projects []apiProject
+	if err := ReadJSON(resp, &projects); err != nil {
+		return nil, fmt.Errorf("GetProject: %w", err)
+	}
+
+	if len(projects) == 0 {
+		return nil, fmt.Errorf("project not found: %s/%s", repoOwner, repoName)
+	}
+
+	return &projects[0], nil
+}
+
+func (c *Client) GetSpec(projectID, specKey string) (*apiSpec, error) {
+	path := fmt.Sprintf(
+		"/rest/v1/specs?project_id=eq.%s&spec_key=eq.%s&select=id,spec_key,phase",
+		url.QueryEscape(projectID),
+		url.QueryEscape(specKey),
+	)
+
+	resp, err := c.DoWithRetry(func(token string) (*http.Response, error) {
+		return c.Get(token, path)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("GetSpec: %w", err)
+	}
+
+	var specs []apiSpec
+	if err := ReadJSON(resp, &specs); err != nil {
+		return nil, fmt.Errorf("GetSpec: %w", err)
+	}
+
+	if len(specs) == 0 {
+		return nil, fmt.Errorf("spec not found: %s", specKey)
+	}
+
+	return &specs[0], nil
+}
+
+func (c *Client) GetChange(specID string) (*apiChange, error) {
+	path := fmt.Sprintf(
+		"/rest/v1/changes?spec_id=eq.%s&select=id,spec_id,head_branch,base_branch,state",
+		url.QueryEscape(specID),
+	)
+
+	resp, err := c.DoWithRetry(func(token string) (*http.Response, error) {
+		return c.Get(token, path)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("GetChange: %w", err)
+	}
+
+	var changes []apiChange
+	if err := ReadJSON(resp, &changes); err != nil {
+		return nil, fmt.Errorf("GetChange: %w", err)
+	}
+
+	if len(changes) == 0 {
+		return nil, fmt.Errorf("no change found for spec %s", specID)
+	}
+
+	for _, ch := range changes {
+		if ch.State == "open" {
+			return &ch, nil
+		}
+	}
+
+	return &changes[0], nil
+}
+
+func (c *Client) FetchComments(changeID string) ([]ReviewComment, error) {
+	path := fmt.Sprintf(
+		"/rest/v1/review_comments?change_id=eq.%s&is_resolved=eq.false&parent_comment_id=is.null"+
+			"&select=id,file_path,content,selected_text,line,start_line,author_name,author_email,created_at"+
+			"&order=created_at.asc",
+		url.QueryEscape(changeID),
+	)
+
+	resp, err := c.DoWithRetry(func(token string) (*http.Response, error) {
+		return c.Get(token, path)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("FetchComments: %w", err)
+	}
+
+	var comments []ReviewComment
+	if err := ReadJSON(resp, &comments); err != nil {
+		return nil, fmt.Errorf("FetchComments: %w", err)
+	}
+
+	return comments, nil
+}
+
+func (c *Client) FetchReplies(changeID string) ([]ReviewComment, error) {
+	path := fmt.Sprintf(
+		"/rest/v1/review_comments?change_id=eq.%s&is_resolved=eq.false&parent_comment_id=not.is.null"+
+			"&select=id,file_path,content,selected_text,parent_comment_id,author_name,author_email,created_at"+
+			"&order=created_at.asc",
+		url.QueryEscape(changeID),
+	)
+
+	resp, err := c.DoWithRetry(func(token string) (*http.Response, error) {
+		return c.Get(token, path)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("FetchReplies: %w", err)
+	}
+
+	var replies []ReviewComment
+	if err := ReadJSON(resp, &replies); err != nil {
+		return nil, fmt.Errorf("FetchReplies: %w", err)
+	}
+
+	return replies, nil
+}
+
+func BuildReplyMap(replies []ReviewComment) ReplyMap {
+	m := make(ReplyMap)
+	for _, r := range replies {
+		m[r.ParentCommentID] = append(m[r.ParentCommentID], r)
+	}
+	return m
+}

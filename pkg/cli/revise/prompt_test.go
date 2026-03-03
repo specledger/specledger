@@ -3,6 +3,8 @@ package revise
 import (
 	"strings"
 	"testing"
+
+	"github.com/specledger/specledger/pkg/cli/comment"
 )
 
 func TestEstimateTokens(t *testing.T) {
@@ -299,7 +301,7 @@ func TestBuildReplyMap(t *testing.T) {
 		{ID: "r3", ParentCommentID: "p2", Content: "reply 3"},
 	}
 
-	m := BuildReplyMap(replies)
+	m := comment.BuildReplyMap(replies)
 
 	if len(m["p1"]) != 2 {
 		t.Errorf("p1 replies: got %d, want 2", len(m["p1"]))
@@ -313,7 +315,7 @@ func TestBuildReplyMap(t *testing.T) {
 }
 
 func TestBuildReplyMap_Nil(t *testing.T) {
-	m := BuildReplyMap(nil)
+	m := comment.BuildReplyMap(nil)
 	if m == nil {
 		t.Error("BuildReplyMap(nil) should return non-nil empty map")
 	}
