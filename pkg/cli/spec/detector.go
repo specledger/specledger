@@ -1,7 +1,6 @@
 package spec
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -21,10 +20,6 @@ type FeatureContext struct {
 	HasGit     bool
 }
 
-type BranchMap struct {
-	BranchToFeature map[string]string `json:"branchToFeature"`
-}
-
 func DetectFeatureContext(workDir string) (*FeatureContext, error) {
 	repo, err := git.PlainOpenWithOptions(workDir, &git.PlainOpenOptions{
 		DetectDotGit: true,
@@ -40,28 +35,17 @@ func DetectFeatureContext(workDir string) (*FeatureContext, error) {
 
 	repoRoot := wt.Filesystem.Root()
 
-	head, err := repo.Head()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get HEAD: %w", err)
-	}
-
-	var branch string
-	if head.Name().IsBranch() {
-		branch = head.Name().Short()
-	} else {
-		return nil, fmt.Errorf("detached HEAD state - please checkout a feature branch (got commit %s)", head.Hash().String()[:8])
-	}
-
-	featureBranch := branch
-	if !isFeatureBranch(branch) {
-		mappedFeature, err := checkBranchMap(repoRoot, branch)
+	featureBranch := os.Getenv("SPECIFY_FEATURE")
+	if featureBranch == "" {
+		head, err := repo.Head()
 		if err != nil {
-			return nil, fmt.Errorf("not a feature branch: %q (expected pattern: ###-description). Create branch-map.json to map non-feature branches to feature contexts", branch)
+			return nil, fmt.Errorf("failed to get HEAD: %w", err)
 		}
-		if mappedFeature != "" {
-			featureBranch = mappedFeature
+
+		if head.Name().IsBranch() {
+			featureBranch = head.Name().Short()
 		} else {
-			return nil, fmt.Errorf("not a feature branch: %q (expected pattern: ###-description)", branch)
+			return nil, fmt.Errorf("detached HEAD state - please checkout a feature branch or set SPECIFY_FEATURE env var (got commit %s)", head.Hash().String()[:8])
 		}
 	}
 
@@ -72,36 +56,13 @@ func DetectFeatureContext(workDir string) (*FeatureContext, error) {
 
 	return &FeatureContext{
 		RepoRoot:   repoRoot,
-		Branch:     branch,
+		Branch:     featureBranch,
 		FeatureDir: featureDir,
 		SpecFile:   specFile,
 		PlanFile:   planFile,
 		TasksFile:  tasksFile,
 		HasGit:     true,
 	}, nil
-}
-
-func checkBranchMap(repoRoot, branch string) (string, error) {
-	branchMapPath := filepath.Join(repoRoot, ".specledger", "branch-map.json")
-
-	data, err := os.ReadFile(branchMapPath)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "", nil
-		}
-		return "", fmt.Errorf("failed to read branch-map.json: %w", err)
-	}
-
-	var branchMap BranchMap
-	if err := json.Unmarshal(data, &branchMap); err != nil {
-		return "", fmt.Errorf("failed to parse branch-map.json: %w", err)
-	}
-
-	if branchMap.BranchToFeature == nil {
-		return "", nil
-	}
-
-	return branchMap.BranchToFeature[branch], nil
 }
 
 func isFeatureBranch(name string) bool {
