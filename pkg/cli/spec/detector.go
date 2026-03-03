@@ -1,7 +1,9 @@
 package spec
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -17,6 +19,10 @@ type FeatureContext struct {
 	PlanFile   string
 	TasksFile  string
 	HasGit     bool
+}
+
+type BranchMap struct {
+	BranchToFeature map[string]string `json:"branchToFeature"`
 }
 
 func DetectFeatureContext(workDir string) (*FeatureContext, error) {
@@ -46,11 +52,20 @@ func DetectFeatureContext(workDir string) (*FeatureContext, error) {
 		return nil, fmt.Errorf("detached HEAD state - please checkout a feature branch (got commit %s)", head.Hash().String()[:8])
 	}
 
+	featureBranch := branch
 	if !isFeatureBranch(branch) {
-		return nil, fmt.Errorf("not a feature branch: %q (expected pattern: ###-description)", branch)
+		mappedFeature, err := checkBranchMap(repoRoot, branch)
+		if err != nil {
+			return nil, fmt.Errorf("not a feature branch: %q (expected pattern: ###-description). Create branch-map.json to map non-feature branches to feature contexts", branch)
+		}
+		if mappedFeature != "" {
+			featureBranch = mappedFeature
+		} else {
+			return nil, fmt.Errorf("not a feature branch: %q (expected pattern: ###-description)", branch)
+		}
 	}
 
-	featureDir := filepath.Join(repoRoot, "specledger", branch)
+	featureDir := filepath.Join(repoRoot, "specledger", featureBranch)
 	specFile := filepath.Join(featureDir, "spec.md")
 	planFile := filepath.Join(featureDir, "plan.md")
 	tasksFile := filepath.Join(featureDir, "tasks.md")
@@ -64,6 +79,29 @@ func DetectFeatureContext(workDir string) (*FeatureContext, error) {
 		TasksFile:  tasksFile,
 		HasGit:     true,
 	}, nil
+}
+
+func checkBranchMap(repoRoot, branch string) (string, error) {
+	branchMapPath := filepath.Join(repoRoot, ".specledger", "branch-map.json")
+
+	data, err := os.ReadFile(branchMapPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", nil
+		}
+		return "", fmt.Errorf("failed to read branch-map.json: %w", err)
+	}
+
+	var branchMap BranchMap
+	if err := json.Unmarshal(data, &branchMap); err != nil {
+		return "", fmt.Errorf("failed to parse branch-map.json: %w", err)
+	}
+
+	if branchMap.BranchToFeature == nil {
+		return "", nil
+	}
+
+	return branchMap.BranchToFeature[branch], nil
 }
 
 func isFeatureBranch(name string) bool {
