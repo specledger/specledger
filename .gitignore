@@ -36,6 +36,12 @@ Thumbs.db
 *.bak
 *.backup
 
+# Beads local state (SQLite temp files)
+.beads/beads.db-shm
+.beads/beads.db-wal
+.beads/.local_version
+.beads/export-state/
+
 # SpecLedger specific
 .spec-cache/
 specledger/vendor/
@@ -47,6 +53,13 @@ issues.jsonl.lock
 # SpecLedger CLI credentials (FR-014: never commit tokens)
 .specledger/credentials.json
 **/credentials.json
+
+# Personal-local config (gitignored per-user overrides)
+specledger.local.yaml
+**/specledger.local.yaml
+
+# Migration logs
+.migration-log
 
 # Build outputs
 dist/
@@ -72,3 +85,4 @@ bin/
 bin/main
 main
 /sl
+.beads/metadata.json

@@ -10,7 +10,6 @@ import (
 
 	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/prerequisites"
-	"github.com/specledger/specledger/pkg/cli/tui"
 	"github.com/specledger/specledger/pkg/cli/ui"
 	"github.com/specledger/specledger/pkg/templates"
 	"github.com/specledger/specledger/pkg/version"
@@ -18,7 +17,9 @@ import (
 )
 
 var (
-	doctorJSONOutput bool
+	doctorJSONOutput   bool
+	doctorUpdateFlag   bool
+	doctorTemplateFlag bool
 )
 
 // VarDoctorCmd represents the doctor command
@@ -30,10 +31,16 @@ var VarDoctorCmd = &cobra.Command{
 This command verifies that:
 - Core tools (mise) are installed and accessible
 - Framework tools (specify, openspec) are installed (optional)
+- CLI version is up to date (auto-updates if not)
+- Project templates match the CLI version (auto-applies if not)
 
+Use --update to only update the CLI binary.
+Use --template to only apply embedded templates.
 Use --json flag for machine-readable output suitable for CI/CD pipelines.`,
-	Example: `  sl doctor           # Human-readable output
-  sl doctor --json    # JSON output for CI/CD`,
+	Example: `  sl doctor              # Full check, auto-update CLI and templates
+  sl doctor --update     # Only update CLI to latest version
+  sl doctor --template   # Only apply embedded templates
+  sl doctor --json       # JSON output for CI/CD`,
 	RunE:          runDoctor,
 	SilenceUsage:  true, // Don't print usage on error
 	SilenceErrors: true, // Don't print error message from return (we handle it in UI)
@@ -41,6 +48,8 @@ Use --json flag for machine-readable output suitable for CI/CD pipelines.`,
 
 func init() {
 	VarDoctorCmd.Flags().BoolVar(&doctorJSONOutput, "json", false, "Output results in JSON format")
+	VarDoctorCmd.Flags().BoolVar(&doctorUpdateFlag, "update", false, "Update CLI to latest version (non-interactive)")
+	VarDoctorCmd.Flags().BoolVar(&doctorTemplateFlag, "template", false, "Apply embedded templates to project (non-interactive)")
 }
 
 // DoctorOutput represents the JSON output structure for doctor command
@@ -73,6 +82,28 @@ type DoctorToolStatus struct {
 }
 
 func runDoctor(cmd *cobra.Command, args []string) error {
+	// Flag-only mode: skip full doctor output, just do the requested action(s)
+	if doctorUpdateFlag || doctorTemplateFlag {
+		var errs []error
+		if doctorUpdateFlag {
+			if err := performCLIUpdate(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				errs = append(errs, err)
+			}
+		}
+		if doctorTemplateFlag {
+			if err := performTemplateUpdate(); err != nil {
+				fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+				errs = append(errs, err)
+			}
+		}
+		if len(errs) > 0 {
+			return errs[0]
+		}
+		return nil
+	}
+
+	// Full doctor mode
 	check := prerequisites.CheckPrerequisites()
 
 	if doctorJSONOutput {
@@ -80,6 +111,55 @@ func runDoctor(cmd *cobra.Command, args []string) error {
 	}
 
 	return outputDoctorHuman(check)
+}
+
+// performCLIUpdate checks for a newer CLI version and updates without prompting.
+func performCLIUpdate() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	fmt.Printf("  Checking for CLI updates...\n")
+	versionInfo := version.CheckLatestVersion(ctx)
+	if versionInfo.Error != "" {
+		return fmt.Errorf("version check failed: %s", versionInfo.Error)
+	}
+
+	if !versionInfo.UpdateAvailable {
+		fmt.Printf("  %s CLI is up to date (%s)\n", ui.Checkmark(), version.GetVersion())
+		return nil
+	}
+
+	fmt.Printf("  Updating CLI %s -> %s...\n", version.GetVersion(), versionInfo.LatestVersion)
+	if err := version.SelfUpdate(ctx); err != nil {
+		return fmt.Errorf("CLI update failed: %w\n  Try manual update: %s", err, version.GetUpdateInstructions())
+	}
+	fmt.Printf("  %s CLI updated. Restart sl to use the new version.\n", ui.Checkmark())
+	return nil
+}
+
+// performTemplateUpdate applies embedded templates to the project without prompting.
+func performTemplateUpdate() error {
+	projectDir, _ := os.Getwd()
+	cliVersion := version.GetVersion()
+	templateStatus, err := templates.CheckTemplateStatus(projectDir, cliVersion)
+	if err != nil || templateStatus == nil || !templateStatus.InProject {
+		return fmt.Errorf("not in a SpecLedger project (no specledger.yaml found)")
+	}
+
+	if !templateStatus.NeedsUpdate {
+		fmt.Printf("  %s Templates are up to date\n", ui.Checkmark())
+		return nil
+	}
+
+	fmt.Printf("  Applying templates (v%s -> v%s)...\n", templateStatus.ProjectTemplateVersion, cliVersion)
+	result, err := templates.UpdateTemplates(projectDir, cliVersion)
+	if err != nil {
+		return fmt.Errorf("template update failed: %w", err)
+	}
+	total := len(result.Updated) + len(result.Overwritten)
+	fmt.Printf("  %s Updated %d templates (%d new, %d overwritten)\n",
+		ui.Checkmark(), total, len(result.Updated), len(result.Overwritten))
+	return nil
 }
 
 func outputDoctorJSON(check prerequisites.PrerequisiteCheck) error {
@@ -197,23 +277,13 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 	} else if versionInfo.UpdateAvailable {
 		fmt.Printf(" %s\n", ui.Yellow(fmt.Sprintf("(latest: %s)", versionInfo.LatestVersion)))
 		fmt.Println()
-		fmt.Printf("  %s Update available!\n", ui.Yellow("⚠"))
-
-		// Offer self-update in interactive mode
-		mode := tui.NewModeDetector()
-		if mode.IsInteractive() {
-			fmt.Println()
-			confirm, err := tui.ConfirmPrompt("  Update CLI now? [y/N]: ")
-			if err == nil && confirm {
-				fmt.Println()
-				if err := version.SelfUpdate(ctx); err != nil {
-					fmt.Printf("  %s Update failed: %v\n", ui.Red("✗"), err)
-					fmt.Printf("  %s Try manual update:\n", ui.Dim("ℹ"))
-					fmt.Printf("      %s\n", version.GetUpdateInstructions())
-				} else {
-					fmt.Printf("  %s Restart sl to use the new version\n", ui.Dim("ℹ"))
-				}
-			}
+		fmt.Printf("  Updating CLI %s -> %s...\n", cliVersion, versionInfo.LatestVersion)
+		if err := version.SelfUpdate(ctx); err != nil {
+			fmt.Printf("  %s Update failed: %v\n", ui.Red("✗"), err)
+			fmt.Printf("  %s Try manual update:\n", ui.Dim("ℹ"))
+			fmt.Printf("      %s\n", version.GetUpdateInstructions())
+		} else {
+			fmt.Printf("  %s CLI updated. Restart sl to use the new version.\n", ui.Checkmark())
 		}
 	} else {
 		fmt.Printf(" %s\n", ui.Green("(latest)"))
@@ -238,36 +308,20 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 			fmt.Printf("  %s Templates: %s\n", ui.Checkmark(), ui.Green("current"))
 		}
 
-		// Offer template update if needed
+		// Auto-apply template update if needed
 		if templateStatus.NeedsUpdate {
 			fmt.Println()
-			fmt.Printf("  %s Template update available!\n", ui.Yellow("⚠"))
-
-			// Show warning about uncommitted changes
 			if hasUncommittedChanges(projectDir) {
 				fmt.Printf("  %s Warning: Uncommitted changes in .claude/ will be overwritten\n", ui.Yellow("⚠"))
 			}
-
-			fmt.Println()
-
-			// Prompt for update (skip in non-interactive mode)
-			mode := tui.NewModeDetector()
-			if mode.IsInteractive() {
-				confirm, err := tui.ConfirmPrompt("  Update templates? [y/N]: ")
-				if err == nil && confirm {
-					fmt.Println()
-					result, err := templates.UpdateTemplates(projectDir, cliVersion)
-					if err != nil {
-						fmt.Printf("  %s Update failed: %v\n", ui.Red("✗"), err)
-					} else {
-						total := len(result.Updated) + len(result.Overwritten)
-						fmt.Printf("  %s Updated %d templates (%d new, %d overwritten)\n",
-							ui.Checkmark(), total, len(result.Updated), len(result.Overwritten))
-						fmt.Printf("  %s Template version updated to %s\n", ui.Checkmark(), cliVersion)
-					}
-				} else {
-					fmt.Println("  Skipping template update.")
-				}
+			fmt.Printf("  Applying templates (v%s -> v%s)...\n", templateStatus.ProjectTemplateVersion, cliVersion)
+			result, err := templates.UpdateTemplates(projectDir, cliVersion)
+			if err != nil {
+				fmt.Printf("  %s Template update failed: %v\n", ui.Red("✗"), err)
+			} else {
+				total := len(result.Updated) + len(result.Overwritten)
+				fmt.Printf("  %s Updated %d templates (%d new, %d overwritten)\n",
+					ui.Checkmark(), total, len(result.Updated), len(result.Overwritten))
 			}
 		}
 		fmt.Println()

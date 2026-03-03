@@ -10,9 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/specledger/specledger/pkg/cli/auth"
+	"github.com/specledger/specledger/pkg/cli/config"
 	"github.com/specledger/specledger/pkg/cli/launcher"
 	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/playbooks"
+	"github.com/specledger/specledger/pkg/cli/revise"
 	"github.com/specledger/specledger/pkg/cli/ui"
 	"github.com/specledger/specledger/pkg/embedded"
 	"github.com/specledger/specledger/pkg/version"
@@ -295,7 +298,6 @@ func romanNumeral(n int) string {
 // This is a non-fatal operation — project setup is still complete even if the agent
 // cannot be launched.
 func launchAgent(projectDir string, agentPref string) error {
-	// No agent selected
 	if agentPref == "" || agentPref == "None" {
 		fmt.Println()
 		ui.PrintSuccess("Project setup complete!")
@@ -303,7 +305,6 @@ func launchAgent(projectDir string, agentPref string) error {
 		return nil
 	}
 
-	// Find the matching agent option
 	var agent launcher.AgentOption
 	for _, a := range launcher.DefaultAgents {
 		if a.Name == agentPref {
@@ -318,7 +319,6 @@ func launchAgent(projectDir string, agentPref string) error {
 
 	al := launcher.NewAgentLauncher(agent, projectDir)
 
-	// Check availability
 	if !al.IsAvailable() {
 		fmt.Println()
 		ui.PrintWarning(fmt.Sprintf("%s is not installed.", agent.Name))
@@ -327,14 +327,27 @@ func launchAgent(projectDir string, agentPref string) error {
 		return nil
 	}
 
-	// Launch the agent
+	cfg, err := config.Load()
+	if err == nil && cfg.Agent != nil {
+		resolved := config.MergeConfigs(
+			config.DefaultAgentConfig(),
+			cfg.Agent,
+			nil,
+			nil,
+			nil,
+		)
+		envVars := resolved.GetEnvVars()
+		if len(envVars) > 0 {
+			al.SetEnv(envVars)
+		}
+	}
+
 	fmt.Println()
 	ui.PrintSection("Launching " + agent.Name)
 	fmt.Println(ui.Dim("  Type /specledger.onboard to start the guided workflow."))
 	fmt.Println()
 
 	if err := al.Launch(); err != nil {
-		// Agent exit is non-fatal — project is already set up
 		ui.PrintWarning(fmt.Sprintf("Agent exited: %v", err))
 	}
 
@@ -348,6 +361,77 @@ func shouldLaunchAgent() bool {
 		return false
 	}
 	return true
+}
+
+// GitRemoteInfo contains parsed git remote information
+type GitRemoteInfo struct {
+	Owner string
+	Name  string
+}
+
+// detectGitRemote parses the git origin remote URL to extract owner and repo name.
+// Supports both HTTPS and SSH formats:
+//   - https://github.com/owner/repo.git
+//   - git@github.com:owner/repo.git
+func detectGitRemote(projectPath string) (*GitRemoteInfo, error) {
+	cmd := exec.Command("git", "remote", "get-url", "origin")
+	cmd.Dir = projectPath
+	output, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("no git remote 'origin' found (run: git remote add origin <url>)")
+	}
+
+	remoteURL := strings.TrimSpace(string(output))
+	return parseGitRemoteURL(remoteURL)
+}
+
+// parseGitRemoteURL parses a git URL (HTTPS or SSH) to extract owner and repo name.
+func parseGitRemoteURL(remoteURL string) (*GitRemoteInfo, error) {
+	// SSH format: git@github.com:owner/repo.git
+	sshPattern := regexp.MustCompile(`git@[^:]+:([^/]+)/(.+?)(?:\.git)?$`)
+	if matches := sshPattern.FindStringSubmatch(remoteURL); len(matches) == 3 {
+		return &GitRemoteInfo{
+			Owner: matches[1],
+			Name:  strings.TrimSuffix(matches[2], ".git"),
+		}, nil
+	}
+
+	// HTTPS format: https://github.com/owner/repo.git
+	httpsPattern := regexp.MustCompile(`https?://[^/]+/([^/]+)/(.+?)(?:\.git)?$`)
+	if matches := httpsPattern.FindStringSubmatch(remoteURL); len(matches) == 3 {
+		return &GitRemoteInfo{
+			Owner: matches[1],
+			Name:  strings.TrimSuffix(matches[2], ".git"),
+		}, nil
+	}
+
+	return nil, fmt.Errorf("could not parse git remote URL: %s", remoteURL)
+}
+
+// lookupProjectID attempts to find the project ID from Supabase using git remote info.
+// Returns empty string if lookup fails (no authentication, no remote, project not found).
+// This is a non-fatal lookup - callers should gracefully handle empty results.
+func lookupProjectID(projectPath string) string {
+	// 1. Detect git remote to get owner/repo
+	remoteInfo, err := detectGitRemote(projectPath)
+	if err != nil {
+		return "" // No git remote, skip silently
+	}
+
+	// 2. Check authentication
+	accessToken, err := auth.GetValidAccessToken()
+	if err != nil {
+		return "" // Not authenticated, skip silently
+	}
+
+	// 3. Lookup project in Supabase via revise client
+	client := revise.NewReviseClient(accessToken)
+	project, err := client.GetProject(remoteInfo.Owner, remoteInfo.Name)
+	if err != nil {
+		return "" // Project not found in Supabase, skip silently
+	}
+
+	return project.ID
 }
 
 // runPostInitScript executes the template's init.sh script if it exists.

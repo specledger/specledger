@@ -205,6 +205,82 @@ func toolExists(name string) bool {
 	return err == nil
 }
 
+// TestDoctorUpdateFlag tests the --update flag runs without full doctor output
+func TestDoctorUpdateFlag(t *testing.T) {
+	tempDir := t.TempDir()
+	slBinary := buildSLBinary(t, tempDir)
+
+	// --update should attempt a version check and print status
+	// It won't actually update in test (dev build), but should not error fatally
+	cmd := exec.Command(slBinary, "doctor", "--update")
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	// Should NOT contain the full doctor sections
+	if strings.Contains(outputStr, "Core Tools") {
+		t.Error("--update flag should not output full doctor sections")
+	}
+	if strings.Contains(outputStr, "SDD Framework Tools") {
+		t.Error("--update flag should not output full doctor sections")
+	}
+
+	// Should contain CLI update-related output
+	if !strings.Contains(outputStr, "CLI") && !strings.Contains(outputStr, "Checking") {
+		t.Logf("Unexpected output: %s (err: %v)", outputStr, err)
+	}
+}
+
+// TestDoctorTemplateFlag tests the --template flag outside a project
+func TestDoctorTemplateFlag(t *testing.T) {
+	tempDir := t.TempDir()
+	slBinary := buildSLBinary(t, tempDir)
+
+	// --template outside a project should fail with a clear message
+	cmd := exec.Command(slBinary, "doctor", "--template")
+	cmd.Dir = tempDir
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	if err == nil {
+		t.Error("Expected --template to fail outside a SpecLedger project")
+	}
+	if !strings.Contains(outputStr, "not in a SpecLedger project") {
+		t.Errorf("Expected 'not in a SpecLedger project' error, got: %s", outputStr)
+	}
+
+	// Should NOT contain full doctor sections
+	if strings.Contains(outputStr, "Core Tools") {
+		t.Error("--template flag should not output full doctor sections")
+	}
+}
+
+// TestDoctorBothFlags tests --update and --template together
+func TestDoctorBothFlags(t *testing.T) {
+	tempDir := t.TempDir()
+	slBinary := buildSLBinary(t, tempDir)
+
+	// Both flags together: update runs first, then template (which will fail outside project)
+	cmd := exec.Command(slBinary, "doctor", "--update", "--template")
+	cmd.Dir = tempDir
+	output, err := cmd.CombinedOutput()
+	outputStr := string(output)
+
+	// Should attempt CLI check first
+	if !strings.Contains(outputStr, "CLI") && !strings.Contains(outputStr, "Checking") {
+		t.Logf("Expected CLI-related output, got: %s", outputStr)
+	}
+
+	// Template part should fail outside project
+	if err == nil {
+		t.Error("Expected failure when --template used outside project")
+	}
+
+	// Should NOT contain full doctor sections
+	if strings.Contains(outputStr, "Core Tools") {
+		t.Error("combined flags should not output full doctor sections")
+	}
+}
+
 // TestDoctorInProjectDirectory tests sl doctor works from within a SpecLedger project
 func TestDoctorInProjectDirectory(t *testing.T) {
 	tempDir := t.TempDir()
