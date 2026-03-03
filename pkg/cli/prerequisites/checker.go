@@ -28,8 +28,6 @@ type ToolCheckResult struct {
 }
 
 var (
-	// CoreTools are required for SpecLedger to function
-	// Note: Issue tracking is now built into sl CLI (sl issue commands)
 	CoreTools = []Tool{
 		{
 			Name:        "mise",
@@ -37,24 +35,6 @@ var (
 			Category:    metadata.ToolCategoryCore,
 			VersionFlag: "--version",
 			InstallURL:  "https://mise.jdx.dev/getting-started.html",
-		},
-	}
-
-	// FrameworkTools are optional SDD framework tools
-	FrameworkTools = []Tool{
-		{
-			Name:        "specify",
-			DisplayName: "specify (Spec Kit framework)",
-			Category:    metadata.ToolCategoryFramework,
-			VersionFlag: "--version",
-			InstallCmd:  "mise install pipx:git+https://github.com/github/spec-kit.git",
-		},
-		{
-			Name:        "openspec",
-			DisplayName: "openspec (OpenSpec framework)",
-			Category:    metadata.ToolCategoryFramework,
-			VersionFlag: "--version",
-			InstallCmd:  "mise install npm:@fission-ai/openspec",
 		},
 	}
 )
@@ -94,19 +74,13 @@ func CheckTool(tool Tool) ToolCheckResult {
 	return result
 }
 
-// CheckAllTools checks both core and framework tools
-func CheckAllTools() ([]ToolCheckResult, []ToolCheckResult) {
+// CheckAllTools checks core tools
+func CheckAllTools() []ToolCheckResult {
 	coreResults := make([]ToolCheckResult, len(CoreTools))
 	for i, tool := range CoreTools {
 		coreResults[i] = CheckTool(tool)
 	}
-
-	frameworkResults := make([]ToolCheckResult, len(FrameworkTools))
-	for i, tool := range FrameworkTools {
-		frameworkResults[i] = CheckTool(tool)
-	}
-
-	return coreResults, frameworkResults
+	return coreResults
 }
 
 // CheckCoreTools checks only core required tools
@@ -183,13 +157,12 @@ type PrerequisiteCheck struct {
 	AllCoreInstalled bool
 	MissingCore      []Tool
 	CoreResults      []ToolCheckResult
-	FrameworkResults []ToolCheckResult
 	Instructions     string
 }
 
 // CheckPrerequisites performs a comprehensive check of all tools
 func CheckPrerequisites() PrerequisiteCheck {
-	coreResults, frameworkResults := CheckAllTools()
+	coreResults := CheckAllTools()
 
 	missingCore := []Tool{}
 	for _, result := range coreResults {
@@ -202,7 +175,6 @@ func CheckPrerequisites() PrerequisiteCheck {
 		AllCoreInstalled: len(missingCore) == 0,
 		MissingCore:      missingCore,
 		CoreResults:      coreResults,
-		FrameworkResults: frameworkResults,
 		Instructions:     GetInstallInstructions(missingCore),
 	}
 }

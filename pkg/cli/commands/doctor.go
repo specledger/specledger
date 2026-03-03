@@ -31,7 +31,6 @@ var VarDoctorCmd = &cobra.Command{
 
 This command verifies that:
 - Core tools (mise) are installed and accessible
-- Framework tools (specify, openspec) are installed (optional)
 - CLI version is up to date (prompts to update if not)
 - Project templates match the CLI version (prompts to apply if not)
 
@@ -147,11 +146,7 @@ func performTemplateUpdate() error {
 		return fmt.Errorf("not in a SpecLedger project (no specledger.yaml found)")
 	}
 
-	if !templateStatus.NeedsUpdate {
-		fmt.Printf("  %s Templates are up to date\n", ui.Checkmark())
-		return nil
-	}
-
+	// --template flag forces update regardless of version
 	fmt.Printf("  Applying templates (v%s -> v%s)...\n", templateStatus.ProjectTemplateVersion, cliVersion)
 	result, err := templates.UpdateTemplates(projectDir, cliVersion)
 	if err != nil {
@@ -171,16 +166,6 @@ func outputDoctorJSON(check prerequisites.PrerequisiteCheck) error {
 
 	// Add all tools to output
 	for _, result := range check.CoreResults {
-		output.Tools = append(output.Tools, DoctorToolStatus{
-			Name:      result.Tool.Name,
-			Installed: result.Installed,
-			Version:   result.Version,
-			Path:      result.Path,
-			Category:  string(result.Tool.Category),
-		})
-	}
-
-	for _, result := range check.FrameworkResults {
 		output.Tools = append(output.Tools, DoctorToolStatus{
 			Name:      result.Tool.Name,
 			Installed: result.Installed,
@@ -342,48 +327,6 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 			}
 		}
 		fmt.Println()
-	}
-
-	// Framework tools section
-	fmt.Println(ui.Bold("SDD Framework Tools"))
-	fmt.Println(ui.Cyan("──────────────────"))
-	fmt.Println()
-
-	for _, result := range check.FrameworkResults {
-		name := result.Tool.DisplayName
-		versionInfo := ""
-		status := ui.Crossmark() + " "
-		fwStatus := ""
-
-		if result.Installed {
-			status = ui.Checkmark() + " "
-			if result.Version != "" {
-				versionInfo = ui.Dim(fmt.Sprintf("(%s)", result.Version))
-			}
-
-			// Check if playbook is applied in current project
-			projectDir, _ := os.Getwd()
-			if metadata.HasYAMLMetadata(projectDir) {
-				if meta, _ := metadata.LoadFromProject(projectDir); meta != nil {
-					// Show playbook name instead of framework choice
-					if meta.Playbook.Name != "" {
-						fwStatus = fmt.Sprintf("(playbook: %s)", meta.Playbook.Name)
-					} else {
-						fwStatus = ui.Yellow("(no playbook)")
-					}
-				}
-			}
-		}
-		fmt.Printf("  %s%s%s %s\n", status, ui.Bold(name), versionInfo, fwStatus)
-	}
-	fmt.Println()
-
-	// Check if we're in a SpecLedger project and show framework init commands
-	if metadata.HasYAMLMetadata(projectDir) {
-		meta, loadErr := metadata.LoadFromProject(projectDir)
-		if loadErr == nil {
-			showFrameworkInitCommands(check, meta)
-		}
 	}
 
 	// Overall status
