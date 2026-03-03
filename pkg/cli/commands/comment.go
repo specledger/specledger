@@ -55,16 +55,41 @@ Examples:
 	SilenceUsage: true,
 }
 
+var commentShowCmd = &cobra.Command{
+	Use:   "show <comment-id> [comment-id...]",
+	Short: "Show full comment details",
+	Long: `Show full comment details with thread replies.
+
+Output formats:
+  Default: Human-readable format with all details
+  --json:  Full JSON object with comment and replies
+
+Arguments:
+  One or more comment IDs to display
+
+Examples:
+  sl comment show abc123
+  sl comment show abc123 def456
+  sl comment show abc123 --json`,
+	Args:         cobra.MinimumNArgs(1),
+	RunE:         runCommentShow,
+	SilenceUsage: true,
+}
+
 var (
 	commentListJSON   bool
 	commentListStatus string
+	commentShowJSON   bool
 )
 
 func init() {
 	commentListCmd.Flags().BoolVar(&commentListJSON, "json", false, "Output as JSON array")
 	commentListCmd.Flags().StringVar(&commentListStatus, "status", "open", "Filter by status: open, resolved, all")
 
+	commentShowCmd.Flags().BoolVar(&commentShowJSON, "json", false, "Output as JSON")
+
 	VarCommentCmd.AddCommand(commentListCmd)
+	VarCommentCmd.AddCommand(commentShowCmd)
 }
 
 func runCommentList(cmd *cobra.Command, args []string) error {
@@ -232,5 +257,125 @@ func outputCommentsCompact(comments []comment.ReviewComment, client *comment.Cli
 	}
 
 	fmt.Printf("\n%d comment(s) across %d artifact(s)\n", len(comments), len(artifacts))
+	return nil
+}
+
+func runCommentShow(cmd *cobra.Command, args []string) error {
+	accessToken, err := auth.GetValidAccessToken()
+	if err != nil {
+		return fmt.Errorf("authentication required: %w\n\nRun 'sl auth login' to authenticate.", err)
+	}
+
+	client := comment.NewClient(accessToken)
+
+	for i, commentID := range args {
+		if i > 0 {
+			fmt.Println("\n---")
+		}
+
+		c, err := client.FetchCommentByID(commentID)
+		if err != nil {
+			return fmt.Errorf("failed to fetch comment %s: %w", commentID, err)
+		}
+
+		replies, err := client.FetchRepliesByParentID(commentID)
+		if err != nil {
+			return fmt.Errorf("failed to fetch replies for comment %s: %w", commentID, err)
+		}
+
+		if commentShowJSON {
+			if err := outputCommentJSON(c, replies); err != nil {
+				return err
+			}
+		} else {
+			if err := outputCommentHuman(c, replies); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func outputCommentJSON(c *comment.ReviewComment, replies []comment.ReviewComment) error {
+	type ReplyOutput struct {
+		ID         string `json:"id"`
+		Content    string `json:"content"`
+		AuthorName string `json:"author_name"`
+		CreatedAt  string `json:"created_at"`
+	}
+
+	type CommentOutput struct {
+		ID           string        `json:"id"`
+		FilePath     string        `json:"file_path"`
+		Line         *int          `json:"line"`
+		StartLine    *int          `json:"start_line"`
+		Content      string        `json:"content"`
+		SelectedText string        `json:"selected_text"`
+		AuthorName   string        `json:"author_name"`
+		AuthorEmail  string        `json:"author_email"`
+		IsResolved   bool          `json:"is_resolved"`
+		CreatedAt    string        `json:"created_at"`
+		Replies      []ReplyOutput `json:"replies"`
+	}
+
+	output := CommentOutput{
+		ID:           c.ID,
+		FilePath:     c.FilePath,
+		Line:         c.Line,
+		StartLine:    c.StartLine,
+		Content:      c.Content,
+		SelectedText: c.SelectedText,
+		AuthorName:   c.AuthorName,
+		AuthorEmail:  c.AuthorEmail,
+		IsResolved:   c.IsResolved,
+		CreatedAt:    c.CreatedAt,
+		Replies:      make([]ReplyOutput, 0, len(replies)),
+	}
+
+	for _, r := range replies {
+		output.Replies = append(output.Replies, ReplyOutput{
+			ID:         r.ID,
+			Content:    r.Content,
+			AuthorName: r.AuthorName,
+			CreatedAt:  r.CreatedAt,
+		})
+	}
+
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(output)
+}
+
+func outputCommentHuman(c *comment.ReviewComment, replies []comment.ReviewComment) error {
+	fmt.Printf("Comment ID: %s\n", c.ID)
+	fmt.Printf("File: %s", c.FilePath)
+
+	if c.StartLine != nil && c.Line != nil {
+		fmt.Printf(":%d-%d\n", *c.StartLine, *c.Line)
+	} else if c.Line != nil {
+		fmt.Printf(":%d\n", *c.Line)
+	} else {
+		fmt.Println()
+	}
+
+	fmt.Printf("Author: %s <%s>\n", c.AuthorName, c.AuthorEmail)
+	fmt.Printf("Status: %s\n", map[bool]string{true: "Resolved", false: "Open"}[c.IsResolved])
+	fmt.Printf("Created: %s\n", c.CreatedAt)
+
+	if c.SelectedText != "" {
+		fmt.Printf("\nSelected Text:\n%s\n", c.SelectedText)
+	}
+
+	fmt.Printf("\nComment:\n%s\n", c.Content)
+
+	if len(replies) > 0 {
+		fmt.Printf("\nThread Replies (%d):\n", len(replies))
+		for i, r := range replies {
+			fmt.Printf("\n%d. %s (%s)\n", i+1, r.AuthorName, r.CreatedAt)
+			fmt.Printf("   %s\n", r.Content)
+		}
+	}
+
 	return nil
 }

@@ -217,6 +217,32 @@ func (c *Client) FetchComments(changeID string) ([]ReviewComment, error) {
 	return comments, nil
 }
 
+func (c *Client) FetchCommentByID(commentID string) (*ReviewComment, error) {
+	path := fmt.Sprintf(
+		"/rest/v1/review_comments?id=eq.%s"+
+			"&select=id,file_path,content,selected_text,line,start_line,author_name,author_email,is_resolved,created_at",
+		url.QueryEscape(commentID),
+	)
+
+	resp, err := c.DoWithRetry(func(token string) (*http.Response, error) {
+		return c.Get(token, path)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("FetchCommentByID: %w", err)
+	}
+
+	var comments []ReviewComment
+	if err := ReadJSON(resp, &comments); err != nil {
+		return nil, fmt.Errorf("FetchCommentByID: %w", err)
+	}
+
+	if len(comments) == 0 {
+		return nil, fmt.Errorf("comment not found: %s", commentID)
+	}
+
+	return &comments[0], nil
+}
+
 func (c *Client) FetchReplies(changeID string) ([]ReviewComment, error) {
 	path := fmt.Sprintf(
 		"/rest/v1/review_comments?change_id=eq.%s&is_resolved=eq.false&parent_comment_id=not.is.null"+
@@ -235,6 +261,29 @@ func (c *Client) FetchReplies(changeID string) ([]ReviewComment, error) {
 	var replies []ReviewComment
 	if err := ReadJSON(resp, &replies); err != nil {
 		return nil, fmt.Errorf("FetchReplies: %w", err)
+	}
+
+	return replies, nil
+}
+
+func (c *Client) FetchRepliesByParentID(parentID string) ([]ReviewComment, error) {
+	path := fmt.Sprintf(
+		"/rest/v1/review_comments?parent_comment_id=eq.%s"+
+			"&select=id,content,author_name,author_email,created_at"+
+			"&order=created_at.asc",
+		url.QueryEscape(parentID),
+	)
+
+	resp, err := c.DoWithRetry(func(token string) (*http.Response, error) {
+		return c.Get(token, path)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("FetchRepliesByParentID: %w", err)
+	}
+
+	var replies []ReviewComment
+	if err := ReadJSON(resp, &replies); err != nil {
+		return nil, fmt.Errorf("FetchRepliesByParentID: %w", err)
 	}
 
 	return replies, nil
