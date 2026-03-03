@@ -105,24 +105,3 @@ func TestDetectFramework_SvelteKit(t *testing.T) {
 	}
 }
 
-func TestToPascalCase(t *testing.T) {
-	tests := []struct {
-		input string
-		want  string
-	}{
-		{"button", "Button"},
-		{"user-card", "UserCard"},
-		{"app_header", "AppHeader"},
-		{"my-complex-component", "MyComplexComponent"},
-		{"", ""},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.input, func(t *testing.T) {
-			got := toPascalCase(tt.input)
-			if got != tt.want {
-				t.Errorf("toPascalCase(%q) = %q, want %q", tt.input, got, tt.want)
-			}
-		})
-	}
-}

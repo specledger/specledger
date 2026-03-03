@@ -27,6 +27,7 @@ func initFrontendDesignSystem(projectPath string, isInteractive bool) {
 		err = huh.NewForm(huh.NewGroup(
 			huh.NewConfirm().
 				Title("Initialize design system?").
+				Description("Extracts global CSS, design tokens, and styling patterns").
 				Value(&generate),
 		)).Run()
 		if err != nil || !generate {
@@ -34,18 +35,18 @@ func initFrontendDesignSystem(projectPath string, isInteractive bool) {
 		}
 	}
 
-	scanResult, err := mockup.ScanComponents(projectPath, result.Framework)
-	if err != nil {
-		ui.PrintWarning(fmt.Sprintf("Could not scan components: %v", err))
-		return
+	// Extract global CSS and design tokens
+	styleInfo := mockup.ScanStyles(projectPath)
+	ds := &mockup.DesignSystem{
+		Version:   1,
+		Framework: result.Framework,
+		Style:     styleInfo,
 	}
-
-	ds := mockup.ScanResultToDesignSystem(scanResult, result.Framework)
 	if err := mockup.WriteDesignSystem(dsPath, ds); err != nil {
 		ui.PrintWarning(fmt.Sprintf("Could not create design system: %v", err))
 		return
 	}
 
-	fmt.Printf("%s Scanned %d components\n", ui.Checkmark(), len(ds.Components))
+	fmt.Printf("%s Extracted design tokens\n", ui.Checkmark())
 	fmt.Printf("%s Created specledger/design_system.md\n", ui.Checkmark())
 }

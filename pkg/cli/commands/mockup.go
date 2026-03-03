@@ -48,11 +48,10 @@ Examples:
 
 var mockupUpdateCmd = &cobra.Command{
 	Use:   "update",
-	Short: "Refresh the design system index by rescanning the codebase",
-	Long: `Refresh the design system index by rescanning the codebase.
+	Short: "Refresh the design system by re-extracting global CSS and design tokens",
+	Long: `Refresh the design system by re-extracting global CSS and design tokens.
 
-Rescans project components and updates specledger/design_system.md.
-Manual entries are preserved across updates.
+Re-extracts CSS variables, theme colors, and styling patterns.
 
 Examples:
   sl mockup update          # Interactive update
@@ -146,7 +145,7 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		framework = mockup.FrameworkUnknown
 	}
 
-	// Step 3: Design system check/generate
+	// Step 3: Design system check/generate (extracts global CSS/design tokens only)
 	dsPath := filepath.Join(cwd, "specledger", "design_system.md")
 	var ds *mockup.DesignSystem
 	dsCreated := false
@@ -158,6 +157,7 @@ func runMockup(cmd *cobra.Command, args []string) error {
 			err = huh.NewForm(huh.NewGroup(
 				huh.NewConfirm().
 					Title("Generate design system now?").
+					Description("Extracts global CSS, design tokens, and styling patterns").
 					Value(&generate),
 			)).Run()
 			if err != nil {
@@ -172,15 +172,17 @@ func runMockup(cmd *cobra.Command, args []string) error {
 			}
 		}
 		if ds == nil {
-			scanResult, err := mockup.ScanComponents(cwd, framework)
-			if err != nil {
-				return fmt.Errorf("component scan failed: %w", err)
+			// Extract global CSS/design tokens
+			styleInfo := mockup.ScanStyles(cwd)
+			ds = &mockup.DesignSystem{
+				Version:   1,
+				Framework: framework,
+				Style:     styleInfo,
 			}
-			ds = mockup.ScanResultToDesignSystem(scanResult, framework)
 			if err := mockup.WriteDesignSystem(dsPath, ds); err != nil {
 				return fmt.Errorf("Error: Cannot write to specledger/\n\nCheck file permissions and try again.")
 			}
-			fmt.Printf("%s Scanned %d components\n", ui.Checkmark(), len(ds.Components))
+			fmt.Printf("%s Extracted design tokens\n", ui.Checkmark())
 			fmt.Printf("%s Created specledger/design_system.md\n", ui.Checkmark())
 			dsCreated = true
 		}
@@ -188,62 +190,23 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		loadedDS, err := mockup.LoadDesignSystem(dsPath)
 		if err != nil {
 			fmt.Printf("%s Design system is malformed, regenerating...\n", ui.WarningIcon())
-			scanResult, scanErr := mockup.ScanComponents(cwd, framework)
-			if scanErr != nil {
-				return fmt.Errorf("component scan failed: %w", scanErr)
+			styleInfo := mockup.ScanStyles(cwd)
+			ds = &mockup.DesignSystem{
+				Version:   1,
+				Framework: framework,
+				Style:     styleInfo,
 			}
-			ds = mockup.ScanResultToDesignSystem(scanResult, framework)
 			if writeErr := mockup.WriteDesignSystem(dsPath, ds); writeErr != nil {
 				return fmt.Errorf("failed to write design system: %w", writeErr)
 			}
 			dsCreated = true
 		} else {
 			ds = loadedDS
-			fmt.Printf("%s Loaded design system (%d components)\n", ui.Checkmark(), len(ds.Components))
+			fmt.Printf("%s Loaded design system\n", ui.Checkmark())
 		}
 	}
 
-	allComponents := append(ds.Components, ds.ManualEntries...)
-
-	// Step 4: Component selection
-	var selectedComponents []mockup.Component
-	if len(allComponents) > 0 && !mockupJSON {
-		options := make([]huh.Option[string], 0, len(allComponents))
-		for _, c := range allComponents {
-			label := c.Name
-			if c.IsExternal {
-				label = fmt.Sprintf("%s (%s)", c.Name, c.Library)
-			} else if c.FilePath != "" {
-				label = fmt.Sprintf("%s (%s)", c.Name, c.FilePath)
-			}
-			options = append(options, huh.NewOption(label, c.Name).Selected(true))
-		}
-
-		selectedNames := make([]string, 0, len(allComponents))
-		err = huh.NewForm(huh.NewGroup(
-			huh.NewMultiSelect[string]().
-				Title("Select components to include in mockup").
-				Options(options...).
-				Value(&selectedNames),
-		)).Run()
-		if err != nil {
-			return fmt.Errorf("component selection: %w", err)
-		}
-
-		nameSet := make(map[string]struct{}, len(selectedNames))
-		for _, n := range selectedNames {
-			nameSet[n] = struct{}{}
-		}
-		for _, c := range allComponents {
-			if _, ok := nameSet[c.Name]; ok {
-				selectedComponents = append(selectedComponents, c)
-			}
-		}
-	} else {
-		selectedComponents = allComponents
-	}
-
-	// Step 5: Format selection
+	// Step 4: Format selection
 	if !mockupJSON && mockupFormat == "html" {
 		var formatChoice string
 		err = huh.NewForm(huh.NewGroup(
@@ -272,16 +235,16 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Error: Spec has no user scenarios\n\nThe spec.md file has no user scenarios to generate mockups from.\nAdd user scenarios with: sl clarify %s", specName)
 	}
 
-	// Always use mockup/ folder — the agent decides how to split
-	outputDir := filepath.Join("specledger", specName, "mockup")
-	fullMockupDir := filepath.Join(cwd, outputDir)
+	// Output path for the mockup file
+	outputPath := filepath.Join("specledger", specName, fmt.Sprintf("mockup.%s", format))
+	fullOutputPath := filepath.Join(cwd, outputPath)
 
 	// Check for existing mockup
-	if _, err := os.Stat(fullMockupDir); err == nil && !mockupJSON {
+	if _, err := os.Stat(fullOutputPath); err == nil && !mockupJSON {
 		var overwrite bool
 		err = huh.NewForm(huh.NewGroup(
 			huh.NewConfirm().
-				Title(fmt.Sprintf("Mockup already exists at %s/\nOverwrite?", outputDir)).
+				Title(fmt.Sprintf("Mockup already exists at %s\nOverwrite?", outputPath)).
 				Value(&overwrite),
 		)).Run()
 		if err != nil {
@@ -293,16 +256,10 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Create mockup directory structure
-	componentsDir := filepath.Join(fullMockupDir, "components")
-	if err := os.MkdirAll(componentsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create mockup directory: %w", err)
-	}
-
 	// Scan project styling patterns
 	styleInfo := mockup.ScanStyles(cwd)
 
-	promptCtx := mockup.BuildMockupPromptContext(specName, specFile, specContent.Title, framework, format, outputDir+"/", selectedComponents, ds, styleInfo)
+	promptCtx := mockup.BuildMockupPromptContext(specName, specFile, specContent.Title, framework, format, outputPath, ds, styleInfo)
 	promptText, err := mockup.RenderMockupPrompt(promptCtx)
 	if err != nil {
 		return fmt.Errorf("failed to render prompt: %w", err)
@@ -329,8 +286,6 @@ func runMockup(cmd *cobra.Command, args []string) error {
 				PromptPath:          filepath.Join("specledger", specName, "mockup-prompt.md"),
 				Format:              string(format),
 				DesignSystemCreated: dsCreated,
-				ComponentsScanned:   len(ds.Components),
-				ComponentsSelected:  len(selectedComponents),
 				AgentLaunched:       false,
 				Committed:           false,
 			}
@@ -399,18 +354,16 @@ func runMockup(cmd *cobra.Command, args []string) error {
 	}
 
 	// Step 10: Summary
-	fmt.Printf("\n%s Mockup saved to %s/\n", ui.Checkmark(), outputDir)
+	fmt.Printf("\n%s Mockup saved to %s\n", ui.Checkmark(), outputPath)
 
 	if mockupJSON {
 		result := mockup.MockupResult{
 			Status:              "success",
 			Framework:           string(framework),
 			SpecName:            specName,
-			MockupPath:          outputDir + "/",
+			MockupPath:          outputPath,
 			Format:              string(format),
 			DesignSystemCreated: dsCreated,
-			ComponentsScanned:   len(ds.Components),
-			ComponentsSelected:  len(selectedComponents),
 			AgentLaunched:       agentLaunched,
 			Committed:           committed,
 		}
@@ -454,7 +407,8 @@ func runMockupUpdate(cmd *cobra.Command, args []string) error {
 		var confirm bool
 		err = huh.NewForm(huh.NewGroup(
 			huh.NewConfirm().
-				Title("Rescan components?").
+				Title("Re-extract design tokens?").
+				Description("Updates CSS variables, theme colors, and styling patterns").
 				Value(&confirm),
 		)).Run()
 		if err != nil {
@@ -466,34 +420,21 @@ func runMockupUpdate(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	fmt.Println("Updating design system index...")
-	scanResult, err := mockup.ScanComponents(cwd, framework)
-	if err != nil {
-		return fmt.Errorf("component scan failed: %w", err)
-	}
-
-	added, removed := mockup.MergeDesignSystem(existing, scanResult)
+	fmt.Println("Re-extracting design tokens...")
+	styleInfo := mockup.ScanStyles(cwd)
 
 	existing.Framework = framework
+	existing.Style = styleInfo
 	if err := mockup.WriteDesignSystem(dsPath, existing); err != nil {
 		return fmt.Errorf("Error: Cannot write to specledger/\n\nCheck file permissions and try again.")
 	}
 
-	fmt.Printf("%s Scanned %d components\n", ui.Checkmark(), len(scanResult.Components))
-	if added > 0 {
-		fmt.Printf("%s Added %d new components\n", ui.Checkmark(), added)
-	}
-	if removed > 0 {
-		fmt.Printf("%s Removed %d stale components\n", ui.Checkmark(), removed)
-	}
+	fmt.Printf("%s Extracted design tokens\n", ui.Checkmark())
 	fmt.Printf("%s Updated specledger/design_system.md\n", ui.Checkmark())
 
 	if updateJSON {
 		result := mockup.UpdateResult{
-			Status:            "success",
-			ComponentsTotal:   len(existing.Components),
-			ComponentsAdded:   added,
-			ComponentsRemoved: removed,
+			Status: "success",
 		}
 		return printJSON(result)
 	}

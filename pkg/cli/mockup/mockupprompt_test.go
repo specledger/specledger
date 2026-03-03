@@ -6,23 +6,18 @@ import (
 )
 
 func TestBuildMockupPromptContext(t *testing.T) {
-	components := []Component{
-		{
-			Name:     "Button",
-			FilePath: "src/components/Button.tsx",
-			Props:    []PropInfo{{Name: "variant", Type: "string"}, {Name: "onClick", Type: "func"}},
-		},
-		{
-			Name:       "TextField",
-			IsExternal: true,
-			Library:    "@mui/material",
-		},
-	}
 	ds := &DesignSystem{
 		ExternalLibs: []string{"@mui/material"},
 	}
+	style := &StyleInfo{
+		CSSFramework:    "Tailwind CSS",
+		StylingApproach: "utility-first",
+		ThemeColors: map[string]string{
+			"--primary": "#3b82f6",
+		},
+	}
 
-	ctx := BuildMockupPromptContext("042-registration", "specledger/042-registration/spec.md", "User Registration", FrameworkReact, MockupFormatHTML, "specledger/042-registration/mockup/", components, ds, nil)
+	ctx := BuildMockupPromptContext("042-registration", "specledger/042-registration/spec.md", "User Registration", FrameworkReact, MockupFormatHTML, "specledger/042-registration/mockup.html", ds, style)
 
 	if ctx.SpecName != "042-registration" {
 		t.Errorf("SpecName = %q, want %q", ctx.SpecName, "042-registration")
@@ -33,23 +28,17 @@ func TestBuildMockupPromptContext(t *testing.T) {
 	if ctx.SpecTitle != "User Registration" {
 		t.Errorf("SpecTitle = %q, want %q", ctx.SpecTitle, "User Registration")
 	}
-	if ctx.Framework != FrameworkReact {
-		t.Errorf("Framework = %s, want react", ctx.Framework)
-	}
-	if ctx.Format != MockupFormatHTML {
-		t.Errorf("Format = %s, want html", ctx.Format)
+	if ctx.OutputPath != "specledger/042-registration/mockup.html" {
+		t.Errorf("OutputPath = %q, unexpected", ctx.OutputPath)
 	}
 	if !ctx.HasDesignSystem {
 		t.Error("expected HasDesignSystem = true")
 	}
-	if len(ctx.Components) != 2 {
-		t.Errorf("Components count = %d, want 2", len(ctx.Components))
+	if !ctx.HasStyle {
+		t.Error("expected HasStyle = true")
 	}
-	if ctx.Components[0].Props != "variant: string, onClick: func" {
-		t.Errorf("Props = %q, unexpected", ctx.Components[0].Props)
-	}
-	if ctx.ComponentTree == "" {
-		t.Error("expected ComponentTree to be non-empty")
+	if len(ctx.ExternalLibs) != 1 {
+		t.Errorf("ExternalLibs count = %d, want 1", len(ctx.ExternalLibs))
 	}
 }
 
@@ -60,13 +49,14 @@ func TestRenderMockupPrompt_ReactHTML(t *testing.T) {
 		SpecTitle:       "User Registration",
 		Framework:       FrameworkReact,
 		Format:          MockupFormatHTML,
-		OutputDir:       "specledger/042-registration/mockup/",
+		OutputPath:      "specledger/042-registration/mockup.html",
 		HasDesignSystem: true,
-		ComponentTree:   "└── src/\n    └── components/\n        └── Button.tsx  →  Button (variant: string)\n",
-		Components: []PromptComponent{
-			{Name: "Button", FilePath: "src/components/Button.tsx", Props: "variant: string"},
+		ExternalLibs:    []string{"@mui/material"},
+		HasStyle:        true,
+		Style: &StyleInfo{
+			CSSFramework:    "Tailwind CSS",
+			StylingApproach: "utility-first",
 		},
-		ExternalLibs: []string{"@mui/material"},
 	}
 
 	result, err := RenderMockupPrompt(ctx)
@@ -78,13 +68,10 @@ func TestRenderMockupPrompt_ReactHTML(t *testing.T) {
 		"User Registration",
 		"042-registration",
 		"spec.md",
-		"html",
-		"React",
-		"Button",
-		"@mui/material",
-		"fetch",
 		"mockup.html",
-		"components/",
+		"React",
+		"@mui/material",
+		"self-contained",
 	}
 
 	for _, check := range checks {
@@ -101,11 +88,8 @@ func TestRenderMockupPrompt_ReactJSX(t *testing.T) {
 		SpecTitle:       "User Registration",
 		Framework:       FrameworkReact,
 		Format:          MockupFormatJSX,
-		OutputDir:       "specledger/042-registration/mockup/",
+		OutputPath:      "specledger/042-registration/mockup.jsx",
 		HasDesignSystem: true,
-		Components: []PromptComponent{
-			{Name: "Form", FilePath: "src/components/Form.tsx"},
-		},
 	}
 
 	result, err := RenderMockupPrompt(ctx)
@@ -128,7 +112,7 @@ func TestRenderMockupPrompt_VueHTML(t *testing.T) {
 		SpecTitle:       "Dashboard Feature",
 		Framework:       FrameworkVue,
 		Format:          MockupFormatHTML,
-		OutputDir:       "specledger/050-dashboard/mockup/",
+		OutputPath:      "specledger/050-dashboard/mockup.html",
 		HasDesignSystem: false,
 	}
 
@@ -145,16 +129,15 @@ func TestRenderMockupPrompt_VueHTML(t *testing.T) {
 	}
 }
 
-func TestRenderMockupPrompt_EmptyComponents(t *testing.T) {
+func TestRenderMockupPrompt_NoDesignSystem(t *testing.T) {
 	ctx := &MockupPromptContext{
 		SpecName:        "060-settings",
 		SpecPath:        "specledger/060-settings/spec.md",
 		SpecTitle:       "Settings Page",
 		Framework:       FrameworkReact,
 		Format:          MockupFormatHTML,
-		OutputDir:       "specledger/060-settings/mockup/",
+		OutputPath:      "specledger/060-settings/mockup.html",
 		HasDesignSystem: false,
-		Components:      nil,
 	}
 
 	result, err := RenderMockupPrompt(ctx)
@@ -163,9 +146,9 @@ func TestRenderMockupPrompt_EmptyComponents(t *testing.T) {
 	}
 
 	if !strings.Contains(result, "Settings Page") {
-		t.Error("prompt should include spec title even with no components")
+		t.Error("prompt should include spec title even with no design system")
 	}
-	if !strings.Contains(result, "components/") {
-		t.Error("prompt should always include components/ folder structure")
+	if !strings.Contains(result, "mockup.html") {
+		t.Error("prompt should include output path")
 	}
 }

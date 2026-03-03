@@ -90,7 +90,7 @@ func TestRenderMockupPrompt_WithStyle(t *testing.T) {
 		SpecTitle:       "User Registration",
 		Framework:       FrameworkReact,
 		Format:          MockupFormatHTML,
-		OutputDir:       "specledger/042-registration/mockup/",
+		OutputPath:      "specledger/042-registration/mockup.html",
 		HasDesignSystem: false,
 		HasStyle:        true,
 		Style: &StyleInfo{
