@@ -240,6 +240,29 @@ func (c *Client) FetchReplies(changeID string) ([]ReviewComment, error) {
 	return replies, nil
 }
 
+func (c *Client) FetchResolvedComments(changeID string) ([]ReviewComment, error) {
+	path := fmt.Sprintf(
+		"/rest/v1/review_comments?change_id=eq.%s&is_resolved=eq.true&parent_comment_id=is.null"+
+			"&select=id,file_path,content,selected_text,line,start_line,author_name,author_email,created_at"+
+			"&order=created_at.asc",
+		url.QueryEscape(changeID),
+	)
+
+	resp, err := c.DoWithRetry(func(token string) (*http.Response, error) {
+		return c.Get(token, path)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("FetchResolvedComments: %w", err)
+	}
+
+	var comments []ReviewComment
+	if err := ReadJSON(resp, &comments); err != nil {
+		return nil, fmt.Errorf("FetchResolvedComments: %w", err)
+	}
+
+	return comments, nil
+}
+
 func BuildReplyMap(replies []ReviewComment) ReplyMap {
 	m := make(ReplyMap)
 	for _, r := range replies {
