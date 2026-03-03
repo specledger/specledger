@@ -19,7 +19,7 @@ func TestWriteAndLoadDesignSystem(t *testing.T) {
 			CSSFramework:    "Tailwind CSS",
 			StylingApproach: "utility-first",
 			ThemeColors: map[string]string{
-				"--primary": "#3b82f6",
+				"--primary":   "#3b82f6",
 				"--secondary": "#64748b",
 			},
 			FontFamilies: []string{"Inter, sans-serif"},
@@ -129,7 +129,7 @@ func TestWriteDesignSystem_MarkdownFormat(t *testing.T) {
 func TestLoadDesignSystem_MalformedFrontmatter(t *testing.T) {
 	dir := t.TempDir()
 	dsPath := filepath.Join(dir, "design-system.md")
-	os.WriteFile(dsPath, []byte("no frontmatter here"), 0600)
+	_ = os.WriteFile(dsPath, []byte("no frontmatter here"), 0600)
 
 	_, err := LoadDesignSystem(dsPath)
 	if err == nil {

@@ -111,7 +111,7 @@ func WriteDesignSystem(path string, ds *DesignSystem) error {
 
 // parseFrontmatter extracts and parses the YAML frontmatter from markdown content.
 func parseFrontmatter(content string) (*DesignSystem, error) {
-	lines := strings.SplitN(content, "\n", -1)
+	lines := strings.Split(content, "\n")
 	if len(lines) < 3 || strings.TrimSpace(lines[0]) != frontmatterSep {
 		return nil, fmt.Errorf("no frontmatter found")
 	}

@@ -58,7 +58,7 @@ var (
 	cssVarDecl   = regexp.MustCompile(`--([a-zA-Z0-9_-]+)\s*:\s*([^;]+);`)
 	cssColorVar  = regexp.MustCompile(`(?i)--(?:[a-z-]*(?:color|bg|background|foreground|primary|secondary|accent|border|muted|destructive|ring|card|popover)[a-z-]*)\s*:\s*([^;]+);`)
 	cssFontDecl  = regexp.MustCompile(`(?i)font-family\s*:\s*([^;]+);`)
-	styleImport  = regexp.MustCompile("(?m)^import\\s+.*(?:\\.css|\\.scss|\\.less|\\.module\\.|styled|@emotion)")
+	styleImport  = regexp.MustCompile(`(?m)^import\s+.*(?:\.css|\.scss|\.less|\.module\.|styled|@emotion)`)
 	tailwindBase = regexp.MustCompile(`@tailwind\s+base|@apply\s+`)
 )
 
@@ -87,9 +87,10 @@ func ScanStyles(projectPath string) *StyleInfo {
 					if info.StylingApproach == "" {
 						info.StylingApproach = sig.approach
 					}
-					if sig.framework == "Sass/SCSS" {
+					switch sig.framework {
+					case "Sass/SCSS":
 						info.Preprocessor = "scss"
-					} else if sig.framework == "Less" {
+					case "Less":
 						info.Preprocessor = "less"
 					}
 				}
@@ -153,7 +154,7 @@ func scanCSSFile(path string, info *StyleInfo) {
 	if err != nil {
 		return
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	scanner := bufio.NewScanner(f)
 	varCount := 0

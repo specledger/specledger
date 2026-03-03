@@ -28,7 +28,7 @@ A registration system for new users.
 - FR-003: System shall send verification email
 `
 	specPath := filepath.Join(dir, "spec.md")
-	os.WriteFile(specPath, []byte(specContent), 0600)
+	_ = os.WriteFile(specPath, []byte(specContent), 0600)
 
 	sc, err := ParseSpec(specPath)
 	if err != nil {
@@ -55,7 +55,7 @@ A registration system for new users.
 func TestParseSpec_EmptyFile(t *testing.T) {
 	dir := t.TempDir()
 	specPath := filepath.Join(dir, "spec.md")
-	os.WriteFile(specPath, []byte(""), 0600)
+	_ = os.WriteFile(specPath, []byte(""), 0600)
 
 	_, err := ParseSpec(specPath)
 	if err == nil {
@@ -78,7 +78,7 @@ func TestParseSpec_NoUserStories(t *testing.T) {
 Just a simple feature with no user stories.
 `
 	specPath := filepath.Join(dir, "spec.md")
-	os.WriteFile(specPath, []byte(specContent), 0600)
+	_ = os.WriteFile(specPath, []byte(specContent), 0600)
 
 	sc, err := ParseSpec(specPath)
 	if err != nil {

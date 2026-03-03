@@ -12,13 +12,13 @@ func TestScanStyles_TailwindProject(t *testing.T) {
 
 	// Create package.json with tailwindcss
 	pkgJSON := `{"dependencies":{"tailwindcss":"^3.4.0","react":"^18.0.0"}}`
-	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkgJSON), 0600)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkgJSON), 0600)
 
 	// Create tailwind config
-	os.WriteFile(filepath.Join(dir, "tailwind.config.js"), []byte("module.exports = {}"), 0600)
+	_ = os.WriteFile(filepath.Join(dir, "tailwind.config.js"), []byte("module.exports = {}"), 0600)
 
 	// Create globals.css with CSS variables
-	os.MkdirAll(filepath.Join(dir, "src", "app"), 0755)
+	_ = os.MkdirAll(filepath.Join(dir, "src", "app"), 0755)
 	globalCSS := `@tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -33,7 +33,7 @@ func TestScanStyles_TailwindProject(t *testing.T) {
 body {
   font-family: Inter, system-ui, sans-serif;
 }`
-	os.WriteFile(filepath.Join(dir, "src", "app", "globals.css"), []byte(globalCSS), 0600)
+	_ = os.WriteFile(filepath.Join(dir, "src", "app", "globals.css"), []byte(globalCSS), 0600)
 
 	info := ScanStyles(dir)
 
@@ -58,7 +58,7 @@ func TestScanStyles_EmotionProject(t *testing.T) {
 	dir := t.TempDir()
 
 	pkgJSON := `{"dependencies":{"@emotion/react":"^11.0.0","@emotion/styled":"^11.0.0","react":"^18.0.0"}}`
-	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkgJSON), 0600)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkgJSON), 0600)
 
 	info := ScanStyles(dir)
 

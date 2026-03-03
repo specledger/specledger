@@ -8,7 +8,7 @@ import (
 
 func TestDetectFramework_NextJS(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "next.config.js"), []byte("module.exports = {}"), 0600)
+	_ = os.WriteFile(filepath.Join(dir, "next.config.js"), []byte("module.exports = {}"), 0600)
 
 	result, err := DetectFramework(dir)
 	if err != nil {
@@ -27,7 +27,7 @@ func TestDetectFramework_NextJS(t *testing.T) {
 
 func TestDetectFramework_Angular(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "angular.json"), []byte("{}"), 0600)
+	_ = os.WriteFile(filepath.Join(dir, "angular.json"), []byte("{}"), 0600)
 
 	result, err := DetectFramework(dir)
 	if err != nil {
@@ -41,7 +41,7 @@ func TestDetectFramework_Angular(t *testing.T) {
 func TestDetectFramework_PackageJSON(t *testing.T) {
 	dir := t.TempDir()
 	pkg := `{"dependencies": {"react": "^18.0.0", "react-dom": "^18.0.0"}}`
-	os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0600)
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkg), 0600)
 
 	result, err := DetectFramework(dir)
 	if err != nil {
@@ -61,8 +61,8 @@ func TestDetectFramework_PackageJSON(t *testing.T) {
 func TestDetectFramework_FileExtension(t *testing.T) {
 	dir := t.TempDir()
 	compDir := filepath.Join(dir, "src")
-	os.MkdirAll(compDir, 0755)
-	os.WriteFile(filepath.Join(compDir, "App.vue"), []byte("<template></template>"), 0600)
+	_ = os.MkdirAll(compDir, 0755)
+	_ = os.WriteFile(filepath.Join(compDir, "App.vue"), []byte("<template></template>"), 0600)
 
 	result, err := DetectFramework(dir)
 	if err != nil {
@@ -78,7 +78,7 @@ func TestDetectFramework_FileExtension(t *testing.T) {
 
 func TestDetectFramework_NotFrontend(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main"), 0600)
+	_ = os.WriteFile(filepath.Join(dir, "main.go"), []byte("package main"), 0600)
 
 	result, err := DetectFramework(dir)
 	if err != nil {
@@ -94,7 +94,7 @@ func TestDetectFramework_NotFrontend(t *testing.T) {
 
 func TestDetectFramework_SvelteKit(t *testing.T) {
 	dir := t.TempDir()
-	os.WriteFile(filepath.Join(dir, "svelte.config.js"), []byte("export default {}"), 0600)
+	_ = os.WriteFile(filepath.Join(dir, "svelte.config.js"), []byte("export default {}"), 0600)
 
 	result, err := DetectFramework(dir)
 	if err != nil {
@@ -104,4 +104,3 @@ func TestDetectFramework_SvelteKit(t *testing.T) {
 		t.Errorf("expected framework SvelteKit, got %s", result.Framework)
 	}
 }
-
