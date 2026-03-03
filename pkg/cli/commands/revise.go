@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/specledger/specledger/pkg/cli/auth"
+	"github.com/specledger/specledger/pkg/cli/comment"
 	"github.com/specledger/specledger/pkg/cli/config"
 	cligit "github.com/specledger/specledger/pkg/cli/git"
 	"github.com/specledger/specledger/pkg/cli/launcher"
@@ -109,7 +110,7 @@ func runRevise(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "warning: failed to fetch thread replies: %v\n", err)
 		replies = nil
 	}
-	replyMap := revise.BuildReplyMap(replies)
+	replyMap := comment.BuildReplyMap(replies)
 
 	replyCount := len(replies)
 	if replyCount > 0 {
@@ -1058,7 +1059,7 @@ func runSummary(cwd string, args []string) error {
 
 	// Fetch thread replies (non-fatal)
 	replies, _ := client.FetchReplies(changeID)
-	replyMap := revise.BuildReplyMap(replies)
+	replyMap := comment.BuildReplyMap(replies)
 
 	// Compact format: file_path:line  'selected_text'  (author)  [N replies]
 	artifacts := make(map[string]struct{})

@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"math"
 	"text/template"
+
+	"github.com/specledger/specledger/pkg/cli/comment"
 )
 
 //go:embed prompt.tmpl
@@ -36,7 +38,7 @@ func EstimateTokens(text string) int {
 // The replies slice contains all thread reply comments; they are grouped by parent_comment_id
 // and attached to the corresponding PromptComment.
 func BuildRevisionContext(specKey string, processed []ProcessedComment, replies []ReviewComment) RevisionContext {
-	replyMap := BuildReplyMap(replies)
+	replyMap := comment.BuildReplyMap(replies)
 
 	comments := make([]PromptComment, 0, len(processed))
 	for _, p := range processed {
