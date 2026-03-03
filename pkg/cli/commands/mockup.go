@@ -300,7 +300,12 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Error: No AI agent available\n\nPrompt written to specledger/%s/mockup-prompt.md\nInstall Claude Code: npm install -g @anthropic-ai/claude-code\n", specName)
 	} else {
 		fmt.Printf("Launching %s...\n", al.Name)
-		if err := al.LaunchWithPrompt(finalPrompt); err != nil {
+		opts := launcher.LaunchOptions{
+			SkipPermissions: true,
+			Model:           "claude-haiku-4-5",
+			MaxOutputTokens: 64000,
+		}
+		if err := al.LaunchWithPromptAndOptions(finalPrompt, opts); err != nil {
 			return fmt.Errorf("agent exited with error: %w", err)
 		}
 		agentLaunched = true

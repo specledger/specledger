@@ -12,6 +12,22 @@ Generate a **{{ .Format }}** mockup for **"{{ .SpecTitle }}"**.
 
 Extract UI screens, user flows, and interaction patterns directly from these source files.
 
+## Layout Discovery (IMPORTANT)
+
+Before generating any mockup, search the codebase to discover the project's existing layout structure:
+
+1. **App Shell/Layout**: Search for layout components (`Layout.tsx`, `AppShell.tsx`, `MainLayout.tsx`, `RootLayout.tsx`, etc.)
+2. **Sidebar**: Search for sidebar components (`Sidebar.tsx`, `SideNav.tsx`, `Navigation.tsx`, etc.)
+3. **Header/Navbar**: Search for header components (`Header.tsx`, `Navbar.tsx`, `TopBar.tsx`, etc.)
+4. **Footer**: Search for footer components if applicable
+5. **Page Structure**: Examine existing pages to understand the common layout pattern
+
+**Your mockup MUST integrate with the existing layout**:
+- If the project has a sidebar + header layout, show your screens within that structure
+- Match the existing navigation patterns and visual hierarchy
+- Reuse actual component names and styling from the codebase
+- Don't create a standalone page if the app uses a shell layout
+
 ## Output
 
 Write a single self-contained file: `{{ .OutputPath }}`
@@ -37,5 +53,5 @@ Theme colors:
 - Single JSX file exporting a default function component
 - {{ if and .HasStyle (eq .Style.StylingApproach "css-in-js") }}Styled components/emotion{{ else if and .HasStyle (eq .Style.StylingApproach "utility-first") }}Tailwind utility classes{{ else if and .HasStyle (eq .Style.StylingApproach "css-modules") }}CSS modules{{ else }}Inline style objects{{ end }}{{ end }}
 - Cover ALL screens from user stories with realistic content
-- Search the codebase for existing components and reuse them where applicable
 {{ if .HasStyle }}- Match project's visual style, colors, typography{{ end }}
+- **Output limit: 64000 tokens** — Keep mockup concise, prioritize essential screens
