@@ -159,7 +159,8 @@ func runSessionCapture(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "Session captured: %s (%d messages, %d bytes)\n",
 			result.SessionID, result.MessageCount, result.SizeBytes)
 	} else if result.Queued {
-		fmt.Fprintf(os.Stderr, "Session queued for upload: %s\n", result.SessionID)
+		fmt.Fprintf(os.Stderr, "Session queued for upload: %s (%d messages, %d bytes)\n",
+			result.SessionID, result.MessageCount, result.SizeBytes)
 	}
 
 	return nil

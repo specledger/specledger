@@ -37,7 +37,7 @@ If no arguments provided, analyze the staged changes with `git diff --cached` an
 After the commit succeeds, run session capture directly by piping hook-compatible JSON to `sl session capture`. This does NOT rely on PostToolUse hooks.
 
 ```bash
-CWD_WIN=$(cygpath -m "$(pwd)" 2>/dev/null || pwd) && echo '{"session_id":"","transcript_path":"","cwd":"'"$CWD_WIN"'","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"git commit"},"tool_response":{"stdout":"ok","stderr":"","interrupted":false},"tool_use_id":"inline-capture"}' | sl session capture; echo "CAPTURE_EXIT=$?"
+CWD_WIN=$(cygpath -m "$(pwd)" 2>/dev/null || pwd) && TRANSCRIPT=$(ls -t ~/.claude/projects/*/*.jsonl 2>/dev/null | head -1) && TRANSCRIPT_WIN=$(cygpath -m "$TRANSCRIPT" 2>/dev/null || echo "$TRANSCRIPT") && SESSION_ID=$(basename "$TRANSCRIPT" .jsonl) && echo '{"session_id":"'"$SESSION_ID"'","transcript_path":"'"$TRANSCRIPT_WIN"'","cwd":"'"$CWD_WIN"'","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"git commit"},"tool_response":{"stdout":"ok","stderr":"","interrupted":false},"tool_use_id":"inline-capture"}' | sl session capture; echo "CAPTURE_EXIT=$?"
 ```
 
 Set `capture_status` based on the output:
