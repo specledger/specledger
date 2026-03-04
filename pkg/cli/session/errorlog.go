@@ -49,8 +49,9 @@ func LogCaptureError(entry CaptureErrorEntry) {
 	// 1. Write to local JSONL file first (guaranteed)
 	logToLocalFile(entry)
 
-	// 2. Attempt Supabase logging (best-effort, non-blocking)
-	go logToSupabase(entry)
+	// 2. Attempt Supabase logging (best-effort, with short timeout)
+	// Note: must be synchronous — goroutine gets killed on process exit
+	logToSupabase(entry)
 }
 
 // logToLocalFile appends a JSONL entry to the local capture errors log
