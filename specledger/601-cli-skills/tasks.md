@@ -151,12 +151,12 @@ sl issue show SL-3a436b
 |----------|-----------|
 | SL-b31f68 | ReviewComment moved, ThreadReply moved, ReplyMap moved, Revise imports updated, go build passes |
 | SL-f6e983 | FetchComments moved, PostgREST chain moved, Auth retry preserved, sl revise still works |
-| SL-a801e5 | --json valid JSON, --status open works, --status resolved works, Auth failure exits 1, Compact output 80-char truncation, Counts shown |
+| SL-a801e5 | --json valid JSON, --status open works, --status resolved works, Auth failure exits 1, Compact output 120-char truncation, Counts shown, Footer hint for drill-down, ~500 tokens for 25 comments |
 | SL-035a5d | Imports updated in types.go, Imports updated in client.go, sl revise works, go test passes |
-| SL-c2922e | Single ID shows comment, Multiple IDs work, --json complete, Non-existent ID error, Replies chronological |
+| SL-c2922e | Single ID shows comment, Multiple IDs work, --json complete (no truncation), Non-existent ID error, Replies chronological, ~200 tokens for 1 comment + 3 replies |
 | SL-d2f47b | POST to correct endpoint, Returns ThreadReply with ID, Auth retry works, 404 parent handled |
-| SL-34e30 | Message posted to thread, --json includes reply_id, --json includes timestamp, Parent not found error |
-| SL-638e23 | Single ID resolves, Multiple IDs work, Cascade to replies, --json shows IDs |
+| SL-34e30 | Message posted to thread, --json includes reply_id, --json includes timestamp, Parent not found error, Minimal output (~30 tokens) |
+| SL-638e23 | Single ID resolves, Multiple IDs work, Cascade to replies, --json shows IDs, Minimal confirmation output |
 | SL-522810 | When to use documented, Decision criteria for list vs show, JSON parsing examples, Reply/resolve workflow |
 | SL-145f45 | Findings section, Decisions section, Recommendations section, Unique filename (yyyy-mm-dd-<topic>.md) |
 | SL-f21e96 | In-progress tasks checked, Tests verified (go test ./... exit 0), Uncommitted changes noted, Summary shows accomplishments |
