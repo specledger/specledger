@@ -1,3 +1,4 @@
+// Package session handles session capture for specledger hooks.
 package session
 
 import (
