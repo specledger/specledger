@@ -269,15 +269,17 @@ func Capture(input *HookInput) *CaptureResult {
 		if _, err := os.Stat(transcriptPath); err == nil {
 			input.TranscriptPath = transcriptPath
 
-			// Get last offset for this session
-			offsetInfo, err := GetSessionOffset(input.SessionID)
+			// Get last offset for this session (0 if first capture)
+			var lastOffset int64
+			if offsetInfo, err := GetSessionOffset(input.SessionID); err == nil {
+				lastOffset = offsetInfo.LastOffset
+			}
+
+			// Compute delta from last offset (or full transcript if first capture)
+			msgs, offset, err := ComputeDelta(transcriptPath, lastOffset)
 			if err == nil {
-				// Compute delta
-				msgs, offset, err := ComputeDelta(transcriptPath, offsetInfo.LastOffset)
-				if err == nil {
-					messages = msgs
-					newOffset = offset
-				}
+				messages = msgs
+				newOffset = offset
 			}
 		}
 	}
