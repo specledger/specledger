@@ -223,6 +223,12 @@ func Capture(input *HookInput) *CaptureResult {
 		return result // Commit failed, nothing to capture
 	}
 
+	// === Auth check first: skip silently if not authenticated ===
+	creds, err := auth.LoadCredentials()
+	if err != nil || creds == nil {
+		return result // No credentials, silently skip
+	}
+
 	// === Core metadata (always available from git) ===
 
 	// Get commit hash
@@ -242,12 +248,7 @@ func Capture(input *HookInput) *CaptureResult {
 	// Get project ID (with fallback to git remote lookup and auto-persist)
 	projectID, err := GetProjectIDWithFallback(input.Cwd)
 	if err != nil {
-		// Give clear guidance on how to fix
-		fmt.Fprintf(os.Stderr, "⚠️  Session capture skipped: %v\n", err)
-		fmt.Fprintf(os.Stderr, "    To enable session capture, ensure specledger.yaml has project.id set.\n")
-		fmt.Fprintf(os.Stderr, "    Run 'sl init' or add manually: project:\\n  id: <your-project-id>\n")
-		result.Error = err
-		return result
+		return result // No project ID, silently skip
 	}
 
 	// === Transcript (nice-to-have, graceful degradation) ===
@@ -283,13 +284,6 @@ func Capture(input *HookInput) *CaptureResult {
 
 	// Even without transcript messages, we still capture metadata
 	// A session record with commit linkage is valuable
-
-	// Get credentials
-	creds, err := auth.LoadCredentials()
-	if err != nil || creds == nil {
-		result.Error = fmt.Errorf("not authenticated: run 'sl auth login'")
-		return result
-	}
 
 	// Build session content
 	sessionID := uuid.New().String()
@@ -332,7 +326,15 @@ func Capture(input *HookInput) *CaptureResult {
 	// Try to get valid access token
 	accessToken, err := auth.GetValidAccessToken()
 	if err != nil {
-		// Queue for later upload
+		// Queue for later upload + log error
+		LogCaptureError(CaptureErrorEntry{
+			UserID:        creds.UserID,
+			ProjectID:     projectID,
+			SessionID:     sessionID,
+			ErrorMessage:  fmt.Sprintf("token refresh failed: %v", err),
+			FeatureBranch: branch,
+			CommitHash:    commitHash,
+		})
 		return queueSession(result, compressed, projectID, branch, &commitHash, nil, creds.UserID)
 	}
 
@@ -340,7 +342,15 @@ func Capture(input *HookInput) *CaptureResult {
 	storage := NewStorageClient()
 	_, err = storage.Upload(accessToken, result.StoragePath, compressed)
 	if err != nil {
-		// Queue for later upload
+		// Queue for later upload + log error
+		LogCaptureError(CaptureErrorEntry{
+			UserID:        creds.UserID,
+			ProjectID:     projectID,
+			SessionID:     sessionID,
+			ErrorMessage:  fmt.Sprintf("storage upload failed: %v", err),
+			FeatureBranch: branch,
+			CommitHash:    commitHash,
+		})
 		return queueSession(result, compressed, projectID, branch, &commitHash, nil, creds.UserID)
 	}
 
@@ -359,7 +369,15 @@ func Capture(input *HookInput) *CaptureResult {
 		MessageCount:  result.MessageCount,
 	})
 	if err != nil {
-		// Storage upload succeeded but metadata failed - still queue
+		// Storage upload succeeded but metadata failed - still queue + log error
+		LogCaptureError(CaptureErrorEntry{
+			UserID:        creds.UserID,
+			ProjectID:     projectID,
+			SessionID:     sessionID,
+			ErrorMessage:  fmt.Sprintf("metadata creation failed: %v", err),
+			FeatureBranch: branch,
+			CommitHash:    commitHash,
+		})
 		return queueSession(result, compressed, projectID, branch, &commitHash, nil, creds.UserID)
 	}
 
