@@ -131,13 +131,34 @@ As a Windows developer, I need all `sl` commands to work without bash so that I 
 
 ---
 
+### User Story 6 - Context Detection Fallback Chain (Priority: P2)
+
+As a developer working on a branch that doesn't follow SpecLedger's naming convention, I need `sl` commands to automatically detect which spec the branch belongs to without manual configuration.
+
+**Why this priority**: Enables workflows with JIRA, Linear, or GitHub UI-created branches.
+
+**Independent Test**: Create a branch named `feature/PROJ-123`, edit files in `specledger/600-bash-cli-migration/`, run `sl spec info` and verify auto-detection works.
+
+**Acceptance Scenarios**:
+
+1. **Given** a branch named `598-sdd-workflow-streamline`, **When** `ContextDetector` runs, **Then** it resolves via regex match (step 1)
+2. **Given** a branch named `feature/fix-login` with an alias in `specledger.yaml`, **When** `ContextDetector` runs, **Then** it resolves via yaml alias lookup (step 2)
+3. **Given** a branch named `johns-auth-work` with commits touching `specledger/042-auth-improvements/`, **When** `ContextDetector` runs, **Then** it resolves via git heuristic (step 3)
+4. **Given** a branch with no regex match, no alias, and no git heuristic result, **When** `ContextDetector` runs in interactive mode, **Then** it lists available specs and prompts user to pick one, saving alias to yaml (step 4)
+5. **Given** a saved alias in `specledger.yaml`, **When** any future `sl` command runs on that branch, **Then** it auto-resolves without re-prompting
+6. **Given** non-interactive mode (CI, `--spec` flag), **When** detection fails, **Then** the `--spec` flag overrides all detection steps
+
+---
+
 ### Edge Cases
 
-- What if git repo is in detached HEAD? → `sl spec info` returns error with suggestion to checkout branch
+- What if git repo is in detached HEAD? → `sl spec info` returns error with suggestion to checkout branch or set SPECIFY_FEATURE
 - What if feature number collides with remote branch? → `sl spec create` checks remote (gap identified in 598 research)
 - What if plan.md has malformed metadata? → `sl context update` logs warning, skips malformed fields
 - What if CLAUDE.md doesn't have markers? → `sl context update` adds markers and appends section
 - What if branch name exceeds 244 bytes? → Truncate with warning, preserve feature number
+- What if git heuristic finds multiple specledger dirs? → Fall through to step 4 (interactive prompt)
+- What if git heuristic finds zero specledger dirs? → Fall through to step 4 (interactive prompt)
 
 ## Requirements *(mandatory)*
 
@@ -153,6 +174,13 @@ As a Windows developer, I need all `sl` commands to work without bash so that I 
 - **FR-008**: `sl context update` MUST preserve manual additions between markers
 - **FR-009**: `sl context update` MUST deduplicate entries (not append)
 - **FR-010**: All commands MUST work on macOS, Linux, Windows without bash/jq/sed/grep
+
+### Context Detection Requirements (from 598 US12)
+
+- **FR-011**: `ContextDetector` MUST implement 4-step fallback chain: regex → yaml alias → git heuristic → interactive prompt
+- **FR-012**: Branch aliases MUST be stored in `specledger.yaml` under `branch_aliases` key and version-controlled
+- **FR-013**: Non-interactive mode (`--spec` flag) MUST override all detection steps
+- **FR-014**: SPECIFY_FEATURE env var MUST be checked first and bypass all detection steps
 
 ### Key Entities
 

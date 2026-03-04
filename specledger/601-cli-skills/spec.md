@@ -199,12 +199,21 @@ CLI commands optimized for AI agent consumption minimize token usage:
 
 ### Measurable Outcomes
 
-- **SC-001**: 4 new `sl comment` subcommands available (list, show, reply, resolve)
-- **SC-002**: `sl comment list --json` produces valid JSON parseable by agents
-- **SC-003**: `/specledger.clarify` successfully uses `sl comment list` instead of `sl revise --summary`
-- **SC-004**: `sl-comment` skill loads and provides actionable guidance
-- **SC-005**: `/specledger.spike` creates structured research files
-- **SC-006**: `/specledger.checkpoint` tracks session progress
+- **SC-001**: 4 new `sl comment` subcommands available (list, show, reply, resolve) ✅ DONE (CLI implemented)
+- **SC-002**: `sl comment list --json` produces valid JSON parseable by agents ✅ DONE
+- **SC-003**: `/specledger.clarify` successfully uses `sl comment list` instead of `sl revise --summary` ✅ DONE
+- **SC-004**: `sl-comment` skill loads and provides actionable guidance ✅ DONE
+- **SC-005**: `/specledger.spike` creates structured research files ✅ DONE
+- **SC-006**: `/specledger.checkpoint` tracks session progress ✅ DONE
+
+### Implementation Notes
+
+**Completed:**
+- CLI: `sl comment list/show/reply/resolve` implemented in `pkg/cli/commands/comment.go`
+- Skill: `sl-comment` skill deployed to `.claude/skills/sl-comment/`
+- AI Command: `/specledger.spike` created at `.claude/commands/specledger.spike.md`
+- AI Command: `/specledger.checkpoint` created at `.claude/commands/specledger.checkpoint.md`
+- Updated: `specledger.clarify.md` to use `sl comment list --status open --json`
 
 ### Previous work
 

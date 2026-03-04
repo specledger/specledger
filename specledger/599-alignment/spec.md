@@ -160,12 +160,22 @@ As a SpecLedger user, I want `onboard` to include help information so I don't ne
 
 ### Measurable Outcomes
 
-- **SC-001**: 6 command files deleted from `.claude/commands/`
-- **SC-002**: 1 command file renamed (analyze → verify)
-- **SC-003**: 1 skill created (`sl-audit`), 1 command deleted (audit)
-- **SC-004**: 2 commands updated (implement, onboard)
-- **SC-005**: Final command count is 9
+- **SC-001**: 6 command files deleted from `.claude/commands/` ✅ DONE
+- **SC-002**: 1 command file renamed (analyze → verify) ✅ DONE
+- **SC-003**: 1 skill created (`sl-audit`), 1 command deleted (audit) ✅ DONE
+- **SC-004**: 2 commands updated (implement, onboard) - Partial (needs resume logic, command overview)
+- **SC-005**: Final command count is 9 ✅ DONE (base count before 601 additions)
 - **SC-006**: All removed functionality (except revise) is absorbed by remaining commands
+
+### Implementation Notes
+
+**Completed in this alignment:**
+- Deleted: resume.md, help.md, adopt.md, add-deps.md, remove-deps.md, analyze.md, audit.md (7 files)
+- Renamed: analyze.md → verify.md (verify.md already existed, deleted analyze.md)
+- Created: sl-audit skill deployed to `.claude/skills/sl-audit/`
+- Updated: clarify.md updated to use `sl comment list` instead of `sl revise --summary`
+
+**Post-alignment command count**: 9 base commands + 2 from 601 (spike, checkpoint) = 11 total
 
 ### Previous work
 
