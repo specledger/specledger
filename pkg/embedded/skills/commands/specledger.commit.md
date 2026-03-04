@@ -37,12 +37,13 @@ If no arguments provided, analyze the staged changes with `git diff --cached` an
 After the commit succeeds, run session capture directly by piping hook-compatible JSON to `sl session capture`. This does NOT rely on PostToolUse hooks.
 
 ```bash
-CWD_WIN=$(cygpath -m "$(pwd)" 2>/dev/null || pwd) && echo '{"session_id":"","transcript_path":"","cwd":"'"$CWD_WIN"'","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"git commit"},"tool_response":{"stdout":"ok","stderr":"","interrupted":false},"tool_use_id":"inline-capture"}' | sl session capture 2>/dev/null; echo "CAPTURE_EXIT=$?"
+CWD_WIN=$(cygpath -m "$(pwd)" 2>/dev/null || pwd) && echo '{"session_id":"","transcript_path":"","cwd":"'"$CWD_WIN"'","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"git commit"},"tool_response":{"stdout":"ok","stderr":"","interrupted":false},"tool_use_id":"inline-capture"}' | sl session capture; echo "CAPTURE_EXIT=$?"
 ```
 
 Set `capture_status` based on the output:
-- If `sl session capture` prints "Session captured: ..." → `"captured"`
-- If it prints nothing or exits silently → `"skipped"` (no auth or no project)
+- If output contains "Session captured:" → `"captured"`
+- If output contains "Session queued" → `"queued"` (will upload later)
+- If no output and CAPTURE_EXIT=0 → `"skipped"` (no auth or no project)
 - If CAPTURE_EXIT is non-zero → `"failed"`
 
 **IMPORTANT**: Capture MUST NOT block the workflow. If capture fails for any reason, proceed to push.
