@@ -4,7 +4,7 @@ description: Commit and push with auth-aware session capture. Use when the user 
 
 ## Purpose
 
-Auth-aware commit workflow that handles session capture gracefully. When the user asks you to commit and push (e.g., "commit giúp tôi", "commit and push for me"), use this command instead of running `git commit && git push` directly.
+Auth-aware commit workflow. When the user asks you to commit and push (e.g., "commit giúp tôi", "commit and push for me"), follow this workflow.
 
 This does NOT replace Claude's built-in `/commit` command. It only applies when the user asks you to commit via chat.
 
@@ -30,29 +30,26 @@ git commit -m "$ARGUMENTS"
 
 If no arguments provided, analyze the staged changes with `git diff --cached` and generate an appropriate commit message. Then commit.
 
-**IMPORTANT**: The commit MUST always proceed. Never skip or block the commit for any reason related to session capture.
+**IMPORTANT**: The commit MUST always proceed. Never skip or block the commit for any reason.
 
-### Step 3: Check auth status
+### Step 3: Check auth and capture status
 
-Check if session capture should run:
+After the commit, check session capture status:
 
-1. Check if `~/.specledger/credentials.json` exists and is valid JSON
-2. If no credentials → set `capture_status = "skipped (no auth)"`, go to Step 5
-3. If credentials exist, check for project ID in `specledger.yaml` or via `sl` config
-4. If no project ID → set `capture_status = "skipped (no project)"`, go to Step 5
-5. If both exist → the PostToolUse hook will have already attempted session capture during the commit in Step 2
+1. **Check credentials**: `test -f ~/.specledger/credentials.json && echo "OK" || echo "NONE"`
+2. **Check project ID**: `cat specledger/specledger.yaml 2>/dev/null | grep "id:"` (note: the file is at `specledger/specledger.yaml`, NOT `specledger.yaml` in root)
+3. **Check hook config**: Verify PostToolUse hook exists in `~/.claude/settings.json`
+4. **Check capture errors**: `cat ~/.specledger/capture-errors.log 2>/dev/null | tail -1`
 
-### Step 4: Note capture result
+Set `capture_status` based on results:
+- No credentials → `"skipped (no auth)"`
+- No project ID → `"skipped (no project)"`
+- Credentials + project ID + no errors → `"captured"` (hook ran automatically after commit)
+- Credentials + project ID + new error in log → `"failed"` (show the error)
 
-If auth + project ID were present, the PostToolUse hook (`sl session capture`) ran automatically after the commit.
+### Step 4: Push
 
-- If the hook succeeded: `capture_status = "captured"`
-- If the hook queued the session: `capture_status = "queued for sync"`
-- If the hook had an error: `capture_status = "error (check ~/.specledger/capture-errors.log)"`
-
-### Step 5: Push
-
-Always push regardless of capture status:
+Always push after commit:
 ```
 git push origin <current-branch>
 ```
@@ -61,7 +58,7 @@ If push fails, show the error to the user clearly.
 
 **IMPORTANT**: Push MUST always be attempted. Never skip push due to capture status.
 
-### Step 6: Show summary
+### Step 5: Show summary
 
 Display a summary:
 ```
@@ -70,18 +67,12 @@ Push: <success/failed>
 Session: <capture_status>
 ```
 
-## Auth Decision Matrix
-
-| Has Credentials | Has Project ID | Session Capture | Error Logging |
-|----------------|----------------|-----------------|---------------|
-| No             | -              | Skip silently   | None          |
-| Yes            | No             | Skip silently   | None          |
-| Yes            | Yes            | Attempt         | On failure: local + Supabase |
+If capture failed, also show the last error from `~/.specledger/capture-errors.log`.
 
 ## Important Notes
 
-- Git commit and push always proceed regardless of session capture
-- Zero warnings for unauthenticated users
-- Zero warnings for users without a project ID
-- Errors only shown when an authenticated user with a project has a real capture failure
+- Git commit and push always proceed — never skip or block for any reason
+- Project config is at `specledger/specledger.yaml` (inside specledger/ subfolder), NOT at root
+- Hook is configured in `~/.claude/settings.json` (global), NOT in project settings
+- Only ONE hook should exist — multiple hooks cause stdin conflicts
 - If capture fails, check `~/.specledger/capture-errors.log` for details
