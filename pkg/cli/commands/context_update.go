@@ -43,11 +43,13 @@ func init() {
 
 	contextUpdateCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 	contextUpdateCmd.Flags().String("agent", "", "Agent type (claude, gemini, copilot, etc.)")
+	contextUpdateCmd.Flags().String("spec", "", "Override feature spec name (bypasses detection)")
 }
 
 func runContextUpdate(cmd *cobra.Command, args []string) error {
 	jsonOutput, _ := cmd.Flags().GetBool("json")
 	agentFlag, _ := cmd.Flags().GetString("agent")
+	specOverride, _ := cmd.Flags().GetString("spec")
 
 	agentType := agentFlag
 	if len(args) > 0 && agentType == "" {
@@ -63,7 +65,11 @@ func runContextUpdate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	ctx, err := spec.DetectFeatureContext(workDir)
+	opts := spec.DetectionOptions{
+		SpecOverride: specOverride,
+	}
+
+	ctx, err := spec.DetectFeatureContextWithOptions(workDir, opts)
 	if err != nil {
 		return fmt.Errorf("failed to detect feature context: %w", err)
 	}

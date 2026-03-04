@@ -41,17 +41,23 @@ func init() {
 	VarSpecCmd.AddCommand(specSetupPlanCmd)
 
 	specSetupPlanCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
+	specSetupPlanCmd.Flags().String("spec", "", "Override feature spec name (bypasses detection)")
 }
 
 func runSpecSetupPlan(cmd *cobra.Command, args []string) error {
 	jsonOutput, _ := cmd.Flags().GetBool("json")
+	specOverride, _ := cmd.Flags().GetString("spec")
 
 	workDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	ctx, err := spec.DetectFeatureContext(workDir)
+	opts := spec.DetectionOptions{
+		SpecOverride: specOverride,
+	}
+
+	ctx, err := spec.DetectFeatureContextWithOptions(workDir, opts)
 	if err != nil {
 		return fmt.Errorf("failed to detect feature context: %w", err)
 	}

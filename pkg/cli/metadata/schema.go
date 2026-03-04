@@ -23,6 +23,8 @@ type ProjectMetadata struct {
 	Agent           *config.AgentConfig            `yaml:"agent,omitempty"`
 	Profiles        map[string]*config.AgentConfig `yaml:"profiles,omitempty"`
 	ActiveProfile   string                         `yaml:"active-profile,omitempty"`
+	// BranchAliases maps non-standard branch names to spec feature names (FR-012)
+	BranchAliases map[string]string `yaml:"branch_aliases,omitempty"`
 }
 
 // ProjectInfo contains project identification

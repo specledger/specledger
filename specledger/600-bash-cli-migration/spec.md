@@ -223,7 +223,7 @@ As a developer working on a branch that doesn't follow SpecLedger's naming conve
 
 ### Assumptions
 
-- `internal/ref/` package exists for context detection
+- `pkg/cli/spec/` package exists for context detection
 - Template files exist in `pkg/embedded/templates/`
 - Agent file mappings are known (17+ agents)
 

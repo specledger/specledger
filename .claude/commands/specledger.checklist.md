@@ -183,7 +183,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Ambiguities: "Is the term 'fast' quantified with specific metrics? [Ambiguity, Spec §NFR-1]"
    - Conflicts: "Do navigation requirements conflict between §FR-10 and §FR-10a? [Conflict]"
    - Assumptions: "Is the assumption of 'always available podcast API' validated? [Assumption]"
-   - Dependencies: "Are external specification dependencies documented? If feature references external specs/APIs, use 'sl deps add' to track them. [Dependency, Gap]"
+   - Dependencies: "Are external podcast API requirements documented? [Dependency, Gap]"
    - Missing definitions: "Is 'visual hierarchy' defined with measurable criteria? [Gap]"
 
    **Content Consolidation**:

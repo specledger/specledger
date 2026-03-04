@@ -47,6 +47,7 @@ func init() {
 	specInfoCmd.Flags().Bool("require-tasks", false, "Error if tasks.md does not exist")
 	specInfoCmd.Flags().Bool("include-tasks", false, "Include tasks.md in AVAILABLE_DOCS")
 	specInfoCmd.Flags().Bool("paths-only", false, "Output minimal paths only (no doc discovery)")
+	specInfoCmd.Flags().String("spec", "", "Override feature spec name (bypasses detection)")
 }
 
 func runSpecInfo(cmd *cobra.Command, args []string) error {
@@ -55,13 +56,18 @@ func runSpecInfo(cmd *cobra.Command, args []string) error {
 	requireTasks, _ := cmd.Flags().GetBool("require-tasks")
 	includeTasks, _ := cmd.Flags().GetBool("include-tasks")
 	pathsOnly, _ := cmd.Flags().GetBool("paths-only")
+	specOverride, _ := cmd.Flags().GetString("spec")
 
 	workDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get working directory: %w", err)
 	}
 
-	ctx, err := spec.DetectFeatureContext(workDir)
+	opts := spec.DetectionOptions{
+		SpecOverride: specOverride,
+	}
+
+	ctx, err := spec.DetectFeatureContextWithOptions(workDir, opts)
 	if err != nil {
 		return fmt.Errorf("failed to detect feature context: %w", err)
 	}
