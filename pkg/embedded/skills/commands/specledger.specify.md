@@ -42,17 +42,9 @@ Given that feature description, do this:
      - "Create a dashboard for analytics" → "analytics-dashboard"
      - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
-2. **Check current branch and existing branches before creating new one**:
+2. **Check for existing branches before creating new one**:
 
-   a. **Check if already on a feature branch**:
-      - Get current branch name: `git rev-parse --abbrev-ref HEAD`
-      - Check if it matches feature branch pattern: `^\d{3}-`
-      - If already on a feature branch:
-        - Ask user to confirm before proceeding: "You are currently on branch `<CURRENT_BRANCH>`. Do you want to create a new feature branch? (y/n)"
-        - If user responds 'n' or 'no': ERROR "Cancelled - already on a feature branch. Please switch to a non-feature branch (e.g., main) before creating a new feature."
-        - If user responds 'y' or 'yes': Proceed with creating new feature branch
-
-   b. Find the highest feature number for the short-name across specs directories: Check for directories matching `specledger/[0-9]+-<short-name>`
+   a. Find the highest feature number for the short-name across specs directories: Check for directories matching `specledger/[0-9]+-<short-name>`
 
    b. Determine the next available number:
       - Extract all numbers from specs directory
@@ -106,24 +98,6 @@ Given that feature description, do this:
        - Remind user: "If this feature references external specifications for reading/reference, use 'sl deps add' to add them"
        - Example: Reading API contracts from other teams, referencing industry standards, shared design documents
     10. Return: SUCCESS (spec ready for planning)
-
-4a. **Dependency Detection** (explicit syntax):
-    - Before generating the spec, scan the user description for dependency references using explicit syntax patterns:
-      - `deps:alias-name` - Standard dependency reference
-      - `@alias-name` - Alternative shorthand syntax
-    - For each detected dependency reference:
-      1. Run `sl deps list` to check if the dependency exists in the project
-      2. If the dependency exists:
-         - Load content from the cache at `~/.specledger/cache/<alias>/`
-         - Include relevant context from the dependency in the spec generation
-         - Reference the dependency in the spec's "Dependencies & Assumptions" section
-      3. If the dependency is not found:
-         - Display: "Dependency '<alias>' not found. Use 'sl deps add --alias <alias> <source>' to add it."
-         - Continue with spec generation (dependency reference will be noted but content won't be loaded)
-    - Examples of dependency references in feature descriptions:
-      - "Create feature using deps:api-contracts for payment integration"
-      - "Build dashboard @design-system with charts"
-    - After resolving all dependency references, continue with step 5
 
 5. Write the specification to SPEC_FILE using the template structure, replacing placeholders with concrete details derived from the feature description (arguments) while preserving section order and headings.
 

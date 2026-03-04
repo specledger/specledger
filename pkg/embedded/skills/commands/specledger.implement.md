@@ -26,9 +26,21 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
 
    This ensures you have the latest changes from other team members.
 
-2. Run `.specledger/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+2. **Check for in-progress tasks** (resume logic):
 
-3. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
+   Run `sl issue list --status in_progress` for the current spec to check for any tasks that were started but not completed in a previous session.
+
+   **If in-progress tasks found**:
+   - Display the in-progress tasks with their notes/last checkpoint
+   - Ask the user: "Found in-progress tasks from a previous session. Would you like to resume from the last checkpoint, or start fresh?"
+   - **If resume**: Continue from the last checkpoint by reading the task's `notes` field for context and proceeding with the next steps
+   - **If start fresh**: Mark in-progress tasks as open and proceed with step 3
+
+   **If no in-progress tasks**: Proceed directly to step 3
+
+3. Run `.specledger/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+
+4. **Check checklists status** (if FEATURE_DIR/checklists/ exists):
    - Scan all checklist files in the checklists/ directory
    - For each checklist, count:
      - Total items: All lines matching `- [ ]` or `- [X]` or `- [x]`
@@ -53,11 +65,11 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
      * If user says "no" or "wait" or "stop", halt execution
      * If user says "yes" or "proceed" or "continue", proceed to step 4
 
-   - **If all checklists are complete**:
-     * Display the table showing all checklists passed
-     * Automatically proceed to step 4
+    - **If all checklists are complete**:
+      * Display the table showing all checklists passed
+      * Automatically proceed to step 5
 
-4. Load and analyze the implementation context:
+5. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
    - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
    - **IF EXISTS**: Read data-model.md for entities and relationships
@@ -65,7 +77,7 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
    - **IF EXISTS**: Read research.md for technical decisions and constraints
    - **IF EXISTS**: Read quickstart.md for integration scenarios
 
-5. **Project Setup Verification**:
+6. **Project Setup Verification**:
    - **REQUIRED**: Create/verify ignore files based on actual project setup:
 
    **Detection & Creation Logic**:
@@ -97,16 +109,16 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
    - **Docker**: `node_modules/`, `.git/`, `Dockerfile*`, `.dockerignore`, `*.log*`, `.env*`, `coverage/`
    - **ESLint**: `node_modules/`, `dist/`, `build/`, `coverage/`, `*.min.js`
    - **Prettier**: `node_modules/`, `dist/`, `build/`, `coverage/`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`
-   - **Terraform**: `.terraform/`, `*.tfstate*`, `*.tfvars`, `.terraform.lock.hcl`
+    - **Terraform**: `.terraform/`, `*.tfstate*`, `*.tfvars`, `.terraform.lock.hcl`
 
-6. Read tasks.md structure and extract:
+7. Read tasks.md structure and extract:
    - **Task phases**: Setup, Tests, Core, Integration, Polish
    - **Task dependencies**: Sequential vs parallel execution rules
    - **Task details**: ID, description, file paths, design + acceptance criteria
    - **Task comments**: Important notes and modifications to original plan
    - **Execution flow**: Order and dependency requirements
 
-7. Execute implementation following the task plan:
+8. Execute implementation following the task plan:
    - **Phase-by-phase execution**: Complete each phase before moving to the next
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
@@ -115,10 +127,10 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
    - **Read issue fields before implementation**:
      - Use `sl issue show <id>` to retrieve the issue's details
      - Read the `design` field for technical approach and file references
-     - Read the `acceptance_criteria` field for requirements and success criteria
-     - Use these fields to guide implementation decisions
+      - Read the `acceptance_criteria` field for requirements and success criteria
+      - Use these fields to guide implementation decisions
 
-8. Implementation execution rules:
+9. Implementation execution rules:
    - **Setup first**: Initialize project structure, dependencies, configuration
    - **Tests before code**: If you need to write tests for contracts, entities, and integration scenarios
    - **Core development**: Implement models, services, CLI commands, endpoints
@@ -126,9 +138,9 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
    - **Polish and validation**: Unit tests, performance optimization, documentation
    - **Verify against acceptance criteria**: Before marking task complete, verify implementation satisfies all acceptance_criteria
    - **Check off DoD items progressively**: As subtasks complete, use `sl issue update <id> --check-dod "Item text"` to mark relevant DoD items as verified
-   - **Only close after all DoD items checked**: Ensure all Definition of Done items are marked complete before closing an issue
+    - **Only close after all DoD items checked**: Ensure all Definition of Done items are marked complete before closing an issue
 
-9. Progress tracking and error handling:
+10. Progress tracking and error handling:
    - Find ready tasks using: `sl issue ready`
    - If no ready tasks, display blocking issues and offer options
    - Update issue status with: `sl issue update <id> --status in_progress`
@@ -137,9 +149,9 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
    - For ready tasks, continue with successful tasks, report failed ones
    - Provide clear error messages with context for debugging
    - Suggest next steps if implementation cannot proceed
-   - **IMPORTANT** For completed tasks, make sure to close the issue: `sl issue close <id> --reason "Completed"`
+    - **IMPORTANT** For completed tasks, make sure to close the issue: `sl issue close <id> --reason "Completed"`
 
-9a. **Definition of Done Verification** (before closing issues):
+10a. **Definition of Done Verification** (before closing issues):
 
    Before closing any issue, verify its Definition of Done items:
 
@@ -176,11 +188,11 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
       ✗ syntax valid: src/auth/login.go - 2 linting errors
       ? User confirmed: Is 'UI is intuitive' complete? → yes
 
-      2/3 automated checks passed. 1 interactive confirmation.
-      Proceed with closing? (--force required)
-      ```
+       2/3 automated checks passed. 1 interactive confirmation.
+       Proceed with closing? (--force required)
+       ```
 
-10. Completion validation:
+11. Completion validation:
    - Verify all required tasks are completed
    - Check that implemented features match the original specification
    - Validate that tests pass and coverage meets requirements

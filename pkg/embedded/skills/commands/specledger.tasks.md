@@ -334,43 +334,6 @@ sl issue link SL-xxxxx blocks SL-yyyyy
 - `--notes` (implementation notes)
 - `--force` (skip duplicate detection)
 
-## Parent-Child Hierarchy
-
-Issues should be organized in a three-level hierarchy for better tracking:
-
-```
-Epic (SL-xxxxxx)
-├── Feature/Phase (SL-yyyyyy)
-│   ├── Task (SL-zzzz1)
-│   └── Task (SL-zzzz2)
-└── Feature/Phase (SL-wwwww)
-```
-
-**Hierarchy Rules**:
-- **Epic**: Top-level feature container (no parent)
-- **Feature/Phase**: User story or phase implementation (parent = epic)
-- **Task**: Implementation tasks within a phase (parent = feature/phase)
-
-**Creating Hierarchy**:
-When creating issues, use `--parent` to establish the relationship:
-
-```bash
-# Create epic first (no parent)
-sl issue create --title "Feature Name" --type epic --labels "spec:xxx" --priority 1
-
-# Create feature/phase with parent = epic
-sl issue create --title "US1: Story Name" --type feature --parent SL-epicid --labels "spec:xxx,phase:us1" --priority 1
-
-# Create task with parent = feature
-sl issue create --title "Implement X" --type task --parent SL-featureid --labels "spec:xxx,story:US1" --priority 2
-```
-
-**Benefits**:
-- `sl issue show <epic>` displays all children (features)
-- `sl issue show <feature>` displays all children (tasks)
-- Tree view (`--tree`) shows complete hierarchy
-- Single parent constraint enforced (no multiple inheritance)
-
 ## Error Handling
 
 When `sl issue create` or `sl issue link` commands fail, handle errors gracefully:
