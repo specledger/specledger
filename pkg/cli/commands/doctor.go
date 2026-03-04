@@ -153,8 +153,17 @@ func performTemplateUpdate() error {
 		return fmt.Errorf("template update failed: %w", err)
 	}
 	total := len(result.Updated) + len(result.Overwritten)
-	fmt.Printf("  %s Updated %d templates (%d new, %d overwritten, %d deleted)\n",
-		ui.Checkmark(), total, len(result.Updated), len(result.Overwritten), len(result.Deleted))
+	fmt.Printf("  %s Updated %d templates (%d new, %d overwritten)\n",
+		ui.Checkmark(), total, len(result.Updated), len(result.Overwritten))
+
+	// Warn about stale files if any detected
+	if len(result.Stale) > 0 {
+		fmt.Printf("  %s Found %d stale templates (not deleted, manual cleanup recommended):\n",
+			ui.Yellow("⚠"), len(result.Stale))
+		for _, f := range result.Stale {
+			fmt.Printf("    - %s\n", f)
+		}
+	}
 	return nil
 }
 

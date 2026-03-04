@@ -15,7 +15,7 @@ import (
 type TemplateUpdateResult struct {
 	Updated     []string `json:"updated"`     // Files that were updated (new)
 	Overwritten []string `json:"overwritten"` // Files that existed and were overwritten
-	Deleted     []string `json:"deleted"`     // Files that were deleted (stale templates)
+	Stale       []string `json:"stale"`       // Files detected as stale (not deleted, just reported)
 	Errors      []error  `json:"errors"`      // Any errors encountered
 	NewVersion  string   `json:"new_version"` // New template_version written to YAML
 	Success     bool     `json:"success"`     // true if no fatal errors
@@ -23,12 +23,12 @@ type TemplateUpdateResult struct {
 
 // UpdateTemplates updates project templates from embedded files.
 // All embedded templates are copied, overwriting any existing files.
-// Files in the project that don't exist in embedded templates are deleted.
+// Stale files (specledger.*.md in commands/) are detected but NOT deleted to preserve custom content.
 func UpdateTemplates(projectDir, cliVersion string) (*TemplateUpdateResult, error) {
 	result := &TemplateUpdateResult{
 		Updated:     []string{},
 		Overwritten: []string{},
-		Deleted:     []string{},
+		Stale:       []string{},
 		Errors:      []error{},
 		NewVersion:  cliVersion,
 		Success:     true,
@@ -41,7 +41,7 @@ func UpdateTemplates(projectDir, cliVersion string) (*TemplateUpdateResult, erro
 		return nil, fmt.Errorf("failed to create .claude directory: %w", err)
 	}
 
-	// Track all embedded file paths for deletion detection
+	// Track all embedded file paths for stale detection
 	embeddedPaths := make(map[string]bool)
 
 	// Walk the embedded skills FS and copy files
@@ -107,11 +107,8 @@ func UpdateTemplates(projectDir, cliVersion string) (*TemplateUpdateResult, erro
 		return nil, fmt.Errorf("error walking embedded files: %w", err)
 	}
 
-	// Delete stale files (exist in project but not in embedded)
-	if err := deleteStaleFiles(claudeDir, embeddedPaths, result); err != nil {
-		result.Errors = append(result.Errors, fmt.Errorf("error deleting stale files: %w", err))
-		result.Success = false
-	}
+	// Detect stale specledger commands (but don't delete - user may have custom content)
+	detectStaleFiles(claudeDir, embeddedPaths, result)
 
 	// Update template_version in specledger.yaml
 	if err := updateTemplateVersion(projectDir, cliVersion); err != nil {
@@ -146,34 +143,31 @@ func updateTemplateVersion(projectDir, cliVersion string) error {
 	return nil
 }
 
-// deleteStaleFiles removes files from .claude/ that don't exist in embedded templates.
-func deleteStaleFiles(claudeDir string, embeddedPaths map[string]bool, result *TemplateUpdateResult) error {
-	// Walk the project's .claude directory and delete files not in embeddedPaths
-	return filepath.Walk(claudeDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
+// detectStaleFiles finds stale specledger commands in .claude/commands/ that don't exist in embedded templates.
+// Files are NOT deleted - only reported so users can manually remove them if desired.
+func detectStaleFiles(claudeDir string, embeddedPaths map[string]bool, result *TemplateUpdateResult) {
+	commandsDir := filepath.Join(claudeDir, "commands")
+
+	// Only check commands directory for stale specledger.*.md files
+	entries, err := os.ReadDir(commandsDir)
+	if err != nil {
+		return // Directory doesn't exist or can't read, skip stale detection
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() {
+			continue
 		}
 
-		// Skip directories
-		if info.IsDir() {
-			return nil
+		name := entry.Name()
+		// Only check specledger.*.md files (owned by playbook)
+		if !strings.HasPrefix(name, "specledger.") || !strings.HasSuffix(name, ".md") {
+			continue
 		}
 
-		// Get relative path from .claude/
-		relPath, err := filepath.Rel(claudeDir, path)
-		if err != nil {
-			return err
-		}
-
-		// If file doesn't exist in embedded templates, delete it
+		relPath := "commands/" + name
 		if !embeddedPaths[relPath] {
-			if err := os.Remove(path); err != nil {
-				result.Errors = append(result.Errors, fmt.Errorf("failed to delete stale file %s: %w", relPath, err))
-				return nil
-			}
-			result.Deleted = append(result.Deleted, relPath)
+			result.Stale = append(result.Stale, relPath)
 		}
-
-		return nil
-	})
+	}
 }
