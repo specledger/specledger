@@ -153,8 +153,8 @@ func performTemplateUpdate() error {
 		return fmt.Errorf("template update failed: %w", err)
 	}
 	total := len(result.Updated) + len(result.Overwritten)
-	fmt.Printf("  %s Updated %d templates (%d new, %d overwritten)\n",
-		ui.Checkmark(), total, len(result.Updated), len(result.Overwritten))
+	fmt.Printf("  %s Updated %d templates (%d new, %d overwritten, %d deleted)\n",
+		ui.Checkmark(), total, len(result.Updated), len(result.Overwritten), len(result.Deleted))
 	return nil
 }
 
