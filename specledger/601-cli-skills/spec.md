@@ -42,12 +42,13 @@ As an AI agent processing review feedback, I need `sl comment list` to get all u
 
 **Acceptance Scenarios**:
 
-1. **Given** a feature branch with unresolved comments, **When** running `sl comment list --json`, **Then** output is valid JSON array with id, file_path, line, content, author fields
+1. **Given** a feature branch with unresolved comments, **When** running `sl comment list --json`, **Then** output is valid JSON array with id, file_path, line, content_preview (truncated to 120 chars), author, reply_count fields
 2. **Given** `--status open` flag, **When** run, **Then** only unresolved comments are returned
 3. **Given** `--status resolved` flag, **When** run, **Then** only resolved comments are returned
 4. **Given** `--status all` flag, **When** run, **Then** all comments are returned
 5. **Given** no auth token, **When** run, **Then** exits silently with code 1 (for agent integration)
-6. **Given** compact mode (default), **When** run, **Then** output is token-efficient (truncated previews, counts)
+6. **Given** compact mode (default), **When** run with 25 comments, **Then** output stays under ~500 tokens with truncated previews and reply counts instead of nested arrays (progressive disclosure for agent context efficiency)
+7. **Given** compact mode output, **When** parsed by agent, **Then** footer hint guides drill-down: `"hint": "Use 'sl comment show <id> --json' for full content"`
 
 ---
 
@@ -61,10 +62,11 @@ As an AI agent addressing a specific comment, I need `sl comment show` to get fu
 
 **Acceptance Scenarios**:
 
-1. **Given** a comment ID, **When** running `sl comment show <id> --json`, **Then** output includes full content, selected_text, all thread replies
+1. **Given** a comment ID, **When** running `sl comment show <id> --json`, **Then** output includes full content (no truncation), selected_text, all thread replies — this is the drill-down command for progressive disclosure after `list` scan
 2. **Given** multiple comment IDs, **When** running `sl comment show <id1> <id2>`, **Then** all comments are shown in sequence
 3. **Given** a non-existent comment ID, **When** run, **Then** error with "comment not found" message
 4. **Given** a comment with thread replies, **When** shown, **Then** replies are included in chronological order
+5. **Given** a comment with 3 thread replies, **When** shown in JSON, **Then** output stays under ~200 tokens (full detail justified by explicit drill-down request)
 
 ---
 
@@ -78,9 +80,9 @@ As a developer addressing review feedback, I need `sl comment reply` and `sl com
 
 **Acceptance Scenarios**:
 
-1. **Given** a comment ID and message, **When** running `sl comment reply <id> "message"`, **Then** reply is posted to the comment thread
+1. **Given** a comment ID and message, **When** running `sl comment reply <id> "message"`, **Then** reply is posted to the comment thread with minimal output (~30 tokens) for agent context efficiency
 2. **Given** `--json` flag on reply, **When** run, **Then** output includes reply_id and timestamp
-3. **Given** a comment ID, **When** running `sl comment resolve <id>`, **Then** comment is marked as resolved
+3. **Given** a comment ID, **When** running `sl comment resolve <id>`, **Then** comment is marked as resolved with minimal confirmation output
 4. **Given** multiple comment IDs to resolve, **When** running `sl comment resolve <id1> <id2>`, **Then** all are resolved
 5. **Given** resolving a parent comment, **When** run, **Then** all thread replies are also resolved (cascade)
 
