@@ -258,20 +258,25 @@ func Capture(input *HookInput) *CaptureResult {
 	// Get commit hash
 	commitHash, err := GetCurrentCommitHash(input.Cwd)
 	if err != nil {
+		debugWrite(fmt.Sprintf("error: commit hash failed: %v", err))
 		result.Error = err
 		return result
 	}
+	debugWrite(fmt.Sprintf("commit=%s", commitHash))
 
 	// Get branch name
 	branch, err := GetCurrentBranch(input.Cwd)
 	if err != nil {
+		debugWrite(fmt.Sprintf("error: branch failed: %v", err))
 		result.Error = err
 		return result
 	}
+	debugWrite(fmt.Sprintf("branch=%s", branch))
 
 	// Get project ID (with fallback to git remote lookup and auto-persist)
 	projectID, err := GetProjectIDWithFallback(input.Cwd)
 	if err != nil {
+		debugWrite(fmt.Sprintf("skip: no project ID (err=%v)", err))
 		return result // No project ID, silently skip
 	}
 
