@@ -214,21 +214,44 @@ func persistProjectID(workdir string, projectID string) error {
 func Capture(input *HookInput) *CaptureResult {
 	result := &CaptureResult{Captured: false}
 
+	// Debug: log capture flow
+	debugLog := filepath.Join(os.TempDir(), "sl-capture-debug.log")
+	debugF, _ := os.OpenFile(debugLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	debugWrite := func(msg string) {
+		if debugF != nil {
+			fmt.Fprintf(debugF, "[%s] %s\n", time.Now().Format(time.RFC3339), msg)
+		}
+	}
+	defer func() {
+		if debugF != nil {
+			debugF.Close()
+		}
+	}()
+
+	debugWrite(fmt.Sprintf("Capture called, tool_input=%q, cwd=%q", input.ToolInput.Command(), input.Cwd))
+
 	// Check if this is a git commit
 	if !IsGitCommit(input.ToolInput.Command()) {
+		debugWrite("skip: not a git commit")
 		return result // Not a commit, nothing to capture
 	}
 
 	// Verify the tool succeeded
 	if !input.ToolSuccess() {
+		debugWrite("skip: tool not successful")
 		return result // Commit failed, nothing to capture
 	}
+
+	debugWrite("git commit detected, checking auth...")
 
 	// === Auth check first: skip silently if not authenticated ===
 	creds, err := auth.LoadCredentials()
 	if err != nil || creds == nil {
+		debugWrite(fmt.Sprintf("skip: no creds (err=%v, creds=%v)", err, creds))
 		return result // No credentials, silently skip
 	}
+
+	debugWrite(fmt.Sprintf("auth OK, user=%s", creds.UserEmail))
 
 	// === Core metadata (always available from git) ===
 
@@ -421,6 +444,13 @@ func queueSession(result *CaptureResult, compressed []byte, projectID, branch st
 
 // CaptureFromStdin reads hook input from stdin and captures the session
 func CaptureFromStdin() *CaptureResult {
+	// Debug: log that capture was invoked
+	debugLog := filepath.Join(os.TempDir(), "sl-capture-debug.log")
+	if f, err := os.OpenFile(debugLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+		fmt.Fprintf(f, "[%s] CaptureFromStdin invoked\n", time.Now().Format(time.RFC3339))
+		f.Close()
+	}
+
 	// Check if stdin is available (not a terminal)
 	stat, err := os.Stdin.Stat()
 	if err != nil {

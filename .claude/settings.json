@@ -1,3 +1,15 @@
 {
-  "hooks": {}
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:\\Users\\ADMIN\\go\\bin\\sl.exe session capture"
+          }
+        ]
+      }
+    ]
+  }
 }
