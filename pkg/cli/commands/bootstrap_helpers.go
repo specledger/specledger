@@ -340,6 +340,10 @@ func launchAgent(projectDir string, agentPref string) error {
 		if len(envVars) > 0 {
 			al.SetEnv(envVars)
 		}
+		cliFlags := resolved.GetCLIFlags()
+		if len(cliFlags) > 0 {
+			al.SetFlags(cliFlags)
+		}
 	}
 
 	fmt.Println()

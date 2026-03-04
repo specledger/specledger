@@ -183,7 +183,63 @@ func (r *ResolvedConfig) GetEnvVars() map[string]string {
 	return envVars
 }
 
+// GetCLIFlags returns CLI flags based on the schema definitions.
+// This converts config values like skip-permissions=true to "--dangerously-skip-permissions".
+func (r *ResolvedConfig) GetCLIFlags() []string {
+	var flags []string
+
+	for _, keyDef := range GetRegistry().List() {
+		if keyDef.CLIFlag == "" {
+			continue
+		}
+
+		resolved := r.Get(keyDef.Key)
+		if resolved == nil {
+			// Use default value if set
+			if keyDef.Default != nil {
+				switch keyDef.Type {
+				case KeyTypeBool:
+					if b, ok := keyDef.Default.(bool); ok && b {
+						flags = append(flags, keyDef.CLIFlag)
+					}
+				case KeyTypeString, KeyTypeEnum:
+					if s, ok := keyDef.Default.(string); ok && s != "" {
+						flags = append(flags, keyDef.CLIFlag, s)
+					}
+				}
+			}
+			continue
+		}
+
+		switch keyDef.Type {
+		case KeyTypeBool:
+			if b, ok := resolved.Value.(bool); ok && b {
+				flags = append(flags, keyDef.CLIFlag)
+			}
+		case KeyTypeString, KeyTypeEnum:
+			if s, ok := resolved.Value.(string); ok && s != "" {
+				flags = append(flags, keyDef.CLIFlag, s)
+			}
+		case KeyTypeStringList:
+			if list, ok := resolved.Value.([]string); ok && len(list) > 0 {
+				for _, item := range list {
+					flags = append(flags, keyDef.CLIFlag, item)
+				}
+			}
+		}
+	}
+
+	return flags
+}
+
 func ResolveAgentEnv() map[string]string {
+	resolved := ResolveAgentConfig()
+	return resolved.GetEnvVars()
+}
+
+// ResolveAgentConfig returns the fully resolved agent configuration.
+// This includes both environment variables and CLI flags.
+func ResolveAgentConfig() *ResolvedConfig {
 	globalCfg, _ := Load()
 	if globalCfg == nil {
 		globalCfg = DefaultConfig()
@@ -206,15 +262,13 @@ func ResolveAgentEnv() map[string]string {
 		profile = globalCfg.Profiles[globalCfg.ActiveProfile]
 	}
 
-	resolved := MergeConfigs(
+	return MergeConfigs(
 		DefaultAgentConfig(),
 		globalCfg.Agent,
 		profile,
 		teamLocal,
 		personalLocal,
 	)
-
-	return resolved.GetEnvVars()
 }
 
 func loadProjectMetadata(projectPath string) (*struct {

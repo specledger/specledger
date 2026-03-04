@@ -187,8 +187,10 @@ func runRevise(cmd *cobra.Command, args []string) error {
 		return writePromptToFile(finalPrompt)
 	}
 
-	// Inject config environment variables (base-url, auth-token, model overrides, etc.)
-	al.SetEnv(config.ResolveAgentEnv())
+	// Inject config environment variables and CLI flags (base-url, auth-token, model overrides, etc.)
+	resolved := config.ResolveAgentConfig()
+	al.SetEnv(resolved.GetEnvVars())
+	al.SetFlags(resolved.GetCLIFlags())
 
 	fmt.Printf("Launching %s...\n", al.Name)
 	if err := al.LaunchWithPrompt(finalPrompt); err != nil {
