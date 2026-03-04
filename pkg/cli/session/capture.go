@@ -493,6 +493,13 @@ func CaptureFromStdin() *CaptureResult {
 			return &CaptureResult{Error: fmt.Errorf("no data received from stdin")}
 		}
 
+		// Debug: log raw input
+		rawLog := filepath.Join(os.TempDir(), "sl-capture-raw.log")
+		if f, err := os.OpenFile(rawLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+			fmt.Fprintf(f, "[%s] raw_input=%s\n", time.Now().Format(time.RFC3339), string(result.data))
+			f.Close()
+		}
+
 		// Parse hook input
 		input, err := ParseHookInput(result.data)
 		if err != nil {
