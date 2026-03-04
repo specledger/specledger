@@ -82,9 +82,7 @@ func logToLocalFile(entry CaptureErrorEntry) {
 // Best-effort: if it fails, we already have the local log.
 func logToSupabase(entry CaptureErrorEntry) {
 	defer func() {
-		if r := recover(); r != nil {
-			// Never panic - swallow any unexpected errors
-		}
+		recover() //nolint:errcheck // swallow any panics — never crash the caller
 	}()
 
 	// Get access token (try current token first)
