@@ -1,4 +1,4 @@
-// Package session handles session capture for specledger hooks (v2).
+// Package session handles session capture for specledger hooks (v2, inline capture).
 package session
 
 import (
