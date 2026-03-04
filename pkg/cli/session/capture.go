@@ -208,7 +208,8 @@ func persistProjectID(workdir string, projectID string) error {
 	return nil
 }
 
-// Capture orchestrates the session capture flow
+// Capture orchestrates the session capture flow.
+// Implements graceful degradation: captures metadata even without transcript.
 // Implements graceful degradation: captures metadata even without transcript
 func Capture(input *HookInput) *CaptureResult {
 	result := &CaptureResult{Captured: false}
