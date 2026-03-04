@@ -32,20 +32,20 @@ If no arguments provided, analyze the staged changes with `git diff --cached` an
 
 **IMPORTANT**: The commit MUST always proceed. Never skip or block the commit for any reason.
 
-### Step 3: Check auth and capture status
+### Step 3: Capture session (inline)
 
-After the commit, check session capture status:
+After the commit succeeds, run session capture directly by piping hook-compatible JSON to `sl session capture`. This does NOT rely on PostToolUse hooks.
 
-1. **Check credentials**: `test -f ~/.specledger/credentials.json && echo "OK" || echo "NONE"`
-2. **Check project ID**: `cat specledger/specledger.yaml 2>/dev/null | grep "id:"` (note: the file is at `specledger/specledger.yaml`, NOT `specledger.yaml` in root)
-3. **Check hook config**: Verify PostToolUse hook exists in `~/.claude/settings.json`
-4. **Check capture errors**: `cat ~/.specledger/capture-errors.log 2>/dev/null | tail -1`
+```bash
+CWD_WIN=$(cygpath -m "$(pwd)" 2>/dev/null || pwd) && echo '{"session_id":"","transcript_path":"","cwd":"'"$CWD_WIN"'","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"git commit"},"tool_response":{"stdout":"ok","stderr":"","interrupted":false},"tool_use_id":"inline-capture"}' | sl session capture 2>/dev/null; echo "CAPTURE_EXIT=$?"
+```
 
-Set `capture_status` based on results:
-- No credentials → `"skipped (no auth)"`
-- No project ID → `"skipped (no project)"`
-- Credentials + project ID + no errors → `"captured"` (hook ran automatically after commit)
-- Credentials + project ID + new error in log → `"failed"` (show the error)
+Set `capture_status` based on the output:
+- If `sl session capture` prints "Session captured: ..." → `"captured"`
+- If it prints nothing or exits silently → `"skipped"` (no auth or no project)
+- If CAPTURE_EXIT is non-zero → `"failed"`
+
+**IMPORTANT**: Capture MUST NOT block the workflow. If capture fails for any reason, proceed to push.
 
 ### Step 4: Push
 
@@ -72,7 +72,6 @@ If capture failed, also show the last error from `~/.specledger/capture-errors.l
 ## Important Notes
 
 - Git commit and push always proceed — never skip or block for any reason
+- Session capture is done INLINE (piped to sl session capture), not via PostToolUse hooks
 - Project config is at `specledger/specledger.yaml` (inside specledger/ subfolder), NOT at root
-- Hook is configured in `~/.claude/settings.json` (global), NOT in project settings
-- Only ONE hook should exist — multiple hooks cause stdin conflicts
 - If capture fails, check `~/.specledger/capture-errors.log` for details
