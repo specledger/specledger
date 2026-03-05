@@ -29,3 +29,26 @@
 - `spec.md` — Dependencies & Assumptions: Added fix pattern (before/after code snippet) and exhaustive affected locations list with guidance on what NOT to change
 - `spec.md` — Requirements FR-006: Added decision algorithm for Windows shell detection with rationale
 - `spec.md` — Edge Cases: Converted from open questions to numbered acceptance scenarios with defined expected behavior
+
+---
+
+## Revision 2 — 2026-03-05
+
+### Comments Addressed (re-review)
+| Comment | File | Status | Action |
+|---------|------|--------|--------|
+| 1 — Explicit fix locations & before/after | spec.md | Already resolved in Rev 1 | No change needed |
+| 2 — Decision algorithm for post-init script | spec.md | Already resolved in Rev 1 | No change needed |
+| 3 — Formalize Edge Cases to Given/When/Then | spec.md | Revised | Converted edge cases 1 & 2 to Given/When/Then format; edge case 3 kept as "Out of scope" |
+
+### Clusters & Decisions
+
+**Single cluster: Spec precision (all 3 comments)**
+- **Options presented:**
+  1. Only formalize Edge Cases *(chosen)* — Comments 1 & 2 already resolved in current spec
+  2. Formalize Edge Cases + add cross-references between User Stories and Dependencies
+  3. Full rework of all three with inlined details per section
+- **Decision:** Option 1 — Edge cases 1 and 2 rewritten as Given/When/Then acceptance scenarios with parenthetical rationale. Edge case 3 unchanged (already marked out of scope).
+
+### Changes Made
+- `spec.md` — Edge Cases: Rewrote items 1 (spaces in temp path) and 2 (terminal independence) from descriptive bullets to Given/When/Then acceptance scenarios
