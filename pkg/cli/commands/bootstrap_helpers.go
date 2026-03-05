@@ -482,7 +482,6 @@ func runPostInitScript(projectPath string, projectMetadata *metadata.ProjectMeta
 
 	// Execute the script with environment variables.
 	// On Windows, .sh files cannot be run directly — find a Unix shell interpreter.
-	// #nosec G204 -- tmpFile.Name() is from os.CreateTemp, safe path
 	var cmd *exec.Cmd
 	if runtime.GOOS == "windows" {
 		shell := findWindowsShell()
@@ -490,9 +489,9 @@ func runPostInitScript(projectPath string, projectMetadata *metadata.ProjectMeta
 			// No Unix shell available on Windows — skip post-init script gracefully
 			return
 		}
-		cmd = exec.Command(shell, tmpFile.Name()) // #nosec G204
+		cmd = exec.Command(shell, tmpFile.Name()) // #nosec G204 -- shell from LookPath, tmpFile from os.CreateTemp
 	} else {
-		cmd = exec.Command(tmpFile.Name())
+		cmd = exec.Command(tmpFile.Name()) // #nosec G204 -- tmpFile from os.CreateTemp, safe path
 	}
 	cmd.Dir = projectPath
 
