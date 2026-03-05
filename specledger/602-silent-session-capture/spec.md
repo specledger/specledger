@@ -5,8 +5,7 @@
 **Status**: Draft
 **Input**: User description: "Create /specledger.commit slash command for auth-aware commit workflow. When user asks agent to commit (e.g. 'commit giúp tôi'), agent runs this command. No auth → still push, skip capture silently. No project ID → still push, skip capture. Session upload fails → queue for sl session sync retry + log error to Supabase for troubleshooting."
 
-## Problem Statement
-
+## Problem Statement (V2)
 Currently the AI agent (Claude Code) auto-commits and pushes code directly when the user asks "commit push giúp tôi". This causes three problems:
 
 1. **Session capture logs are invisible**: The PostToolUse hook runs `sl session capture` after the commit, but the agent pushes immediately after, so warning/error logs from session capture are not visible to the user.
