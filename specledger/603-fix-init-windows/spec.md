@@ -9,91 +9,73 @@
 
 ### User Story 1 - Windows User Runs sl init Successfully (Priority: P1)
 
-A developer on Windows runs `sl init` in an existing repository and the command completes without errors, setting up SpecLedger files the same way it does on macOS and Linux.
+A developer on Windows runs `sl init` in an existing repository. Currently the command fails with "failed to read manifest: open templates\manifest.yaml: file does not exist", then "failed to create project metadata: playbook name is required". The fix makes `sl init` complete successfully with the same outcome as on macOS and Linux.
 
-**Why this priority**: This is the core bug — `sl init` is completely broken on Windows. Every Windows user is blocked from using SpecLedger until this is fixed.
+**Why this priority**: This is the core bug — `sl init` is completely broken on Windows for every user. No workaround exists.
 
-**Independent Test**: Run `sl init` in any directory on a Windows machine. The command should exit with code 0 and create `.specledger/`, `specledger/`, and `.claude/` directories.
+**Independent Test**: Run `sl init` in any directory on a Windows machine. The command should exit with code 0, print "SpecLedger Initialized", and create `specledger/specledger.yaml`, `.specledger/`, and `.claude/` directories.
 
 **Acceptance Scenarios**:
 
-1. **Given** a Windows machine with `sl` installed and a git repository, **When** the user runs `sl init`, **Then** the command completes successfully without error messages related to script execution or permissions.
-2. **Given** the same scenario, **When** `sl init` completes, **Then** all expected files (specledger.yaml, playbook templates, skills) are created in the correct directories.
-3. **Given** the same scenario, **When** `sl init` runs the post-init phase, **Then** it does not crash with an "exec format error" or "cannot execute binary file" or similar shell-script-execution failure on Windows.
+1. **Given** a Windows machine with `sl` installed and a git repository, **When** the user runs `sl init`, **Then** the command completes without any error about manifest files or playbook names.
+2. **Given** the same scenario, **When** `sl init` completes, **Then** all expected files (`specledger.yaml`, playbook templates, skill files) are present in the correct directories.
+3. **Given** the same scenario, **When** `sl init` runs, **Then** the "Copying Playbooks" phase succeeds and reports the playbook was applied, not a warning about failure.
 
 ---
 
-### User Story 2 - Tool Availability Detection Works on Windows (Priority: P2)
+### User Story 2 - Post-Init Script Runs or Skips Gracefully on Windows (Priority: P2)
 
-When `sl init` detects whether optional tools (like `gum`) are available, it does so in a Windows-compatible way rather than relying on Unix-only shell built-ins.
+After fixing the manifest loading, `sl init` may attempt to run the embedded `init.sh` post-init script. On Windows without a Unix shell, this should either run using an available shell (Git Bash, WSL) or skip silently — it must not crash or show a confusing error.
 
-**Why this priority**: Incorrect tool detection on Windows may cause silent failures or incorrect behavior that degrades the user experience, even if it doesn't fully block init.
+**Why this priority**: Once the manifest bug is fixed, this is the next failure point. The post-init script is a bash script that Windows cannot execute directly.
 
-**Independent Test**: Run `sl init` on Windows with `gum` not installed. The command should still proceed using the fallback plain-CLI mode, not crash or hang.
-
-**Acceptance Scenarios**:
-
-1. **Given** a Windows machine without `gum` installed, **When** `sl init` checks tool availability, **Then** the check works correctly and falls back to non-interactive mode without errors.
-2. **Given** a Windows machine with `gum` installed and in PATH, **When** `sl init` checks tool availability, **Then** `gum` is correctly detected and used.
-
----
-
-### User Story 3 - Cross-Platform Behavior Parity (Priority: P3)
-
-The outcome of `sl init` on Windows is functionally identical to macOS and Linux — all the same files are created, metadata is written, and the initialization summary is displayed.
-
-**Why this priority**: Consistency across platforms builds trust. Partial functionality on Windows creates confusion and support burden.
-
-**Independent Test**: Run `sl init` on Windows and macOS in equivalent repositories. Compare the resulting file tree — they should be identical.
+**Independent Test**: Run `sl init` on a Windows machine. After seeing "SpecLedger Initialized", verify no error messages appear from the post-init phase.
 
 **Acceptance Scenarios**:
 
-1. **Given** equivalent projects on Windows, macOS, and Linux, **When** `sl init` is run on each, **Then** the resulting directory structure and file contents are identical.
-2. **Given** a playbook with post-init logic, **When** `sl init` runs on Windows, **Then** the equivalent post-init outcomes are achieved (even if the mechanism differs from running a `.sh` script).
+1. **Given** a Windows machine without Git Bash or WSL, **When** `sl init` reaches the post-init script phase, **Then** it skips the script silently without printing an error to the user.
+2. **Given** a Windows machine with Git Bash installed, **When** `sl init` reaches the post-init script phase, **Then** it executes the script using `bash.exe` and completes successfully.
 
 ---
 
 ### Edge Cases
 
-- What happens when `bash` or `sh` is available on Windows (e.g., via Git Bash or WSL) but the post-init script still fails?
-- How does the system behave when `sl init` is run inside a Git Bash terminal on Windows versus a native Windows Command Prompt or PowerShell?
-- What happens when the Windows temp directory path contains spaces?
-- What happens when `os.Chmod` is called on Windows (it succeeds silently but has no effect — this is not a crash but should be noted)?
+- What happens when the Windows temp directory path contains spaces (e.g., `C:\Users\My Name\AppData\Local\Temp`)?
+- What happens when `sl init` is run inside a Git Bash terminal on Windows versus PowerShell or Command Prompt?
+- What happens when `sl init --force` is run on an already-initialized Windows project?
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: The `sl init` command MUST complete successfully on Windows without errors related to shell script execution.
-- **FR-002**: The post-init script execution mechanism MUST detect the current operating system and use a Windows-compatible approach when running on Windows.
-- **FR-003**: If a Unix shell (bash, sh) is available on Windows (e.g., via Git for Windows or WSL), the system SHOULD use it to execute `init.sh`; otherwise it MUST skip the script execution gracefully.
-- **FR-004**: Tool availability detection (e.g., checking if `gum` is installed) MUST use a method that works on Windows without relying on Unix-only shell built-ins (`command -v`).
-- **FR-005**: When the post-init script is skipped on Windows (no shell available), the system MUST NOT display a failure message to the user — it MUST continue silently or with an informational note.
-- **FR-006**: All files created by `sl init` (playbook templates, skill files, metadata YAML) MUST be written correctly on Windows, including those involving file permission calls that are no-ops on Windows.
+- **FR-001**: All path construction for lookups within the embedded filesystem (`embed.FS`) MUST use forward slashes, regardless of the host operating system.
+- **FR-002**: The manifest file (`templates/manifest.yaml`) MUST be found and loaded successfully on Windows.
+- **FR-003**: Playbook files MUST be copied to the target project directory successfully on Windows.
+- **FR-004**: The metadata file (`specledger.yaml`) MUST be created successfully — this requires a valid playbook name, which depends on FR-002 and FR-003 succeeding.
+- **FR-005**: The post-init script phase MUST NOT crash `sl init` on Windows. If no Unix shell is available, the phase MUST be skipped gracefully without a user-visible error.
+- **FR-006**: If a Unix shell (`bash`, `sh`) is available on Windows (e.g., via Git for Windows), the post-init script SHOULD execute using that shell as the interpreter.
 
 ### Key Entities
 
-- **Post-Init Script**: The embedded `init.sh` shell script that runs after core SpecLedger files are set up. Currently executed directly — incompatible with Windows unless a shell is available.
-- **Tool Availability Check**: The runtime check for optional tools (gum, etc.) that currently uses `command -v`, a Unix shell built-in unavailable on Windows as a standalone executable.
+- **Embedded Filesystem (`embed.FS`)**: Go's embedded virtual filesystem. It always uses forward slashes (`/`) as path separators, regardless of the OS. Using `filepath.Join` to construct paths for it on Windows produces backslash paths that cause "file does not exist" errors.
+- **Post-Init Script**: The embedded `init.sh` bash script executed after core setup. Currently invoked via `exec.Command(tmpFile.Name())` which fails on Windows without a shell interpreter.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
 - **SC-001**: `sl init` exits with code 0 on Windows in 100% of cases where it would succeed on macOS/Linux with equivalent inputs.
-- **SC-002**: Zero user-visible error messages related to script execution, permissions, or shell availability appear when `sl init` runs on Windows.
-- **SC-003**: The files created by `sl init` on Windows are byte-for-byte identical in content (ignoring line endings) to those created on macOS/Linux for the same project.
-- **SC-004**: Tool detection (gum, etc.) produces correct results on Windows in both Command Prompt and Git Bash environments.
+- **SC-002**: The error messages "failed to read manifest" and "playbook name is required" no longer appear when running `sl init` on Windows.
+- **SC-003**: The files created by `sl init` on Windows are functionally identical to those created on macOS/Linux for the same project.
+- **SC-004**: No regression on macOS or Linux — existing behavior is preserved.
 
 ### Previous work
 
-- **[135-fix-missing-chmod-x] Fix Executable Permissions for Template Files**: Added `isExecutableFile` helper and set `0755` permissions during file copy. Identified that `os.Chmod` is a no-op on Windows for execution bits — relevant context for understanding the permission-setting approach in `applyEmbeddedSkills`.
-- **[135-fix-missing-chmod-x] Integration test for sl init --force**: Existing integration test for `sl init --force` that may need Windows variants.
+- **[135-fix-missing-chmod-x] Fix Executable Permissions for Template Files**: Added `isExecutableFile` helper and set permissions during file copy. Uses `filepath.Join` for embedded FS paths — same class of bug but did not manifest as a failure because the copy logic was adjusted separately.
 
 ## Dependencies & Assumptions
 
-- **Assumption**: The primary failure mode is `runPostInitScript` in `pkg/cli/commands/bootstrap_helpers.go` — it calls `exec.Command(tmpFile.Name())` on a `.sh` temp file, which Windows cannot execute without a shell interpreter.
-- **Assumption**: The secondary issue is `checkGum()` in `pkg/cli/tui/terminal.go` using `exec.Command("command", "-v", "gum")` — `command` is a Unix shell built-in, not an executable on Windows.
-- **Assumption**: Git for Windows ships `sh.exe` and `bash.exe` that can serve as shell interpreters if available; WSL may also provide bash access.
-- **Assumption**: The post-init script (`init.sh`) content is minimal (prints success message, exports env vars) — its logic could alternatively be inlined in Go to avoid shell dependency entirely.
-- **No external spec dependency needed** for this fix — all required context is within the codebase.
+- **Root cause confirmed**: `filepath.Join` in `pkg/cli/playbooks/manifest.go:12`, `pkg/cli/playbooks/embedded.go:90,97`, and `pkg/cli/commands/bootstrap_helpers.go:449` produces OS-native path separators (backslash on Windows) when constructing paths for `embed.FS` lookups. `embed.FS` requires forward slashes on all platforms.
+- **Fix**: Replace `filepath.Join` with `path.Join` (from the `path` package, not `path/filepath`) wherever the result is used as an `embed.FS` path. OS-native path construction (for real filesystem writes) should continue using `filepath.Join`.
+- **Secondary issue**: The post-init script is run via `exec.Command(tmpFile.Name())` where `tmpFile` is a `.sh` file. Windows cannot execute shell scripts directly; the fix should detect available shells or skip gracefully.
+- **No external spec dependency needed** — all required context is within the codebase.

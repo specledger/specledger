@@ -31,6 +31,6 @@
 
 ## Notes
 
-- All items pass. Spec is ready for `/specledger.plan`.
-- FR-003 acknowledges the optional shell detection path (Git Bash / WSL) without prescribing implementation.
-- The Dependencies & Assumptions section documents the two specific root-cause areas found during codebase analysis, keeping the spec grounded.
+- All items pass. Ready for `/specledger.plan`.
+- Root cause confirmed from screenshot: `filepath.Join` used for `embed.FS` lookups produces backslash paths on Windows; `embed.FS` requires forward slashes → manifest not found → playbook name empty → metadata creation fails.
+- Secondary post-init script issue documented as P2 user story.
