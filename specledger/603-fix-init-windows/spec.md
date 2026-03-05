@@ -40,8 +40,8 @@ After fixing the manifest loading, `sl init` may attempt to run the embedded `in
 
 ### Edge Cases (Acceptance Scenarios)
 
-1. **Spaces in temp directory path** (e.g., `C:\Users\My Name\AppData\Local\Temp`): **MUST work.** Go's standard library handles paths with spaces correctly. No special handling required — this is a verification item, not a code change.
-2. **Git Bash terminal vs PowerShell vs Command Prompt**: `sl init` MUST produce the same result regardless of which Windows terminal is used. The core fix (embed.FS paths) is terminal-independent. The post-init script phase follows the FR-006 decision algorithm.
+1. **Given** a Windows machine where the user's temp directory path contains spaces (e.g., `C:\Users\My Name\AppData\Local\Temp`), **When** the user runs `sl init`, **Then** the command completes successfully with exit code 0. *(Go's standard library handles paths with spaces correctly. No special handling required — this is a verification item, not a code change.)*
+2. **Given** a Windows machine with multiple terminals available (Git Bash, PowerShell, Command Prompt), **When** the user runs `sl init` from any of these terminals, **Then** the core init output (created files and directories) is identical across all terminals. *(The core fix — embed.FS paths — is terminal-independent. The post-init script phase follows the FR-006 decision algorithm.)*
 3. **`sl init --force` on an already-initialized project**: **Out of scope** for this fix. Behavior should be identical to current macOS/Linux `--force` behavior once the path fix is applied. If issues arise, they should be tracked as a separate issue.
 
 ## Requirements *(mandatory)*
