@@ -3,7 +3,7 @@
 **Branch**: `602-silent-session-capture` | **Date**: 2026-03-04 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `/specledger/602-silent-session-capture/spec.md`
 
-## Summary (v2)
+## Summary
 
 Create a `/specledger.commit` slash command for auth-aware commit workflow. Fix the existing PostToolUse hook to silently skip when no credentials or no project ID. Add dual error logging (local file + Supabase) when capture fails for authenticated users. The slash command is used by the agent when users ask to commit via chat.
 
