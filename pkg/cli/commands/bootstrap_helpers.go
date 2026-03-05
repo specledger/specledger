@@ -5,8 +5,10 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -445,8 +447,8 @@ func runPostInitScript(projectPath string, projectMetadata *metadata.ProjectMeta
 		return
 	}
 
-	// Path to init.sh in embedded templates
-	initScriptPath := filepath.Join("templates", playbookName, "init.sh")
+	// Path to init.sh in embedded templates (must use forward slashes for embed.FS)
+	initScriptPath := path.Join("templates", playbookName, "init.sh")
 
 	// Check if init.sh exists in embedded templates
 	scriptContent, err := embedded.TemplatesFS.ReadFile(initScriptPath)
@@ -478,9 +480,20 @@ func runPostInitScript(projectPath string, projectMetadata *metadata.ProjectMeta
 		return
 	}
 
-	// Execute the script with environment variables
+	// Execute the script with environment variables.
+	// On Windows, .sh files cannot be run directly — find a Unix shell interpreter.
 	// #nosec G204 -- tmpFile.Name() is from os.CreateTemp, safe path
-	cmd := exec.Command(tmpFile.Name())
+	var cmd *exec.Cmd
+	if runtime.GOOS == "windows" {
+		shell := findWindowsShell()
+		if shell == "" {
+			// No Unix shell available on Windows — skip post-init script gracefully
+			return
+		}
+		cmd = exec.Command(shell, tmpFile.Name()) // #nosec G204
+	} else {
+		cmd = exec.Command(tmpFile.Name())
+	}
 	cmd.Dir = projectPath
 
 	// Set environment variables from specledger.yaml for script use
@@ -501,4 +514,16 @@ func runPostInitScript(projectPath string, projectMetadata *metadata.ProjectMeta
 	} else {
 		fmt.Printf("%s Post-init completed\n", ui.Checkmark())
 	}
+}
+
+// findWindowsShell looks for a Unix shell (bash or sh) on Windows,
+// as shipped by Git for Windows or similar tools.
+// Returns the path to the shell, or empty string if none found.
+func findWindowsShell() string {
+	for _, shell := range []string{"bash", "sh"} {
+		if p, err := exec.LookPath(shell); err == nil {
+			return p
+		}
+	}
+	return ""
 }

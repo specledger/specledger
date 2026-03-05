@@ -149,6 +149,15 @@ func TestBootstrapInitInExistingDirectory(t *testing.T) {
 		t.Errorf("Expected playbook 'specledger' for sl init, got %s", meta.Playbook.Name)
 	}
 
+	// Verify no playbook-related failures in output (regression guard for Windows path bug)
+	outputStr := string(output)
+	if strings.Contains(outputStr, "Playbook copying failed") {
+		t.Errorf("sl init reported playbook failure (embed.FS path bug?): %s", outputStr)
+	}
+	if strings.Contains(outputStr, "playbook name is required") {
+		t.Errorf("sl init failed with metadata error (embed.FS path bug?): %s", outputStr)
+	}
+
 	// Note: .beads directory is no longer created (beads dependency removed)
 	// Issues are now stored per-spec in specledger/<spec>/issues.jsonl
 }

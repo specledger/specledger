@@ -90,8 +90,8 @@ func isTerminal(fd uintptr) bool {
 
 // checkGum checks if gum is installed
 func checkGum() bool {
-	cmd := exec.Command("command", "-v", "gum")
-	return cmd.Run() == nil
+	_, err := exec.LookPath("gum")
+	return err == nil
 }
 
 // InputPrompt prompts for user input

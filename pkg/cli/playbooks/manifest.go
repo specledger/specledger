@@ -2,14 +2,14 @@ package playbooks
 
 import (
 	"fmt"
-	"path/filepath"
+	"path"
 
 	"gopkg.in/yaml.v3"
 )
 
 // LoadManifest loads the playbook manifest from the embedded templates directory.
 func LoadManifest(templatesDir string) (*PlaybookManifest, error) {
-	manifestPath := filepath.Join(templatesDir, "manifest.yaml")
+	manifestPath := path.Join(templatesDir, "manifest.yaml")
 
 	data, err := ReadFile(manifestPath)
 	if err != nil {

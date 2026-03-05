@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -16,7 +17,7 @@ func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) 
 	result := &CopyResult{}
 
 	// Validate source directory exists in embedded FS
-	srcPath := filepath.Join(srcDir, playbook.Path)
+	srcPath := path.Join(srcDir, playbook.Path)
 	if !Exists(srcPath) {
 		return result, fmt.Errorf("playbook path not found in embedded filesystem: %s", playbook.Path)
 	}
@@ -53,19 +54,13 @@ func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) 
 			return nil
 		}
 
-		// Get relative path from source directory
-		relPath, err := filepath.Rel(srcPath, path)
-		if err != nil {
-			result.Errors = append(result.Errors, CopyError{
-				Path:      path,
-				Err:       err,
-				IsWarning: true,
-			})
-			return nil
-		}
+		// Get relative path from source directory.
+		// strings.TrimPrefix is safe here because the HasPrefix guard above
+		// already verified path starts with srcPath+"/".
+		relPath := strings.TrimPrefix(path, srcPath+"/")
 
-		// Skip if relPath starts with ".." (file is outside playbook path)
-		if strings.HasPrefix(relPath, "..") {
+		// Skip if relPath is empty or still looks absolute (safety guard)
+		if relPath == "" || strings.HasPrefix(relPath, "..") {
 			return nil
 		}
 
