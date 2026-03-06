@@ -134,8 +134,8 @@ func runMockup(cmd *cobra.Command, args []string) error {
 
 	// Step 3: Design system check/generate (extracts global CSS/design tokens only)
 	dsPath := filepath.Join(cwd, ".specledger", "memory", "design-system.md")
-	var ds *mockup.DesignSystem
 	dsCreated := false
+	skipGenerate := false
 
 	if _, err := os.Stat(dsPath); os.IsNotExist(err) {
 		fmt.Println("Design system not found.")
@@ -152,19 +152,17 @@ func runMockup(cmd *cobra.Command, args []string) error {
 			}
 			if !generate {
 				fmt.Println("Skipping design system generation.")
-				ds = &mockup.DesignSystem{
-					Version:   1,
-					Framework: framework,
-				}
+				skipGenerate = true
 			}
 		}
-		if ds == nil {
-			// Extract global CSS/design tokens
+		if !skipGenerate {
+			// Extract global CSS/design tokens and app structure
 			styleInfo := mockup.ScanStyles(cwd)
-			ds = &mockup.DesignSystem{
-				Version:   1,
-				Framework: framework,
-				Style:     styleInfo,
+			ds := &mockup.DesignSystem{
+				Version:      1,
+				Framework:    framework,
+				Style:        styleInfo,
+				AppStructure: mockup.ScanAppStructure(cwd, framework),
 			}
 			if err := mockup.WriteDesignSystem(dsPath, ds); err != nil {
 				return fmt.Errorf("Error: Cannot write to .specledger/memory/\n\nCheck file permissions and try again.")
@@ -174,21 +172,21 @@ func runMockup(cmd *cobra.Command, args []string) error {
 			dsCreated = true
 		}
 	} else {
-		loadedDS, err := mockup.LoadDesignSystem(dsPath)
-		if err != nil {
+		_, loadErr := mockup.LoadDesignSystem(dsPath)
+		if loadErr != nil {
 			fmt.Printf("%s Design system is malformed, regenerating...\n", ui.WarningIcon())
 			styleInfo := mockup.ScanStyles(cwd)
-			ds = &mockup.DesignSystem{
-				Version:   1,
-				Framework: framework,
-				Style:     styleInfo,
+			ds := &mockup.DesignSystem{
+				Version:      1,
+				Framework:    framework,
+				Style:        styleInfo,
+				AppStructure: mockup.ScanAppStructure(cwd, framework),
 			}
 			if writeErr := mockup.WriteDesignSystem(dsPath, ds); writeErr != nil {
 				return fmt.Errorf("failed to write design system: %w", writeErr)
 			}
 			dsCreated = true
 		} else {
-			ds = loadedDS
 			fmt.Printf("%s Loaded design system\n", ui.Checkmark())
 		}
 	}
@@ -225,15 +223,7 @@ func runMockup(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Use style from design system (already extracted), or scan fresh if missing
-	var styleInfo *mockup.StyleInfo
-	if ds != nil && ds.Style != nil {
-		styleInfo = ds.Style
-	} else {
-		styleInfo = mockup.ScanStyles(cwd)
-	}
-
-	promptCtx := mockup.BuildMockupPromptContext(specName, specFile, specContent.Title, framework, format, outputPath, ds, styleInfo, mockupPrompt)
+	promptCtx := mockup.BuildMockupPromptContext(specName, specFile, specContent.Title, framework, format, outputPath, mockupPrompt)
 	promptText, err := mockup.RenderMockupPrompt(promptCtx)
 	if err != nil {
 		return fmt.Errorf("failed to render prompt: %w", err)
@@ -410,6 +400,7 @@ func runMockupUpdate(cmd *cobra.Command, args []string) error {
 
 	existing.Framework = framework
 	existing.Style = styleInfo
+	existing.AppStructure = mockup.ScanAppStructure(cwd, framework)
 	if err := mockup.WriteDesignSystem(dsPath, existing); err != nil {
 		return fmt.Errorf("Error: Cannot write to .specledger/memory/\n\nCheck file permissions and try again.")
 	}

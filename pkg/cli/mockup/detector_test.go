@@ -104,3 +104,60 @@ func TestDetectFramework_SvelteKit(t *testing.T) {
 		t.Errorf("expected framework SvelteKit, got %s", result.Framework)
 	}
 }
+
+func TestDetectFramework_Astro(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "astro.config.mjs"), []byte("export default {}"), 0600)
+
+	result, err := DetectFramework(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Framework != FrameworkAstro {
+		t.Errorf("expected framework Astro, got %s", result.Framework)
+	}
+	if result.Confidence != 98 {
+		t.Errorf("expected confidence 98, got %d", result.Confidence)
+	}
+}
+
+func TestDetectFramework_SolidJS(t *testing.T) {
+	dir := t.TempDir()
+	pkgJSON := `{"dependencies":{"solid-js":"^1.8.0"}}`
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkgJSON), 0600)
+
+	result, err := DetectFramework(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Framework != FrameworkSolid {
+		t.Errorf("expected framework Solid, got %s", result.Framework)
+	}
+}
+
+func TestDetectFramework_Qwik(t *testing.T) {
+	dir := t.TempDir()
+	pkgJSON := `{"dependencies":{"@builder.io/qwik":"^1.0.0"}}`
+	_ = os.WriteFile(filepath.Join(dir, "package.json"), []byte(pkgJSON), 0600)
+
+	result, err := DetectFramework(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Framework != FrameworkQwik {
+		t.Errorf("expected framework Qwik, got %s", result.Framework)
+	}
+}
+
+func TestDetectFramework_Remix(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "remix.config.js"), []byte("module.exports = {}"), 0600)
+
+	result, err := DetectFramework(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Framework != FrameworkRemix {
+		t.Errorf("expected framework Remix, got %s", result.Framework)
+	}
+}

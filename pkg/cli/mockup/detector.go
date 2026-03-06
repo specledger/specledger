@@ -25,8 +25,12 @@ var tier1Signals = []configSignal{
 	{"svelte.config.ts", FrameworkSvelteKit, 97},
 	{"nuxt.config.js", FrameworkNuxt, 97},
 	{"nuxt.config.ts", FrameworkNuxt, 97},
-	{"remix.config.js", FrameworkReact, 97},
-	{"remix.config.ts", FrameworkReact, 97},
+	{"remix.config.js", FrameworkRemix, 97},
+	{"remix.config.ts", FrameworkRemix, 97},
+	{"astro.config.mjs", FrameworkAstro, 98},
+	{"astro.config.ts", FrameworkAstro, 98},
+	{"astro.config.js", FrameworkAstro, 98},
+	{"qwik.config.ts", FrameworkQwik, 97},
 }
 
 // depSignal maps a package.json dependency to its framework.
@@ -41,6 +45,10 @@ var tier2Signals = []depSignal{
 	{"@angular/core", FrameworkAngular},
 	{"nuxt", FrameworkNuxt},
 	{"svelte", FrameworkSvelte},
+	{"astro", FrameworkAstro},
+	{"solid-js", FrameworkSolid},
+	{"@builder.io/qwik", FrameworkQwik},
+	{"@remix-run/react", FrameworkRemix},
 	{"react", FrameworkReact},
 	{"react-dom", FrameworkReact},
 	{"vue", FrameworkVue},
@@ -58,6 +66,7 @@ var tier3Signals = []extensionSignal{
 	{".jsx", FrameworkReact},
 	{".vue", FrameworkVue},
 	{".svelte", FrameworkSvelte},
+	{".astro", FrameworkAstro},
 }
 
 // commonComponentDirs are directories commonly containing UI components.

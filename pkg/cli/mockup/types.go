@@ -13,6 +13,10 @@ const (
 	FrameworkSvelte    FrameworkType = "svelte"
 	FrameworkSvelteKit FrameworkType = "sveltekit"
 	FrameworkAngular   FrameworkType = "angular"
+	FrameworkAstro     FrameworkType = "astro"
+	FrameworkSolid     FrameworkType = "solid"
+	FrameworkQwik      FrameworkType = "qwik"
+	FrameworkRemix     FrameworkType = "remix"
 	FrameworkUnknown   FrameworkType = "unknown"
 )
 
@@ -26,6 +30,10 @@ func (f FrameworkType) String() string {
 		FrameworkSvelte:    "Svelte",
 		FrameworkSvelteKit: "SvelteKit",
 		FrameworkAngular:   "Angular",
+		FrameworkAstro:     "Astro",
+		FrameworkSolid:     "SolidJS",
+		FrameworkQwik:      "Qwik",
+		FrameworkRemix:     "Remix",
 		FrameworkUnknown:   "Unknown",
 	}
 	if name, ok := names[f]; ok {
@@ -65,6 +73,15 @@ type DesignSystem struct {
 	LastScanned  time.Time     `yaml:"last_scanned" json:"last_scanned"`
 	ExternalLibs []string      `yaml:"external_libs,omitempty" json:"external_libs,omitempty"`
 	Style        *StyleInfo    `yaml:"style,omitempty" json:"style,omitempty"`
+	AppStructure *AppStructure `yaml:"app_structure,omitempty" json:"app_structure,omitempty"`
+}
+
+// AppStructure describes the project's layout and routing structure.
+type AppStructure struct {
+	Router       string   `yaml:"router,omitempty" json:"router,omitempty"`
+	Layouts      []string `yaml:"layouts,omitempty" json:"layouts,omitempty"`
+	Components   []string `yaml:"components,omitempty" json:"components,omitempty"`
+	GlobalStyles []string `yaml:"global_styles,omitempty" json:"global_styles,omitempty"`
 }
 
 // SpecContent is parsed content from a spec.md file.
@@ -77,28 +94,25 @@ type SpecContent struct {
 
 // StyleInfo describes the project's CSS/styling patterns.
 type StyleInfo struct {
-	CSSFramework    string            `json:"css_framework"`
-	Preprocessor    string            `json:"preprocessor,omitempty"`
-	StylingApproach string            `json:"styling_approach"`
-	ThemeColors     map[string]string `json:"theme_colors,omitempty"`
-	FontFamilies    []string          `json:"font_families,omitempty"`
-	CSSVariables    []string          `json:"css_variables,omitempty"`
-	SampleImports   []string          `json:"sample_imports,omitempty"`
+	CSSFramework    string            `yaml:"css_framework" json:"css_framework"`
+	Preprocessor    string            `yaml:"preprocessor,omitempty" json:"preprocessor,omitempty"`
+	StylingApproach string            `yaml:"styling_approach" json:"styling_approach"`
+	ThemeColors     map[string]string `yaml:"theme_colors,omitempty" json:"theme_colors,omitempty"`
+	FontFamilies    []string          `yaml:"font_families,omitempty" json:"font_families,omitempty"`
+	CSSVariables    []string          `yaml:"css_variables,omitempty" json:"css_variables,omitempty"`
+	SampleImports   []string          `yaml:"sample_imports,omitempty" json:"sample_imports,omitempty"`
+	ComponentLibs   []string          `yaml:"component_libs,omitempty" json:"component_libs,omitempty"`
 }
 
 // MockupPromptContext is the template rendering context for the AI agent prompt.
 type MockupPromptContext struct {
-	SpecName        string        `json:"spec_name"`
-	SpecPath        string        `json:"spec_path"`
-	SpecTitle       string        `json:"spec_title"`
-	Framework       FrameworkType `json:"framework"`
-	Format          MockupFormat  `json:"format"`
-	OutputPath      string        `json:"output_path"`
-	ExternalLibs    []string      `json:"external_libs,omitempty"`
-	HasDesignSystem bool          `json:"has_design_system"`
-	Style           *StyleInfo    `json:"style,omitempty"`
-	HasStyle        bool          `json:"has_style"`
-	UserPrompt      string        `json:"user_prompt,omitempty"`
+	SpecName   string        `json:"spec_name"`
+	SpecPath   string        `json:"spec_path"`
+	SpecTitle  string        `json:"spec_title"`
+	Framework  FrameworkType `json:"framework"`
+	Format     MockupFormat  `json:"format"`
+	OutputPath string        `json:"output_path"`
+	UserPrompt string        `json:"user_prompt,omitempty"`
 }
 
 // MockupResult is the JSON output for --json mode.

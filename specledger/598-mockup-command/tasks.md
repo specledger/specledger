@@ -67,8 +67,10 @@ Epic: SL-675f7d (Mockup Command)
 │
 ├── Phase 3: Domain Logic (SL-e6485b) ─ Detector, style scanner, design system, spec parser
 │   ├── T003: Implement frontend framework detector
-│   ├── T004: Implement CSS token extraction (stylescan.go)
-│   │         (Extract colors, fonts, CSS variables — NO component scanning)
+│   ├── T004: Implement CSS token extraction + component lib detection (stylescan.go)
+│   │         (Extract colors, fonts, CSS variables, Tailwind v4, component libs)
+│   ├── T004b: Implement app structure scanner (appscan.go)
+│   │          (Layout files, component dirs, global styles — framework-aware)
 │   ├── T005: Implement design system file I/O with YAML frontmatter
 │   └── T006: Implement spec parser (specparser.go)
 │             (Parse spec.md into SpecContent: title, user stories, requirements)
@@ -127,6 +129,8 @@ T001 (types) ──┬──→ T003 (detector) ──→ T011 (auto detection)
                │                                │
                ├──→ T004 (style scanner) ───────┤
                │         │                      │
+               ├──→ T004b (app scanner) ────────┤
+               │         │                      │
                │         └──→ T012 (design system flow)
                │                       │
                ├──→ T005 (designsystem)┼──→ T016 (update handler)
@@ -157,7 +161,7 @@ T018 + T019                    ──→ T020 (all tests)
 
 **Within Phase 1 (Shared Infra)**: T000 and T000b can run in parallel. T000c depends on both.
 
-**Phase 2 + Phase 3**: After T001 completes, T003, T004, T005, T006 can run in parallel. T002 (cmd skeleton) can run in parallel with domain logic.
+**Phase 2 + Phase 3**: After T001 completes, T003, T004, T004b, T005, T006 can run in parallel. T002 (cmd skeleton) can run in parallel with domain logic.
 
 **Phase 4**: T007 (template) can start as soon as types are defined. T008 depends on T006 + T007.
 
@@ -177,11 +181,12 @@ T018 + T019                    ──→ T020 (all tests)
 | T001     | types.go with FrameworkType, DesignSystem, StyleInfo, MockupPromptContext, SpecContent; compiles |
 | T002     | mockup.go with VarMockupCmd, all flags (--format, --force, --dry-run, --summary, --json), registered in main.go |
 | T003     | 3-tier detection, all frameworks, IsFrontend=false for non-frontend |
-| T004     | CSS token extraction: colors, fonts, CSS variables; excluded dirs skipped |
+| T004     | CSS token extraction: colors, fonts, CSS variables, Tailwind v4, component libs; excluded dirs skipped |
+| T004b    | App structure scanner: layouts, components (max 50), global styles (max 30); framework-aware (Next.js App/Pages Router, SvelteKit, Nuxt, etc.) |
 | T005     | Load/Write design system with YAML frontmatter; edge case handling |
 | T006     | ParseSpec extracts title, user stories, requirements; error on empty; SpecContent populated |
 | T007     | prompt.tmpl with agent instructions template; embedded in binary |
-| T008     | BuildMockupPrompt assembles context and renders template; prompt string output |
+| T008     | BuildMockupPrompt assembles context (no style data — agent reads design-system.md) and renders template |
 | T009     | Tests verify prompt output for various contexts |
 | T010     | Spec resolved from arg, branch, or picker; correct error for missing spec |
 | T011     | Framework auto-detected and displayed with lipgloss (no confirmation), --force bypasses |
