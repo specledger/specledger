@@ -17,11 +17,13 @@
 - `strings.ReplaceAll(path, "\\", "/")`: treats symptom; fragile if called repeatedly
 - OS-specific code branches with `runtime.GOOS`: more code to maintain; `path.Join` already solves it
 
-## Decision: `exec.LookPath` for tool detection
+## Decision: Remove `gum` dependency, use `huh` library
 
-**Decision**: Replace `exec.Command("command", "-v", "gum")` with `exec.LookPath("gum")`.
+**Decision**: Remove all `gum` (external CLI binary) usage. The project already uses `charmbracelet/huh` (Go library) for interactive prompts in `bootstrap_init.go` and `revise.go`. The `gum`-related code was dead:
+- `pkg/cli/dependencies/` package was never imported — deleted entirely.
+- `tui/terminal.go` had `checkGum()`/`IsGumAvailable()` that were never called — removed.
 
-**Rationale**: `command` is a bash/sh built-in, not an executable in PATH. On Windows, `exec.Command("command", ...)` returns "executable file not found in %PATH%". `exec.LookPath` is the idiomatic Go way to check for tool availability — it searches PATH using OS-appropriate rules and works on all platforms.
+**Rationale**: `huh` is an embedded Go library providing the same Charmbracelet interactive prompts as `gum`, without requiring users to install an external binary. The codebase had already migrated to `huh` for actual prompt usage; the `gum` references were leftover dead code.
 
 ## Decision: Windows shell detection for `runPostInitScript`
 
@@ -40,8 +42,9 @@ embed.FS path bug (use path.Join):
   pkg/cli/playbooks/copy.go:57              ← filepath.Rel → strings.TrimPrefix
   pkg/cli/commands/bootstrap_helpers.go:449 ← init.sh path for ReadFile
 
-Tool detection (use exec.LookPath):
-  pkg/cli/tui/terminal.go:93                ← checkGum()
+Dead gum code (removed):
+  pkg/cli/dependencies/registry.go          ← entire package deleted (never imported)
+  pkg/cli/tui/terminal.go                   ← removed checkGum(), IsGumAvailable(), gumAvailable field
 
 Windows shell execution:
   pkg/cli/commands/bootstrap_helpers.go:483 ← exec.Command on .sh file
