@@ -219,19 +219,18 @@ grep -r "^import \|^from " [MODULE_PATH] | sort -u
 
 ## Troubleshooting
 
-**If audit cache is stale**:
-```bash
-rm scripts/audit-quick.json scripts/audit-cache.json
-```
-
-And re-run the detection commands.
-
-**If no project structure detected**:
-- Verify you're in the project root directory
-- Check for hidden config files (e.g., `.github/workflows/`)
-- Look for `README.md` for project setup instructions
-
-**If dependency graph is incomplete**:
-- Some imports may be dynamically loaded
-- Check for reflection-based dependency injection
-- Look for configuration files that specify module relationships
++**If audit cache is stale**:
++```bash
++rm scripts/audit-quick.json scripts/audit-cache.json
++```
++And re-run the detection commands.
++
++**If no project structure detected**:
++- Verify you're in the project root directory
++- Check for hidden config files (e.g., `.github/workflows/`)
++- Look for `README.md` for project setup instructions
++
++**If dependency graph is incomplete**:
++- Some imports may be dynamically loaded
++- Check for reflection-based dependency injection
++- Look for configuration files that specify module relationships
