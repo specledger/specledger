@@ -2,7 +2,7 @@ package playbooks
 
 import (
 	"fmt"
-	"path/filepath"
+	"path"
 )
 
 // EmbeddedSource implements PlaybookSource for playbooks stored in the embedded filesystem.
@@ -87,14 +87,14 @@ func (s *EmbeddedSource) GetDefaultPlaybook() (*Playbook, error) {
 // ValidatePlaybooks checks that the templates directory exists and contains required files.
 func (s *EmbeddedSource) ValidatePlaybooks() error {
 	// Check manifest exists in embedded FS
-	manifestPath := filepath.Join(s.templatesDir, "manifest.yaml")
+	manifestPath := path.Join(s.templatesDir, "manifest.yaml")
 	if !Exists(manifestPath) {
 		return fmt.Errorf("manifest file not found: %s", manifestPath)
 	}
 
 	// Validate each playbook's path exists in embedded FS
 	for _, pb := range s.manifest.Playbooks {
-		playbookPath := filepath.Join(s.templatesDir, pb.Path)
+		playbookPath := path.Join(s.templatesDir, pb.Path)
 		if !Exists(playbookPath) {
 			return fmt.Errorf("playbook path not found in embedded filesystem: %s", playbookPath)
 		}
