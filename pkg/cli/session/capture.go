@@ -1,3 +1,4 @@
+// Package session handles session capture for specledger hooks (v2, inline capture).
 package session
 
 import (
@@ -208,46 +209,76 @@ func persistProjectID(workdir string, projectID string) error {
 	return nil
 }
 
-// Capture orchestrates the session capture flow
+// Capture orchestrates the session capture flow.
+// Implements graceful degradation: captures metadata even without transcript.
 // Implements graceful degradation: captures metadata even without transcript
 func Capture(input *HookInput) *CaptureResult {
 	result := &CaptureResult{Captured: false}
 
+	// Debug: log capture flow
+	debugLog := filepath.Join(os.TempDir(), "sl-capture-debug.log")
+	debugF, _ := os.OpenFile(debugLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	debugWrite := func(msg string) {
+		if debugF != nil {
+			fmt.Fprintf(debugF, "[%s] %s\n", time.Now().Format(time.RFC3339), msg)
+		}
+	}
+	defer func() {
+		if debugF != nil {
+			debugF.Close()
+		}
+	}()
+
+	debugWrite(fmt.Sprintf("Capture called, tool_input=%q, cwd=%q", input.ToolInput.Command(), input.Cwd))
+
 	// Check if this is a git commit
 	if !IsGitCommit(input.ToolInput.Command()) {
+		debugWrite("skip: not a git commit")
 		return result // Not a commit, nothing to capture
 	}
 
 	// Verify the tool succeeded
 	if !input.ToolSuccess() {
+		debugWrite("skip: tool not successful")
 		return result // Commit failed, nothing to capture
 	}
+
+	debugWrite("git commit detected, checking auth...")
+
+	// === Auth check first: skip silently if not authenticated ===
+	creds, err := auth.LoadCredentials()
+	if err != nil || creds == nil {
+		debugWrite(fmt.Sprintf("skip: no creds (err=%v, creds=%v)", err, creds))
+		return result // No credentials, silently skip
+	}
+
+	debugWrite(fmt.Sprintf("auth OK, user=%s", creds.UserEmail))
 
 	// === Core metadata (always available from git) ===
 
 	// Get commit hash
 	commitHash, err := GetCurrentCommitHash(input.Cwd)
 	if err != nil {
+		debugWrite(fmt.Sprintf("error: commit hash failed: %v", err))
 		result.Error = err
 		return result
 	}
+	debugWrite(fmt.Sprintf("commit=%s", commitHash))
 
 	// Get branch name
 	branch, err := GetCurrentBranch(input.Cwd)
 	if err != nil {
+		debugWrite(fmt.Sprintf("error: branch failed: %v", err))
 		result.Error = err
 		return result
 	}
+	debugWrite(fmt.Sprintf("branch=%s", branch))
 
 	// Get project ID (with fallback to git remote lookup and auto-persist)
 	projectID, err := GetProjectIDWithFallback(input.Cwd)
 	if err != nil {
-		// Give clear guidance on how to fix
-		fmt.Fprintf(os.Stderr, "⚠️  Session capture skipped: %v\n", err)
-		fmt.Fprintf(os.Stderr, "    To enable session capture, ensure specledger.yaml has project.id set.\n")
-		fmt.Fprintf(os.Stderr, "    Run 'sl init' or add manually: project:\\n  id: <your-project-id>\n")
-		result.Error = err
-		return result
+		debugWrite(fmt.Sprintf("skip: no project ID (err=%v)", err))
+		return result // No project ID, silently skip
 	}
 
 	// === Transcript (nice-to-have, graceful degradation) ===
@@ -268,28 +299,23 @@ func Capture(input *HookInput) *CaptureResult {
 		if _, err := os.Stat(transcriptPath); err == nil {
 			input.TranscriptPath = transcriptPath
 
-			// Get last offset for this session
-			offsetInfo, err := GetSessionOffset(input.SessionID)
+			// Get last offset for this session (0 if first capture)
+			var lastOffset int64
+			if offsetInfo, err := GetSessionOffset(input.SessionID); err == nil {
+				lastOffset = offsetInfo.LastOffset
+			}
+
+			// Compute delta from last offset (or full transcript if first capture)
+			msgs, offset, err := ComputeDelta(transcriptPath, lastOffset)
 			if err == nil {
-				// Compute delta
-				msgs, offset, err := ComputeDelta(transcriptPath, offsetInfo.LastOffset)
-				if err == nil {
-					messages = msgs
-					newOffset = offset
-				}
+				messages = msgs
+				newOffset = offset
 			}
 		}
 	}
 
 	// Even without transcript messages, we still capture metadata
 	// A session record with commit linkage is valuable
-
-	// Get credentials
-	creds, err := auth.LoadCredentials()
-	if err != nil || creds == nil {
-		result.Error = fmt.Errorf("not authenticated: run 'sl auth login'")
-		return result
-	}
 
 	// Build session content
 	sessionID := uuid.New().String()
@@ -332,7 +358,15 @@ func Capture(input *HookInput) *CaptureResult {
 	// Try to get valid access token
 	accessToken, err := auth.GetValidAccessToken()
 	if err != nil {
-		// Queue for later upload
+		// Queue for later upload + log error
+		LogCaptureError(CaptureErrorEntry{
+			UserID:        creds.UserID,
+			ProjectID:     projectID,
+			SessionID:     sessionID,
+			ErrorMessage:  fmt.Sprintf("token refresh failed: %v", err),
+			FeatureBranch: branch,
+			CommitHash:    commitHash,
+		})
 		return queueSession(result, compressed, projectID, branch, &commitHash, nil, creds.UserID)
 	}
 
@@ -340,7 +374,15 @@ func Capture(input *HookInput) *CaptureResult {
 	storage := NewStorageClient()
 	_, err = storage.Upload(accessToken, result.StoragePath, compressed)
 	if err != nil {
-		// Queue for later upload
+		// Queue for later upload + log error
+		LogCaptureError(CaptureErrorEntry{
+			UserID:        creds.UserID,
+			ProjectID:     projectID,
+			SessionID:     sessionID,
+			ErrorMessage:  fmt.Sprintf("storage upload failed: %v", err),
+			FeatureBranch: branch,
+			CommitHash:    commitHash,
+		})
 		return queueSession(result, compressed, projectID, branch, &commitHash, nil, creds.UserID)
 	}
 
@@ -359,7 +401,15 @@ func Capture(input *HookInput) *CaptureResult {
 		MessageCount:  result.MessageCount,
 	})
 	if err != nil {
-		// Storage upload succeeded but metadata failed - still queue
+		// Storage upload succeeded but metadata failed - still queue + log error
+		LogCaptureError(CaptureErrorEntry{
+			UserID:        creds.UserID,
+			ProjectID:     projectID,
+			SessionID:     sessionID,
+			ErrorMessage:  fmt.Sprintf("metadata creation failed: %v", err),
+			FeatureBranch: branch,
+			CommitHash:    commitHash,
+		})
 		return queueSession(result, compressed, projectID, branch, &commitHash, nil, creds.UserID)
 	}
 
@@ -400,6 +450,13 @@ func queueSession(result *CaptureResult, compressed []byte, projectID, branch st
 
 // CaptureFromStdin reads hook input from stdin and captures the session
 func CaptureFromStdin() *CaptureResult {
+	// Debug: log that capture was invoked
+	debugLog := filepath.Join(os.TempDir(), "sl-capture-debug.log")
+	if f, err := os.OpenFile(debugLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+		fmt.Fprintf(f, "[%s] CaptureFromStdin invoked\n", time.Now().Format(time.RFC3339))
+		f.Close()
+	}
+
 	// Check if stdin is available (not a terminal)
 	stat, err := os.Stdin.Stat()
 	if err != nil {
@@ -434,6 +491,13 @@ func CaptureFromStdin() *CaptureResult {
 
 		if len(result.data) == 0 {
 			return &CaptureResult{Error: fmt.Errorf("no data received from stdin")}
+		}
+
+		// Debug: log raw input
+		rawLog := filepath.Join(os.TempDir(), "sl-capture-raw.log")
+		if f, err := os.OpenFile(rawLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644); err == nil {
+			fmt.Fprintf(f, "[%s] raw_input=%s\n", time.Now().Format(time.RFC3339), string(result.data))
+			f.Close()
 		}
 
 		// Parse hook input

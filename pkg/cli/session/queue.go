@@ -351,7 +351,22 @@ func (q *Queue) ProcessQueue(accessToken string) (uploaded int, failed int, skip
 		_, err = storage.Upload(accessToken, storagePath, data)
 		if err != nil {
 			_ = q.UpdateRetryCount(ref.ProjectID, ref.SpecKey, ref.Identifier)
-			errors = append(errors, fmt.Errorf("failed to upload session %s: %w", ref.Identifier, err))
+			uploadErr := fmt.Errorf("failed to upload session %s: %w", ref.Identifier, err)
+			errors = append(errors, uploadErr)
+			// Log retry failure to both local and Supabase
+			commitHash := ""
+			if entry.CommitHash != nil {
+				commitHash = *entry.CommitHash
+			}
+			LogCaptureError(CaptureErrorEntry{
+				UserID:        entry.AuthorID,
+				ProjectID:     entry.ProjectID,
+				SessionID:     entry.SessionID,
+				ErrorMessage:  fmt.Sprintf("queue retry upload failed: %v", err),
+				FeatureBranch: entry.FeatureBranch,
+				CommitHash:    commitHash,
+				RetryCount:    entry.RetryCount + 1,
+			})
 			failed++
 			continue
 		}
@@ -371,7 +386,22 @@ func (q *Queue) ProcessQueue(accessToken string) (uploaded int, failed int, skip
 		})
 		if err != nil {
 			_ = q.UpdateRetryCount(ref.ProjectID, ref.SpecKey, ref.Identifier)
-			errors = append(errors, fmt.Errorf("failed to create metadata for session %s: %w", ref.Identifier, err))
+			metaErr := fmt.Errorf("failed to create metadata for session %s: %w", ref.Identifier, err)
+			errors = append(errors, metaErr)
+			// Log retry failure to both local and Supabase
+			commitHash := ""
+			if entry.CommitHash != nil {
+				commitHash = *entry.CommitHash
+			}
+			LogCaptureError(CaptureErrorEntry{
+				UserID:        entry.AuthorID,
+				ProjectID:     entry.ProjectID,
+				SessionID:     entry.SessionID,
+				ErrorMessage:  fmt.Sprintf("queue retry metadata failed: %v", err),
+				FeatureBranch: entry.FeatureBranch,
+				CommitHash:    commitHash,
+				RetryCount:    entry.RetryCount + 1,
+			})
 			failed++
 			continue
 		}
