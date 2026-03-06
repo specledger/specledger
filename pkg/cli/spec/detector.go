@@ -1,6 +1,7 @@
 package spec
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -224,7 +225,7 @@ func buildDetectionError(currentBranch string, repoRoot string) error {
 		msg.WriteString("No features available. Create one with: sl spec create")
 	}
 
-	return fmt.Errorf(msg.String())
+	return errors.New(msg.String())
 }
 
 func ListAvailableFeatures(repoRoot string) []string {
