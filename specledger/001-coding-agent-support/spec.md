@@ -17,10 +17,11 @@ As a developer, I want to launch my preferred AI coding agent from the command l
 
 **Acceptance Scenarios**:
 
-1. **Given** a project with agent configuration, **When** I run `sl code`, **Then** the configured agent launches in the project directory
+1. **Given** a project with agent configuration, **When** I run `sl code`, **Then** the configured default agent launches in the project directory
 2. **Given** a project without agent configuration, **When** I run `sl code`, **Then** the default agent (Claude Code) launches with default settings
-3. **Given** a project with `agent.skip-permissions=true`, **When** I run `sl code`, **Then** the agent launches with `--dangerously-skip-permissions` flag
-4. **Given** global config specifies agent.model=opus, **When** I run `sl code`, **Then** the agent launches with the correct model environment variable
+3. **Given** I want to launch a specific agent, **When** I run `sl code opencode`, **Then** OpenCode launches instead of the default
+4. **Given** a project with `agent.arguments="--dangerously-skip-permissions"`, **When** I run `sl code`, **Then** the agent launches with those arguments passed directly
+5. **Given** global config specifies agent.model=opus, **When** I run `sl code`, **Then** the agent launches with the correct model environment variable
 
 ---
 
@@ -37,7 +38,7 @@ As a developer, I want to configure coding agent settings (model, flags, environ
 1. **Given** I want to set a global default agent, **When** I run `sl config set --global agent.default claude`, **Then** the global config stores this preference
 2. **Given** I want to set project-specific agent settings, **When** I run `sl config set agent.model sonnet`, **Then** the project-level config stores this preference
 3. **Given** both global and project config exist, **When** I run `sl code`, **Then** project settings override global settings
-4. **Given** I want to configure launch flags, **When** I run `sl config set agent.skip-permissions true`, **Then** the setting is stored and applied during launch
+4. **Given** I want to pass custom arguments to the agent, **When** I run `sl config set agent.arguments "--dangerously-skip-permissions --verbose"`, **Then** those arguments are passed directly to the agent on launch
 
 ---
 
@@ -54,7 +55,7 @@ As a developer setting up a new project, I want to select multiple coding agents
 1. **Given** I am creating a new project, **When** I reach the agent selection step, **Then** I can select multiple agents (not just one)
 2. **Given** I select Claude Code and OpenCode, **When** project setup completes, **Then** both `.claude/` and `.opencode/` directories are created
 3. **Given** I select multiple agents, **When** project setup completes, **Then** symlink structure is created for shared commands/skills
-4. **Given** I have multiple agents configured, **When** I run `sl code --agent opencode`, **Then** OpenCode launches instead of the default
+4. **Given** I have multiple agents configured, **When** I run `sl code opencode`, **Then** OpenCode launches instead of the default
 
 ---
 
@@ -75,19 +76,19 @@ As a developer using multiple coding agents, I want commands and skills to be sh
 
 ---
 
-### User Story 5 - Agent-Specific Launch Arguments (Priority: P3)
+### User Story 5 - Pass Custom Arguments to Agents (Priority: P3)
 
-As a developer using different coding agents, I want each agent to receive its specific launch arguments correctly so that features like permission-skipping work as expected for each agent.
+As a developer, I want to pass arbitrary arguments to my coding agent via `agent.arguments` config so that I can customize agent behavior without needing individual config keys for each flag.
 
-**Why this priority**: Agent-specific argument handling is important for compatibility but can be refined after core functionality is working.
+**Why this priority**: Generic argument passing provides flexibility but can be refined after core functionality is working.
 
-**Independent Test**: Can be fully tested by launching different agents and verifying correct arguments are passed.
+**Independent Test**: Can be fully tested by setting `agent.arguments` and verifying the arguments are passed to the launched agent.
 
 **Acceptance Scenarios**:
 
-1. **Given** Claude Code is configured with skip-permissions, **When** I run `sl code`, **Then** `--dangerously-skip-permissions` is passed
-2. **Given** OpenCode has different argument syntax, **When** I run `sl code --agent opencode`, **Then** the correct OpenCode-specific arguments are used
-3. **Given** Codex requires different model specification, **When** I run `sl code --agent codex`, **Then** the model is specified in Codex's format
+1. **Given** I set `agent.arguments="--dangerously-skip-permissions"`, **When** I run `sl code`, **Then** Claude launches with that flag
+2. **Given** I set `agent.arguments="--model gpt-4"`, **When** I run `sl code codex`, **Then** Codex receives the model flag
+3. **Given** I set `agent.arguments` with multiple flags, **When** I run `sl code`, **Then** all arguments are passed as-is to the agent
 4. **Given** an agent is configured with custom env vars, **When** I run `sl code`, **Then** those env vars are injected into the agent process
 
 ---
@@ -104,23 +105,23 @@ As a developer using different coding agents, I want each agent to receive its s
 
 ### Functional Requirements
 
-- **FR-001**: System MUST provide an `sl code` command to launch the configured coding agent
+- **FR-001**: System MUST provide an `sl code [<agent>]` command to launch a coding agent (optional positional argument for agent selection)
 - **FR-002**: System MUST support at minimum the following agents: Claude Code, OpenCode, Codex
 - **FR-003**: System MUST allow agent configuration via `sl config set` at global and project levels
-- **FR-004**: System MUST support agent-specific launch arguments (e.g., `--dangerously-skip-permissions` for Claude)
+- **FR-004**: System MUST support `agent.arguments` config key for passing arbitrary arguments directly to the agent
 - **FR-005**: System MUST allow selection of multiple agents during `sl new` and `sl init`
 - **FR-006**: System MUST create symlink structure from `.agent/commands` and `.agent/skills` to each agent's config directory
-- **FR-007**: System MUST support `--agent` flag on `sl code` to override the default agent
+- **FR-007**: System MUST use `agent.default` config key to determine which agent to launch when no positional argument is provided
 - **FR-008**: System MUST merge configuration from global and project levels with project taking precedence
 - **FR-009**: System MUST pass environment variables from config to the launched agent process
 - **FR-010**: System MUST detect and report when a selected agent is not installed
 - **FR-011**: System MUST provide install instructions when a selected agent is unavailable
-- **FR-012**: System MUST support new config keys: `agent.default`, `agent.<name>.args`, `agent.<name>.env`
+- **FR-012**: System MUST support new config keys: `agent.default`, `agent.arguments`, `agent.env`
 
 ### Key Entities
 
-- **Agent Definition**: Represents a coding agent with its name, CLI command, supported arguments, and install instructions
-- **Agent Configuration**: User preferences for an agent including model, permission settings, and custom environment variables
+- **Agent Definition**: Represents a coding agent with its name, CLI command, and install instructions
+- **Agent Configuration**: User preferences including default agent, custom arguments string, and environment variables
 - **Launch Profile**: A combination of agent selection and configuration settings used to launch an agent
 - **Shared Configuration Directory**: The `.agent/` directory containing shared commands and skills symlinked to agent-specific directories
 
@@ -128,9 +129,9 @@ As a developer using different coding agents, I want each agent to receive its s
 
 ### Measurable Outcomes
 
-- **SC-001**: Users can launch any supported coding agent in under 2 seconds using `sl code`
+- **SC-001**: Users can launch any supported coding agent in under 2 seconds using `sl code` or `sl code <agent>`
 - **SC-002**: Configuration changes via `sl config` are reflected in agent launch within 1 command execution
-- **SC-003**: 100% of supported agents receive their correct, agent-specific launch arguments
+- **SC-003**: 100% of arguments in `agent.arguments` are passed directly to the launched agent
 - **SC-004**: Users can set up a project with 3+ agents in a single `sl new` or `sl init` session
 - **SC-005**: Symlink-based sharing works across all supported platforms (macOS, Linux)
 - **SC-006**: Users receive clear error messages and install instructions when an agent is unavailable
