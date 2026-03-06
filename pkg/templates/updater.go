@@ -44,8 +44,8 @@ func UpdateTemplates(projectDir, cliVersion string) (*TemplateUpdateResult, erro
 	// Track all embedded file paths for stale detection
 	embeddedPaths := make(map[string]bool)
 
-	// Walk the embedded skills FS and copy files
-	err := fs.WalkDir(embedded.SkillsFS, "skills", func(path string, d fs.DirEntry, err error) error {
+	// Walk the embedded templates FS and copy files
+	err := fs.WalkDir(embedded.TemplatesFS, "templates", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -55,12 +55,14 @@ func UpdateTemplates(projectDir, cliVersion string) (*TemplateUpdateResult, erro
 			return nil
 		}
 
-		// Get relative path within skills directory
-		relPath := strings.TrimPrefix(path, "skills/")
+		// Get relative path within templates/specledger directory
+		// The embedded templates are in templates/specledger/, so we strip that prefix
+		// to get paths like .claude/commands/specledger.specify.md
+		relPath := strings.TrimPrefix(path, "templates/specledger/")
 		embeddedPaths[relPath] = true
 
-		// Target path in project
-		targetPath := filepath.Join(claudeDir, relPath)
+		// Target path in project (relPath already includes .claude/ prefix)
+		targetPath := filepath.Join(projectDir, relPath)
 
 		// Check if file exists (for tracking overwritten files)
 		fileExists := false
@@ -76,7 +78,7 @@ func UpdateTemplates(projectDir, cliVersion string) (*TemplateUpdateResult, erro
 		}
 
 		// Read embedded file
-		content, err := embedded.SkillsFS.ReadFile(path)
+		content, err := embedded.TemplatesFS.ReadFile(path)
 		if err != nil {
 			result.Errors = append(result.Errors, fmt.Errorf("failed to read embedded %s: %w", relPath, err))
 			return nil
