@@ -29,15 +29,6 @@ type LockfileEntry struct {
 	FetchedAt     string `json:"fetched_at"`
 }
 
-// NewLockfile creates a new lockfile
-func NewLockfile(version string) *Lockfile {
-	return &Lockfile{
-		Version:   version,
-		Entries:   make([]LockfileEntry, 0),
-		Timestamp: time.Now(),
-	}
-}
-
 // CalculateSHA256 calculates the SHA-256 hash of the lockfile content
 func (l *Lockfile) CalculateSHA256() (string, error) {
 	data, err := json.Marshal(l)
@@ -47,12 +38,6 @@ func (l *Lockfile) CalculateSHA256() (string, error) {
 
 	hash := sha256.Sum256(data)
 	return hex.EncodeToString(hash[:]), nil
-}
-
-// CalculateSHA256FromBytes calculates SHA-256 hash of byte data
-func CalculateSHA256FromBytes(data []byte) string {
-	hash := sha256.Sum256(data)
-	return hex.EncodeToString(hash[:])
 }
 
 // Verify verifies that the lockfile content matches the current content
@@ -125,12 +110,6 @@ func ReadLockfile(path string) (*Lockfile, error) {
 	}
 
 	return &lockfile, nil
-}
-
-// AddEntry adds an entry to the lockfile
-func (l *Lockfile) AddEntry(entry LockfileEntry) {
-	l.Entries = append(l.Entries, entry)
-	l.TotalSize += entry.Size
 }
 
 // RemoveEntry removes an entry from the lockfile

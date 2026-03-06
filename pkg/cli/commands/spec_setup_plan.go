@@ -160,7 +160,3 @@ func tryAlternativePlanTemplatePaths() ([]byte, error) {
 - [ ] SC-001: [Success criterion]
 `), nil
 }
-
-func NewSpecSetupPlanCmd() *cobra.Command {
-	return specSetupPlanCmd
-}

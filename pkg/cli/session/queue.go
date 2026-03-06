@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -246,14 +245,7 @@ func (q *Queue) List() ([]QueueRef, error) {
 	return validRefs, nil
 }
 
-// Count returns the number of sessions in the queue
-func (q *Queue) Count() (int, error) {
-	refs, err := q.List()
-	if err != nil {
-		return 0, err
-	}
-	return len(refs), nil
-}
+
 
 // ListEntries returns all queue entries with their metadata
 func (q *Queue) ListEntries() ([]*QueueEntry, error) {
@@ -414,45 +406,3 @@ func (q *Queue) ProcessQueue(accessToken string) (uploaded int, failed int, skip
 	return uploaded, failed, skipped, errors
 }
 
-// GetLocalSession retrieves a session from local storage (not necessarily queued)
-func GetLocalSession(projectID, specKey, identifier string) ([]byte, error) {
-	dataPath := GetSessionPath(projectID, specKey, identifier)
-	return os.ReadFile(dataPath)
-}
-
-// SaveLocalSession saves a session to local storage
-func SaveLocalSession(projectID, specKey, identifier string, data []byte) error {
-	sessionDir := GetSessionDir(projectID, specKey)
-	if err := ensureDir(sessionDir); err != nil {
-		return fmt.Errorf("failed to create session directory: %w", err)
-	}
-
-	dataPath := GetSessionPath(projectID, specKey, identifier)
-	return os.WriteFile(dataPath, data, 0600)
-}
-
-// ListLocalSessions lists all local sessions for a project/branch
-func ListLocalSessions(projectID, specKey string) ([]string, error) {
-	sessionDir := GetSessionDir(projectID, specKey)
-	entries, err := os.ReadDir(sessionDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return []string{}, nil
-		}
-		return nil, err
-	}
-
-	var identifiers []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-		name := entry.Name()
-		if strings.HasSuffix(name, ".json.gz") && !strings.HasSuffix(name, ".meta.json") {
-			identifier := strings.TrimSuffix(name, ".json.gz")
-			identifiers = append(identifiers, identifier)
-		}
-	}
-
-	return identifiers, nil
-}

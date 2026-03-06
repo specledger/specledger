@@ -78,49 +78,6 @@ type DependencyManifest struct {
 	UpdatedAt    time.Time    // When the manifest was last updated
 }
 
-// NewDependencyManifest creates a new dependency manifest
-func NewDependencyManifest(version, id, path string) *DependencyManifest {
-	now := time.Now()
-	return &DependencyManifest{
-		Version:      version,
-		Dependencies: make([]Dependency, 0),
-		ID:           id,
-		Path:         path,
-		CreatedAt:    now,
-		UpdatedAt:    now,
-	}
-}
-
-// AddDependency adds a dependency to the manifest
-func (m *DependencyManifest) AddDependency(dep Dependency) error {
-	if err := dep.Validate(); err != nil {
-		return err
-	}
-
-	// Check for duplicate dependencies
-	for _, d := range m.Dependencies {
-		if d.RepositoryURL == dep.RepositoryURL && d.SpecPath == dep.SpecPath {
-			return fmt.Errorf("duplicate dependency: %s %s", dep.RepositoryURL, dep.SpecPath)
-		}
-	}
-
-	m.Dependencies = append(m.Dependencies, dep)
-	m.UpdatedAt = time.Now()
-	return nil
-}
-
-// RemoveDependency removes a dependency from the manifest
-func (m *DependencyManifest) RemoveDependency(repoURL, specPath string) bool {
-	for i, d := range m.Dependencies {
-		if d.RepositoryURL == repoURL && d.SpecPath == specPath {
-			m.Dependencies = append(m.Dependencies[:i], m.Dependencies[i+1:]...)
-			m.UpdatedAt = time.Now()
-			return true
-		}
-	}
-	return false
-}
-
 // LockfileEntry represents a single resolved dependency entry in the lockfile
 type LockfileEntry struct {
 	RepositoryURL string
@@ -138,21 +95,6 @@ type Lockfile struct {
 	Entries   []LockfileEntry
 	Timestamp time.Time
 	TotalSize int64
-}
-
-// NewLockfile creates a new lockfile
-func NewLockfile(version string) *Lockfile {
-	return &Lockfile{
-		Version:   version,
-		Entries:   make([]LockfileEntry, 0),
-		Timestamp: time.Now(),
-	}
-}
-
-// AddEntry adds an entry to the lockfile
-func (l *Lockfile) AddEntry(entry LockfileEntry) {
-	l.Entries = append(l.Entries, entry)
-	l.TotalSize += entry.Size
 }
 
 // SpecFile represents a specification file

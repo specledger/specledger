@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -180,25 +179,3 @@ func copyFile(src, dst string) error {
 	return os.WriteFile(dst, input, 0644)
 }
 
-// ListVendorSpecs lists all vendored specs
-func ListVendorSpecs(vendorPath string) ([]string, error) {
-	var specs []string
-
-	err := filepath.WalkDir(vendorPath, func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		if !d.IsDir() && d.Name() == "spec.md" {
-			relPath, err := filepath.Rel(vendorPath, path)
-			if err != nil {
-				return err
-			}
-			specs = append(specs, relPath)
-		}
-
-		return nil
-	})
-
-	return specs, err
-}
