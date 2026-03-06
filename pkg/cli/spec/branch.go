@@ -41,7 +41,7 @@ func GenerateBranchName(description string, number int) string {
 	}
 
 	shortName := strings.Join(words, "-")
-	branchName := fmt.Sprintf("%d-%s", number, shortName)
+	branchName := fmt.Sprintf("%03d-%s", number, shortName)
 
 	return TruncateToLimit(branchName, MaxBranchLength)
 }
