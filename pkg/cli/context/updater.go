@@ -91,7 +91,7 @@ func (u *AgentUpdater) writeFile(content string) error {
 	buf.WriteString(content)
 
 	tmpFile := u.FilePath + ".tmp"
-	if err := os.WriteFile(tmpFile, buf.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, buf.Bytes(), 0600); err != nil {
 		return fmt.Errorf("failed to write temp file: %w", err)
 	}
 

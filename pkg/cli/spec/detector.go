@@ -176,7 +176,7 @@ func detectFeatureFromGitHistory(repo *git.Repository, repoRoot string) (string,
 		}
 
 		// Check for changes in specledger/ directories
-		tree.Files().ForEach(func(f *object.File) error {
+		_ = tree.Files().ForEach(func(f *object.File) error {
 			if strings.HasPrefix(f.Name, "specledger/") {
 				// Extract the feature directory name
 				parts := strings.Split(strings.TrimPrefix(f.Name, "specledger/"), "/")

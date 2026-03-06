@@ -8,7 +8,6 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/prerequisites"
 	"github.com/specledger/specledger/pkg/cli/tui"
 	"github.com/specledger/specledger/pkg/cli/ui"
@@ -351,12 +350,6 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 	fmt.Println(check.Instructions)
 
 	return fmt.Errorf("missing required tools")
-}
-
-// showFrameworkInitCommands shows commands to initialize frameworks that need it
-func showFrameworkInitCommands(check prerequisites.PrerequisiteCheck, meta *metadata.ProjectMetadata) {
-	// Framework initialization commands are no longer needed
-	// as we use playbooks instead of frameworks
 }
 
 // hasUncommittedChanges checks if there are uncommitted changes in .claude/ directory

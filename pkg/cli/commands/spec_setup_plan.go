@@ -75,7 +75,7 @@ func runSpecSetupPlan(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to create feature directory: %w", err)
 	}
 
-	if err := os.WriteFile(ctx.PlanFile, templateContent, 0644); err != nil {
+	if err := os.WriteFile(ctx.PlanFile, templateContent, 0600); err != nil {
 		return fmt.Errorf("failed to write plan.md: %w", err)
 	}
 

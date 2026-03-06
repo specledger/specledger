@@ -162,7 +162,7 @@ func GetNextFeatureNum(repoRoot string) (string, error) {
 		matches := featurePattern.FindStringSubmatch(entry.Name())
 		if len(matches) > 1 {
 			var num int
-			fmt.Sscanf(matches[1], "%d", &num)
+			_, _ = fmt.Sscanf(matches[1], "%d", &num)
 			if num > maxNum {
 				maxNum = num
 			}

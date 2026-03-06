@@ -123,7 +123,7 @@ func runSpecCreate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to read spec template: %w", err)
 	}
 
-	if err := os.WriteFile(specFile, templateContent, 0644); err != nil {
+	if err := os.WriteFile(specFile, templateContent, 0600); err != nil {
 		return fmt.Errorf("failed to write spec file: %w", err)
 	}
 
@@ -153,7 +153,7 @@ func runSpecCreate(cmd *cobra.Command, args []string) error {
 
 func parseNumber(s string) int {
 	var num int
-	fmt.Sscanf(s, "%d", &num)
+	_, _ = fmt.Sscanf(s, "%d", &num)
 	return num
 }
 

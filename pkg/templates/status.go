@@ -104,7 +104,7 @@ func checkStructureItem(projectDir, structureItem string, status *TemplateStatus
 
 	if info.IsDir() {
 		// It's a directory - walk and check all files
-		filepath.Walk(itemPath, func(path string, fi os.FileInfo, err error) error {
+		_ = filepath.Walk(itemPath, func(path string, fi os.FileInfo, err error) error {
 			if err != nil || fi.IsDir() {
 				return nil
 			}
