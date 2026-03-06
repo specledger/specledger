@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
+	"github.com/getsentry/sentry-go"
 	"github.com/specledger/specledger/pkg/cli/commands"
 	"github.com/specledger/specledger/pkg/version"
 
@@ -16,6 +18,7 @@ var (
 	buildCommit  = "unknown"
 	buildDate    = "unknown"
 	buildType    = "development"
+	sentryDSN    = "" // Set via -ldflags or SENTRY_DSN env var
 )
 
 func init() {
@@ -60,6 +63,7 @@ func init() {
 	rootCmd.AddCommand(commands.VarSessionCmd)
 	rootCmd.AddCommand(commands.VarIssueCmd)
 	rootCmd.AddCommand(commands.VarReviseCmd)
+	rootCmd.AddCommand(commands.VarMockupCmd)
 	rootCmd.AddCommand(commands.VarConfigCmd)
 	rootCmd.AddCommand(commands.VarSpecCmd)
 	rootCmd.AddCommand(commands.VarContextCmd)
@@ -84,6 +88,19 @@ func init() {
 }
 
 func main() {
+	dsn := sentryDSN
+	if dsn == "" {
+		dsn = os.Getenv("SENTRY_DSN")
+	}
+	if dsn != "" {
+		_ = sentry.Init(sentry.ClientOptions{
+			Dsn:         dsn,
+			Environment: buildType,
+			Release:     buildVersion,
+		})
+		defer sentry.Flush(2 * time.Second)
+	}
+
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}

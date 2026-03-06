@@ -2,7 +2,11 @@ package session
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 func TestIsGitCommit(t *testing.T) {
@@ -201,5 +205,114 @@ func TestParseHookInputInvalid(t *testing.T) {
 	_, err := ParseHookInput([]byte("invalid json"))
 	if err == nil {
 		t.Error("ParseHookInput should fail for invalid JSON")
+	}
+}
+
+// TestCaptureErrorsLogPath verifies the log path is under ~/.specledger/
+func TestCaptureErrorsLogPath(t *testing.T) {
+	path := GetCaptureErrorsLogPath()
+	if !strings.Contains(path, ".specledger") {
+		t.Errorf("GetCaptureErrorsLogPath() = %q, want path containing .specledger", path)
+	}
+	if !strings.HasSuffix(path, CaptureErrorsLogFile) {
+		t.Errorf("GetCaptureErrorsLogPath() = %q, want suffix %q", path, CaptureErrorsLogFile)
+	}
+}
+
+// TestLogCaptureErrorLocalFile verifies LogCaptureError writes JSONL to a local file
+func TestLogCaptureErrorLocalFile(t *testing.T) {
+	// Use a temp directory to avoid polluting the real log
+	tmpDir := t.TempDir()
+	origBaseDir := os.Getenv("HOME")
+
+	// Override HOME so GetBaseDir() uses our temp dir
+	// GetBaseDir falls back to HOME env var
+	t.Setenv("HOME", tmpDir)
+	// Also set USERPROFILE for Windows
+	t.Setenv("USERPROFILE", tmpDir)
+
+	logPath := filepath.Join(tmpDir, ".specledger", CaptureErrorsLogFile)
+
+	entry := CaptureErrorEntry{
+		Timestamp:     time.Now(),
+		UserID:        "test-user-id",
+		ProjectID:     "test-project-id",
+		SessionID:     "test-session-id",
+		ErrorMessage:  "test error message",
+		FeatureBranch: "test-branch",
+		CommitHash:    "abc123",
+		RetryCount:    0,
+	}
+
+	// Write directly to local file (not through LogCaptureError which spawns goroutine)
+	logToLocalFile(entry)
+
+	// Verify file was created and contains the entry
+	data, err := os.ReadFile(logPath)
+	if err != nil {
+		// Try the path GetCaptureErrorsLogPath returns (may differ on Windows)
+		actualPath := GetCaptureErrorsLogPath()
+		data, err = os.ReadFile(actualPath)
+		if err != nil {
+			t.Fatalf("Failed to read log file at %q or %q: %v (HOME was %q)", logPath, actualPath, err, origBaseDir)
+		}
+	}
+
+	content := string(data)
+	if !strings.Contains(content, "test-user-id") {
+		t.Errorf("Log file missing user_id. Content: %s", content)
+	}
+	if !strings.Contains(content, "test error message") {
+		t.Errorf("Log file missing error_message. Content: %s", content)
+	}
+	if !strings.Contains(content, "test-project-id") {
+		t.Errorf("Log file missing project_id. Content: %s", content)
+	}
+
+	// Verify it's valid JSONL (single line, valid JSON)
+	lines := strings.Split(strings.TrimSpace(content), "\n")
+	if len(lines) != 1 {
+		t.Errorf("Expected 1 JSONL line, got %d", len(lines))
+	}
+
+	var parsed CaptureErrorEntry
+	if err := json.Unmarshal([]byte(lines[0]), &parsed); err != nil {
+		t.Errorf("Failed to parse JSONL line as CaptureErrorEntry: %v", err)
+	}
+	if parsed.UserID != "test-user-id" {
+		t.Errorf("Parsed UserID = %q, want %q", parsed.UserID, "test-user-id")
+	}
+}
+
+// TestLogCaptureErrorAppends verifies multiple errors append to the same file
+func TestLogCaptureErrorAppends(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("USERPROFILE", tmpDir)
+
+	entry1 := CaptureErrorEntry{
+		Timestamp:    time.Now(),
+		UserID:       "user-1",
+		ProjectID:    "proj-1",
+		ErrorMessage: "first error",
+	}
+	entry2 := CaptureErrorEntry{
+		Timestamp:    time.Now(),
+		UserID:       "user-2",
+		ProjectID:    "proj-2",
+		ErrorMessage: "second error",
+	}
+
+	logToLocalFile(entry1)
+	logToLocalFile(entry2)
+
+	data, err := os.ReadFile(GetCaptureErrorsLogPath())
+	if err != nil {
+		t.Fatalf("Failed to read log file: %v", err)
+	}
+
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	if len(lines) != 2 {
+		t.Errorf("Expected 2 JSONL lines, got %d", len(lines))
 	}
 }

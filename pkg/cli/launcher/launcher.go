@@ -102,6 +102,18 @@ func (l *AgentLauncher) Launch() error {
 // positional argument. Using a positional arg (not stdin) preserves TTY interactivity.
 // This blocks until the agent process exits.
 func (l *AgentLauncher) LaunchWithPrompt(prompt string) error {
+	return l.LaunchWithPromptAndOptions(prompt, LaunchOptions{})
+}
+
+// LaunchOptions configures agent launch behavior.
+type LaunchOptions struct {
+	SkipPermissions bool   // Add --dangerously-skip-permissions flag
+	Model           string // Set ANTHROPIC_MODEL env var (empty = use default)
+	MaxOutputTokens int    // Set CLAUDE_CODE_MAX_OUTPUT_TOKENS env var (0 = use default)
+}
+
+// LaunchWithPromptAndOptions starts the agent with custom options.
+func (l *AgentLauncher) LaunchWithPromptAndOptions(prompt string, opts LaunchOptions) error {
 	if l.Command == "" {
 		return fmt.Errorf("no agent command configured")
 	}
@@ -115,6 +127,15 @@ func (l *AgentLauncher) LaunchWithPrompt(prompt string) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.Env = l.BuildEnv()
+
+	// Set environment variables for agent
+	cmd.Env = os.Environ()
+	if opts.Model != "" {
+		cmd.Env = append(cmd.Env, "ANTHROPIC_MODEL="+opts.Model)
+	}
+	if opts.MaxOutputTokens > 0 {
+		cmd.Env = append(cmd.Env, fmt.Sprintf("CLAUDE_CODE_MAX_OUTPUT_TOKENS=%d", opts.MaxOutputTokens))
+	}
 
 	return cmd.Run()
 }
