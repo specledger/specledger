@@ -31,7 +31,7 @@ Then run `sl bootstrap` in your project to copy the new `/specledger.commit` com
 3. Stage some changes and run `/specledger.commit`
 4. **Verify**: Commit succeeds, pushed to remote, ZERO warnings on stderr
 
-## Test 4: Upload Failure (error logged to both local + Supabase)
+## Test 4: Upload Failure (error logged locally + sent to Sentry)
 
 1. Ensure credentials + project ID exist
 2. Set Supabase URL to invalid (or disconnect network after commit)
@@ -40,7 +40,7 @@ Then run `sl bootstrap` in your project to copy the new `/specledger.commit` com
    - Commit and push still succeed
    - Session is queued locally
    - Error written to `~/.specledger/capture-errors.log`
-   - Error logged to Supabase `session_capture_errors` table (if reachable)
+   - Error appears in Sentry dashboard (if network reachable)
 
 ## Test 5: PostToolUse Hook Silent Skip
 
@@ -52,13 +52,15 @@ Then run `sl bootstrap` in your project to copy the new `/specledger.commit` com
 
 1. After Test 4, restore network
 2. Run `sl session sync`
-3. **Verify**: Queued sessions uploaded. If retry fails, errors logged to both local + Supabase.
+3. **Verify**: Queued sessions uploaded. If retry fails, error logged locally and sent to Sentry.
 
 ## Check Error Logs
 
 ```bash
 # Local log
 cat ~/.specledger/capture-errors.log
+
+# Sentry — check dashboard for project errors
 
 # Run tests
 make test

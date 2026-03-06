@@ -5,19 +5,37 @@
 
 ## Summary
 
-Create a `/specledger.commit` slash command for auth-aware commit workflow. Fix the existing PostToolUse hook to silently skip when no credentials or no project ID. Add dual error logging (local file + Supabase) when capture fails for authenticated users. The slash command is used by the agent when users ask to commit via chat.
+Create a `/specledger.commit` slash command for auth-aware commit workflow. Fix the existing PostToolUse hook to silently skip when no credentials or no project ID. Add error logging (local file + Sentry) when capture fails for authenticated users. The slash command is used by the agent when users ask to commit via chat.
 
 ## Technical Context
 
 **Language/Version**: Go 1.24.2
-**Primary Dependencies**: Cobra (CLI), Supabase (GoTrue auth, PostgREST, Storage)
-**Storage**: File-based (credentials.json, specledger.yaml, JSONL), Supabase (sessions, errors)
+**Primary Dependencies**: Cobra (CLI), Supabase (GoTrue auth, PostgREST, Storage), Sentry Go SDK (error reporting)
+**Storage**: File-based (credentials.json, specledger.yaml, JSONL)
+**Error Reporting**: Local JSONL log (`~/.specledger/capture-errors.log`) + Sentry (remote aggregation)
 **Testing**: Go standard `testing` package, table-driven tests
 **Target Platform**: Cross-platform CLI (Windows, macOS, Linux)
 **Project Type**: Single project (Go CLI + slash command markdown)
 **Performance Goals**: Silent skip paths complete instantly (single file check). Error logging is non-blocking.
 **Constraints**: Capture/logging never blocks commit or push. Local log always succeeds.
-**Scale/Scope**: 3-4 Go files modified, 1 new Go file, 1 new slash command markdown, 1 new Supabase table
+**Scale/Scope**: 3-4 Go files modified, 1 new Go file, 1 new slash command markdown
+
+## SDD Streamline Alignment (598)
+
+Per the 4-layer model from 598-sdd-workflow-streamline:
+
+| Component | Layer | Pattern | Rationale |
+|-----------|-------|---------|-----------|
+| `sl session capture` | L0 (Hook) | Hook trigger | Runs automatically on PostToolUse, invisible to user |
+| `sl session sync` | L1 (CLI) | Data CRUD | Retries queued sessions, standalone CLI operation |
+| `/specledger.commit` | L2 (AI Command) | Launcher | Orchestrates commit→capture→push, instructs agent |
+| Error logging (local + Sentry) | L1 (CLI) | Data CRUD | Structured error append, no AI needed |
+
+**Constitution constraints satisfied**:
+- Cross-platform: No bash dependency, Go stdlib + Sentry SDK
+- Offline-capable: Local log always works, Sentry is best-effort
+- Layer boundaries: Hook (L0) handles capture, CLI (L1) handles data, Command (L2) handles orchestration
+- No PTY: Slash command is agent-driven, no interactive prompts
 
 ## Constitution Check
 
@@ -26,7 +44,7 @@ Create a `/specledger.commit` slash command for auth-aware commit workflow. Fix 
 - [x] **Code Quality**: golangci-lint, gofmt, go vet
 - [x] **UX Consistency**: Auth decision matrix documented (skip silently / log error)
 - [x] **Performance**: Silent paths return immediately, logging is non-blocking
-- [x] **Observability**: Dual error logging (local + Supabase) is the core deliverable
+- [x] **Observability**: Dual error logging (local + Sentry) is the core deliverable
 - [ ] **Issue Tracking**: Epic to be created in /tasks phase
 
 **Complexity Violations**: None.
@@ -54,7 +72,7 @@ specledger/602-silent-session-capture/
 ```text
 # New files
 pkg/embedded/skills/commands/specledger.commit.md   # Slash command definition
-pkg/cli/session/errorlog.go                          # Error logging (local + Supabase)
+pkg/cli/session/errorlog.go                          # Error logging (local + Sentry)
 
 # Modified files
 pkg/cli/session/capture.go          # Reorder auth check, silent skip, add error logging
@@ -62,7 +80,7 @@ pkg/cli/session/capture_test.go     # Tests for silent skip behavior
 pkg/cli/session/queue.go            # Add error logging on retry failures
 ```
 
-**Structure Decision**: Minimal additions. One new Go file for error logging, one new markdown file for the slash command. Rest is modifications to existing code.
+**Structure Decision**: Minimal additions. One new Go file for error logging, one new markdown file for the slash command. Rest is modifications to existing code. No Supabase table needed — errors go to Sentry.
 
 ## Implementation Approach
 
@@ -90,20 +108,21 @@ In `pkg/cli/session/capture.go`:
 Create `pkg/cli/session/errorlog.go`:
 - `LogCaptureError(entry)` function
 - Writes to `~/.specledger/capture-errors.log` (JSONL, append-only) first
-- Then POSTs to Supabase `/rest/v1/session_capture_errors` (best-effort)
+- Then sends to Sentry via `sentry.CaptureException()` with structured context (user ID, project ID, session ID, branch, commit hash)
 - Never blocks, never panics
+- Sentry DSN configured via environment variable or embedded config
 
 Integrate into:
 - `capture.go`: Call `LogCaptureError()` when upload or metadata creation fails
 - `queue.go`: Call `LogCaptureError()` when `ProcessQueue()` retry fails
 
-### Part 4: Supabase Table (infrastructure)
+### Part 4: Sentry Setup (infrastructure)
 
-Create `session_capture_errors` table on Supabase with:
-- Columns: id, user_id, project_id, session_id, error_message, feature_branch, commit_hash, retry_count, created_at
-- RLS: users read/write own errors
-
-This is a Supabase migration, separate from Go code.
+- Add `github.com/getsentry/sentry-go` dependency
+- Create project on [rockship-06.sentry.io](https://rockship-06.sentry.io), get DSN
+- Initialize Sentry in CLI entrypoint with DSN
+- Flush on program exit (`sentry.Flush(2 * time.Second)`)
+- No Supabase migration needed
 
 ## Complexity Tracking
 

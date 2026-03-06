@@ -1,62 +1,61 @@
-# Contract: Session Capture Error Logging API
+# Contract: Session Capture Error Logging
 
-## POST /rest/v1/session_capture_errors
+## Overview
 
-Log a session capture error to Supabase.
+Error logging uses two channels:
+1. **Local file** (`~/.specledger/capture-errors.log`) — always written, user can inspect directly
+2. **Sentry** — remote error aggregation, team troubleshooting, alerting
 
-### Request
+## Local Log File
 
-```
-POST https://<supabase-url>/rest/v1/session_capture_errors
-Content-Type: application/json
-Authorization: Bearer <access_token>
-apikey: <anon_key>
-Prefer: return=representation
-```
+**Path**: `~/.specledger/capture-errors.log`
+**Format**: JSONL (append-only, one JSON object per line)
 
-**Body**:
 ```json
-{
-  "user_id": "string (required)",
-  "project_id": "string (required)",
-  "session_id": "string (nullable)",
-  "error_message": "string (required)",
-  "feature_branch": "string (nullable)",
-  "commit_hash": "string (nullable)",
-  "retry_count": 0
-}
+{"timestamp":"2026-03-04T10:00:00Z","user_id":"uuid","project_id":"uuid","session_id":"uuid","error_message":"storage upload failed: connection refused","feature_branch":"602-silent-session-capture","commit_hash":"abc123","retry_count":0}
 ```
 
-### Response
+## Sentry Integration
 
-**201 Created**:
-```json
-[{
-  "id": "uuid",
-  "user_id": "...",
-  "project_id": "...",
-  "session_id": "...",
-  "error_message": "...",
-  "feature_branch": "...",
-  "commit_hash": "...",
-  "retry_count": 0,
-  "created_at": "2026-03-04T10:00:00Z"
-}]
+**Service**: [rockship-06.sentry.io](https://rockship-06.sentry.io) (hosted SaaS)
+**SDK**: `github.com/getsentry/sentry-go`
+**DSN**: From rockship-06.sentry.io project settings. Configured via `SENTRY_DSN` environment variable or embedded at build time.
+
+### Error Event Structure
+
+```go
+sentry.WithScope(func(scope *sentry.Scope) {
+    scope.SetUser(sentry.User{ID: userID})
+    scope.SetTag("project_id", projectID)
+    scope.SetTag("session_id", sessionID)
+    scope.SetTag("branch", featureBranch)
+    scope.SetTag("commit_hash", commitHash)
+    scope.SetExtra("retry_count", retryCount)
+    sentry.CaptureException(err)
+})
 ```
 
-**401 Unauthorized**: Token expired → refresh and retry once.
+### Context Tags
+
+| Tag | Description | Example |
+|-----|-------------|---------|
+| `user.id` | Sentry user ID | `550e8400-e29b-41d4-a716-446655440000` |
+| `project_id` | SpecLedger project ID | `a1b2c3d4-...` |
+| `session_id` | Claude Code session ID | `5430aee0-...` |
+| `branch` | Git branch at time of error | `602-silent-session-capture` |
+| `commit_hash` | Git commit hash | `65488f5` |
+| `retry_count` | Number of retry attempts | `0` (first failure), `1`, `2`, ... |
 
 ### Error Handling
 
-- If POST fails: fall back to local log only. Never block the workflow.
-- If 401: attempt token refresh via `auth.ForceRefreshAccessToken()`, retry once.
-- All other errors: log locally, continue.
+- If Sentry send fails: local log already has the error (written first). Never block the workflow.
+- Sentry flush on program exit: `sentry.Flush(2 * time.Second)` to ensure buffered events are sent.
+- All error reporting is non-blocking and fire-and-forget.
 
-## GET /rest/v1/session_capture_errors (for troubleshooting)
+## Auth Decision Matrix
 
-Query error logs by user or project.
-
-```
-GET /rest/v1/session_capture_errors?user_id=eq.<user_id>&order=created_at.desc&limit=50
-GET /rest/v1/session_capture_errors?project_id=eq.<project_id>&order=created_at.desc&limit=50
-```
+| Has Credentials | Has Project ID | Session Capture | Error Logging |
+|----------------|----------------|-----------------|---------------|
+| No | - | Skip silently | None |
+| Yes | No | Skip silently | None |
+| Yes | Yes | Attempt | On failure: local file + Sentry |

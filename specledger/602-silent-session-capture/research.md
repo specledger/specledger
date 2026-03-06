@@ -37,17 +37,23 @@
 - Remove 3 `fmt.Fprintf(os.Stderr, ...)` lines at 246-248 for project ID
 - Change to `return result` (nil error) instead of setting `result.Error`
 
-### R3: Error Logging Infrastructure
+### R3: Error Logging — Sentry over Supabase
 
-**Decision**: Create a new `CaptureErrorLogger` that writes to both local file and Supabase.
+**Decision**: Use Sentry for remote error reporting instead of a Supabase `session_capture_errors` table.
 
 **Rationale**:
-- No error logging exists in the project currently
-- Supabase PostgREST pattern already established in `metadata.go` and `storage.go`
-- Need a new Supabase table: `session_capture_errors`
-- Local log at `~/.specledger/capture-errors.log` (append-only, structured JSON lines)
+- **Storage overload**: Logging errors to Supabase (PostgREST INSERT or Storage upload) adds load to the same system that handles app data. At scale, troubleshooting data competes with production data for quota.
+- **Sentry is purpose-built**: Aggregation, deduplication, alerting, trends, source maps, release tracking — all out of the box. A Supabase table would need custom queries for each of these.
+- **Industry standard**: Production Go CLIs use Sentry (or similar: Datadog, Bugsnag) for error reporting. Supabase is for app data, not observability.
+- **Simpler code**: `sentry.CaptureException()` with context tags vs. manual HTTP POST to PostgREST with auth token management and retry logic.
+- **Local log remains**: `~/.specledger/capture-errors.log` (JSONL) for immediate user troubleshooting. Sentry is for team-level visibility.
 
-**Log entry structure**:
+**Alternatives rejected**:
+- Supabase `session_capture_errors` table: Overloads storage, requires custom dashboard, no alerting
+- Log only locally: Team can't troubleshoot remotely for multi-user deployments
+- Upload full transcripts to Supabase Storage: 50KB-2MB per session, severe storage overload
+
+**Log entry structure (local file)**:
 ```json
 {
   "timestamp": "2026-03-04T10:00:00Z",
@@ -61,31 +67,39 @@
 }
 ```
 
-**Write order**: Local file first (guaranteed), then Supabase (best-effort). Supabase failure never blocks.
+**Sentry context tags** (sent with each error event):
+- `user.id`, `project_id`, `session_id`, `branch`, `commit_hash`, `retry_count`
 
-**Alternatives considered**:
-- Log only to Supabase: Rejected - not available when offline or when Supabase itself fails
-- Log only locally: Rejected - team can't troubleshoot remotely
-- Use Go's `log` package: Rejected - need structured JSON for queryability
+**Write order**: Local file first (guaranteed), then Sentry (best-effort, non-blocking). Sentry failure never blocks.
 
-### R4: Supabase Error Log Table
+### R4: Sentry Go SDK Integration
 
-**Decision**: New table `session_capture_errors` on Supabase with RLS (Row Level Security) by user.
+**Decision**: Use [rockship-06.sentry.io](https://rockship-06.sentry.io) (hosted SaaS) with `github.com/getsentry/sentry-go` SDK. DSN from rockship-06.sentry.io project settings, configured at build time or via environment variable.
 
-**Required columns**:
-- `id` (UUID, primary key)
-- `user_id` (text, indexed)
-- `project_id` (text, indexed)
-- `session_id` (text, nullable)
-- `error_message` (text)
-- `feature_branch` (text, nullable)
-- `commit_hash` (text, nullable)
-- `retry_count` (integer, default 0)
-- `created_at` (timestamptz, default now())
+**Setup**:
+```go
+sentry.Init(sentry.ClientOptions{
+    Dsn:         sentryDSN,
+    Environment: "production",
+    Release:     version.Version,
+})
+defer sentry.Flush(2 * time.Second)
+```
 
-**RLS policy**: Users can read/write their own errors. Project admins can read all errors for their projects.
+**Error reporting**:
+```go
+sentry.WithScope(func(scope *sentry.Scope) {
+    scope.SetUser(sentry.User{ID: userID})
+    scope.SetTag("project_id", projectID)
+    scope.SetTag("session_id", sessionID)
+    scope.SetTag("branch", branch)
+    scope.SetTag("commit_hash", commitHash)
+    scope.SetExtra("retry_count", retryCount)
+    sentry.CaptureException(err)
+})
+```
 
-**Note**: Table creation is a Supabase migration, not a Go code change. The Go code just POSTs to `/rest/v1/session_capture_errors`.
+**No Supabase migration needed** — eliminates the `session_capture_errors` table entirely.
 
 ### R5: Slash Command Integration Strategy
 

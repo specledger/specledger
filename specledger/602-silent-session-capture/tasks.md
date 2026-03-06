@@ -40,8 +40,8 @@ sl issue list --label "spec:602-silent-session-capture" --label "story:US4"
 Epic: SL-482b2c (Silent Session Capture)
 │
 ├── Foundational: SL-e1b274 (Error Logging Infrastructure) [P1]
-│   ├── SL-b59b26: Create errorlog.go with LogCaptureError function
-│   └── SL-60611c: Create Supabase session_capture_errors table
+│   ├── SL-b59b26: Create errorlog.go with LogCaptureError (local JSONL + Sentry)
+│   └── SL-60611c: Add sentry-go dependency + init in CLI entrypoint
 │
 ├── US1+US2: SL-781410 (Slash Command + Agent Integration) [P1]
 │   └── SL-52a737: Create specledger.commit.md slash command
@@ -67,7 +67,7 @@ Epic: SL-482b2c (Silent Session Capture)
                     │   Foundational   │
                     │    SL-e1b274     │
                     │ errorlog.go +    │
-                    │ Supabase table   │
+                    │ Sentry setup     │
                     └────────┬────────┘
                              │ blocks
     ┌────────────────┐       │       ┌────────────────┐
@@ -102,7 +102,7 @@ Epic: SL-482b2c (Silent Session Capture)
 | 3 | Polish (SL-9260d3) | After all implementation |
 
 Within phases:
-- **Foundational**: SL-b59b26 (errorlog.go) and SL-60611c (Supabase table) are parallel
+- **Foundational**: SL-b59b26 (errorlog.go) and SL-60611c (Sentry setup) are parallel
 - **US4**: SL-2a86fe blocks SL-afe557 (reorder before tests)
 - **US3**: SL-95d0ac (capture.go) and SL-b04e86 (queue.go) are parallel (after errorlog.go)
 
@@ -110,8 +110,8 @@ Within phases:
 
 | Issue ID | DoD Items |
 |----------|-----------|
-| SL-b59b26 | - CaptureErrorEntry struct defined<br>- LogCaptureError writes JSONL to local file<br>- LogCaptureError POSTs to Supabase<br>- Local write before Supabase<br>- Never panics or blocks |
-| SL-60611c | - session_capture_errors table created<br>- All columns match data-model.md<br>- RLS policy for user self-access<br>- Indexes on user_id and project_id |
+| SL-b59b26 | - CaptureErrorEntry struct defined<br>- LogCaptureError writes JSONL to local file<br>- LogCaptureError sends to Sentry with context tags<br>- Local write before Sentry<br>- Never panics or blocks |
+| SL-60611c | - `sentry-go` added to go.mod<br>- Sentry initialized in CLI entrypoint<br>- DSN configurable via env var or build-time embed<br>- `sentry.Flush()` on exit |
 | SL-52a737 | - YAML frontmatter with description<br>- Staged check workflow<br>- Commit message from $ARGUMENTS or generated<br>- Auth check with silent skip<br>- Push always proceeds<br>- Summary shows capture status |
 | SL-2a86fe | - LoadCredentials moved before project ID<br>- Silent return when no credentials<br>- Silent return when no project ID<br>- Stderr warnings removed<br>- capture_test.go updated |
 | SL-afe557 | - Test no credentials silent skip<br>- Test no project ID silent skip<br>- Test invalid credentials JSON<br>- All existing tests passing |

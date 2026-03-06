@@ -50,4 +50,4 @@
 |----------------|----------------|-----------------|---------------|
 | No | - | Skip silently | None |
 | Yes | No | Skip silently | None |
-| Yes | Yes | Attempt | On failure: local + Supabase |
+| Yes | Yes | Attempt | On failure: local file + Sentry |
