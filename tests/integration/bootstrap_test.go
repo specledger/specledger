@@ -129,7 +129,7 @@ func TestBootstrapInitInExistingDirectory(t *testing.T) {
 	}
 
 	// Run sl init
-	cmd := exec.Command(slBinary, "init", "--short-code", "ep")
+	cmd := exec.Command(slBinary, "init", "--short-code", "ep", "--ci")
 	cmd.Dir = existingDir
 
 	output, err := cmd.CombinedOutput()

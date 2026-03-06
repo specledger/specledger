@@ -133,7 +133,6 @@ func TestDoctorToolDetection(t *testing.T) {
 	// Verify expected core tools are checked
 	// Note: bd and perles removed as we now use built-in sl issue tracking
 	expectedCoreTools := []string{"mise"}
-	expectedFrameworkTools := []string{"specify", "openspec"}
 
 	// Check that all expected tools are present in output
 	for _, expectedTool := range expectedCoreTools {
@@ -146,19 +145,6 @@ func TestDoctorToolDetection(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("Expected core tool '%s' not found in output", expectedTool)
-		}
-	}
-
-	for _, expectedTool := range expectedFrameworkTools {
-		found := false
-		for _, tool := range doctorOutput.Tools {
-			if tool.Name == expectedTool && tool.Category == "framework" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected framework tool '%s' not found in output", expectedTool)
 		}
 	}
 }

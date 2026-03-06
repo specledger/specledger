@@ -29,7 +29,7 @@ func TestDepsAddCommand(t *testing.T) {
 
 	// Add a dependency
 	testURL := "git@github.com:example/test-spec"
-	cmd = exec.Command(slBinary, "deps", "add", testURL, "main", "spec.md", "--alias", "test")
+	cmd = exec.Command(slBinary, "deps", "add", testURL, "main", "--alias", "test", "--artifact-path", "spec.md")
 	cmd.Dir = projectPath
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -278,14 +278,14 @@ func TestDepsDuplicateDetection(t *testing.T) {
 	testURL := "git@github.com:example/test-spec"
 
 	// Add a dependency
-	cmd = exec.Command(slBinary, "deps", "add", testURL)
+	cmd = exec.Command(slBinary, "deps", "add", testURL, "--alias", "test", "--artifact-path", "spec.md")
 	cmd.Dir = projectPath
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("First sl deps add failed: %v\nOutput: %s", err, string(output))
 	}
 
 	// Try to add the same dependency again
-	cmd = exec.Command(slBinary, "deps", "add", testURL)
+	cmd = exec.Command(slBinary, "deps", "add", testURL, "--alias", "test2", "--artifact-path", "spec.md")
 	cmd.Dir = projectPath
 	output, err := cmd.CombinedOutput()
 	if err == nil {

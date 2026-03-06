@@ -43,6 +43,10 @@ type Playbook struct {
 	// These are files/directories copied to the project root
 	Structure []string `yaml:"structure,omitempty"`
 
+	// Protected lists files that should not be overwritten during template updates
+	// These are user-specific files that should be preserved
+	Protected []string `yaml:"protected,omitempty"`
+
 	// PostScript is the path to a script to run after copying (e.g., "init.sh")
 	// The script is executed from the embedded FS, not copied to the target
 	PostScript string `yaml:"post_script,omitempty"`

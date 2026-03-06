@@ -12,6 +12,11 @@ playbooks:
       - "AGENTS.md"
       - "mise.toml"
 
+    # Files that should not be overwritten during template updates (user-specific content)
+    protected:
+      - ".specledger/memory/constitution.md"
+      - "AGENTS.md"
+
     # Post-init script to run after copying files
     post_script: "init.sh"
 
