@@ -51,18 +51,17 @@ Given that feature description, do this:
       - Find the highest number N
       - Use N+1 for the new branch number
 
-   c. Run the script `.specledger/scripts/bash/create-new-feature.sh --json "$ARGUMENTS"` with the calculated number and short-name:
-      - Pass `--number N+1` and `--short-name "your-short-name"` along with the feature description
-      - For example: `.specledger/scripts/bash/create-new-feature.sh --json --number 5 --short-name "user-auth" "Add user authentication"`
+   c. Run the CLI command `sl spec create --json --number N+1 --short-name "your-short-name"` with the calculated number and short-name:
+      - Pass `--number N+1` and `--short-name "your-short-name"`
+      - For example: `sl spec create --json --number 5 --short-name "user-auth"`
 
    **IMPORTANT**:
    - Check specs directories to find the highest number
    - Only match directories with the exact short-name pattern
    - If no existing directories found with the short-name pattern, start with number 1
-   - You must only ever run this script once per feature
+   - You must only ever run this command once per feature
    - The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for
-   - The JSON output will contain BRANCH_NAME and SPEC_FILE paths
-   - For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot")
+   - The JSON output will contain BRANCH_NAME, FEATURE_DIR, and SPEC_FILE paths
 
 3. Load `.specledger/templates/spec-template.md` to understand required sections.
 

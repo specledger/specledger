@@ -26,7 +26,7 @@ Generate an implementation plan from the feature specification. This includes te
 
 ## Outline
 
-1. **Setup**: Run `.specledger/scripts/bash/setup-plan.sh --json` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
+1. **Setup**: Run `sl spec setup-plan --json` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH.
 
 2. **Load context**: Read FEATURE_SPEC and `.specledger/memory/constitution.md`. Load IMPL_PLAN template (already copied).
 
@@ -87,11 +87,11 @@ Generate an implementation plan from the feature specification. This includes te
    - Output Proto/OpenAPI schema to `/contracts/`
 
 3. **Agent context update**:
-   - Run `.specledger/scripts/bash/update-agent-context.sh claude`
-   - These scripts detect which AI agent is in use
-   - Update the appropriate agent-specific context file
-   - Add only new technology from current plan
-   - Preserve manual additions between markers
+   - Run `sl context update claude`
+   - This command detects which AI agent is in use
+   - Updates the appropriate agent-specific context file
+   - Adds only new technology from current plan
+   - Preserves manual additions between markers
 
 **Output**: data-model.md, /contracts/*, quickstart.md, agent-specific file
 
