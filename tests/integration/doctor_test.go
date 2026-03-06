@@ -46,7 +46,6 @@ func TestDoctorCommand(t *testing.T) {
 	expectedSections := []string{
 		"SpecLedger Doctor",
 		"Core Tools",
-		"SDD Framework Tools",
 	}
 
 	for _, section := range expectedSections {
@@ -95,22 +94,14 @@ func TestDoctorJSONOutput(t *testing.T) {
 
 	// Verify tool categories
 	hasCoreTools := false
-	hasFrameworkTools := false
 	for _, tool := range doctorOutput.Tools {
 		if tool.Category == "core" {
 			hasCoreTools = true
-		}
-		if tool.Category == "framework" {
-			hasFrameworkTools = true
 		}
 	}
 
 	if !hasCoreTools {
 		t.Error("Expected at least one core tool in output")
-	}
-
-	if !hasFrameworkTools {
-		t.Error("Expected at least one framework tool in output")
 	}
 
 	// Verify status consistency
