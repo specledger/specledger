@@ -40,7 +40,7 @@ func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) 
 		itemSrcPath := filepath.Join(srcPath, structureItem)
 		itemDestPath := filepath.Join(destDir, structureItem)
 
-		if err := copyStructureItem(itemSrcPath, itemDestPath, srcPath, opts, result, protectedMap); err != nil {
+		if err := copyStructureItem(itemSrcPath, itemDestPath, srcPath, structureItem, opts, result, protectedMap); err != nil {
 			result.Errors = append(result.Errors, CopyError{
 				Path:      structureItem,
 				Err:       err,
@@ -84,7 +84,7 @@ func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) 
 }
 
 // copyStructureItem copies a structure item (file or directory) from embedded FS to destination.
-func copyStructureItem(srcPath, destPath, playbookSrcPath string, opts CopyOptions, result *CopyResult, protectedFiles map[string]bool) error {
+func copyStructureItem(srcPath, destPath, playbookSrcPath, structureItem string, opts CopyOptions, result *CopyResult, protectedFiles map[string]bool) error {
 	// Check if source exists in embedded FS
 	if !Exists(srcPath) {
 		return fmt.Errorf("structure item not found: %s", srcPath)
@@ -94,15 +94,24 @@ func copyStructureItem(srcPath, destPath, playbookSrcPath string, opts CopyOptio
 	_, err := ReadFile(srcPath)
 	if err != nil {
 		// It's a directory - walk and copy all files
-		return copyDirectory(srcPath, destPath, playbookSrcPath, opts, result, protectedFiles)
+		return copyDirectory(srcPath, destPath, playbookSrcPath, structureItem, opts, result, protectedFiles)
 	}
 
-	// It's a file - copy directly
+	// It's a file - check if protected
+	if protectedFiles[structureItem] {
+		if opts.Verbose {
+			fmt.Printf("Skipped protected file: %s\n", structureItem)
+		}
+		result.FilesSkipped++
+		return nil
+	}
+
+	// Copy directly
 	return copySingleFile(srcPath, destPath, opts, result, protectedFiles)
 }
 
 // copyDirectory recursively copies a directory from embedded FS to destination.
-func copyDirectory(srcPath, destPath, playbookSrcPath string, opts CopyOptions, result *CopyResult, protectedFiles map[string]bool) error {
+func copyDirectory(srcPath, destPath, playbookSrcPath, structureItem string, opts CopyOptions, result *CopyResult, protectedFiles map[string]bool) error {
 	// Create destination directory
 	if err := os.MkdirAll(destPath, 0755); err != nil {
 		return fmt.Errorf("failed to create directory: %w", err)
@@ -130,10 +139,19 @@ func copyDirectory(srcPath, destPath, playbookSrcPath string, opts CopyOptions, 
 			return err
 		}
 
+		// Construct the full project-relative path for protected file checking
+		// e.g., structureItem=".specledger/" + relPath="memory/constitution.md" -> ".specledger/memory/constitution.md"
+		fullPath := filepath.Join(structureItem, relPath)
+		// Clean up path separators (handles trailing slashes)
+		fullPath = filepath.ToSlash(fullPath)
+		if strings.HasSuffix(structureItem, "/") {
+			fullPath = strings.TrimSuffix(structureItem, "/") + "/" + relPath
+		}
+
 		// Skip protected files that shouldn't be overwritten
-		if protectedFiles[relPath] || protectedFiles[filepath.Base(relPath)] {
+		if protectedFiles[fullPath] || protectedFiles[filepath.Base(relPath)] {
 			if opts.Verbose {
-				fmt.Printf("Skipped protected file: %s\n", relPath)
+				fmt.Printf("Skipped protected file: %s\n", fullPath)
 			}
 			result.FilesSkipped++
 			return nil
