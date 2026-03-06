@@ -38,11 +38,11 @@ After fixing the manifest loading, `sl init` may attempt to run the embedded `in
 
 ---
 
-### Edge Cases
+### Edge Cases (Acceptance Scenarios)
 
-- What happens when the Windows temp directory path contains spaces (e.g., `C:\Users\My Name\AppData\Local\Temp`)?
-- What happens when `sl init` is run inside a Git Bash terminal on Windows versus PowerShell or Command Prompt?
-- What happens when `sl init --force` is run on an already-initialized Windows project?
+1. **Given** a Windows machine where the user's temp directory path contains spaces (e.g., `C:\Users\My Name\AppData\Local\Temp`), **When** the user runs `sl init`, **Then** the command completes successfully with exit code 0. *(Go's standard library handles paths with spaces correctly. No special handling required — this is a verification item, not a code change.)*
+2. **Given** a Windows machine with multiple terminals available (Git Bash, PowerShell, Command Prompt), **When** the user runs `sl init` from any of these terminals, **Then** the core init output (created files and directories) is identical across all terminals. *(The core fix — embed.FS paths — is terminal-independent. The post-init script phase follows the FR-006 decision algorithm.)*
+3. **`sl init --force` on an already-initialized project**: **Out of scope** for this fix. Behavior should be identical to current macOS/Linux `--force` behavior once the path fix is applied. If issues arise, they should be tracked as a separate issue.
 
 ## Requirements *(mandatory)*
 
@@ -54,6 +54,14 @@ After fixing the manifest loading, `sl init` may attempt to run the embedded `in
 - **FR-004**: The metadata file (`specledger.yaml`) MUST be created successfully — this requires a valid playbook name, which depends on FR-002 and FR-003 succeeding.
 - **FR-005**: The post-init script phase MUST NOT crash `sl init` on Windows. If no Unix shell is available, the phase MUST be skipped gracefully without a user-visible error.
 - **FR-006**: If a Unix shell (`bash`, `sh`) is available on Windows (e.g., via Git for Windows), the post-init script SHOULD execute using that shell as the interpreter.
+
+**FR-006 Decision Algorithm (Windows only):**
+
+1. Look for `bash.exe` on PATH (covers Git for Windows / Git Bash).
+2. If not found, look for `wsl.exe` on PATH and invoke `wsl bash -c <script>`.
+3. If neither found, skip the post-init script silently (log at debug level only).
+
+Rationale: Git Bash is the most common Unix shell on Windows developer machines. WSL requires more setup and may have filesystem path differences, so it is tried second.
 
 ### Key Entities
 
@@ -77,5 +85,26 @@ After fixing the manifest loading, `sl init` may attempt to run the embedded `in
 
 - **Root cause confirmed**: `filepath.Join` in `pkg/cli/playbooks/manifest.go:12`, `pkg/cli/playbooks/embedded.go:90,97`, and `pkg/cli/commands/bootstrap_helpers.go:449` produces OS-native path separators (backslash on Windows) when constructing paths for `embed.FS` lookups. `embed.FS` requires forward slashes on all platforms.
 - **Fix**: Replace `filepath.Join` with `path.Join` (from the `path` package, not `path/filepath`) wherever the result is used as an `embed.FS` path. OS-native path construction (for real filesystem writes) should continue using `filepath.Join`.
+
+**Fix pattern** (before/after):
+
+```go
+// BEFORE (broken on Windows)
+p := filepath.Join("templates", name)
+data, err := templateFS.ReadFile(p)
+
+// AFTER (works on all platforms)
+p := path.Join("templates", name)
+data, err := templateFS.ReadFile(p)
+```
+
+**Affected locations** (exhaustive — only `embed.FS` paths need fixing):
+
+- `pkg/cli/playbooks/manifest.go:12` — manifest lookup
+- `pkg/cli/playbooks/embedded.go:90` — template file read
+- `pkg/cli/playbooks/embedded.go:97` — template file read
+- `pkg/cli/commands/bootstrap_helpers.go:449` — bootstrap path construction
+
+Other uses of `filepath.Join` that write to the real filesystem are correct and should NOT be changed.
 - **Secondary issue**: The post-init script is run via `exec.Command(tmpFile.Name())` where `tmpFile` is a `.sh` file. Windows cannot execute shell scripts directly; the fix should detect available shells or skip gracefully.
 - **No external spec dependency needed** — all required context is within the codebase.
