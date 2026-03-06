@@ -40,10 +40,3 @@ func Decompress(data []byte) ([]byte, error) {
 	return decompressed, nil
 }
 
-// CompressionRatio calculates the compression ratio (compressed/original)
-func CompressionRatio(original, compressed int64) float64 {
-	if original == 0 {
-		return 0
-	}
-	return float64(compressed) / float64(original)
-}

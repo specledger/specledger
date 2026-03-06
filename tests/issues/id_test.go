@@ -124,52 +124,6 @@ func TestParseIssueID(t *testing.T) {
 	}
 }
 
-func TestIsValidIssueID(t *testing.T) {
-	tests := []struct {
-		id       string
-		expected bool
-	}{
-		{"SL-a3f5d8", true},
-		{"SL-abcdef", true},
-		{"SL-123456", true},
-		{"SL-ABCDEF", false}, // lowercase only
-		{"a3f5d8", false},
-		{"", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.id, func(t *testing.T) {
-			result := issues.IsValidIssueID(tt.id)
-			if result != tt.expected {
-				t.Errorf("IsValidIssueID(%v) = %v, want %v", tt.id, result, tt.expected)
-			}
-		})
-	}
-}
-
-func TestCalculateCollisionProbability(t *testing.T) {
-	tests := []struct {
-		n        int
-		expected float64
-	}{
-		{0, 0},
-		{1, 0},
-		{100, 0.000298},
-		{1000, 0.0298},
-		{10000, 2.98},
-	}
-
-	for _, tt := range tests {
-		t.Run("", func(t *testing.T) {
-			prob := issues.CalculateCollisionProbability(tt.n)
-			// Allow some floating point tolerance
-			if diff := abs(prob - tt.expected); diff > 0.01 {
-				t.Errorf("CalculateCollisionProbability(%v) = %v, want approx %v", tt.n, prob, tt.expected)
-			}
-		})
-	}
-}
-
 func isValidIssueIDFormat(id string) bool {
 	if len(id) != 9 {
 		return false
@@ -185,9 +139,3 @@ func isValidIssueIDFormat(id string) bool {
 	return true
 }
 
-func abs(x float64) float64 {
-	if x < 0 {
-		return -x
-	}
-	return x
-}

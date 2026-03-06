@@ -109,53 +109,6 @@ func (s *StorageClient) Download(accessToken string, storagePath string) ([]byte
 	return io.ReadAll(resp.Body)
 }
 
-// SignedURLResponse represents the response from signed URL generation
-type SignedURLResponse struct {
-	SignedURL string `json:"signedURL"`
-}
-
-// GetSignedURL generates a time-limited signed URL for session content
-func (s *StorageClient) GetSignedURL(accessToken string, storagePath string, expiresIn int) (*SignedURLResponse, error) {
-	url := fmt.Sprintf("%s/storage/v1/object/sign/%s/%s", s.baseURL, StorageBucket, storagePath)
-
-	reqBody := map[string]int{"expiresIn": expiresIn}
-	jsonBody, err := json.Marshal(reqBody)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal request: %w", err)
-	}
-
-	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(jsonBody))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("apikey", s.anonKey)
-
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get signed URL: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read response: %w", err)
-	}
-
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("failed to get signed URL (%d): %s", resp.StatusCode, string(body))
-	}
-
-	var signedResp SignedURLResponse
-	if err := json.Unmarshal(body, &signedResp); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &signedResp, nil
-}
-
 // BuildStoragePath constructs the storage path for a session
 func BuildStoragePath(projectID, featureBranch, identifier string) string {
 	return fmt.Sprintf("%s/%s/%s.json.gz", projectID, featureBranch, identifier)

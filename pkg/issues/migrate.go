@@ -424,7 +424,3 @@ func (m *Migrator) writeMigrationLog() error {
 	return os.WriteFile(logPath, []byte(sb.String()), 0644)
 }
 
-// GetIDMapping returns the ID mapping from old Beads IDs to new SL IDs
-func (m *Migrator) GetIDMapping() map[string]string {
-	return m.idMapping
-}

@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/specledger/specledger/pkg/cli/metadata"
 )
@@ -29,12 +28,6 @@ type FeatureContext struct {
 	PlanFile   string
 	TasksFile  string
 	HasGit     bool
-}
-
-// DetectFeatureContext detects the current feature context using the 4-step fallback chain (FR-011)
-// Steps: 1) env var/regex match → 2) yaml alias → 3) git heuristic → 4) error with available features
-func DetectFeatureContext(workDir string) (*FeatureContext, error) {
-	return DetectFeatureContextWithOptions(workDir, DetectionOptions{})
 }
 
 // DetectFeatureContextWithOptions detects feature context with configurable behavior
@@ -272,14 +265,6 @@ func isAllDigits(s string) bool {
 	return len(s) > 0
 }
 
-func GetFeatureNum(branch string) string {
-	parts := strings.SplitN(branch, "-", 2)
-	if len(parts) == 2 {
-		return parts[0]
-	}
-	return ""
-}
-
 func openRepo(repoPath string) (*git.Repository, error) {
 	repo, err := git.PlainOpenWithOptions(repoPath, &git.PlainOpenOptions{
 		DetectDotGit: true,
@@ -290,37 +275,3 @@ func openRepo(repoPath string) (*git.Repository, error) {
 	return repo, nil
 }
 
-func GetCurrentBranch(repoPath string) (string, error) {
-	repo, err := openRepo(repoPath)
-	if err != nil {
-		return "", err
-	}
-
-	head, err := repo.Head()
-	if err != nil {
-		return "", fmt.Errorf("failed to get HEAD: %w", err)
-	}
-
-	if head.Name().IsBranch() {
-		return head.Name().Short(), nil
-	}
-
-	return "", fmt.Errorf("detached HEAD state (commit %s)", head.Hash().String()[:8])
-}
-
-func BranchExists(repoPath, name string) (bool, error) {
-	repo, err := openRepo(repoPath)
-	if err != nil {
-		return false, err
-	}
-
-	refName := plumbing.ReferenceName("refs/heads/" + name)
-	_, err = repo.Reference(refName, true)
-	if err == plumbing.ErrReferenceNotFound {
-		return false, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("failed to resolve branch ref: %w", err)
-	}
-	return true, nil
-}

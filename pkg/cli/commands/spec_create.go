@@ -188,7 +188,3 @@ func tryAlternativeTemplatePaths() ([]byte, error) {
 
 	return []byte("# Feature Specification\n\n**Feature Branch**: `###-feature-name`\n**Created**: \n**Status**: Draft\n\n## Overview\n\n[Describe the feature]\n\n## Requirements\n\n### Functional Requirements\n\n- [ ] FR-001: [Requirement]\n\n## Success Criteria\n\n- [ ] SC-001: [Success criterion]\n"), nil
 }
-
-func NewSpecCreateCmd() *cobra.Command {
-	return specCreateCmd
-}

@@ -47,7 +47,3 @@ func GetBuildType() string {
 	return BuildType
 }
 
-// IsDevBuild returns true if this is a development build.
-func IsDevBuild() bool {
-	return Version == "dev" || BuildType == "development"
-}

@@ -210,67 +210,6 @@ func (s *Store) wouldCreateCycle(fromID, toID string, issues []*Issue) bool {
 	return dfs(toID)
 }
 
-// DetectCycles checks for circular dependencies in the entire issue set
-func (s *Store) DetectCycles() ([][]string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	issues, err := s.readAllUnlocked()
-	if err != nil {
-		return nil, err
-	}
-
-	// Build adjacency map
-	adj := make(map[string][]string)
-	for _, issue := range issues {
-		adj[issue.ID] = append(adj[issue.ID], issue.Blocks...)
-	}
-
-	var cycles [][]string
-	visited := make(map[string]bool)
-	recStack := make(map[string]bool)
-	path := []string{}
-
-	var dfs func(node string)
-	dfs = func(node string) {
-		visited[node] = true
-		recStack[node] = true
-		path = append(path, node)
-
-		for _, neighbor := range adj[node] {
-			if !visited[neighbor] {
-				dfs(neighbor)
-			} else if recStack[neighbor] {
-				// Found a cycle
-				cycleStart := -1
-				for i, n := range path {
-					if n == neighbor {
-						cycleStart = i
-						break
-					}
-				}
-				if cycleStart >= 0 {
-					cycle := make([]string, len(path)-cycleStart)
-					copy(cycle, path[cycleStart:])
-					cycle = append(cycle, neighbor)
-					cycles = append(cycles, cycle)
-				}
-			}
-		}
-
-		path = path[:len(path)-1]
-		recStack[node] = false
-	}
-
-	for _, issue := range issues {
-		if !visited[issue.ID] {
-			dfs(issue.ID)
-		}
-	}
-
-	return cycles, nil
-}
-
 // GetDependencyTree returns the full dependency tree for an issue
 func (s *Store) GetDependencyTree(id string) (*DependencyTree, error) {
 	s.mu.Lock()
@@ -320,12 +259,6 @@ func (s *Store) buildDependencySubtree(ids []string, issueMap map[string]*Issue,
 		trees = append(trees, tree)
 	}
 	return trees
-}
-
-// GetBlockedIssues returns all issues that are currently blocked
-func (s *Store) GetBlockedIssues() ([]Issue, error) {
-	filter := ListFilter{Blocked: true}
-	return s.List(filter)
 }
 
 // GetHierarchyForest returns a forest of trees based on parent-child relationships.

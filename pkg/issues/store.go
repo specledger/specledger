@@ -418,32 +418,6 @@ func (s *Store) GetChildren(parentID string) ([]Issue, error) {
 	return children, nil
 }
 
-// Delete removes an issue from the store
-func (s *Store) Delete(id string) error {
-	return s.WithLock(func() error {
-		issues, err := s.readAllUnlocked()
-		if err != nil {
-			return err
-		}
-
-		var newIssues []*Issue
-		var found bool
-		for _, issue := range issues {
-			if issue.ID == id {
-				found = true
-				continue
-			}
-			newIssues = append(newIssues, issue)
-		}
-
-		if !found {
-			return ErrIssueNotFound
-		}
-
-		return s.writeAllUnlocked(newIssues)
-	})
-}
-
 // WithLock executes a function while holding the file lock
 func (s *Store) WithLock(fn func() error) error {
 	s.mu.Lock()
@@ -649,35 +623,6 @@ func listSpecDirs(basePath string) ([]string, error) {
 	}
 
 	return specs, nil
-}
-
-// GetIssueAcrossSpecs searches for an issue across all specs
-func GetIssueAcrossSpecs(id, basePath string) (*Issue, string, error) {
-	if basePath == "" {
-		basePath = "specledger"
-	}
-
-	specs, err := listSpecDirs(basePath)
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to list spec directories: %w", err)
-	}
-
-	for _, spec := range specs {
-		store, err := NewStore(StoreOptions{
-			BasePath:    basePath,
-			SpecContext: spec,
-		})
-		if err != nil {
-			continue
-		}
-
-		issue, err := store.Get(id)
-		if err == nil {
-			return issue, spec, nil
-		}
-	}
-
-	return nil, "", ErrIssueNotFound
 }
 
 // ReadyIssue represents an issue that is ready to work on

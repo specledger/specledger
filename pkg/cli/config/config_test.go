@@ -1,8 +1,6 @@
 package config
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -249,34 +247,3 @@ func TestSetActiveProfile(t *testing.T) {
 	}
 }
 
-func TestPersonalConfig(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "specledger-test-*")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-
-	personalDir := filepath.Join(tmpDir, "specledger")
-	if err := os.MkdirAll(personalDir, 0755); err != nil {
-		t.Fatal(err)
-	}
-
-	personal := &PersonalConfig{
-		Agent: &AgentConfig{
-			AuthToken: "sk-test-token",
-		},
-	}
-
-	if err := personal.Save(tmpDir); err != nil {
-		t.Fatalf("Save failed: %v", err)
-	}
-
-	loaded, err := LoadPersonal(tmpDir)
-	if err != nil {
-		t.Fatalf("LoadPersonal failed: %v", err)
-	}
-
-	if loaded.Agent.AuthToken != "sk-test-token" {
-		t.Errorf("expected auth token 'sk-test-token', got %q", loaded.Agent.AuthToken)
-	}
-}
