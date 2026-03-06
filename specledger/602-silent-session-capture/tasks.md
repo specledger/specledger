@@ -12,7 +12,7 @@ This index does **not contain tasks directly**—those are fully managed through
 * **Data Model**: `specledger/602-silent-session-capture/data-model.md`
 * **Contract Definitions**: `specledger/602-silent-session-capture/contracts/`
 
-## Query Hints
+## Query Hints (v2)
 
 ```bash
 # All issues for this feature
