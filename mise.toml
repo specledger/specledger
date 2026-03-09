@@ -1,1 +1,5 @@
+# SpecLedger mise configuration
+# Issue tracking is now built into sl CLI (sl issue commands)
+
 [tools]
+# Add your project tools here

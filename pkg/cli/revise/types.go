@@ -1,42 +1,20 @@
 package revise
 
-// ReviewComment maps to the review_comments table in Supabase.
-type ReviewComment struct {
-	ID              string `json:"id"`
-	ChangeID        string `json:"change_id"`
-	FilePath        string `json:"file_path"`
-	Content         string `json:"content"`
-	SelectedText    string `json:"selected_text"`
-	Line            *int   `json:"line"`
-	StartLine       *int   `json:"start_line"`
-	IsResolved      bool   `json:"is_resolved"`
-	AuthorID        string `json:"author_id"`
-	AuthorName      string `json:"author_name"`
-	AuthorEmail     string `json:"author_email"`
-	ParentCommentID string `json:"parent_comment_id"`
-	CreatedAt       string `json:"created_at"`
-	UpdatedAt       string `json:"updated_at"`
-}
+import "github.com/specledger/specledger/pkg/cli/comment"
 
-// ProcessedComment is an in-memory struct for a comment the user chose to process.
+type ReviewComment = comment.ReviewComment
+
+type ThreadReply = comment.ThreadReply
+
 type ProcessedComment struct {
 	Comment  ReviewComment
 	Guidance string
-	Index    int // 1-based display index
+	Index    int
 }
 
-// RevisionContext is the template rendering context for the combined prompt.
 type RevisionContext struct {
 	SpecKey  string
 	Comments []PromptComment
-}
-
-// ThreadReply is a single reply in a comment thread.
-type ThreadReply struct {
-	ID         string // Reply UUID (for cascade resolution)
-	AuthorName string
-	Content    string
-	CreatedAt  string
 }
 
 // PromptComment is a single comment entry in the revision prompt template.

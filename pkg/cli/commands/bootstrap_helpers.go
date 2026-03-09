@@ -2,7 +2,6 @@ package commands
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
 	"path"
@@ -89,68 +88,7 @@ func trustMiseConfig(projectPath string) {
 	}
 }
 
-// applyEmbeddedSkills copies embedded skills and commands to the project.
-// These provide Claude with context for SpecLedger capabilities.
-func applyEmbeddedSkills(projectPath string) error {
-	// Target directory is .claude in the project root
-	targetDir := filepath.Join(projectPath, ".claude")
-
-	// Walk through the skills embedded filesystem
-	err := fs.WalkDir(embedded.SkillsFS, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Skip the root directory and skills wrapper
-		if path == "." || path == "skills" {
-			return nil
-		}
-
-		// Skip directories (they'll be created when files are written)
-		if d.IsDir() {
-			return nil
-		}
-
-		// Remove "skills/" prefix to get relative path from commands/ and skills/
-		relPath := strings.TrimPrefix(path, "skills/")
-		destPath := filepath.Join(targetDir, relPath)
-
-		// Ensure parent directory exists
-		destDir := filepath.Dir(destPath)
-		if err := os.MkdirAll(destDir, 0755); err != nil {
-			return fmt.Errorf("failed to create directory %s: %w", destDir, err)
-		}
-
-		// Read file from embedded FS
-		data, err := embedded.SkillsFS.ReadFile(path)
-		if err != nil {
-			return fmt.Errorf("failed to read embedded file %s: %w", path, err)
-		}
-
-		// Determine permissions based on file type
-		var perms fs.FileMode
-		if playbooks.IsExecutableFile(filepath.Base(destPath), data) {
-			perms = 0755 // Executable: rwxr-xr-x
-		} else {
-			perms = 0644 // Regular: rw-r--r--
-		}
-
-		// Write to destination with appropriate permissions
-		if err := os.WriteFile(destPath, data, perms); err != nil {
-			return fmt.Errorf("failed to write file %s: %w", destPath, err)
-		}
-
-		return nil
-	})
-
-	if err != nil {
-		return fmt.Errorf("failed to copy embedded skills: %w", err)
-	}
-
-	return nil
-}
-
-// setupSpecLedgerProject applies playbooks, skills, and creates metadata.
+// setupSpecLedgerProject applies playbooks and creates metadata.
 // Optionally initializes git based on flags.
 // If force is true, existing files will be overwritten.
 // Returns the playbook name, version, and structure for metadata storage.
@@ -160,12 +98,6 @@ func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName st
 	if err != nil {
 		// Playbook application failure is not fatal - log warning and continue
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
-	}
-
-	// Apply embedded skills
-	if err := applyEmbeddedSkills(projectPath); err != nil {
-		// Skills are helpful but not critical - log warning and continue
-		fmt.Printf("Warning: skills installation had issues: %v\n", err)
 	}
 
 	// Create YAML metadata with playbook info
@@ -341,6 +273,10 @@ func launchAgent(projectDir string, agentPref string) error {
 		envVars := resolved.GetEnvVars()
 		if len(envVars) > 0 {
 			al.SetEnv(envVars)
+		}
+		cliFlags := resolved.GetCLIFlags()
+		if len(cliFlags) > 0 {
+			al.SetFlags(cliFlags)
 		}
 	}
 

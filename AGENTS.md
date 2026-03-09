@@ -80,38 +80,13 @@ sl issue link SL-abc123 blocks SL-def456  # abc123 blocks def456
 
 ### Important Rules
 
-- Use `sl issue` for ALL task tracking
-- Issues are stored per-spec in `specledger/<spec>/issues.jsonl`
-- Check `sl issue list --status open` before asking "what should I work on?"
-- Do NOT create markdown TODO lists
-- Do NOT use external issue trackers
-- Do NOT duplicate tracking systems
+- ✅ Use `sl issue` for ALL task tracking
+- ✅ Issues are stored per-spec in `specledger/<spec>/issues.jsonl`
+- ✅ Check `sl issue list --status open` before asking "what should I work on?"
+- ❌ Do NOT create markdown TODO lists
+- ❌ Do NOT use external issue trackers
+- ❌ Do NOT duplicate tracking systems
 
 ## Commit & Pull Request Guidelines
 
 Follow the existing conventional prefixes (`feat:`, `fix:`, `chore:`, `docs:`) and keep messages imperative and under 72 characters. Reference related issues in the body and mention migrations, proto changes, or new binaries explicitly. PRs should include a concise summary, testing evidence (`make test-unit`, `make test-integration`, etc.), and screenshots or CLI transcripts when behavior changes. Request reviews from domain owners and ensure generated artifacts and docs stay in sync with code changes.
-
-## Landing the Plane (Session Completion)
-
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds

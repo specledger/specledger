@@ -112,17 +112,25 @@ func TestWriteDesignSystem_MarkdownFormat(t *testing.T) {
 	data, _ := os.ReadFile(dsPath)
 	content := string(data)
 
-	// Should contain UI Libraries section
-	if !strings.Contains(content, "## UI Libraries") {
-		t.Error("expected UI Libraries heading")
+	// Should contain Overview table
+	if !strings.Contains(content, "## Overview") {
+		t.Error("expected Overview heading")
 	}
-	// Should contain Styling section
-	if !strings.Contains(content, "## Styling") {
-		t.Error("expected Styling heading")
+	// Should mention UI Libraries in overview row
+	if !strings.Contains(content, "@mui/material") {
+		t.Error("expected UI library in output")
 	}
-	// Should mention AI agent for components
+	// Should contain CSS info in overview
+	if !strings.Contains(content, "Tailwind CSS") {
+		t.Error("expected CSS framework in output")
+	}
+	// Should mention AI agent reads frontmatter
 	if !strings.Contains(content, "AI agent") {
-		t.Error("expected mention of AI agent for component discovery")
+		t.Error("expected mention of AI agent")
+	}
+	// Color palette section should show preview, not full dump
+	if !strings.Contains(content, "## Color Palette") {
+		t.Error("expected Color Palette heading")
 	}
 }
 

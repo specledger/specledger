@@ -40,8 +40,34 @@ type Playbook struct {
 	Patterns []string `yaml:"patterns,omitempty"`
 
 	// Structure describes the folder structure that this playbook creates
-	// This is informational only, used to document what the playbook provides
+	// These are files/directories copied to the project root
 	Structure []string `yaml:"structure,omitempty"`
+
+	// Protected lists files that should not be overwritten during template updates
+	// These are user-specific files that should be preserved
+	Protected []string `yaml:"protected,omitempty"`
+
+	// PostScript is the path to a script to run after copying (e.g., "init.sh")
+	// The script is executed from the embedded FS, not copied to the target
+	PostScript string `yaml:"post_script,omitempty"`
+
+	// Commands are AI commands to copy to .claude/commands/
+	Commands []PlaybookItem `yaml:"commands,omitempty"`
+
+	// Skills are AI skills to copy to .claude/skills/
+	Skills []PlaybookItem `yaml:"skills,omitempty"`
+}
+
+// PlaybookItem represents a command or skill in the playbook.
+type PlaybookItem struct {
+	// Name is the identifier for this item
+	Name string `yaml:"name"`
+
+	// Path is the relative path within the playbook
+	Path string `yaml:"path"`
+
+	// Description explains what this item provides
+	Description string `yaml:"description,omitempty"`
 }
 
 // PlaybookManifest represents the manifest file that lists available playbooks.

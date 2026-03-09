@@ -6,18 +6,7 @@ import (
 )
 
 func TestBuildMockupPromptContext(t *testing.T) {
-	ds := &DesignSystem{
-		ExternalLibs: []string{"@mui/material"},
-	}
-	style := &StyleInfo{
-		CSSFramework:    "Tailwind CSS",
-		StylingApproach: "utility-first",
-		ThemeColors: map[string]string{
-			"--primary": "#3b82f6",
-		},
-	}
-
-	ctx := BuildMockupPromptContext("042-registration", "specledger/042-registration/spec.md", "User Registration", FrameworkReact, MockupFormatHTML, "specledger/042-registration/mockup.html", ds, style, "")
+	ctx := BuildMockupPromptContext("042-registration", "specledger/042-registration/spec.md", "User Registration", FrameworkReact, MockupFormatHTML, "specledger/042-registration/mockup.html", "")
 
 	if ctx.SpecName != "042-registration" {
 		t.Errorf("SpecName = %q, want %q", ctx.SpecName, "042-registration")
@@ -31,32 +20,19 @@ func TestBuildMockupPromptContext(t *testing.T) {
 	if ctx.OutputPath != "specledger/042-registration/mockup.html" {
 		t.Errorf("OutputPath = %q, unexpected", ctx.OutputPath)
 	}
-	if !ctx.HasDesignSystem {
-		t.Error("expected HasDesignSystem = true")
-	}
-	if !ctx.HasStyle {
-		t.Error("expected HasStyle = true")
-	}
-	if len(ctx.ExternalLibs) != 1 {
-		t.Errorf("ExternalLibs count = %d, want 1", len(ctx.ExternalLibs))
+	if ctx.Framework != FrameworkReact {
+		t.Errorf("Framework = %q, want react", ctx.Framework)
 	}
 }
 
 func TestRenderMockupPrompt_ReactHTML(t *testing.T) {
 	ctx := &MockupPromptContext{
-		SpecName:        "042-registration",
-		SpecPath:        "specledger/042-registration/spec.md",
-		SpecTitle:       "User Registration",
-		Framework:       FrameworkReact,
-		Format:          MockupFormatHTML,
-		OutputPath:      "specledger/042-registration/mockup.html",
-		HasDesignSystem: true,
-		ExternalLibs:    []string{"@mui/material"},
-		HasStyle:        true,
-		Style: &StyleInfo{
-			CSSFramework:    "Tailwind CSS",
-			StylingApproach: "utility-first",
-		},
+		SpecName:   "042-registration",
+		SpecPath:   "specledger/042-registration/spec.md",
+		SpecTitle:  "User Registration",
+		Framework:  FrameworkReact,
+		Format:     MockupFormatHTML,
+		OutputPath: "specledger/042-registration/mockup.html",
 	}
 
 	result, err := RenderMockupPrompt(ctx)
@@ -70,7 +46,7 @@ func TestRenderMockupPrompt_ReactHTML(t *testing.T) {
 		"spec.md",
 		"mockup.html",
 		"React",
-		"@mui/material",
+		"design-system.md",
 		"self-contained",
 	}
 
@@ -83,13 +59,12 @@ func TestRenderMockupPrompt_ReactHTML(t *testing.T) {
 
 func TestRenderMockupPrompt_ReactJSX(t *testing.T) {
 	ctx := &MockupPromptContext{
-		SpecName:        "042-registration",
-		SpecPath:        "specledger/042-registration/spec.md",
-		SpecTitle:       "User Registration",
-		Framework:       FrameworkReact,
-		Format:          MockupFormatJSX,
-		OutputPath:      "specledger/042-registration/mockup.jsx",
-		HasDesignSystem: true,
+		SpecName:   "042-registration",
+		SpecPath:   "specledger/042-registration/spec.md",
+		SpecTitle:  "User Registration",
+		Framework:  FrameworkReact,
+		Format:     MockupFormatJSX,
+		OutputPath: "specledger/042-registration/mockup.jsx",
 	}
 
 	result, err := RenderMockupPrompt(ctx)
@@ -107,13 +82,12 @@ func TestRenderMockupPrompt_ReactJSX(t *testing.T) {
 
 func TestRenderMockupPrompt_VueHTML(t *testing.T) {
 	ctx := &MockupPromptContext{
-		SpecName:        "050-dashboard",
-		SpecPath:        "specledger/050-dashboard/spec.md",
-		SpecTitle:       "Dashboard Feature",
-		Framework:       FrameworkVue,
-		Format:          MockupFormatHTML,
-		OutputPath:      "specledger/050-dashboard/mockup.html",
-		HasDesignSystem: false,
+		SpecName:   "050-dashboard",
+		SpecPath:   "specledger/050-dashboard/spec.md",
+		SpecTitle:  "Dashboard Feature",
+		Framework:  FrameworkVue,
+		Format:     MockupFormatHTML,
+		OutputPath: "specledger/050-dashboard/mockup.html",
 	}
 
 	result, err := RenderMockupPrompt(ctx)
@@ -129,15 +103,15 @@ func TestRenderMockupPrompt_VueHTML(t *testing.T) {
 	}
 }
 
-func TestRenderMockupPrompt_NoDesignSystem(t *testing.T) {
+func TestRenderMockupPrompt_WithUserPrompt(t *testing.T) {
 	ctx := &MockupPromptContext{
-		SpecName:        "060-settings",
-		SpecPath:        "specledger/060-settings/spec.md",
-		SpecTitle:       "Settings Page",
-		Framework:       FrameworkReact,
-		Format:          MockupFormatHTML,
-		OutputPath:      "specledger/060-settings/mockup.html",
-		HasDesignSystem: false,
+		SpecName:   "060-settings",
+		SpecPath:   "specledger/060-settings/spec.md",
+		SpecTitle:  "Settings Page",
+		Framework:  FrameworkReact,
+		Format:     MockupFormatHTML,
+		OutputPath: "specledger/060-settings/mockup.html",
+		UserPrompt: "Use dark theme",
 	}
 
 	result, err := RenderMockupPrompt(ctx)
@@ -145,10 +119,7 @@ func TestRenderMockupPrompt_NoDesignSystem(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !strings.Contains(result, "Settings Page") {
-		t.Error("prompt should include spec title even with no design system")
-	}
-	if !strings.Contains(result, "mockup.html") {
-		t.Error("prompt should include output path")
+	if !strings.Contains(result, "Use dark theme") {
+		t.Error("prompt should include user prompt")
 	}
 }

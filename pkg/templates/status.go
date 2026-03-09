@@ -4,8 +4,10 @@ package templates
 import (
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/specledger/specledger/pkg/cli/metadata"
+	"github.com/specledger/specledger/pkg/cli/playbooks"
 	"github.com/specledger/specledger/pkg/embedded"
 )
 
@@ -54,30 +56,96 @@ func CheckTemplateStatus(projectDir, cliVersion string) (*TemplateStatus, error)
 		status.NeedsUpdate = status.UpdateAvailable
 	}
 
-	// Count template files and find customized ones
-	claudeDir := filepath.Join(projectDir, ".claude")
-	if _, err := os.Stat(claudeDir); err == nil {
-		_ = filepath.Walk(claudeDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() {
+	// Load playbook manifest to know what files to check
+	source, err := playbooks.NewEmbeddedSource()
+	if err != nil {
+		return status, nil // Can't load manifest, return status as-is
+	}
+
+	playbook, err := source.GetDefaultPlaybook()
+	if err != nil {
+		return status, nil // Can't get playbook, return status as-is
+	}
+
+	// Check template files based on manifest
+	// 1. Check structure items
+	for _, structureItem := range playbook.Structure {
+		checkStructureItem(projectDir, structureItem, status)
+	}
+
+	// 2. Check commands in .claude/commands/
+	for _, cmd := range playbook.Commands {
+		// cmd.Path is like "commands/specledger.specify.md"
+		// Target in project is .claude/commands/specledger.specify.md
+		relPath := filepath.Join(".claude", cmd.Path)
+		checkFileCustomization(projectDir, relPath, status)
+	}
+
+	// 3. Check skills in .claude/skills/
+	for _, skill := range playbook.Skills {
+		// skill.Path is like "skills/sl-audit/skill.md"
+		// Target in project is .claude/skills/sl-audit/skill.md
+		relPath := filepath.Join(".claude", skill.Path)
+		checkFileCustomization(projectDir, relPath, status)
+	}
+
+	return status, nil
+}
+
+// checkStructureItem checks if a structure item (file or directory) exists and is customized.
+func checkStructureItem(projectDir, structureItem string, status *TemplateStatus) {
+	itemPath := filepath.Join(projectDir, structureItem)
+
+	// Check if it's a directory or file
+	info, err := os.Stat(itemPath)
+	if err != nil {
+		return // Item doesn't exist, skip
+	}
+
+	if info.IsDir() {
+		// It's a directory - walk and check all files
+		_ = filepath.Walk(itemPath, func(path string, fi os.FileInfo, err error) error {
+			if err != nil || fi.IsDir() {
 				return nil
 			}
 
-			status.TotalFiles++
-
-			// Check if file is customized
-			relPath, err := filepath.Rel(claudeDir, path)
+			relPath, err := filepath.Rel(projectDir, path)
 			if err != nil {
 				return nil
 			}
 
-			isCustom, _ := IsFileCustomized(path, relPath, embedded.SkillsFS)
-			if isCustom {
-				status.CustomizedFiles = append(status.CustomizedFiles, relPath)
-			}
-
+			checkFileCustomization(projectDir, relPath, status)
 			return nil
 		})
+	} else {
+		// It's a single file
+		checkFileCustomization(projectDir, structureItem, status)
+	}
+}
+
+// checkFileCustomization checks if a single file is customized compared to the embedded version.
+func checkFileCustomization(projectDir, relPath string, status *TemplateStatus) {
+	status.TotalFiles++
+
+	// Path in TemplatesFS is templates/specledger/<relPath>
+	// But for .claude files, the embedded path doesn't have .claude prefix
+	// Commands are at templates/specledger/commands/...
+	// Skills are at templates/specledger/skills/...
+	// Structure items are at templates/specledger/<item>
+
+	// Determine the path in embedded FS
+	// Strip .claude/ prefix for embedded path lookup if present
+	var relPathInFS string
+	prefix := ".claude" + string(filepath.Separator)
+	if rest, found := strings.CutPrefix(relPath, prefix); found {
+		relPathInFS = "templates/specledger/" + rest
+	} else {
+		relPathInFS = "templates/specledger/" + relPath
 	}
 
-	return status, nil
+	projectPath := filepath.Join(projectDir, relPath)
+	isCustom, _ := IsFileCustomized(projectPath, relPathInFS, embedded.TemplatesFS)
+	if isCustom {
+		status.CustomizedFiles = append(status.CustomizedFiles, relPath)
+	}
 }

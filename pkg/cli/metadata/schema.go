@@ -16,13 +16,15 @@ type ProjectMetadata struct {
 	Version         string                         `yaml:"version"`
 	Project         ProjectInfo                    `yaml:"project"`
 	Playbook        PlaybookInfo                   `yaml:"playbook"`
-	TemplateVersion string                         `yaml:"template_version,omitempty"`
+	TemplateVersion string                         `yaml:"template_version"`
 	TaskTracker     TaskTrackerInfo                `yaml:"task_tracker,omitempty"`
 	ArtifactPath    string                         `yaml:"artifact_path,omitempty"`
 	Dependencies    []Dependency                   `yaml:"dependencies,omitempty"`
 	Agent           *config.AgentConfig            `yaml:"agent,omitempty"`
 	Profiles        map[string]*config.AgentConfig `yaml:"profiles,omitempty"`
 	ActiveProfile   string                         `yaml:"active-profile,omitempty"`
+	// BranchAliases maps non-standard branch names to spec feature names (FR-012)
+	BranchAliases map[string]string `yaml:"branch_aliases,omitempty"`
 }
 
 // ProjectInfo contains project identification

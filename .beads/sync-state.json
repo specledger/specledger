@@ -1,7 +1,0 @@
-{
-  "last_failure": "2026-03-03T14:50:38.438496+07:00",
-  "failure_count": 1,
-  "backoff_until": "2026-03-03T14:51:08.438497+07:00",
-  "needs_manual_sync": false,
-  "failure_reason": "git pull failed: exit status 1\nFrom github.com:specledger/specledger\n * branch            main       -\u003e FETCH_HEAD\nThere are no candidates for merging among the refs that you just fetched.\nGenerally this means that you provided a wildcard refspec which had no\nmatches on the remote end.\n"
-}

@@ -138,27 +138,16 @@ func TestAllCoreToolsInstalled(t *testing.T) {
 }
 
 func TestCheckAllTools(t *testing.T) {
-	coreResults, frameworkResults := CheckAllTools()
+	results := CheckAllTools()
 
-	if len(coreResults) != len(CoreTools) {
-		t.Errorf("expected %d core results, got %d", len(CoreTools), len(coreResults))
-	}
-
-	if len(frameworkResults) != len(FrameworkTools) {
-		t.Errorf("expected %d framework results, got %d", len(FrameworkTools), len(frameworkResults))
+	if len(results) != len(CoreTools) {
+		t.Errorf("expected %d results, got %d", len(CoreTools), len(results))
 	}
 
 	// Verify all core tools are checked
-	for i, result := range coreResults {
+	for i, result := range results {
 		if result.Tool.Name != CoreTools[i].Name {
-			t.Errorf("core result %d: expected tool %s, got %s", i, CoreTools[i].Name, result.Tool.Name)
-		}
-	}
-
-	// Verify all framework tools are checked
-	for i, result := range frameworkResults {
-		if result.Tool.Name != FrameworkTools[i].Name {
-			t.Errorf("framework result %d: expected tool %s, got %s", i, FrameworkTools[i].Name, result.Tool.Name)
+			t.Errorf("result %d: expected tool %s, got %s", i, CoreTools[i].Name, result.Tool.Name)
 		}
 	}
 }
@@ -227,10 +216,6 @@ func TestCheckPrerequisites(t *testing.T) {
 	// Verify results are populated
 	if len(check.CoreResults) != len(CoreTools) {
 		t.Errorf("expected %d core results, got %d", len(CoreTools), len(check.CoreResults))
-	}
-
-	if len(check.FrameworkResults) != len(FrameworkTools) {
-		t.Errorf("expected %d framework results, got %d", len(FrameworkTools), len(check.FrameworkResults))
 	}
 
 	// Verify instructions are provided if tools are missing
@@ -327,22 +312,6 @@ func TestToolStructure(t *testing.T) {
 		}
 		if tool.Name != "mise" && tool.InstallCmd == "" {
 			t.Errorf("non-mise core tool %s should have InstallCmd", tool.Name)
-		}
-	}
-
-	// Verify all framework tools have required fields
-	for _, tool := range FrameworkTools {
-		if tool.Name == "" {
-			t.Error("framework tool missing Name field")
-		}
-		if tool.DisplayName == "" {
-			t.Error("framework tool missing DisplayName field")
-		}
-		if tool.Category != metadata.ToolCategoryFramework {
-			t.Errorf("framework tool %s has wrong category: %s", tool.Name, tool.Category)
-		}
-		if tool.InstallCmd == "" {
-			t.Errorf("framework tool %s should have InstallCmd", tool.Name)
 		}
 	}
 }

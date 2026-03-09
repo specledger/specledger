@@ -167,6 +167,151 @@ Or manually link all dependencies: `sl deps link`
 
 **Unlinking**: Use `sl deps unlink [alias]` to remove symlinks. Useful for cleaning up or re-linking dependencies.
 
+### Spec & Context Management
+
+Manage feature specifications and synchronize AI agent context files with plan metadata.
+
+**Note:** These Go CLI commands replace the legacy bash scripts (check-prerequisites.sh, create-new-feature.sh, setup-plan.sh, update-agent-context.sh). The bash scripts are deprecated and will be removed in a future version. Use the Go CLI for better cross-platform support and consistent JSON output.
+
+#### sl spec info
+
+Get feature context information including paths and available documentation. This command detects the current feature context from the git branch.
+
+**Examples:**
+```bash
+# Basic usage - get feature paths
+sl spec info
+
+# Get JSON output for AI agent consumption
+sl spec info --json
+
+# Validate that plan.md exists before proceeding
+sl spec info --require-plan
+
+# Get minimal paths only (faster, no doc discovery)
+sl spec info --paths-only
+```
+
+| Command | Description |
+|---------|-------------|
+| `sl spec info` | Show feature paths and available docs |
+| `sl spec info --json` | Output as JSON (for scripting/AI) |
+| `sl spec info --require-plan` | Error if plan.md doesn't exist |
+| `sl spec info --require-tasks` | Error if tasks.md doesn't exist |
+| `sl spec info --include-tasks` | Include tasks.md in AVAILABLE_DOCS |
+| `sl spec info --paths-only` | Output minimal paths only |
+
+**JSON Output:**
+```json
+{
+  "FEATURE_DIR": "/path/to/specledger/600-bash-cli-migration",
+  "BRANCH": "600-bash-cli-migration",
+  "FEATURE_SPEC": "/path/to/specledger/600-bash-cli-migration/spec.md",
+  "AVAILABLE_DOCS": ["research.md", "data-model.md"]
+}
+```
+
+#### sl spec create
+
+Create a new feature branch and spec directory with template files. Automatically filters stop-words and truncates to 244-byte git branch limit.
+
+**Examples:**
+```bash
+# Create a new feature with number and short name
+sl spec create --number 600 --short-name "bash-cli-migration"
+
+# Create with descriptive name (stop-words auto-filtered)
+sl spec create --number 601 --short-name "add OAuth2 authentication support"
+
+# Get JSON output for scripting
+sl spec create --number 602 --short-name "test" --json
+```
+
+| Command | Description |
+|---------|-------------|
+| `sl spec create --number 600 --short-name "test-feature"` | Create feature with number and name |
+| `sl spec create --number 600 --short-name "add OAuth2" --json` | Create with JSON output |
+| `sl spec create --number 600 --short-name "very long name..."` | Auto-truncated to 244 bytes |
+
+**JSON Output:**
+```json
+{
+  "BRANCH_NAME": "600-bash-cli-migration",
+  "FEATURE_DIR": "/path/to/specledger/600-bash-cli-migration",
+  "SPEC_FILE": "/path/to/specledger/600-bash-cli-migration/spec.md",
+  "FEATURE_NUM": "600"
+}
+```
+
+#### sl spec setup-plan
+
+Copy the plan template to the feature directory. Errors if plan.md already exists to prevent overwriting work.
+
+**Examples:**
+```bash
+# Create plan.md from template in current feature
+sl spec setup-plan
+
+# Get JSON output with plan file path
+sl spec setup-plan --json
+
+# Typical workflow after creating a feature
+sl spec create --number 600 --short-name "new-feature"
+sl spec setup-plan
+# Now edit plan.md with implementation details
+```
+
+| Command | Description |
+|---------|-------------|
+| `sl spec setup-plan` | Create plan.md from template |
+| `sl spec setup-plan --json` | Output as JSON |
+
+**JSON Output:**
+```json
+{
+  "PLAN_FILE": "/path/to/specledger/600-bash-cli-migration/plan.md"
+}
+```
+
+#### sl context update
+
+Update AI agent context files with Technical Context from plan.md. Preserves manual additions between markers and deduplicates entries.
+
+**Supported Agents:** claude, gemini, copilot, cursor, qwen, windsurf, kilocode, auggie, roo, codebuddy, qoder, shai, amazonq, ibmbob, opencode, codex
+
+**Examples:**
+```bash
+# Update CLAUDE.md with plan metadata (default)
+sl context update
+
+# Update a specific agent file
+sl context update gemini
+
+# Update GitHub Copilot instructions
+sl context update copilot
+
+# Get JSON output for verification
+sl context update claude --json
+```
+
+| Command | Description |
+|---------|-------------|
+| `sl context update` | Update CLAUDE.md (default) |
+| `sl context update claude` | Update CLAUDE.md |
+| `sl context update gemini` | Update GEMINI.md |
+| `sl context update copilot` | Update .github/agents/copilot-instructions.md |
+| `sl context update --agent cursor` | Alternative flag syntax |
+| `sl context update claude --json` | Update with JSON output |
+
+**JSON Output:**
+```json
+{
+  "UPDATED_FILES": ["/path/to/CLAUDE.md"]
+}
+```
+
+**Marker Preservation:** The command preserves any manual additions between `<!-- MANUAL ADDITIONS START -->` and `<!-- MANUAL ADDITIONS END -->` markers.
+
 ### Issue Tracking
 
 SpecLedger includes a built-in issue tracker for managing tasks within specs. Issues are stored per-spec in `specledger/<spec>/issues.jsonl`.

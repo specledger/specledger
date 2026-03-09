@@ -1,6 +1,6 @@
 # Data Model: Mockup Command
 
-**Branch**: `598-mockup-command` | **Date**: 2026-02-27 | **Updated**: 2026-03-03
+**Branch**: `598-mockup-command` | **Date**: 2026-02-27 | **Updated**: 2026-03-06
 
 ## Entities
 
@@ -19,6 +19,10 @@ const (
     FrameworkSvelte    FrameworkType = "svelte"
     FrameworkSvelteKit FrameworkType = "sveltekit"
     FrameworkAngular   FrameworkType = "angular"
+    FrameworkAstro     FrameworkType = "astro"
+    FrameworkSolid     FrameworkType = "solid"
+    FrameworkQwik      FrameworkType = "qwik"
+    FrameworkRemix     FrameworkType = "remix"
     FrameworkUnknown   FrameworkType = "unknown"
 )
 ```
@@ -26,6 +30,7 @@ const (
 **Validation Rules**:
 - Must be one of the defined constants
 - `unknown` is valid for non-frontend projects or when using `--force`
+- Includes Astro, SolidJS, Qwik, and Remix as distinct framework types (Remix was previously mapped to React)
 
 ---
 
@@ -76,11 +81,12 @@ The design system document containing CSS tokens and styling conventions. Does N
 
 ```go
 type DesignSystem struct {
-    Version      int           `yaml:"version" json:"version"`
-    Framework    FrameworkType `yaml:"framework" json:"framework"`
-    LastScanned  time.Time     `yaml:"last_scanned" json:"last_scanned"`
-    ExternalLibs []string      `yaml:"external_libs,omitempty" json:"external_libs,omitempty"`
-    Style        *StyleInfo    `yaml:"style,omitempty" json:"style,omitempty"`
+    Version      int            `yaml:"version" json:"version"`
+    Framework    FrameworkType  `yaml:"framework" json:"framework"`
+    LastScanned  time.Time      `yaml:"last_scanned" json:"last_scanned"`
+    ExternalLibs []string       `yaml:"external_libs,omitempty" json:"external_libs,omitempty"`
+    Style        *StyleInfo     `yaml:"style,omitempty" json:"style,omitempty"`
+    AppStructure *AppStructure  `yaml:"app_structure,omitempty" json:"app_structure,omitempty"`
 }
 ```
 
@@ -88,6 +94,7 @@ type DesignSystem struct {
 - `Version` must be `1` (current schema version)
 - `Framework` must be valid `FrameworkType`
 - `Style` contains extracted CSS tokens and styling patterns
+- `AppStructure` contains layout files, component directories, and global stylesheets discovered by `ScanAppStructure()`
 
 **State Transitions**:
 ```
@@ -97,28 +104,51 @@ type DesignSystem struct {
 
 ---
 
-### 5. StyleInfo
+### 5. AppStructure
+
+Describes the project's layout and routing structure, discovered by `ScanAppStructure()`.
+
+```go
+type AppStructure struct {
+    Router       string   `yaml:"router,omitempty" json:"router,omitempty"`         // e.g., "app-router", "pages-router", "file-based", "component-based", "module-based"
+    Layouts      []string `yaml:"layouts,omitempty" json:"layouts,omitempty"`       // Layout file paths (e.g., "app/layout.tsx")
+    Components   []string `yaml:"components,omitempty" json:"components,omitempty"` // Component file/dir paths (max 50)
+    GlobalStyles []string `yaml:"global_styles,omitempty" json:"global_styles,omitempty"` // Global stylesheet paths (max 30)
+}
+```
+
+**Validation Rules**:
+- `Router` is framework-specific: Next.js uses "app-router"/"pages-router", Nuxt/SvelteKit/Astro/Remix/Qwik use "file-based", React/Vue/Svelte/Solid use "component-based", Angular uses "module-based"
+- Returns `nil` if no layouts, components, or global styles are found
+- Layout detection is framework-aware (e.g., Next.js looks for `layout.tsx` in `app/`, SvelteKit looks for `+layout.svelte` in `src/routes/`)
+
+---
+
+### 6. StyleInfo
 
 Describes the project's CSS/styling patterns and design tokens.
 
 ```go
 type StyleInfo struct {
-    CSSFramework    string            `json:"css_framework"`              // e.g., "Tailwind CSS", "Bootstrap"
-    Preprocessor    string            `json:"preprocessor,omitempty"`     // e.g., "sass", "less"
-    StylingApproach string            `json:"styling_approach"`           // e.g., "utility-first", "css-in-js", "css-modules"
-    ThemeColors     map[string]string `json:"theme_colors,omitempty"`     // Extracted color tokens
-    FontFamilies    []string          `json:"font_families,omitempty"`    // Extracted font families
-    CSSVariables    []string          `json:"css_variables,omitempty"`    // Extracted CSS custom properties
-    SampleImports   []string          `json:"sample_imports,omitempty"`   // Sample import patterns
+    CSSFramework    string            `yaml:"css_framework" json:"css_framework"`
+    Preprocessor    string            `yaml:"preprocessor,omitempty" json:"preprocessor,omitempty"`
+    StylingApproach string            `yaml:"styling_approach" json:"styling_approach"`
+    ThemeColors     map[string]string `yaml:"theme_colors,omitempty" json:"theme_colors,omitempty"`
+    FontFamilies    []string          `yaml:"font_families,omitempty" json:"font_families,omitempty"`
+    CSSVariables    []string          `yaml:"css_variables,omitempty" json:"css_variables,omitempty"`
+    SampleImports   []string          `yaml:"sample_imports,omitempty" json:"sample_imports,omitempty"`
+    ComponentLibs   []string          `yaml:"component_libs,omitempty" json:"component_libs,omitempty"`
 }
 ```
 
 **Validation Rules**:
 - At least one of `CSSFramework`, `StylingApproach`, or `ThemeColors` should be non-empty
+- `ComponentLibs` lists detected UI component libraries (e.g., "shadcn/ui", "MUI (Material UI)", "Chakra UI")
+- `CSSFramework` may include version info (e.g., "Tailwind CSS v4" for CSS-based config)
 
 ---
 
-### 6. SpecContent
+### 7. SpecContent
 
 Parsed content from a `spec.md` file used to build the agent prompt.
 
@@ -139,22 +169,19 @@ type SpecContent struct {
 
 ---
 
-### 7. MockupPromptContext
+### 8. MockupPromptContext
 
-Template rendering context for the AI agent prompt.
+Template rendering context for the AI agent prompt. Style and design system data is **not embedded** in the prompt — the template instructs the agent to read `.specledger/memory/design-system.md` directly.
 
 ```go
 type MockupPromptContext struct {
-    SpecName        string        `json:"spec_name"`
-    SpecPath        string        `json:"spec_path"`
-    SpecTitle       string        `json:"spec_title"`
-    Framework       FrameworkType `json:"framework"`
-    Format          MockupFormat  `json:"format"`
-    OutputPath      string        `json:"output_path"`
-    ExternalLibs    []string      `json:"external_libs,omitempty"`
-    HasDesignSystem bool          `json:"has_design_system"`
-    Style           *StyleInfo    `json:"style,omitempty"`
-    HasStyle        bool          `json:"has_style"`
+    SpecName   string        `json:"spec_name"`
+    SpecPath   string        `json:"spec_path"`
+    SpecTitle  string        `json:"spec_title"`
+    Framework  FrameworkType `json:"framework"`
+    Format     MockupFormat  `json:"format"`
+    OutputPath string        `json:"output_path"`
+    UserPrompt string        `json:"user_prompt,omitempty"`
 }
 ```
 
@@ -162,10 +189,11 @@ type MockupPromptContext struct {
 - `SpecName` is required, must match an existing spec directory
 - `OutputPath` is the path to the expected mockup output file
 - `Format` must be valid `MockupFormat`
+- `UserPrompt` contains additional user instructions from positional args
 
 ---
 
-### 8. MockupResult
+### 9. MockupResult
 
 JSON output for `sl mockup --json` mode.
 
@@ -185,7 +213,7 @@ type MockupResult struct {
 
 ---
 
-### 9. UpdateResult
+### 10. UpdateResult
 
 JSON output for `sl mockup update --json` mode.
 
@@ -207,6 +235,7 @@ type UpdateResult struct {
 | Mockup Output (JSX) | `specledger/<spec-name>/mockup.jsx` | JSX (generated by AI agent) |
 | Agent Prompt | `specledger/<spec-name>/mockup-prompt.md` | Markdown (generated by `--dry-run`) |
 | Prompt Template | `pkg/cli/mockup/prompt.tmpl` | Go template (embedded) |
+| App Scanner | `pkg/cli/mockup/appscan.go` | Go source (layout/component/style discovery) |
 
 ---
 
@@ -218,31 +247,37 @@ type UpdateResult struct {
 | (detects)        |       | (creates/updates)|
 +------------------+       +------------------+
                                    |
-                                   | contains
-                                   v
-                           +------------------+
-                           | StyleInfo        |
-                           | (CSS tokens)     |
-                           +------------------+
+                           contains ├──────────────┐
+                                   v              v
+                           +------------------+  +------------------+
+                           | StyleInfo        |  | AppStructure     |
+                           | (CSS tokens,     |  | (layouts, comps, |
+                           |  component libs) |  |  global styles)  |
+                           +------------------+  +------------------+
                                    |
                                    v
 +------------------+       +----------------------+
 | Spec.md          |------>| MockupPromptContext  |
-| (parsed into     |       | (template context)   |
-|  SpecContent)    |       +----------------------+
-+------------------+              |
+| (parsed into     |       | (template context —  |
+|  SpecContent)    |       |  no style data)      |
++------------------+       +----------------------+
+                                  |
                                   | rendered via prompt.tmpl
                                   v
                            +------------------+
                            | Agent Prompt     |
-                           | (markdown text)  |
+                           | (instructs agent |
+                           |  to READ design- |
+                           |  system.md)      |
                            +------------------+
                                   |
                                   | launched via launcher
                                   v
                            +------------------+
                            | AI Agent         |
-                           | (generates)      |
+                           | (reads design-   |
+                           |  system.md +     |
+                           |  generates)      |
                            +------------------+
                                   |
                                   | produces
@@ -258,22 +293,23 @@ type UpdateResult struct {
 ```
 SpecContent ─────────┐
                      ├──→ MockupPromptContext ──→ prompt.tmpl ──→ Agent Prompt
-StyleInfo ───────────┤                                                │
-  (CSS tokens,       │                                                v
-   theme colors)     │                                           AI Agent
-                     │                                                │
-DetectionResult ─────┘                                     reads primary sources
-  (Framework)                                                         │
-                                                                      v
+DetectionResult ─────┘     (no style data —                          │
+  (Framework)               agent reads it)                          v
+                                                                AI Agent
+                                                                     │
+                                                          reads sources at runtime
+                                                                     │
+                                                                     v
                                                    ┌──────────────────────────────┐
-                                                   │ Primary Sources (READ FIRST) │
+                                                   │ Sources (READ FIRST)         │
                                                    │ 1. spec.md                   │
                                                    │ 2. requirements.md           │
                                                    │ 3. data-model.md             │
+                                                   │ 4. design-system.md (NEW)    │
                                                    └──────────────────────────────┘
-                                                                      │
-                                                                      v
-                                                                Mockup File
+                                                                     │
+                                                                     v
+                                                               Mockup File
 ```
 
 ---

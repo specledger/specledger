@@ -74,11 +74,12 @@ func TestTemplatesFSHasManifest(t *testing.T) {
 
 func TestTemplatesFSHasSpecledgerFiles(t *testing.T) {
 	// Check that specledger playbook has expected files
-	// Note: constitution.md doesn't exist, so we check for what actually exists
+	// Commands and skills are now directly under templates/specledger/
 	expectedFiles := []string{
 		"templates/specledger/init.sh",
 		"templates/specledger/.specledger/FORK.md",
-		"templates/specledger/.claude/commands/specledger.specify.md",
+		"templates/specledger/commands/specledger.specify.md",
+		"templates/specledger/skills/sl-audit/skill.md",
 	}
 
 	for _, file := range expectedFiles {
@@ -113,19 +114,21 @@ func TestTemplatesFSListing(t *testing.T) {
 	}
 }
 
-func TestSkillsFSPopulated(t *testing.T) {
-	// Test that SkillsFS is populated
-	entries, err := SkillsFS.ReadDir(".")
-	if err != nil {
-		t.Fatalf("Failed to read SkillsFS: %v", err)
+func TestTemplatesFSStructure(t *testing.T) {
+	// Test that all expected directories exist in TemplatesFS
+	// Commands and skills are now directly under templates/specledger/
+	expectedDirs := []string{
+		"templates/specledger/commands",
+		"templates/specledger/skills",
+		"templates/specledger/.specledger/templates",
 	}
 
-	if len(entries) == 0 {
-		t.Error("SkillsFS is empty - skills were not embedded")
-	}
-
-	t.Logf("SkillsFS has %d entries", len(entries))
-	for _, entry := range entries {
-		t.Logf("  - %s", entry.Name())
+	for _, dir := range expectedDirs {
+		entries, err := TemplatesFS.ReadDir(dir)
+		if err != nil {
+			t.Errorf("Expected directory %s to exist: %v", dir, err)
+			continue
+		}
+		t.Logf("Directory %s has %d entries", dir, len(entries))
 	}
 }

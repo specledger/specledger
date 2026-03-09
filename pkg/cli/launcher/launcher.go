@@ -34,6 +34,7 @@ type AgentLauncher struct {
 	Command string            // CLI command to execute
 	Dir     string            // Working directory for the agent process
 	env     map[string]string // Environment variables to inject
+	flags   []string          // CLI flags to pass to the command
 }
 
 // NewAgentLauncher creates a launcher for the given agent in the given directory.
@@ -43,6 +44,7 @@ func NewAgentLauncher(agent AgentOption, dir string) *AgentLauncher {
 		Command: agent.Command,
 		Dir:     dir,
 		env:     make(map[string]string),
+		flags:   []string{},
 	}
 }
 
@@ -53,6 +55,11 @@ func (l *AgentLauncher) SetEnv(envVars map[string]string) {
 	for k, v := range envVars {
 		l.env[k] = v
 	}
+}
+
+// SetFlags sets the CLI flags to pass when launching the agent.
+func (l *AgentLauncher) SetFlags(flags []string) {
+	l.flags = flags
 }
 
 func (l *AgentLauncher) BuildEnv() []string {
@@ -79,8 +86,9 @@ func (l *AgentLauncher) Launch() error {
 		return fmt.Errorf("no agent command configured")
 	}
 
+	args := l.flags
 	// #nosec G204 -- l.Command is from a controlled DefaultAgents list, not user input
-	cmd := exec.Command(l.Command)
+	cmd := exec.Command(l.Command, args...)
 	cmd.Dir = l.Dir
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
@@ -110,8 +118,10 @@ func (l *AgentLauncher) LaunchWithPromptAndOptions(prompt string, opts LaunchOpt
 		return fmt.Errorf("no agent command configured")
 	}
 
+	// Combine flags with prompt as final argument
+	args := append(l.flags, prompt)
 	// #nosec G204 -- l.Command is from a controlled DefaultAgents list, prompt is internal
-	cmd := exec.Command(l.Command, prompt)
+	cmd := exec.Command(l.Command, args...)
 	cmd.Dir = l.Dir
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout

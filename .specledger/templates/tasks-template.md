@@ -4,50 +4,42 @@ description: "Task list template for feature implementation"
 
 # Tasks Index: [FEATURE NAME]
 
-Beads Issue Graph Index into the tasks and phases for this feature implementation.
-This index does **not contain tasks directly**—those are fully managed through Beads CLI.
+Issue Graph Index into the tasks and phases for this feature implementation.
+This index does **not contain tasks directly**—those are fully managed through `sl issue` CLI.
 
 ## Feature Tracking
 
-* **Beads Epic ID**: `sl-[epic-id]`
+* **Epic ID**: `SL-[epic-id]`
 * **User Stories Source**: `specledger/[###-feature-name]/spec.md`
 * **Research Inputs**: `specledger/[###-feature-name]/research.md`
 * **Planning Details**: `specledger/[###-feature-name]/plan.md`
 * **Data Model**: `specledger/[###-feature-name]/data-model.md`
 * **Contract Definitions**: `specledger/[###-feature-name]/contracts/`
 
-## Beads Query Hints
+## Issue Query Hints
 
-Use the `bd` CLI to query and manipulate the issue graph:
+Use the `sl issue` CLI to query and manipulate the issue graph:
 
 ```bash
 # Find all open tasks for this feature
-bd list --label spec:[epic-id] --status open --limit 5
+sl issue list --label spec:[epic-id] --status open
 
-# Find ready tasks to implement
-bd ready --label spec:[epic-id] --limit 5
+# See all issues across specs
+sl issue list --all --status open
 
-# See dependencies for issue
-bd dep tree [issue-id]
+# View issue details
+sl issue show [issue-id]
 
-# View issues by component
-bd list --label 'component:backend-services' --label 'spec:[epic-id]' --limit 5
-
-# Define dependencies
-# valid dependency-types
-# (blocks|related|parent-child|discovered-from) (default "blocks")
-bd dep add [from-issue-id] [to-issue-id] --type [dependency-type]
-
-# Show all phases
-bd list --type feature --label 'spec:[epic-id]'
+# Link dependencies
+sl issue link [from-id] blocks [to-id]
 ```
 
 ## Tasks and Phases Structure
 
-This feature follows Beads' 2-level graph structure:
+This feature follows a 2-level graph structure:
 
-* **Epic**: sl-[epic-id] → represents the whole feature
-* **Phases**: Beads issues of type `feature`, child of the epic
+* **Epic**: SL-[epic-id] → represents the whole feature
+* **Phases**: Issues of type `feature`, child of the epic
   * Phase = a user story group or technical milestone (e.g., setup, auth, backend integration)
 * **Tasks**: Issues of type `task`, children of each feature issue (phase)
 
@@ -55,7 +47,7 @@ This feature follows Beads' 2-level graph structure:
 
 | Type    | Description                  | Labels                                 |
 | ------- | ---------------------------- | -------------------------------------- |
-| epic    | Full feature epic            | `spec:[name]`,                         |
+| epic    | Full feature epic            | `spec:[name]`                          |
 | feature | Implementation phase / story | `phase:[n]`, `story:[US#]`             |
 | task    | Implementation task          | `component:[x]`, `requirement:[fr-id]` |
 
@@ -63,75 +55,58 @@ This feature follows Beads' 2-level graph structure:
 
 MCP agents and AI workflows should:
 
-1. **Assume `bd init` already done** by `specify init`
-2. **Use `bd create`** to directly generate Beads issues
-3. **Set metadata and dependencies** in the graph, not markdown
-4. **Use this markdown only as a navigational anchor**
+1. **Use `sl issue create`** to directly generate issues
+2. **Set metadata and dependencies** using `sl issue link`
+3. **Use this markdown only as a navigational anchor**
 
-> Agents MUST NOT output tasks into this file. They MUST use Beads CLI to record all task and phase structure.
+> Agents MUST NOT output tasks into this file. They MUST use `sl issue` CLI to record all task and phase structure.
 
 ## Example Queries for Agents
 
 ```bash
-# Get all tasks in tree structure for the feature
-bd dep tree --reverse [epic-id]
-
-# get all tasks by label
-bd list --label spec:[feature-name] --label story:US1
-
-# Add a new task
-bd create "Implement OAuth redirect handler" -t task --parent [sl-auth-feature] --label spec:[feature-name] --label component:backend-services
+# Create a new task
+sl issue create "Implement OAuth redirect handler" --type task --labels "spec:[feature-name],component:backend-services"
 
 # Update notes on a task
-bd update sl-xyz123 --notes "Re-use helper functions from auth module"
+sl issue update SL-xyz123 --notes "Re-use helper functions from auth module"
 
-# Add a comment to an issue based on research or findings during implementation
-bd comments add sl-xyz123 "Additional research identified bcrypt as best hashing algo"
-```
+# Close a task with context
+sl issue close SL-xyz123 --reason "Completed with bcrypt, 12 rounds, <100ms"
 
-# Mark task as completed with context
-
-```bash
-bd close sl-xyz123 --reason "Completed with bcrypt, 12 rounds, <100ms"
-```
-
-or use `update` to set status and additional fields.
-
-```bash
-bd update sl-xyz123 --status closed --notes "Completed with bcrypt, 12 rounds, <100ms"
+# Mark task as in progress
+sl issue update SL-xyz123 --status in_progress
 ```
 
 ## Status Tracking
 
-Status is tracked only in Beads:
+Status is tracked in the issue store:
 
 * **Open** → default
 * **In Progress** → task being worked on
-* **Blocked** → dependency unresolved
 * **Closed** → complete
 
-Use `bd ready`, `bd blocked`, `bd stats` with appropriate filters to query progress.
+Use `sl issue list --status open` to query progress.
 
 ---
 
-> This file is intentionally light and index-only. Implementation data lives in Beads. Update this file only to point humans and agents to canonical query paths and feature references.
+> This file is intentionally light and index-only. Implementation data lives in the issue store. Update this file only to point humans and agents to canonical query paths and feature references.
 
 
-<!-- 
+<!--
   ============================================================================
   IMPORTANT: The tasks below are SAMPLE TASKS for illustration purposes only.
-  
-  The /specledger.tasks command MUST use Beads to track these with actual tasks based on:
+
+  The /specledger.tasks command MUST use sl issue to track these with actual tasks based on:
   - User stories from spec.md (with their priorities P1, P2, P3...)
   - Feature requirements from plan.md
   - Entities from data-model.md
   - Endpoints from contracts/
-  
+
   Tasks MUST be organized by user story so each story can be:
   - Implemented independently
   - Tested independently
   - Delivered as an MVP increment
-  
+
   DO NOT keep these sample tasks in the generated tasks.md file.
   ============================================================================
 -->

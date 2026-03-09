@@ -46,7 +46,6 @@ func TestDoctorCommand(t *testing.T) {
 	expectedSections := []string{
 		"SpecLedger Doctor",
 		"Core Tools",
-		"SDD Framework Tools",
 	}
 
 	for _, section := range expectedSections {
@@ -95,22 +94,14 @@ func TestDoctorJSONOutput(t *testing.T) {
 
 	// Verify tool categories
 	hasCoreTools := false
-	hasFrameworkTools := false
 	for _, tool := range doctorOutput.Tools {
 		if tool.Category == "core" {
 			hasCoreTools = true
-		}
-		if tool.Category == "framework" {
-			hasFrameworkTools = true
 		}
 	}
 
 	if !hasCoreTools {
 		t.Error("Expected at least one core tool in output")
-	}
-
-	if !hasFrameworkTools {
-		t.Error("Expected at least one framework tool in output")
 	}
 
 	// Verify status consistency
@@ -142,7 +133,6 @@ func TestDoctorToolDetection(t *testing.T) {
 	// Verify expected core tools are checked
 	// Note: bd and perles removed as we now use built-in sl issue tracking
 	expectedCoreTools := []string{"mise"}
-	expectedFrameworkTools := []string{"specify", "openspec"}
 
 	// Check that all expected tools are present in output
 	for _, expectedTool := range expectedCoreTools {
@@ -155,19 +145,6 @@ func TestDoctorToolDetection(t *testing.T) {
 		}
 		if !found {
 			t.Errorf("Expected core tool '%s' not found in output", expectedTool)
-		}
-	}
-
-	for _, expectedTool := range expectedFrameworkTools {
-		found := false
-		for _, tool := range doctorOutput.Tools {
-			if tool.Name == expectedTool && tool.Category == "framework" {
-				found = true
-				break
-			}
-		}
-		if !found {
-			t.Errorf("Expected framework tool '%s' not found in output", expectedTool)
 		}
 	}
 }

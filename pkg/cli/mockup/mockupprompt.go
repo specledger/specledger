@@ -11,6 +11,8 @@ import (
 var mockupPromptTemplate string
 
 // BuildMockupPromptContext assembles a MockupPromptContext from the gathered data.
+// The prompt template instructs the AI agent to read design-system.md directly,
+// so style/design-system data is not embedded in the prompt context.
 func BuildMockupPromptContext(
 	specName string,
 	specPath string,
@@ -18,11 +20,9 @@ func BuildMockupPromptContext(
 	framework FrameworkType,
 	format MockupFormat,
 	outputPath string,
-	ds *DesignSystem,
-	style *StyleInfo,
 	userPrompt string,
 ) *MockupPromptContext {
-	ctx := &MockupPromptContext{
+	return &MockupPromptContext{
 		SpecName:   specName,
 		SpecPath:   specPath,
 		SpecTitle:  specTitle,
@@ -31,18 +31,6 @@ func BuildMockupPromptContext(
 		OutputPath: outputPath,
 		UserPrompt: userPrompt,
 	}
-
-	if ds != nil {
-		ctx.HasDesignSystem = true
-		ctx.ExternalLibs = ds.ExternalLibs
-	}
-
-	if style != nil && (style.CSSFramework != "" || style.StylingApproach != "" || len(style.ThemeColors) > 0) {
-		ctx.Style = style
-		ctx.HasStyle = true
-	}
-
-	return ctx
 }
 
 // RenderMockupPrompt renders the mockup prompt template with the given context.

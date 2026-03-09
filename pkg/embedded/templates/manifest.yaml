@@ -1,14 +1,75 @@
 version: "1.0"
 playbooks:
   - name: specledger
-    description: "SpecLedger playbook with Claude Code commands, skills, and bash scripts"
+    description: "SpecLedger playbook with Claude Code commands and skills"
     version: "1.0.0"
     path: "specledger"
-    patterns:
-      - "**"
+
+    # Files and directories to copy to project root
     structure:
-      - ".claude/"
+      - ".specledger/"
       - ".gitattributes"
       - "AGENTS.md"
       - "mise.toml"
-      - ".specledger/"
+
+    # Files that should not be overwritten during template updates (user-specific content)
+    protected:
+      - ".specledger/memory/constitution.md"
+      - "AGENTS.md"
+
+    # Post-init script to run after copying files
+    post_script: "init.sh"
+
+    # All AI commands (stored in commands/)
+    commands:
+      - name: specledger.specify
+        path: "commands/specledger.specify.md"
+        description: "Create or update feature specification from natural language"
+      - name: specledger.clarify
+        path: "commands/specledger.clarify.md"
+        description: "Identify underspecified areas and current spec"
+      - name: specledger.plan
+        path: "commands/specledger.plan.md"
+        description: "Generate implementation plan from spec"
+      - name: specledger.tasks
+        path: "commands/specledger.tasks.md"
+        description: "Generate dependency-ordered tasks from plan"
+      - name: specledger.implement
+        path: "commands/specledger.implement.md"
+        description: "Execute implementation plan by processing tasks"
+      - name: specledger.verify
+        path: "commands/specledger.verify.md"
+        description: "Cross-artifact consistency verification"
+      - name: specledger.onboard
+        path: "commands/specledger.onboard.md"
+        description: "Guided onboarding workflow"
+      - name: specledger.constitution
+        path: "commands/specledger.constitution.md"
+        description: "Create or update project constitution"
+      - name: specledger.checklist
+        path: "commands/specledger.checklist.md"
+        description: "Generate custom checklist for current feature"
+      - name: specledger.spike
+        path: "commands/specledger.spike.md"
+        description: "Time-boxed exploratory research"
+      - name: specledger.checkpoint
+        path: "commands/specledger.checkpoint.md"
+        description: "Verify implementation progress and run tests"
+      - name: specledger.commit
+        path: "commands/specledger.commit.md"
+        description: "Commit and push with auth-aware session capture"
+
+    # All skills (stored in skills/)
+    skills:
+      - name: sl-audit
+        path: "skills/sl-audit/skill.md"
+        description: "Codebase reconnaissance for understanding project structure"
+      - name: sl-comment
+        path: "skills/sl-comment/skill.md"
+        description: "Issue and comment management with sl comment commands"
+      - name: sl-deps
+        path: "skills/sl-deps/skill.md"
+        description: "Manage specification dependencies with sl deps commands"
+      - name: sl-issue-tracking
+        path: "skills/sl-issue-tracking/skill.md"
+        description: "Issue tracking patterns and best practices"

@@ -13,6 +13,7 @@ Generate a **{{ .Format }}** mockup for **"{{ .SpecTitle }}"**.
 1. **Spec**: `{{ .SpecPath }}` — Contains user stories, acceptance criteria, and feature description
 2. **Requirements**: `specledger/{{ .SpecName }}/requirements.md` — Contains functional requirements (if exists)
 3. **Data Model**: `specledger/{{ .SpecName }}/data-model.md` — Contains data structures, types, and schemas (if exists)
+4. **Design System**: `.specledger/memory/design-system.md` — Contains framework, styling tokens, colors, fonts, app structure, and component libraries
 
 Extract UI screens, user flows, and interaction patterns directly from these source files.
 
@@ -20,40 +21,46 @@ Extract UI screens, user flows, and interaction patterns directly from these sou
 
 **You MUST search the codebase to copy the EXACT visual style of the existing app.**
 
-### Step 1: Find and Read Existing Pages
-Search for existing page components to understand how they look:
+### Step 1: Read the Design System
+
+Read `.specledger/memory/design-system.md` to understand:
+- Framework and router type
+- CSS framework and styling approach (utility-first, css-modules, css-in-js, etc.)
+- Theme colors and CSS variables
+- Font families
+- Component libraries in use (shadcn/ui, Material UI, Ant Design, etc.)
+- App structure: layout files, components, and global stylesheets
+
+Then READ the layout files and global stylesheets listed in the App Structure section.
+
+### Step 2: Identify Relevant Components
+
+From the App Structure tree in the design system, identify components that are **relevant to this feature's spec**.
+- Only READ components that match the UI patterns needed (e.g., if the spec needs a data table, look for Table/DataTable; if it needs forms, look for Form/Input)
+- Do NOT read every component — only the ones you will actually reuse in the mockup
+- Prioritize: layout components > shared UI primitives (buttons, cards, modals) > feature-specific components
+
+### Step 3: Read 1-2 Existing Pages
+
+Search for existing page components similar to the feature you're building:
 - Look for pages in `app/`, `pages/`, `src/pages/`, `src/app/` directories
-- Read 2-3 existing pages to understand the visual patterns
+- Pick pages with similar UI patterns (e.g., if building a settings page, read an existing settings or form page)
+- Understand the visual patterns, spacing, and structure
 
-### Step 2: Copy Layout Structure EXACTLY
-Find and READ these components, then COPY them exactly:
+### Step 4: Copy Layout & Styling EXACTLY
 
-**Sidebar** (search for `Sidebar.tsx`, `SideNav.tsx`, `Navigation.tsx`):
-- Copy the EXACT menu items, icons, and section headers (e.g., "MAIN", "SETTINGS")
-- Copy the EXACT logo/brand name position and styling
-- Copy the EXACT background color, width, and padding
-- Copy the EXACT active state styling for the current page
-- The new feature should appear as a new menu item in the appropriate section
-
-**Layout** (search for `Layout.tsx`, `AppShell.tsx`, `MainLayout.tsx`):
+**Layout** (use the layout files from the design system):
 - Copy the exact grid/flex structure
 - Copy the exact spacing between sidebar and main content
 
-### Step 3: Copy Component Styling
-Look for and COPY the exact styling of:
-- **Cards**: background colors, borders, shadows, border-radius, padding
-- **Badges/Tags**: colors, sizes, border-radius
-- **Buttons**: variants (primary, secondary, ghost), colors, hover states
-- **Typography**: headings, body text, labels, colors
-- **Spacing**: gaps between elements, padding, margins
-- **Icons**: which icon library is used (Lucide, Heroicons, etc.)
+**Sidebar/Navigation** (if the app has one):
+- Copy the EXACT menu items, icons, and section headers
+- Copy the EXACT logo/brand name position and styling
+- The new feature should appear as a new menu item in the appropriate section
 
-**Your mockup MUST look IDENTICAL to existing pages**:
-- Same dark/light theme
-- Same card styles, shadows, and borders
-- Same badge/tag colors and shapes
-- Same spacing and padding patterns
-- Same typography styles
+**Component Styling** — reuse the exact patterns from components you read:
+- Cards, badges, buttons, typography, spacing, icons
+- Same dark/light theme, shadows, borders, colors
 - DO NOT invent new styles — copy what already exists
 
 ## Output
@@ -63,25 +70,14 @@ Write a single self-contained file: `{{ .OutputPath }}`
 ## Context
 
 **Framework**: {{ .Framework }} | **Format**: {{ .Format }}
-{{ if .HasStyle }}
-**Styling**: {{ .Style.CSSFramework }}{{ if .Style.Preprocessor }} ({{ .Style.Preprocessor }}){{ end }} — {{ .Style.StylingApproach }}
-{{ if .Style.ThemeColors }}
-Theme colors:
-{{ range $name, $value := .Style.ThemeColors }}- `{{ $name }}`: `{{ $value }}`
-{{ end }}{{ end }}{{ if .Style.FontFamilies }}Fonts: {{ range $i, $f := .Style.FontFamilies }}{{ if $i }}, {{ end }}`{{ $f }}`{{ end }}
-{{ end }}{{ if .Style.CSSVariables }}CSS Variables: {{ range $i, $v := .Style.CSSVariables }}{{ if $i }}, {{ end }}`{{ $v }}`{{ end }}
-{{ end }}{{ if .Style.SampleImports }}Import patterns: {{ range .Style.SampleImports }}`{{ . }}` {{ end }}
-{{ end }}{{ end }}
-{{ if .ExternalLibs }}**UI Libraries**: {{ range $i, $lib := .ExternalLibs }}{{ if $i }}, {{ end }}{{ $lib }}{{ end }}
-{{ end }}
+
 ## Rules
 {{ if eq (printf "%s" .Format) "html" }}
-- Single self-contained HTML file with inline CSS{{ if and .HasStyle (eq .Style.CSSFramework "Tailwind CSS") }} + Tailwind CDN{{ end }}
-- Semantic HTML structure{{ else }}
+- Single self-contained HTML file with inline CSS + Tailwind CDN (if project uses Tailwind){{ else }}
 - Single JSX file exporting a default function component
-- {{ if and .HasStyle (eq .Style.StylingApproach "css-in-js") }}Styled components/emotion{{ else if and .HasStyle (eq .Style.StylingApproach "utility-first") }}Tailwind utility classes{{ else if and .HasStyle (eq .Style.StylingApproach "css-modules") }}CSS modules{{ else }}Inline style objects{{ end }}{{ end }}
+- Match the project's styling approach from the design system{{ end }}
 - Cover ALL screens from user stories with realistic content
-{{ if .HasStyle }}- Match project's visual style, colors, typography{{ end }}
+- Match project's visual style, colors, typography from the design system
 - **Output limit: 64000 tokens** — Keep mockup concise, prioritize essential screens
 
 ## Post-Generation

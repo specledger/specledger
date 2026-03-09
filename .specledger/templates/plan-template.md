@@ -39,7 +39,7 @@ Verify compliance with principles from `.specledger/memory/constitution.md`:
 - [ ] **UX Consistency**: User flows documented in spec.md acceptance scenarios
 - [ ] **Performance**: Metrics defined in Technical Context (response time, throughput, memory)
 - [ ] **Observability**: Logging/metrics strategy documented
-- [ ] **Issue Tracking**: Beads epic created and linked to spec
+- [ ] **Issue Tracking**: Epic created with `sl issue create --type epic` and linked to spec
 
 **Complexity Violations** (if any, justify in Complexity Tracking table below):
 - None identified / [List violations and justifications]

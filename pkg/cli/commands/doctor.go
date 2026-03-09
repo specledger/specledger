@@ -8,8 +8,8 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/prerequisites"
+	"github.com/specledger/specledger/pkg/cli/tui"
 	"github.com/specledger/specledger/pkg/cli/ui"
 	"github.com/specledger/specledger/pkg/templates"
 	"github.com/specledger/specledger/pkg/version"
@@ -30,16 +30,15 @@ var VarDoctorCmd = &cobra.Command{
 
 This command verifies that:
 - Core tools (mise) are installed and accessible
-- Framework tools (specify, openspec) are installed (optional)
-- CLI version is up to date (auto-updates if not)
-- Project templates match the CLI version (auto-applies if not)
+- CLI version is up to date (prompts to update if not)
+- Project templates match the CLI version (prompts to apply if not)
 
-Use --update to only update the CLI binary.
-Use --template to only apply embedded templates.
+Use --update to update the CLI binary without prompting.
+Use --template to apply embedded templates without prompting.
 Use --json flag for machine-readable output suitable for CI/CD pipelines.`,
-	Example: `  sl doctor              # Full check, auto-update CLI and templates
-  sl doctor --update     # Only update CLI to latest version
-  sl doctor --template   # Only apply embedded templates
+	Example: `  sl doctor              # Full check, prompt to update CLI and templates if needed
+  sl doctor --update     # Update CLI to latest version (non-interactive)
+  sl doctor --template   # Apply embedded templates (non-interactive)
   sl doctor --json       # JSON output for CI/CD`,
 	RunE:          runDoctor,
 	SilenceUsage:  true, // Don't print usage on error
@@ -146,11 +145,7 @@ func performTemplateUpdate() error {
 		return fmt.Errorf("not in a SpecLedger project (no specledger.yaml found)")
 	}
 
-	if !templateStatus.NeedsUpdate {
-		fmt.Printf("  %s Templates are up to date\n", ui.Checkmark())
-		return nil
-	}
-
+	// --template flag forces update regardless of version
 	fmt.Printf("  Applying templates (v%s -> v%s)...\n", templateStatus.ProjectTemplateVersion, cliVersion)
 	result, err := templates.UpdateTemplates(projectDir, cliVersion)
 	if err != nil {
@@ -159,6 +154,15 @@ func performTemplateUpdate() error {
 	total := len(result.Updated) + len(result.Overwritten)
 	fmt.Printf("  %s Updated %d templates (%d new, %d overwritten)\n",
 		ui.Checkmark(), total, len(result.Updated), len(result.Overwritten))
+
+	// Warn about stale files if any detected
+	if len(result.Stale) > 0 {
+		fmt.Printf("  %s Found %d stale templates (not deleted, manual cleanup recommended):\n",
+			ui.Yellow("⚠"), len(result.Stale))
+		for _, f := range result.Stale {
+			fmt.Printf("    - %s\n", f)
+		}
+	}
 	return nil
 }
 
@@ -170,16 +174,6 @@ func outputDoctorJSON(check prerequisites.PrerequisiteCheck) error {
 
 	// Add all tools to output
 	for _, result := range check.CoreResults {
-		output.Tools = append(output.Tools, DoctorToolStatus{
-			Name:      result.Tool.Name,
-			Installed: result.Installed,
-			Version:   result.Version,
-			Path:      result.Path,
-			Category:  string(result.Tool.Category),
-		})
-	}
-
-	for _, result := range check.FrameworkResults {
 		output.Tools = append(output.Tools, DoctorToolStatus{
 			Name:      result.Tool.Name,
 			Installed: result.Installed,
@@ -277,13 +271,21 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 	} else if versionInfo.UpdateAvailable {
 		fmt.Printf(" %s\n", ui.Yellow(fmt.Sprintf("(latest: %s)", versionInfo.LatestVersion)))
 		fmt.Println()
-		fmt.Printf("  Updating CLI %s -> %s...\n", cliVersion, versionInfo.LatestVersion)
-		if err := version.SelfUpdate(ctx); err != nil {
-			fmt.Printf("  %s Update failed: %v\n", ui.Red("✗"), err)
-			fmt.Printf("  %s Try manual update:\n", ui.Dim("ℹ"))
-			fmt.Printf("      %s\n", version.GetUpdateInstructions())
+		fmt.Printf("  CLI update available: %s -> %s\n", cliVersion, versionInfo.LatestVersion)
+		confirmed, err := tui.ConfirmPrompt("  Update CLI? [y/N]: ")
+		if err != nil {
+			fmt.Printf("  %s Failed to read confirmation: %v\n", ui.Red("✗"), err)
+		} else if confirmed {
+			fmt.Printf("  Updating CLI...\n")
+			if err := version.SelfUpdate(ctx); err != nil {
+				fmt.Printf("  %s Update failed: %v\n", ui.Red("✗"), err)
+				fmt.Printf("  %s Try manual update:\n", ui.Dim("ℹ"))
+				fmt.Printf("      %s\n", version.GetUpdateInstructions())
+			} else {
+				fmt.Printf("  %s CLI updated. Restart sl to use the new version.\n", ui.Checkmark())
+			}
 		} else {
-			fmt.Printf("  %s CLI updated. Restart sl to use the new version.\n", ui.Checkmark())
+			fmt.Printf("  Skipping CLI update\n")
 		}
 	} else {
 		fmt.Printf(" %s\n", ui.Green("(latest)"))
@@ -308,65 +310,31 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 			fmt.Printf("  %s Templates: %s\n", ui.Checkmark(), ui.Green("current"))
 		}
 
-		// Auto-apply template update if needed
+		// Ask user before applying template update
 		if templateStatus.NeedsUpdate {
 			fmt.Println()
 			if hasUncommittedChanges(projectDir) {
 				fmt.Printf("  %s Warning: Uncommitted changes in .claude/ will be overwritten\n", ui.Yellow("⚠"))
 			}
-			fmt.Printf("  Applying templates (v%s -> v%s)...\n", templateStatus.ProjectTemplateVersion, cliVersion)
-			result, err := templates.UpdateTemplates(projectDir, cliVersion)
+			fmt.Printf("  Template update available: v%s -> v%s\n", templateStatus.ProjectTemplateVersion, cliVersion)
+			confirmed, err := tui.ConfirmPrompt("  Apply template updates? [y/N]: ")
 			if err != nil {
-				fmt.Printf("  %s Template update failed: %v\n", ui.Red("✗"), err)
+				fmt.Printf("  %s Failed to read confirmation: %v\n", ui.Red("✗"), err)
+			} else if confirmed {
+				fmt.Printf("  Applying templates...\n")
+				result, err := templates.UpdateTemplates(projectDir, cliVersion)
+				if err != nil {
+					fmt.Printf("  %s Template update failed: %v\n", ui.Red("✗"), err)
+				} else {
+					total := len(result.Updated) + len(result.Overwritten)
+					fmt.Printf("  %s Updated %d templates (%d new, %d overwritten)\n",
+						ui.Checkmark(), total, len(result.Updated), len(result.Overwritten))
+				}
 			} else {
-				total := len(result.Updated) + len(result.Overwritten)
-				fmt.Printf("  %s Updated %d templates (%d new, %d overwritten)\n",
-					ui.Checkmark(), total, len(result.Updated), len(result.Overwritten))
+				fmt.Printf("  Skipping template update\n")
 			}
 		}
 		fmt.Println()
-	}
-
-	// Framework tools section
-	fmt.Println(ui.Bold("SDD Framework Tools"))
-	fmt.Println(ui.Cyan("──────────────────"))
-	fmt.Println()
-
-	for _, result := range check.FrameworkResults {
-		name := result.Tool.DisplayName
-		versionInfo := ""
-		status := ui.Crossmark() + " "
-		fwStatus := ""
-
-		if result.Installed {
-			status = ui.Checkmark() + " "
-			if result.Version != "" {
-				versionInfo = ui.Dim(fmt.Sprintf("(%s)", result.Version))
-			}
-
-			// Check if playbook is applied in current project
-			projectDir, _ := os.Getwd()
-			if metadata.HasYAMLMetadata(projectDir) {
-				if meta, _ := metadata.LoadFromProject(projectDir); meta != nil {
-					// Show playbook name instead of framework choice
-					if meta.Playbook.Name != "" {
-						fwStatus = fmt.Sprintf("(playbook: %s)", meta.Playbook.Name)
-					} else {
-						fwStatus = ui.Yellow("(no playbook)")
-					}
-				}
-			}
-		}
-		fmt.Printf("  %s%s%s %s\n", status, ui.Bold(name), versionInfo, fwStatus)
-	}
-	fmt.Println()
-
-	// Check if we're in a SpecLedger project and show framework init commands
-	if metadata.HasYAMLMetadata(projectDir) {
-		meta, loadErr := metadata.LoadFromProject(projectDir)
-		if loadErr == nil {
-			showFrameworkInitCommands(check, meta)
-		}
 	}
 
 	// Overall status
@@ -382,12 +350,6 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 	fmt.Println(check.Instructions)
 
 	return fmt.Errorf("missing required tools")
-}
-
-// showFrameworkInitCommands shows commands to initialize frameworks that need it
-func showFrameworkInitCommands(check prerequisites.PrerequisiteCheck, meta *metadata.ProjectMetadata) {
-	// Framework initialization commands are no longer needed
-	// as we use playbooks instead of frameworks
 }
 
 // hasUncommittedChanges checks if there are uncommitted changes in .claude/ directory

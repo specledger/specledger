@@ -16,7 +16,11 @@ var cssFrameworkDeps = []struct {
 }{
 	{"tailwindcss", "Tailwind CSS", "utility-first"},
 	{"@tailwindcss/", "Tailwind CSS", "utility-first"},
+	{"unocss", "UnoCSS", "utility-first"},
+	{"@unocss/", "UnoCSS", "utility-first"},
 	{"bootstrap", "Bootstrap", "utility-first"},
+	{"@pandacss/dev", "Panda CSS", "utility-first"},
+	{"@stylexjs/stylex", "StyleX", "css-in-js"},
 	{"styled-components", "styled-components", "css-in-js"},
 	{"@emotion/react", "Emotion", "css-in-js"},
 	{"@emotion/styled", "Emotion", "css-in-js"},
@@ -24,19 +28,59 @@ var cssFrameworkDeps = []struct {
 	{"@vanilla-extract/css", "Vanilla Extract", "css-in-js"},
 	{"sass", "Sass/SCSS", "preprocessor"},
 	{"less", "Less", "preprocessor"},
+	{"lightningcss", "Lightning CSS", "preprocessor"},
 }
 
-// CSS config files to check for.
+// cssConfigFiles lists config files to detect CSS framework.
+// Order matters: higher-priority frameworks listed first so they won't be
+// overwritten by lower-priority ones (e.g. PostCSS is present alongside Tailwind).
 var cssConfigFiles = []struct {
 	file      string
 	framework string
+	stopIfSet bool // if true, stop scanning once a framework is already detected
 }{
-	{"tailwind.config.js", "Tailwind CSS"},
-	{"tailwind.config.ts", "Tailwind CSS"},
-	{"tailwind.config.mjs", "Tailwind CSS"},
-	{"postcss.config.js", "PostCSS"},
-	{"postcss.config.mjs", "PostCSS"},
+	{"tailwind.config.ts", "Tailwind CSS", false},
+	{"tailwind.config.js", "Tailwind CSS", false},
+	{"tailwind.config.mjs", "Tailwind CSS", false},
+	{"uno.config.ts", "UnoCSS", false},
+	{"uno.config.js", "UnoCSS", false},
+	{"panda.config.ts", "Panda CSS", false},
+	{"panda.config.mjs", "Panda CSS", false},
+	{"postcss.config.js", "PostCSS", true},
+	{"postcss.config.mjs", "PostCSS", true},
 }
+
+// componentLibDeps maps package.json dependencies to component library names.
+var componentLibDeps = []struct {
+	dep  string
+	name string
+}{
+	{"@radix-ui/", "Radix UI"},
+	{"@shadcn/ui", "shadcn/ui"},
+	{"@mui/material", "MUI (Material UI)"},
+	{"@mui/joy", "MUI Joy UI"},
+	{"@chakra-ui/react", "Chakra UI"},
+	{"antd", "Ant Design"},
+	{"@ant-design/", "Ant Design"},
+	{"@mantine/core", "Mantine"},
+	{"@headlessui/react", "Headless UI"},
+	{"@headlessui/vue", "Headless UI"},
+	{"@nextui-org/react", "NextUI"},
+	{"@heroicons/react", "Heroicons"},
+	{"lucide-react", "Lucide Icons"},
+	{"@phosphor-icons/react", "Phosphor Icons"},
+	{"daisyui", "daisyUI"},
+	{"flowbite", "Flowbite"},
+	{"primereact", "PrimeReact"},
+	{"primevue", "PrimeVue"},
+	{"vuetify", "Vuetify"},
+	{"element-plus", "Element Plus"},
+	{"@ark-ui/react", "Ark UI"},
+	{"@park-ui/", "Park UI"},
+}
+
+// tailwindColorRe matches simple hex/rgb color values in JS/TS object literals.
+var tailwindColorRe = regexp.MustCompile(`'(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|hsl[a]?\([^)]+\))'`)
 
 // Global CSS file candidates to scan for variables and fonts.
 var globalCSSCandidates = []string{
@@ -52,6 +96,10 @@ var globalCSSCandidates = []string{
 	"src/styles/variables.css",
 	"src/styles/theme.css",
 	"src/app/layout.css",
+	"app/layout.css",
+	"src/assets/css/main.css",
+	"assets/css/main.css",
+	"src/css/app.css",
 }
 
 var (
@@ -60,6 +108,9 @@ var (
 	cssFontDecl  = regexp.MustCompile(`(?i)font-family\s*:\s*([^;]+);`)
 	styleImport  = regexp.MustCompile(`(?m)^import\s+.*(?:\.css|\.scss|\.less|\.module\.|styled|@emotion)`)
 	tailwindBase = regexp.MustCompile(`@tailwind\s+base|@apply\s+`)
+	// Tailwind v4 uses CSS-based config: @import "tailwindcss" and @theme blocks.
+	tailwindV4Import = regexp.MustCompile(`@import\s+["']tailwindcss["']`)
+	tailwindV4Theme  = regexp.MustCompile(`@theme\s*\{`)
 )
 
 // ScanStyles detects the project's CSS framework, variables, and styling patterns.
@@ -68,14 +119,39 @@ func ScanStyles(projectPath string) *StyleInfo {
 		ThemeColors: make(map[string]string),
 	}
 
-	// 1. Check CSS config files
+	// 1. Check CSS config files (higher-priority entries first)
 	for _, cfg := range cssConfigFiles {
+		if cfg.stopIfSet && info.CSSFramework != "" {
+			continue
+		}
 		if _, err := os.Stat(filepath.Join(projectPath, cfg.file)); err == nil {
 			info.CSSFramework = cfg.framework
 		}
 	}
 
-	// 2. Check package.json deps for CSS framework
+	// 1b. If Tailwind detected, parse its config to extract theme colors
+	if info.CSSFramework == "Tailwind CSS" {
+		scanTailwindConfig(projectPath, info)
+	}
+
+	// 1c. Check for Tailwind v4 CSS-based config (@import "tailwindcss", @theme)
+	if info.CSSFramework == "" {
+		for _, candidate := range globalCSSCandidates {
+			fullPath := filepath.Join(projectPath, candidate)
+			content, err := os.ReadFile(fullPath)
+			if err != nil {
+				continue
+			}
+			if tailwindV4Import.Match(content) || tailwindV4Theme.Match(content) {
+				info.CSSFramework = "Tailwind CSS v4"
+				info.StylingApproach = "utility-first"
+				scanTailwindV4Theme(string(content), info)
+				break
+			}
+		}
+	}
+
+	// 2. Check package.json deps for CSS framework and component libraries
 	allDeps := readPackageDeps(projectPath)
 	if allDeps != nil {
 		for _, sig := range cssFrameworkDeps {
@@ -94,6 +170,26 @@ func ScanStyles(projectPath string) *StyleInfo {
 						info.Preprocessor = "less"
 					}
 				}
+			}
+		}
+
+		// Detect component libraries
+		seen := make(map[string]bool)
+		for _, lib := range componentLibDeps {
+			for dep := range allDeps {
+				if (strings.HasSuffix(lib.dep, "/") && strings.HasPrefix(dep, lib.dep)) || dep == lib.dep {
+					if !seen[lib.name] {
+						seen[lib.name] = true
+						info.ComponentLibs = append(info.ComponentLibs, lib.name)
+					}
+				}
+			}
+		}
+
+		// Detect shadcn/ui by components.json (shadcn doesn't always appear in deps)
+		if _, err := os.Stat(filepath.Join(projectPath, "components.json")); err == nil {
+			if !seen["shadcn/ui"] {
+				info.ComponentLibs = append(info.ComponentLibs, "shadcn/ui")
 			}
 		}
 	}
@@ -132,6 +228,13 @@ func ScanStyles(projectPath string) *StyleInfo {
 			if err != nil {
 				continue
 			}
+			// Tailwind v4: @import "tailwindcss" or @theme {}
+			if tailwindV4Import.Match(content) || tailwindV4Theme.Match(content) {
+				info.CSSFramework = "Tailwind CSS v4"
+				info.StylingApproach = "utility-first"
+				break
+			}
+			// Tailwind v3: @tailwind base or @apply
 			if tailwindBase.Match(content) {
 				info.CSSFramework = "Tailwind CSS"
 				info.StylingApproach = "utility-first"
@@ -146,6 +249,119 @@ func ScanStyles(projectPath string) *StyleInfo {
 	}
 
 	return info
+}
+
+// scanTailwindConfig parses a tailwind.config.ts/js file and extracts theme color tokens.
+// It uses regex-based extraction (no JS evaluation) to find color name/value pairs
+// in the theme.extend.colors or theme.colors blocks.
+func scanTailwindConfig(projectPath string, info *StyleInfo) {
+	candidates := []string{"tailwind.config.ts", "tailwind.config.js", "tailwind.config.mjs"}
+	var content []byte
+	for _, name := range candidates {
+		data, err := os.ReadFile(filepath.Join(projectPath, name))
+		if err == nil {
+			content = data
+			break
+		}
+	}
+	if len(content) == 0 {
+		return
+	}
+
+	text := string(content)
+
+	// Locate the first colors block (theme.colors or theme.extend.colors)
+	colorsIdx := strings.Index(text, "colors:")
+	if colorsIdx == -1 {
+		colorsIdx = strings.Index(text, "colors :")
+	}
+	if colorsIdx == -1 {
+		return
+	}
+
+	// Bounded window after "colors:" to avoid scanning the whole file
+	window := text[colorsIdx:]
+	if len(window) > 8000 {
+		window = window[:8000]
+	}
+
+	// keyValueRe matches lines like:  500: '#6366f1',  or  brand: '#4f46e5',
+	keyValueRe := regexp.MustCompile(`(\w+)\s*:\s*` + tailwindColorRe.String())
+	// groupKeyRe matches object group openers like:  brand: {
+	groupKeyRe := regexp.MustCompile(`^\s*(\w+)\s*:\s*\{`)
+	// shadeRe matches Tailwind shade keys (numeric or DEFAULT)
+	shadeRe := regexp.MustCompile(`^(\d+|DEFAULT)$`)
+
+	var colorPrefix string
+	for _, line := range strings.Split(window, "\n") {
+		if g := groupKeyRe.FindStringSubmatch(line); len(g) > 1 {
+			name := g[1]
+			if name != "colors" && name != "extend" && name != "theme" {
+				colorPrefix = name
+			}
+		}
+		if kv := keyValueRe.FindStringSubmatch(line); len(kv) > 2 {
+			key, val := kv[1], kv[2]
+			var tokenName string
+			if shadeRe.MatchString(key) && colorPrefix != "" {
+				if key == "DEFAULT" {
+					tokenName = colorPrefix
+				} else {
+					tokenName = colorPrefix + "-" + key
+				}
+			} else {
+				tokenName = key
+				colorPrefix = key
+			}
+			if _, exists := info.ThemeColors[tokenName]; !exists {
+				info.ThemeColors[tokenName] = val
+			}
+		}
+	}
+}
+
+// scanTailwindV4Theme extracts color tokens from Tailwind v4 @theme {} blocks.
+// Tailwind v4 defines theme tokens as CSS custom properties inside @theme { ... }.
+func scanTailwindV4Theme(content string, info *StyleInfo) {
+	themeIdx := strings.Index(content, "@theme")
+	if themeIdx == -1 {
+		return
+	}
+	// Find the opening brace
+	braceStart := strings.Index(content[themeIdx:], "{")
+	if braceStart == -1 {
+		return
+	}
+	start := themeIdx + braceStart + 1
+
+	// Find matching closing brace
+	depth := 1
+	end := start
+	for end < len(content) && depth > 0 {
+		switch content[end] {
+		case '{':
+			depth++
+		case '}':
+			depth--
+		}
+		if depth > 0 {
+			end++
+		}
+	}
+	if depth != 0 {
+		return
+	}
+
+	block := content[start:end]
+	for _, line := range strings.Split(block, "\n") {
+		if matches := cssVarDecl.FindStringSubmatch(strings.TrimSpace(line)); len(matches) > 2 {
+			varName := "--" + matches[1]
+			value := strings.TrimSpace(matches[2])
+			if _, exists := info.ThemeColors[varName]; !exists {
+				info.ThemeColors[varName] = value
+			}
+		}
+	}
 }
 
 // scanCSSFile extracts CSS variables, colors, and font families from a CSS/SCSS file.
@@ -214,7 +430,7 @@ func detectStylingApproach(projectPath string) string {
 			}
 
 			ext := filepath.Ext(d.Name())
-			if ext != ".tsx" && ext != ".jsx" && ext != ".vue" && ext != ".svelte" {
+			if ext != ".tsx" && ext != ".jsx" && ext != ".vue" && ext != ".svelte" && ext != ".astro" {
 				return nil
 			}
 
@@ -228,16 +444,22 @@ func detectStylingApproach(projectPath string) string {
 			if strings.Contains(text, ".module.css") || strings.Contains(text, ".module.scss") {
 				counts["css-modules"]++
 			}
-			if strings.Contains(text, "styled.") || strings.Contains(text, "css`") || strings.Contains(text, "@emotion") {
+			if strings.Contains(text, "styled.") || strings.Contains(text, "css`") || strings.Contains(text, "@emotion") || strings.Contains(text, "stylex.create") {
 				counts["css-in-js"]++
 			}
-			if strings.Contains(text, "className=\"") && (strings.Contains(text, "flex ") || strings.Contains(text, "bg-") || strings.Contains(text, "text-")) {
+			// Utility-first: className with Tailwind-like classes, or class: with UnoCSS/Tailwind
+			if (strings.Contains(text, "className=\"") || strings.Contains(text, "class=\"") || strings.Contains(text, "class:")) &&
+				(strings.Contains(text, "flex ") || strings.Contains(text, "bg-") || strings.Contains(text, "text-") || strings.Contains(text, "p-") || strings.Contains(text, "m-")) {
 				counts["utility"]++
 			}
 			if strings.Contains(text, "import './") || strings.Contains(text, "import \"./") {
 				if strings.Contains(text, ".css") && !strings.Contains(text, ".module.css") {
 					counts["traditional"]++
 				}
+			}
+			// Scoped styles in Vue/Svelte/Astro
+			if strings.Contains(text, "<style") && (strings.Contains(text, "scoped") || ext == ".svelte" || ext == ".astro") {
+				counts["css-modules"]++ // scoped styles are similar to CSS modules
 			}
 
 			return nil
@@ -283,7 +505,7 @@ func sampleStyleImports(projectPath string) []string {
 			}
 
 			ext := filepath.Ext(d.Name())
-			if ext != ".tsx" && ext != ".jsx" {
+			if ext != ".tsx" && ext != ".jsx" && ext != ".vue" && ext != ".svelte" && ext != ".astro" {
 				return nil
 			}
 
