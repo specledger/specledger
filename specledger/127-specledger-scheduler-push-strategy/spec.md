@@ -44,7 +44,9 @@ A developer finishes specifying and planning a feature using SpecLedger. They ap
 
 1. **Given** a feature branch with approved spec and tasks, **When** the user runs `git push`, **Then** the push hook detects the approved artifacts and triggers `sl implement` for that feature.
 2. **Given** a feature branch with a draft (unapproved) spec, **When** the user runs `git push`, **Then** no automatic implementation is triggered and the push completes normally.
-3. **Given** a feature branch with approved artifacts but `sl implement` is already running or completed, **When** the user runs `git push`, **Then** the hook skips triggering to avoid duplicate execution.
+3. **Given** a feature branch with approved artifacts but `sl implement` is already running (`.specledger/exec.lock` exists with a live PID), **When** the user runs `git push`, **Then** the hook skips triggering to avoid duplicate execution and logs a message.
+4. **Given** a feature branch with a stale `.specledger/exec.lock` (PID no longer running), **When** the user runs `git push`, **Then** the hook removes the stale lock, logs a warning, and proceeds to trigger `sl implement` normally.
+5. **Given** a push-triggered implementation completes successfully, **Then** the generated code is committed to a `<feature-branch>/implement` sub-branch and the developer's working tree remains unchanged.
 
 ---
 
@@ -99,11 +101,13 @@ After a push triggers implementation, the developer wants to know what happened.
 - **FR-004**: The push hook MUST detect when pushed commits contain approved spec/task artifacts for the current feature branch.
 - **FR-005**: The push hook MUST trigger `sl implement` as a single background process for the detected approved feature. The process reads plan.md and executes tasks sequentially using internal goroutines/task queue.
 - **FR-006**: The push hook MUST use the `pre-push` git hook and spawn `sl implement` as a background process (detached from the push). The push MUST NOT be blocked or delayed by implementation execution.
-- **FR-007**: The push hook MUST NOT trigger implementation if the feature's implementation is already in progress or completed.
+- **FR-007**: The push hook MUST NOT trigger implementation if a `.specledger/exec.lock` file exists AND the process ID recorded in it is still running. The lock file MUST contain the PID and feature name. `sl implement` MUST create the lock on start and remove it on completion (success or failure).
 - **FR-008**: The hook installation MUST preserve any existing git hooks in the project.
 - **FR-009**: The push hook MUST only trigger on feature branches (matching the `NNN-feature-name` pattern).
 - **FR-010**: System MUST log hook execution details to `.specledger/logs/push-hook.log` including timestamp, feature detected, action taken, and outcome.
 - **FR-011**: The push hook MUST fail gracefully (log error, do not block push) if any error occurs during detection or triggering.
+- **FR-015**: If a stale `.specledger/exec.lock` is detected (recorded PID no longer running), the hook MUST remove it and proceed normally, logging a warning about the stale lock.
+- **FR-016**: `sl implement` MUST commit generated code to a sub-branch named `<feature-branch>/implement`. The developer's working tree MUST NOT be modified. A summary of changes MUST be written to `.specledger/logs/<feature>-result.md`.
 
 ### Approval Command
 
@@ -126,6 +130,7 @@ After a push triggers implementation, the developer wants to know what happened.
 - **SC-003**: The push hook adds less than 2 seconds of overhead to the git push operation.
 - **SC-004**: 100% of pushes on non-feature branches or with unapproved specs complete without triggering implementation.
 - **SC-005**: Hook execution logs are available for the last 50 push events.
+- **SC-006**: After push-triggered implementation completes, the developer can review all generated code via `git diff <feature-branch>..<feature-branch>/implement` without any working tree modifications.
 
 ### Previous work
 
