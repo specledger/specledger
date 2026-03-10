@@ -16,6 +16,20 @@ func initGitRepo(t *testing.T, dir string) {
 	}
 }
 
+func mustMkdirAll(t *testing.T, path string) {
+	t.Helper()
+	if err := os.MkdirAll(path, 0755); err != nil {
+		t.Fatalf("failed to create directory %s: %v", path, err)
+	}
+}
+
+func mustWriteFile(t *testing.T, path string, data []byte) {
+	t.Helper()
+	if err := os.WriteFile(path, data, 0644); err != nil {
+		t.Fatalf("failed to write file %s: %v", path, err)
+	}
+}
+
 func TestGetNextFeatureNum_EmptyDir(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -31,9 +45,9 @@ func TestGetNextFeatureNum_EmptyDir(t *testing.T) {
 func TestGetNextFeatureNum_WithExistingFeatures(t *testing.T) {
 	tmpDir := t.TempDir()
 	specDir := filepath.Join(tmpDir, "specledger")
-	os.MkdirAll(filepath.Join(specDir, "001-first-feature"), 0755)
-	os.MkdirAll(filepath.Join(specDir, "005-fifth-feature"), 0755)
-	os.MkdirAll(filepath.Join(specDir, "003-third-feature"), 0755)
+	mustMkdirAll(t, filepath.Join(specDir, "001-first-feature"))
+	mustMkdirAll(t, filepath.Join(specDir, "005-fifth-feature"))
+	mustMkdirAll(t, filepath.Join(specDir, "003-third-feature"))
 
 	num, err := GetNextFeatureNum(tmpDir)
 	if err != nil {
@@ -47,11 +61,11 @@ func TestGetNextFeatureNum_WithExistingFeatures(t *testing.T) {
 func TestGetNextFeatureNum_SkipsNonFeatureDirs(t *testing.T) {
 	tmpDir := t.TempDir()
 	specDir := filepath.Join(tmpDir, "specledger")
-	os.MkdirAll(filepath.Join(specDir, "010-real-feature"), 0755)
-	os.MkdirAll(filepath.Join(specDir, "migrated"), 0755)
-	os.MkdirAll(filepath.Join(specDir, "not-a-feature"), 0755)
+	mustMkdirAll(t, filepath.Join(specDir, "010-real-feature"))
+	mustMkdirAll(t, filepath.Join(specDir, "migrated"))
+	mustMkdirAll(t, filepath.Join(specDir, "not-a-feature"))
 	// Create a file (not directory)
-	os.WriteFile(filepath.Join(specDir, "specledger.yaml"), []byte(""), 0644)
+	mustWriteFile(t, filepath.Join(specDir, "specledger.yaml"), []byte(""))
 
 	num, err := GetNextFeatureNum(tmpDir)
 	if err != nil {
@@ -81,9 +95,9 @@ func TestGetNextAvailableNum_SkipsCollisions(t *testing.T) {
 	initGitRepo(t, tmpDir)
 	specDir := filepath.Join(tmpDir, "specledger")
 	// Create features 001 through 003
-	os.MkdirAll(filepath.Join(specDir, "001-first"), 0755)
-	os.MkdirAll(filepath.Join(specDir, "002-second"), 0755)
-	os.MkdirAll(filepath.Join(specDir, "003-third"), 0755)
+	mustMkdirAll(t, filepath.Join(specDir, "001-first"))
+	mustMkdirAll(t, filepath.Join(specDir, "002-second"))
+	mustMkdirAll(t, filepath.Join(specDir, "003-third"))
 
 	num, err := GetNextAvailableNum(tmpDir)
 	if err != nil {
@@ -97,7 +111,7 @@ func TestGetNextAvailableNum_SkipsCollisions(t *testing.T) {
 func TestCheckFeatureCollision_NoCollision(t *testing.T) {
 	tmpDir := t.TempDir()
 	specDir := filepath.Join(tmpDir, "specledger")
-	os.MkdirAll(filepath.Join(specDir, "001-first"), 0755)
+	mustMkdirAll(t, filepath.Join(specDir, "001-first"))
 
 	err := checkLocalFeatures(tmpDir, "002")
 	if err != nil {
@@ -108,7 +122,7 @@ func TestCheckFeatureCollision_NoCollision(t *testing.T) {
 func TestCheckFeatureCollision_HasCollision(t *testing.T) {
 	tmpDir := t.TempDir()
 	specDir := filepath.Join(tmpDir, "specledger")
-	os.MkdirAll(filepath.Join(specDir, "001-first"), 0755)
+	mustMkdirAll(t, filepath.Join(specDir, "001-first"))
 
 	err := checkLocalFeatures(tmpDir, "001")
 	if err == nil {
