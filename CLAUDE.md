@@ -4,12 +4,9 @@ This file is auto-generated from plan.md. Manual additions are preserved below.
 
 ## Active Technologies
 
-- Cobra (CLI)
-- File-based (JSONL for issues, JSON for credentials, YAML for config)
+- File-based (specledger/ directories)
 - Go 1.24.2
-- Go testing package (`_test.go` files)
-- YAML v3 (config)
-- encoding/json
+- cobra (CLI)
 - go-git/v5 (git operations)
 
 <!-- MANUAL ADDITIONS START -->
