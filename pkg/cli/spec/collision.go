@@ -173,6 +173,28 @@ func GetNextFeatureNum(repoRoot string) (string, error) {
 	return fmt.Sprintf("%03d", nextNum), nil
 }
 
+// GetNextAvailableNum returns the next feature number that has no collisions.
+// It starts from GetNextFeatureNum and increments until no collision is found.
+func GetNextAvailableNum(repoRoot string) (string, error) {
+	nextNum, err := GetNextFeatureNum(repoRoot)
+	if err != nil {
+		return "", err
+	}
+
+	// Try up to 100 numbers to find one without collision
+	for i := 0; i < 100; i++ {
+		if err := CheckFeatureCollision(repoRoot, nextNum); err == nil {
+			return nextNum, nil
+		}
+		var num int
+		_, _ = fmt.Sscanf(nextNum, "%d", &num)
+		num++
+		nextNum = fmt.Sprintf("%03d", num)
+	}
+
+	return "", fmt.Errorf("could not find available feature number after 100 attempts")
+}
+
 func ParseFeatureNum(branchName string) string {
 	parts := strings.SplitN(branchName, "-", 2)
 	if len(parts) == 2 {
