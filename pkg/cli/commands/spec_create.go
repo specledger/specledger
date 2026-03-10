@@ -19,6 +19,7 @@ type SpecCreateOutput struct {
 	FeatureDir string `json:"FEATURE_DIR"`
 	SpecFile   string `json:"SPEC_FILE"`
 	FeatureNum string `json:"FEATURE_NUM"`
+	FeatureID  string `json:"FEATURE_ID"`
 }
 
 var specCreateCmd = &cobra.Command{
@@ -34,9 +35,9 @@ This command creates a new feature by:
 5. Copying the spec template
 
 Examples:
-  sl spec create --number 600 --short-name "test-feature"
-  sl spec create --number 600 --short-name "add OAuth2 authentication" --json
-  sl spec create --number 600 --short-name "very long description that will be truncated automatically"`,
+  sl spec create --short-name "test-feature"
+  sl spec create --short-name "add OAuth2 authentication" --json
+  sl spec create --number 600 --short-name "test-feature"`,
 	RunE: runSpecCreate,
 }
 
@@ -44,7 +45,7 @@ func init() {
 	VarSpecCmd.AddCommand(specCreateCmd)
 
 	specCreateCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
-	specCreateCmd.Flags().String("number", "", "Feature number (e.g., 600)")
+	specCreateCmd.Flags().String("number", "", "Feature number (e.g., 600). Auto-generated if omitted")
 	specCreateCmd.Flags().String("short-name", "", "Short name or description for the feature")
 }
 
@@ -52,10 +53,6 @@ func runSpecCreate(cmd *cobra.Command, args []string) error {
 	jsonOutput, _ := cmd.Flags().GetBool("json")
 	numberStr, _ := cmd.Flags().GetString("number")
 	shortName, _ := cmd.Flags().GetString("short-name")
-
-	if numberStr == "" {
-		return fmt.Errorf("--number flag is required")
-	}
 
 	if shortName == "" {
 		return fmt.Errorf("--short-name flag is required")
@@ -80,7 +77,23 @@ func runSpecCreate(cmd *cobra.Command, args []string) error {
 
 	repoRoot := wt.Filesystem.Root()
 
+	// Auto-generate feature number if not provided
+	if numberStr == "" {
+		numberStr, err = spec.GetNextAvailableNum(repoRoot)
+		if err != nil {
+			return fmt.Errorf("failed to auto-generate feature number: %w", err)
+		}
+		if !jsonOutput {
+			fmt.Fprintf(os.Stderr, "Auto-assigned feature number: %s\n", numberStr)
+		}
+	}
+
 	if err := spec.CheckFeatureCollision(repoRoot, numberStr); err != nil {
+		// If collision on auto-generated number, find next available
+		nextNum, nextErr := spec.GetNextAvailableNum(repoRoot)
+		if nextErr == nil && nextNum != numberStr {
+			return fmt.Errorf("collision detected: %w\nSuggested available number: %s", err, nextNum)
+		}
 		return fmt.Errorf("collision detected: %w", err)
 	}
 
@@ -132,6 +145,7 @@ func runSpecCreate(cmd *cobra.Command, args []string) error {
 		FeatureDir: featureDir,
 		SpecFile:   specFile,
 		FeatureNum: numberStr,
+		FeatureID:  branchName,
 	}
 
 	if jsonOutput {
