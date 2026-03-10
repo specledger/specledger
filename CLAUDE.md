@@ -11,6 +11,7 @@ This file is auto-generated from plan.md. Manual additions are preserved below.
 - YAML v3 (config)
 - encoding/json
 - go-git/v5 (git operations)
+- gofrs/flock (file locking)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
