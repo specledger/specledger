@@ -25,7 +25,7 @@ func RenderKnowledgeMarkdown(store *Store, outputPath string) error {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	return os.WriteFile(outputPath, []byte(content), 0644)
+	return os.WriteFile(outputPath, []byte(content), 0600)
 }
 
 // DefaultKnowledgePath returns the default path for knowledge.md.
@@ -68,7 +68,7 @@ func renderMarkdown(entries []*KnowledgeEntry) string {
 			return groupEntries[i].Scores.Composite > groupEntries[j].Scores.Composite
 		})
 
-		sb.WriteString(fmt.Sprintf("## %s\n\n", strings.Title(groupName)))
+		sb.WriteString(fmt.Sprintf("## %s\n\n", titleCase(groupName)))
 
 		for _, entry := range groupEntries {
 			sb.WriteString(fmt.Sprintf("### %s\n\n", entry.Title))
@@ -96,6 +96,14 @@ func renderMarkdown(entries []*KnowledgeEntry) string {
 	}
 
 	return sb.String()
+}
+
+// titleCase capitalizes the first letter of a string.
+func titleCase(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
 }
 
 // groupByFirstTag groups entries by their first tag.

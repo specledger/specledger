@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	syncTimeout        = 30 * time.Second
-	knowledgeTable     = "knowledge_entries"
+	syncTimeout    = 30 * time.Second
+	knowledgeTable = "knowledge_entries"
 )
 
 // SyncClient handles Supabase PostgREST operations for knowledge entries.

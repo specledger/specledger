@@ -30,18 +30,18 @@ const (
 
 // Validation errors
 var (
-	ErrEmptyTitle           = errors.New("title is required")
-	ErrTitleTooLong         = errors.New("title must be 200 characters or less")
-	ErrEmptyDescription     = errors.New("description is required")
-	ErrDescriptionTooLong   = errors.New("description must be 5000 characters or less")
-	ErrNoTags               = errors.New("at least one tag is required")
-	ErrTooManyTags          = errors.New("maximum 10 tags allowed")
-	ErrTagTooLong           = errors.New("each tag must be 50 characters or less")
-	ErrEmptyTag             = errors.New("tags must not be empty")
-	ErrScoreOutOfRange      = errors.New("score must be between 0.0 and 10.0")
-	ErrInvalidStatus        = errors.New("status must be candidate, promoted, or archived")
-	ErrEntryNotFound        = errors.New("knowledge entry not found")
-	ErrEntryAlreadyExists   = errors.New("knowledge entry already exists")
+	ErrEmptyTitle         = errors.New("title is required")
+	ErrTitleTooLong       = errors.New("title must be 200 characters or less")
+	ErrEmptyDescription   = errors.New("description is required")
+	ErrDescriptionTooLong = errors.New("description must be 5000 characters or less")
+	ErrNoTags             = errors.New("at least one tag is required")
+	ErrTooManyTags        = errors.New("maximum 10 tags allowed")
+	ErrTagTooLong         = errors.New("each tag must be 50 characters or less")
+	ErrEmptyTag           = errors.New("tags must not be empty")
+	ErrScoreOutOfRange    = errors.New("score must be between 0.0 and 10.0")
+	ErrInvalidStatus      = errors.New("status must be candidate, promoted, or archived")
+	ErrEntryNotFound      = errors.New("knowledge entry not found")
+	ErrEntryAlreadyExists = errors.New("knowledge entry already exists")
 )
 
 // Score holds the three-axis scoring dimensions for a knowledge entry.

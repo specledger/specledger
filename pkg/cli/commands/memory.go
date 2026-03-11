@@ -232,7 +232,7 @@ func runMemoryDelete(cmd *cobra.Command, args []string) error {
 	if !memoryForceFlag {
 		fmt.Printf("Delete entry: %s (%s)? [y/N] ", entry.Title, id)
 		var confirm string
-		fmt.Scanln(&confirm)
+		_, _ = fmt.Scanln(&confirm)
 		if strings.ToLower(confirm) != "y" && strings.ToLower(confirm) != "yes" {
 			fmt.Println("Cancelled.")
 			return nil
