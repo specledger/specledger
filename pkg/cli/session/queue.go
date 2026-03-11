@@ -59,6 +59,7 @@ type QueueRef struct {
 // Queue manages the local session upload queue
 type Queue struct {
 	baseDir string
+	TTLDays int // if > 0, expired queued sessions are discarded during ProcessQueue
 }
 
 // NewQueue creates a new queue manager
@@ -337,6 +338,19 @@ func (q *Queue) ProcessQueue(accessToken string) (uploaded int, failed int, skip
 			errors = append(errors, fmt.Errorf("failed to get session %s: %w", ref.Identifier, err))
 			failed++
 			continue
+		}
+
+		// TTL-aware discard: skip expired sessions rather than uploading them
+		if q.TTLDays > 0 && !entry.CreatedAt.IsZero() {
+			cutoff := time.Now().AddDate(0, 0, -q.TTLDays)
+			if entry.CreatedAt.Before(cutoff) {
+				// Discard expired entry
+				_ = q.Dequeue(ref.ProjectID, ref.SpecKey, ref.Identifier)
+				fmt.Fprintf(os.Stderr, "Discarded expired queued session %s (created %s, TTL %d days)\n",
+					ref.Identifier, entry.CreatedAt.Format("2006-01-02"), q.TTLDays)
+				skipped++
+				continue
+			}
 		}
 
 		if !q.ShouldRetry(entry) {
