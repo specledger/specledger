@@ -90,16 +90,26 @@ The actual logic lives in Go (`sl hook execute`), not in the shell script. This 
 
 ### 4. Execution Lock Strategy
 
-**Decision**: PID-based lock file at `.specledger/exec.lock` using `gofrs/flock` (already a dependency).
+**Decision**: Simple lock file at `.specledger/exec.lock` with manual recovery via `sl lock reset`.
 
 **Rationale**:
 - `gofrs/flock` already used in issue store for JSONL locking
 - Lock file contains JSON: `{"pid": 12345, "feature": "127-specledger-scheduler-push-strategy", "started_at": "..."}`
-- Stale lock detection: check if PID is still running via `os.FindProcess` + signal 0
 - Lock created by `sl implement`, not by the hook script
+- No automatic stale lock detection — keeps implementation simple and predictable
+
+**Lock handling behavior**:
+- On `sl hook execute` / `sl implement`: if `exec.lock` exists, skip execution and log message
+- No PID checking or timeout-based expiry
+
+**Manual recovery commands**:
+- `sl lock reset` — removes `exec.lock` unconditionally; user runs this when a lock is left behind after a crash or kill
+- `sl lock status` — displays current lock info (PID, feature, started_at) or reports no active lock
 
 **Alternatives considered**:
-- Advisory file lock only (no PID): Can't detect stale locks after crashes
+- Advisory file lock only (no PID): Can't inspect which process holds the lock
+- Auto-detect stale via PID + signal 0: Adds complexity; PID recycling can cause false positives
+- Timeout-based expiry: Arbitrary timeout may be too short for long implementations or too long for crashes
 - Socket-based lock: Unnecessary complexity for single-process coordination
 - Database lock: No database in SpecLedger architecture
 

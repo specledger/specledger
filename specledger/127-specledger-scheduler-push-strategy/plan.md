@@ -56,7 +56,8 @@ specledger/127-specledger-scheduler-push-strategy/
 ```text
 pkg/cli/commands/
 ├── approve.go           # NEW: sl approve command
-└── hook.go              # NEW: sl hook install/uninstall/status/execute commands
+├── hook.go              # NEW: sl hook install/uninstall/status/execute commands
+└── lock.go              # NEW: sl lock reset/status commands
 
 pkg/cli/hooks/
 ├── claude.go            # EXISTING: Claude Code hook management (unchanged)
@@ -113,9 +114,22 @@ None. All required dependencies are already in go.mod. No external specs or APIs
 ### Phase 3: Push-Triggered Execution (P1 - US1)
 - `sl hook execute` internal command
 - Execution lock management in `pkg/cli/scheduler/lock.go`
+  - Lock check: if `exec.lock` exists, skip execution and log "already running"
+  - No automatic stale lock detection — manual recovery only via `sl lock reset`
+  - `sl lock reset` removes `exec.lock` unconditionally
+  - `sl lock status` displays current lock info (PID, feature, started_at)
 - Approved spec detection in `pkg/cli/scheduler/detector.go`
 - Background process spawning in `pkg/cli/scheduler/executor.go`
 - Sub-branch commit strategy (`<feature>/implement`)
+- Error handling strategy (FR-011 — graceful failure, never block push):
+  - Pre-push hook always exits 0 regardless of errors
+  - All errors logged to `.specledger/logs/push-hook.log` with severity, timestamp, error type
+  - Edge cases:
+    - `sl` binary not found: hook script checks `command -v sl`, logs warning, exits 0
+    - Malformed spec.md: detector logs parse error, skips spec
+    - Lock held (active run): executor logs "already running", skips
+    - Spawn failure: logs error, exits 0
+  - `sl hook status` displays last 5 errors from push-hook.log
 - Unit + integration tests
 
 ### Phase 4: Logging & Observability (P3 - US3)
