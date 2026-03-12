@@ -17,6 +17,10 @@ playbooks:
       - ".specledger/memory/constitution.md"
       - "AGENTS.md"
 
+    # Files that use sentinel-based merge instead of copy
+    mergeable:
+      - ".gitattributes"
+
     # Post-init script to run after copying files
     post_script: "init.sh"
 

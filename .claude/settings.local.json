@@ -7,7 +7,8 @@
       "mcp__supabase__list_tables",
       "Bash(sl spec:*)",
       "Bash(sl comment:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(go test:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

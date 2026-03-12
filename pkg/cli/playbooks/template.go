@@ -47,6 +47,9 @@ type Playbook struct {
 	// These are user-specific files that should be preserved
 	Protected []string `yaml:"protected,omitempty"`
 
+	// Mergeable lists files that should be merged (sentinel-based) instead of copied
+	Mergeable []string `yaml:"mergeable,omitempty"`
+
 	// PostScript is the path to a script to run after copying (e.g., "init.sh")
 	// The script is executed from the embedded FS, not copied to the target
 	PostScript string `yaml:"post_script,omitempty"`
@@ -107,6 +110,9 @@ type CopyResult struct {
 
 	// FilesSkipped is the count of files skipped (already existed)
 	FilesSkipped int
+
+	// FilesMerged is the count of files merged (sentinel-based)
+	FilesMerged int
 
 	// Errors is a list of errors encountered during copying
 	Errors []CopyError
