@@ -10,7 +10,10 @@
       "Bash(sl issue create --title \"US3: Error Logging Integration\" --description \"WHY: Authenticated users with synced projects need persistent error records when capture fails. Errors must be logged to both local file and Supabase for troubleshooting.\" --design \"Integrate LogCaptureError\\(\\) into capture.go \\(when upload/metadata creation fails\\) and queue.go \\(when ProcessQueue retry fails\\). Errors logged to both local JSONL file and Supabase table. Error includes user_id, project_id, session_id, error_message, feature_branch, commit_hash, retry_count.\" --acceptance-criteria \"All capture failures for authenticated users logged to both local file and Supabase. sl session sync retry failures also dual-logged. Logging never blocks commit/push.\" --dod \"LogCaptureError\\(\\) called on upload failure in capture.go\" --dod \"LogCaptureError\\(\\) called on retry failure in queue.go\" --dod \"Error includes all required fields \\(user_id, project_id, session_id, etc.\\)\" --dod \"Local log written first, Supabase best-effort\" --dod \"Logging never blocks workflow\" --type feature --parent SL-482b2c --labels \"spec:602-silent-session-capture,phase:us3,story:US3,component:session\" --priority 2)",
       "Bash(go run:*)",
       "Bash(bash /Users/hungtran/src/specledger/.specledger/scripts/bash/setup-plan.sh --json)",
-      "Bash(bash /Users/hungtran/src/specledger/.specledger/scripts/bash/check-prerequisites.sh --json 2>&1 || echo \"SCRIPT_NOT_FOUND\")"
+      "Bash(bash /Users/hungtran/src/specledger/.specledger/scripts/bash/check-prerequisites.sh --json 2>&1 || echo \"SCRIPT_NOT_FOUND\")",
+      "Bash(go build:*)",
+      "Bash(go test:*)",
+      "Bash(sl issue:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
