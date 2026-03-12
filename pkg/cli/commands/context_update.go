@@ -108,7 +108,3 @@ func runContextUpdate(cmd *cobra.Command, args []string) error {
 
 	return nil
 }
-
-func NewContextUpdateCmd() *cobra.Command {
-	return contextUpdateCmd
-}

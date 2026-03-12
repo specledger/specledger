@@ -20,6 +20,3 @@ Examples:
   sl spec setup-plan                     # Setup plan.md from template`,
 }
 
-func NewSpecCmd() *cobra.Command {
-	return VarSpecCmd
-}

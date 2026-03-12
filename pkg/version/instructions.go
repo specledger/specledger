@@ -137,26 +137,3 @@ func getBinaryInstructions() string {
 	return sb.String()
 }
 
-// FormatUpdateMessage formats a complete update message with all instructions.
-func FormatUpdateMessage(currentVersion, latestVersion string) string {
-	var sb strings.Builder
-
-	sb.WriteString(fmt.Sprintf("A new version (%s) is available!\n", latestVersion))
-	sb.WriteString(fmt.Sprintf("You are currently on %s\n\n", currentVersion))
-	sb.WriteString("Update with one of:\n")
-
-	method := DetectInstallationMethod()
-
-	// Show the detected method first
-	sb.WriteString(GetUpdateInstructionsForMethod(method))
-	sb.WriteString("\n")
-
-	// If not detected, show all options
-	if method == MethodBinary {
-		sb.WriteString("\nOr use:\n")
-		sb.WriteString("  brew upgrade specledger          # Homebrew\n")
-		sb.WriteString("  go install .../cmd/sl@latest     # Go install\n")
-	}
-
-	return sb.String()
-}

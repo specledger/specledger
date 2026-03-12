@@ -186,15 +186,6 @@ func extractContent(c interface{}) string {
 	}
 }
 
-// GetTranscriptSize returns the size of the transcript file
-func GetTranscriptSize(transcriptPath string) (int64, error) {
-	info, err := os.Stat(transcriptPath)
-	if err != nil {
-		return 0, fmt.Errorf("failed to stat transcript: %w", err)
-	}
-	return info.Size(), nil
-}
-
 // UpdateSessionOffset updates the offset tracking for a session
 func UpdateSessionOffset(sessionID string, offset int64, commitHash string, transcriptPath string) error {
 	state, err := LoadSessionState()

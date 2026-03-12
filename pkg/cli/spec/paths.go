@@ -16,14 +16,6 @@ func GetSpecFile(featureDir string) string {
 	return filepath.Join(featureDir, "spec.md")
 }
 
-func GetPlanFile(featureDir string) string {
-	return filepath.Join(featureDir, "plan.md")
-}
-
-func GetTasksFile(featureDir string) string {
-	return filepath.Join(featureDir, "tasks.md")
-}
-
 func DiscoverDocs(featureDir string) ([]string, error) {
 	info, err := os.Stat(featureDir)
 	if err != nil {

@@ -197,18 +197,6 @@ func StashChanges(repoPath string) error {
 	return nil
 }
 
-// StashPop re-applies the most recent stash.
-// Uses exec because go-git does not implement stash (see go-git issue #606).
-func StashPop(repoPath string) error {
-	// #nosec G204 — repoPath is from a controlled call site
-	cmd := exec.Command("git", "stash", "pop")
-	cmd.Dir = repoPath
-	if out, err := cmd.CombinedOutput(); err != nil {
-		return fmt.Errorf("git stash pop failed: %w\n%s", err, strings.TrimSpace(string(out)))
-	}
-	return nil
-}
-
 // CheckoutRemoteTracking checks out a remote-tracking branch, creating a local tracking branch.
 // Uses exec because go-git requires a 4-step manual process for remote tracking checkout.
 func CheckoutRemoteTracking(repoPath, name string) error {

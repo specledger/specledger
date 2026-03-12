@@ -125,7 +125,3 @@ func runSpecInfo(cmd *cobra.Command, args []string) error {
 
 	return nil
 }
-
-func NewSpecInfoCmd() *cobra.Command {
-	return specInfoCmd
-}

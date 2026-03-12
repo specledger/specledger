@@ -64,11 +64,6 @@ func NewCallbackServerWithPort(port int, frontendURL string) (*CallbackServer, e
 	return cs, nil
 }
 
-// Port returns the port the server is listening on
-func (cs *CallbackServer) Port() int {
-	return cs.port
-}
-
 // CallbackURL returns the URL that should be used for OAuth redirect
 func (cs *CallbackServer) CallbackURL() string {
 	return fmt.Sprintf("http://127.0.0.1:%d/callback", cs.port)

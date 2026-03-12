@@ -19,6 +19,3 @@ Examples:
   sl context update claude --json  # Output as JSON`,
 }
 
-func NewContextCmd() *cobra.Command {
-	return VarContextCmd
-}

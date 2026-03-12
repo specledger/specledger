@@ -122,28 +122,6 @@ func extractID(deps []models.Dependency) string {
 	return "spec-" + hash
 }
 
-// WriteManifest writes a manifest to a file
-func WriteManifest(path string, manifest *Manifest) error {
-	file, err := os.Create(path)
-	if err != nil {
-		return fmt.Errorf("failed to create manifest file: %w", err)
-	}
-	defer file.Close()
-
-	fmt.Fprintf(file, "# SpecLedger Dependency Manifest v%s\n", manifest.Version)
-	fmt.Fprintf(file, "# Generated at %s\n\n", manifest.UpdatedAt.Format(time.RFC3339))
-
-	for _, dep := range manifest.Dependecies {
-		line := fmt.Sprintf("require %s %s %s", dep.RepositoryURL, dep.Version, dep.SpecPath)
-		if dep.Alias != "" {
-			line += fmt.Sprintf(" --alias %s", dep.Alias)
-		}
-		fmt.Fprintln(file, line)
-	}
-
-	return nil
-}
-
 // Manifest represents the parsed spec.mod file
 type Manifest struct {
 	Version     string

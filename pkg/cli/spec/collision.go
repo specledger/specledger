@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 
 	gogit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing"
@@ -131,52 +130,3 @@ func checkRemoteBranches(repoRoot, featureNum string) error {
 	return nil
 }
 
-func GetNextFeatureNum(repoRoot string) (string, error) {
-	specledgerDir := filepath.Join(repoRoot, "specledger")
-
-	info, err := os.Stat(specledgerDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "001", nil
-		}
-		return "", fmt.Errorf("failed to access specledger directory: %w", err)
-	}
-
-	if !info.IsDir() {
-		return "001", nil
-	}
-
-	entries, err := os.ReadDir(specledgerDir)
-	if err != nil {
-		return "", fmt.Errorf("failed to read specledger directory: %w", err)
-	}
-
-	maxNum := 0
-	featurePattern := regexp.MustCompile(`^(\d{3,})-`)
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		matches := featurePattern.FindStringSubmatch(entry.Name())
-		if len(matches) > 1 {
-			var num int
-			_, _ = fmt.Sscanf(matches[1], "%d", &num)
-			if num > maxNum {
-				maxNum = num
-			}
-		}
-	}
-
-	nextNum := maxNum + 1
-	return fmt.Sprintf("%03d", nextNum), nil
-}
-
-func ParseFeatureNum(branchName string) string {
-	parts := strings.SplitN(branchName, "-", 2)
-	if len(parts) == 2 {
-		return parts[0]
-	}
-	return ""
-}

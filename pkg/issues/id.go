@@ -64,23 +64,3 @@ func ParseIssueID(id string) (string, error) {
 	return id, nil
 }
 
-// IsValidIssueID checks if an ID is in valid format
-func IsValidIssueID(id string) bool {
-	_, err := ParseIssueID(id)
-	return err == nil
-}
-
-// CalculateCollisionProbability estimates the probability of at least one
-// collision given n issues, using the birthday problem approximation.
-// With 6 hex characters (16,777,216 possible values), this provides
-// collision probability < 0.01% for up to 100,000 issues.
-func CalculateCollisionProbability(n int) float64 {
-	if n <= 1 {
-		return 0
-	}
-
-	// Birthday problem approximation: P(collision) ≈ n² / (2 * N)
-	// where N is the number of possible values (16,777,216)
-	N := float64(16_777_216)
-	return float64(n*n) / (2 * N)
-}

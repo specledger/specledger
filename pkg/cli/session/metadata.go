@@ -280,12 +280,3 @@ func (m *MetadataClient) GetByTaskID(accessToken string, projectID string, taskI
 	return &sessions[0], nil
 }
 
-// ListByFeature retrieves all sessions for a feature branch
-func (m *MetadataClient) ListByFeature(accessToken string, projectID string, featureBranch string) ([]SessionMetadata, error) {
-	return m.Query(accessToken, &QueryOptions{
-		ProjectID:     projectID,
-		FeatureBranch: featureBranch,
-		OrderBy:       "created_at",
-		OrderDesc:     true,
-	})
-}
