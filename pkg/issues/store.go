@@ -296,11 +296,6 @@ func (s *Store) Update(id string, update IssueUpdate) (*Issue, error) {
 					return nil, fmt.Errorf("cannot set self as parent")
 				}
 
-				// Single parent constraint - only error if trying to change to a different parent
-				if found.ParentID != nil && *found.ParentID != "" && *found.ParentID != newParentID {
-					return nil, fmt.Errorf("issue already has a parent, remove existing parent first")
-				}
-
 				// Parent existence check
 				parentExists := false
 				for _, issue := range issues {
@@ -570,6 +565,15 @@ func (s *Store) matchesFilter(issue *Issue, filter ListFilter) bool {
 	}
 	if filter.Blocked && len(issue.BlockedBy) == 0 {
 		return false
+	}
+	if filter.Orphaned {
+		// Orphaned = non-epic issue without a parent
+		if issue.IssueType == TypeEpic {
+			return false
+		}
+		if issue.ParentID != nil && *issue.ParentID != "" {
+			return false
+		}
 	}
 	for _, label := range filter.Labels {
 		if !contains(issue.Labels, label) {
