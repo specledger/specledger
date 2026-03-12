@@ -13,7 +13,7 @@ Prevents duplicate `sl implement` runs for the same feature.
 
 | Field       | Type     | Description                              |
 |-------------|----------|------------------------------------------|
-| pid         | int      | OS process ID of the running sl implement |
+| pid         | int      | OS process ID of the running `sl implement` (which spawns Claude CLI) |
 | feature     | string   | Feature context (e.g., "127-specledger-scheduler-push-strategy") |
 | started_at  | string   | ISO 8601 timestamp of when execution started |
 
@@ -23,9 +23,9 @@ Prevents duplicate `sl implement` runs for the same feature.
 - `started_at` must be valid ISO 8601
 
 **State transitions**:
-- Created: when `sl implement` starts (background process)
-- Removed: when `sl implement` completes (success or failure)
-- Stale detection: when PID recorded is no longer running (checked by hook)
+- Created: when `sl implement` starts (before spawning Claude CLI)
+- Removed: when `sl implement` completes (after Claude CLI exits — success or failure)
+- Stale: when PID recorded is no longer running (manual recovery via `sl lock reset`)
 
 ### 2. HookExecutionLog
 
@@ -88,7 +88,7 @@ SpecStatus (spec.md)
   |-- "Approved" triggers -->  HookScript (pre-push)
   |                                |
   |                                |-- checks --> ExecutionLock
-  |                                |-- spawns --> sl implement (background)
+  |                                |-- spawns --> sl implement (background) --> claude CLI
   |                                |-- writes --> HookExecutionLog
   |
   +-- validated by --> sl approve (requires spec.md + plan.md + tasks.md)

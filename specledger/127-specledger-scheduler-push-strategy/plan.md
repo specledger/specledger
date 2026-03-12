@@ -1,16 +1,16 @@
 # Implementation Plan: Push-Triggered Scheduler Strategy
 
-**Branch**: `127-specledger-scheduler-push-strategy` | **Date**: 2026-03-10 | **Spec**: [spec.md](spec.md)
+**Branch**: `127-specledger-scheduler-push-strategy` | **Date**: 2026-03-12 | **Spec**: [spec.md](spec.md)
 **Input**: Feature specification from `/specledger/127-specledger-scheduler-push-strategy/spec.md`
 
 ## Summary
 
-Enable push-triggered implementation execution by installing a `pre-push` git hook that detects approved SpecLedger specs and spawns `sl implement` as a detached background process. Includes a new `sl approve` command to gate spec readiness, a new `sl hook` command group for hook lifecycle management, and a PID-based execution lock to prevent duplicate runs. All new code follows existing Cobra CLI patterns and Go project conventions.
+Enable push-triggered implementation execution by installing a `pre-push` git hook that detects approved SpecLedger specs and spawns `sl implement` as a detached background process. `sl implement` is a thin Go command that delegates to the Claude CLI via `claude -p "/specledger.implement" --dangerously-skip-permissions` — the Claude session handles task reading and sequential execution. Includes a new `sl approve` command to gate spec readiness, a new `sl hook` command group for hook lifecycle management, and a PID-based execution lock to prevent duplicate runs. All new code follows existing Cobra CLI patterns and Go project conventions.
 
 ## Technical Context
 
 **Language/Version**: Go 1.24.2
-**Primary Dependencies**: Cobra (CLI), go-git/v5 (git operations), gofrs/flock (file locking), encoding/json
+**Primary Dependencies**: Cobra (CLI), go-git/v5 (git operations), gofrs/flock (file locking), encoding/json, Claude CLI (`claude` binary for implementation execution)
 **Storage**: File-based (JSON for exec.lock, append-only text for push-hook.log, YAML for config)
 **Testing**: Go testing package (`_test.go` files), table-driven tests
 **Target Platform**: macOS (Darwin) and Linux
@@ -57,6 +57,7 @@ specledger/127-specledger-scheduler-push-strategy/
 pkg/cli/commands/
 ├── approve.go           # NEW: sl approve command
 ├── hook.go              # NEW: sl hook install/uninstall/status/execute commands
+├── implement.go         # NEW: sl implement command (thin wrapper → Claude CLI)
 └── lock.go              # NEW: sl lock reset/status commands
 
 pkg/cli/hooks/
@@ -68,13 +69,13 @@ pkg/cli/scheduler/
 ├── lock_test.go         # NEW: Lock management tests
 ├── detector.go          # NEW: Approved spec detection logic
 ├── detector_test.go     # NEW: Detection tests
-├── executor.go          # NEW: Background process spawning
+├── executor.go          # NEW: Claude CLI process spawning (claude -p "/specledger.implement" --dangerously-skip-permissions)
 └── executor_test.go     # NEW: Executor tests
 
 pkg/cli/spec/
 └── status.go            # EXISTING or NEW: Spec status read/write helpers
 
-cmd/sl/main.go           # MODIFIED: Register VarApproveCmd and VarHookCmd
+cmd/sl/main.go           # MODIFIED: Register VarApproveCmd, VarHookCmd, VarImplementCmd
 
 tests/
 ├── hook_install_test.go     # NEW: Integration tests for hook lifecycle
@@ -92,10 +93,11 @@ No violations - all patterns follow existing codebase conventions.
 - **Feature 010 (Checkpoint Session Capture)**: Established hook infrastructure in `pkg/cli/hooks/claude.go`. Pattern: LoadSettings -> Install/Uninstall/HasHook functions. This feature follows the same pattern but for git hooks instead of Claude Code hooks.
 - **Feature 598 (SDD Workflow Streamline)**: Defined the 4-layer architecture (L0: Hooks, L1: CLI, L2: AI Commands, L3: Skills). Push hooks are L0; `sl approve`/`sl hook` are L1.
 - **Existing Dependencies**: `gofrs/flock` (already in go.mod for issue store locking), `go-git/v5` (already used for git operations).
+- **specledger.implement prompt**: `.claude/commands/specledger.implement.md` already exists and handles full task orchestration (phase-by-phase execution, progress tracking via `sl issue`, DoD verification). `sl implement` delegates to this prompt via `claude -p "/specledger.implement" --dangerously-skip-permissions`.
 
 ## External Dependencies
 
-None. All required dependencies are already in go.mod. No external specs or APIs referenced.
+- **Claude CLI** (`claude` binary): Required at runtime for `sl implement`. Not a Go dependency — must be installed separately on the developer's machine. `sl implement` verifies availability via `exec.LookPath("claude")` before attempting execution.
 
 ## Phase Summary
 
@@ -112,23 +114,33 @@ None. All required dependencies are already in go.mod. No external specs or APIs
 - Unit + integration tests
 
 ### Phase 3: Push-Triggered Execution (P1 - US1)
-- `sl hook execute` internal command
+- `sl hook execute` internal command (invoked by pre-push hook script)
+- `sl implement` command in `pkg/cli/commands/implement.go`:
+  - Thin Go wrapper that acquires execution lock, then spawns Claude CLI
+  - Invokes: `claude -p "/specledger.implement" --dangerously-skip-permissions`
+  - Manages lifecycle: lock acquisition → Claude CLI spawn → wait for completion → lock release
+  - Commits generated code to `<feature-branch>/implement` sub-branch
+  - Writes result summary to `.specledger/logs/<feature>-result.md`
 - Execution lock management in `pkg/cli/scheduler/lock.go`
   - Lock check: if `exec.lock` exists, skip execution and log "already running"
   - No automatic stale lock detection — manual recovery only via `sl lock reset`
   - `sl lock reset` removes `exec.lock` unconditionally
   - `sl lock status` displays current lock info (PID, feature, started_at)
 - Approved spec detection in `pkg/cli/scheduler/detector.go`
-- Background process spawning in `pkg/cli/scheduler/executor.go`
-- Sub-branch commit strategy (`<feature>/implement`)
+- Claude CLI process spawning in `pkg/cli/scheduler/executor.go`:
+  - Verifies `claude` CLI is available in PATH
+  - Spawns `claude -p "/specledger.implement" --dangerously-skip-permissions` with `SysProcAttr{Setpgid: true}`
+  - Redirects stdout/stderr to `.specledger/logs/<feature>-claude.log`
+  - Monitors process completion and triggers lock cleanup
 - Error handling strategy (FR-011 — graceful failure, never block push):
   - Pre-push hook always exits 0 regardless of errors
   - All errors logged to `.specledger/logs/push-hook.log` with severity, timestamp, error type
   - Edge cases:
     - `sl` binary not found: hook script checks `command -v sl`, logs warning, exits 0
+    - `claude` CLI not found: `sl implement` logs error, removes lock, exits
     - Malformed spec.md: detector logs parse error, skips spec
     - Lock held (active run): executor logs "already running", skips
-    - Spawn failure: logs error, exits 0
+    - Claude CLI spawn failure: logs error, removes lock, exits
   - `sl hook status` displays last 5 errors from push-hook.log
 - Unit + integration tests
 

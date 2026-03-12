@@ -1,4 +1,4 @@
-# CLI Contract: sl hook & sl approve
+# CLI Contract: sl hook, sl approve & sl implement
 
 **Feature**: 127-specledger-scheduler-push-strategy
 **Date**: 2026-03-10
@@ -149,7 +149,7 @@ sl hook execute --event pre-push
 5. Check `.specledger/exec.lock`:
    - If exists and PID is alive: log "already running", exit 0
    - If exists and PID is dead: remove stale lock, log warning
-6. Spawn `sl implement --feature <spec> --background` as detached process
+6. Spawn `sl implement --feature <spec>` as detached background process
 7. Log action to `.specledger/logs/push-hook.log`
 8. Exit 0 (never block the push)
 
@@ -157,6 +157,101 @@ sl hook execute --event pre-push
 | Code | Meaning                                |
 |------|----------------------------------------|
 | 0    | Always (errors are logged, not raised) |
+
+---
+
+### sl implement
+
+Execute implementation for an approved feature by delegating to the Claude CLI. This is the core execution command spawned by `sl hook execute`.
+
+```
+sl implement --feature <spec-context>
+```
+
+**Flags**:
+| Flag      | Type   | Default          | Description                          |
+|-----------|--------|------------------|--------------------------------------|
+| --feature | string | auto-detect from branch | Feature spec context to implement |
+
+**Behavior**:
+1. Resolve spec context (from `--feature` flag or current branch name)
+2. Verify `claude` CLI is available in PATH (`exec.LookPath("claude")`)
+3. Verify `.claude/commands/specledger.implement.md` exists
+4. Acquire execution lock (write `.specledger/exec.lock` with PID, feature, timestamp)
+   - If lock already held: print error and exit 1
+5. Spawn Claude CLI: `claude -p "/specledger.implement" --dangerously-skip-permissions`
+   - Working directory: project root
+   - stdout/stderr redirected to `.specledger/logs/<feature>-claude.log`
+6. Wait for Claude CLI process to complete
+7. On completion (success or failure):
+   - Remove `.specledger/exec.lock`
+   - Write result summary to `.specledger/logs/<feature>-result.md`
+8. Exit with Claude CLI's exit code
+
+**Exit codes**:
+| Code | Meaning                                       |
+|------|-----------------------------------------------|
+| 0    | Implementation completed successfully         |
+| 1    | Lock held / missing prerequisites / claude not found |
+| *    | Passthrough from Claude CLI exit code         |
+
+**Output examples**:
+```
+$ sl implement --feature 127-specledger-scheduler-push-strategy
+Implementing: 127-specledger-scheduler-push-strategy
+Claude CLI log: .specledger/logs/127-specledger-scheduler-push-strategy-claude.log
+Implementation complete.
+
+$ sl implement
+Error: claude CLI not found in PATH. Install Claude Code CLI first.
+
+$ sl implement
+Error: execution lock held (PID 12345, feature: 127-specledger-scheduler-push-strategy)
+Run 'sl lock reset' to clear if the process is no longer running.
+```
+
+---
+
+### sl lock reset
+
+Manually remove the execution lock file. Used for recovery when a lock is left behind after a crash.
+
+```
+sl lock reset
+```
+
+**Behavior**:
+1. If `.specledger/exec.lock` exists: remove it, print confirmation
+2. If no lock file: print "no lock found"
+
+**Exit codes**:
+| Code | Meaning   |
+|------|-----------|
+| 0    | Always    |
+
+---
+
+### sl lock status
+
+Display current execution lock information.
+
+```
+sl lock status [--json]
+```
+
+**Output**:
+```
+$ sl lock status
+Lock held:
+  PID: 12345
+  Feature: 127-specledger-scheduler-push-strategy
+  Started: 2026-03-10T14:30:00Z
+
+$ sl lock status
+No active execution lock.
+```
+
+---
 
 ## Hook Script Template
 
