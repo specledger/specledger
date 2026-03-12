@@ -50,6 +50,10 @@ specledger/vendor/
 issues.jsonl.lock
 .issues.jsonl.lock
 
+# Memory pipeline cache
+.specledger/memory/cache/
+entries.jsonl.lock
+
 # SpecLedger CLI credentials (FR-014: never commit tokens)
 .specledger/credentials.json
 **/credentials.json

@@ -71,6 +71,7 @@ func init() {
 	rootCmd.AddCommand(commands.VarSpecCmd)
 	rootCmd.AddCommand(commands.VarContextCmd)
 	rootCmd.AddCommand(commands.VarCommentCmd)
+	rootCmd.AddCommand(commands.VarMemoryCmd)
 
 	// Add version command
 	rootCmd.AddCommand(&cobra.Command{
