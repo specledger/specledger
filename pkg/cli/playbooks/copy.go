@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -19,7 +20,8 @@ func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) 
 	result := &CopyResult{}
 
 	// Validate source directory exists in embedded FS
-	srcPath := filepath.Join(srcDir, playbook.Path)
+	// Use path.Join (forward slashes) for embedded FS — embed.FS requires forward slashes on all platforms
+	srcPath := path.Join(srcDir, playbook.Path)
 	if !Exists(srcPath) {
 		return result, fmt.Errorf("playbook path not found in embedded filesystem: %s", playbook.Path)
 	}
@@ -37,7 +39,7 @@ func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) 
 
 	// 1. Copy structure items (files/directories to project root)
 	for _, structureItem := range playbook.Structure {
-		itemSrcPath := filepath.Join(srcPath, structureItem)
+		itemSrcPath := path.Join(srcPath, structureItem)
 		itemDestPath := filepath.Join(destDir, structureItem)
 
 		if err := copyStructureItem(itemSrcPath, itemDestPath, srcPath, structureItem, opts, result, protectedMap); err != nil {
@@ -51,7 +53,7 @@ func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) 
 
 	// 2. Copy commands to .claude/commands/
 	for _, cmd := range playbook.Commands {
-		srcFilePath := filepath.Join(srcPath, cmd.Path)
+		srcFilePath := path.Join(srcPath, cmd.Path)
 		destFilePath := filepath.Join(destDir, ".claude", "commands", filepath.Base(cmd.Path))
 
 		if err := copySingleFile(srcFilePath, destFilePath, opts, result, protectedMap); err != nil {
@@ -67,7 +69,7 @@ func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) 
 	for _, skill := range playbook.Skills {
 		// For skills with subdirectories like "skills/sl-audit/skill.md"
 		// we preserve the skill directory structure
-		srcFilePath := filepath.Join(srcPath, skill.Path)
+		srcFilePath := path.Join(srcPath, skill.Path)
 		destFilePath := filepath.Join(destDir, ".claude", skill.Path)
 
 		if err := copySingleFile(srcFilePath, destFilePath, opts, result, protectedMap); err != nil {
@@ -118,13 +120,13 @@ func copyDirectory(srcPath, destPath, playbookSrcPath, structureItem string, opt
 	}
 
 	// Walk through the embedded source directory
-	return WalkPlaybooks(func(path string, d fs.DirEntry, err error) error {
+	return WalkPlaybooks(func(walkPath string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
 		// Skip if not under our source path
-		if !strings.HasPrefix(path, srcPath+"/") && path != srcPath {
+		if !strings.HasPrefix(walkPath, srcPath+"/") && walkPath != srcPath {
 			return nil
 		}
 
@@ -133,23 +135,18 @@ func copyDirectory(srcPath, destPath, playbookSrcPath, structureItem string, opt
 			return nil
 		}
 
-		// Get relative path from source directory
-		relPath, err := filepath.Rel(srcPath, path)
-		if err != nil {
-			return err
+		// Get relative path from source directory (embed.FS uses forward slashes)
+		relPath := strings.TrimPrefix(walkPath, srcPath+"/")
+		if relPath == "" || relPath == walkPath {
+			return nil
 		}
 
 		// Construct the full project-relative path for protected file checking
-		// e.g., structureItem=".specledger/" + relPath="memory/constitution.md" -> ".specledger/memory/constitution.md"
-		fullPath := filepath.Join(structureItem, relPath)
-		// Clean up path separators (handles trailing slashes)
-		fullPath = filepath.ToSlash(fullPath)
-		if strings.HasSuffix(structureItem, "/") {
-			fullPath = strings.TrimSuffix(structureItem, "/") + "/" + relPath
-		}
+		// e.g., structureItem=".specledger/" + relPath="memory/constitution.md"
+		fullPath := path.Join(strings.TrimSuffix(structureItem, "/"), relPath)
 
 		// Skip protected files that shouldn't be overwritten
-		if protectedFiles[fullPath] || protectedFiles[filepath.Base(relPath)] {
+		if protectedFiles[fullPath] || protectedFiles[path.Base(relPath)] {
 			if opts.Verbose {
 				fmt.Printf("Skipped protected file: %s\n", fullPath)
 			}
@@ -157,17 +154,17 @@ func copyDirectory(srcPath, destPath, playbookSrcPath, structureItem string, opt
 			return nil
 		}
 
-		// Determine destination path
-		fileDestPath := filepath.Join(destPath, relPath)
+		// Determine destination path (local filesystem uses filepath)
+		fileDestPath := filepath.Join(destPath, filepath.FromSlash(relPath))
 
-		return copySingleFile(path, fileDestPath, opts, result, protectedFiles)
+		return copySingleFile(walkPath, fileDestPath, opts, result, protectedFiles)
 	})
 }
 
 // copySingleFile copies a single file from embedded FS to destination.
 func copySingleFile(srcPath, destPath string, opts CopyOptions, result *CopyResult, protectedFiles map[string]bool) error {
 	// Skip protected files that shouldn't be overwritten
-	filename := filepath.Base(srcPath)
+	filename := path.Base(srcPath)
 	if protectedFiles[filename] {
 		if opts.Verbose {
 			fmt.Printf("Skipped protected file: %s\n", srcPath)
