@@ -27,6 +27,10 @@ func init() {
 	version.Commit = buildCommit
 	version.Date = buildDate
 	version.BuildType = buildType
+
+	// Set rootCmd.Version here (after version package is populated)
+	// rather than in the struct literal, which evaluates before init() runs
+	rootCmd.Version = version.GetVersion()
 }
 
 var rootCmd = &cobra.Command{
@@ -45,7 +49,6 @@ Quick start:
  sl init             # Initialize in existing repository
  sl deps list        # List dependencies
  sl deps add <url>   # Add a dependency`,
-	Version: version.GetVersion(),
 	Run: func(cmd *cobra.Command, args []string) {
 		_ = cmd.Help()
 	},
