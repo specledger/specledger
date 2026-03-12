@@ -103,6 +103,7 @@ type ListFilter struct {
 	SpecContext string // Empty = all specs
 	All         bool   // Search across all specs
 	Blocked     bool   // Only show blocked issues
+	Orphaned    bool   // Only show non-epic issues without a parent
 }
 
 // Validation errors
