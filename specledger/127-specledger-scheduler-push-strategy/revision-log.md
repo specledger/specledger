@@ -1,5 +1,29 @@
 # Revision Log: 127-specledger-scheduler-push-strategy
 
+## Revision Session 2026-03-12
+
+### Cluster: `sl implement` Command Definition (Claude CLI Delegation)
+
+**Comments addressed**: Comment 1 + thread (sl implement doesn't exist, should invoke `claude -p "/specledger.implement" --dangerously-skip-permissions`)
+
+#### Options Proposed
+
+1. **Claude CLI delegate** — `sl implement` is a thin Go command that spawns `claude -p "/specledger.implement" --dangerously-skip-permissions`. Remove goroutine/task queue references. ✅ Selected
+2. **Claude CLI direct (no sl wrapper)** — Hook directly spawns Claude CLI, no `sl implement` command. Simpler but loses lock/logging abstraction.
+3. **Hybrid — sl implement with goroutines + Claude** — Go orchestration (lock, logging) with goroutines, delegates task execution to Claude CLI.
+
+#### Changes Applied
+
+| File | Change | Comments Addressed |
+|------|--------|--------------------|
+| spec.md | Rewrote clarification Q1/Q2: removed goroutines/task queue, now describes Claude CLI delegation | Comment 1 |
+| spec.md | Rewrote FR-005: `sl implement` invokes `claude -p "/specledger.implement" --dangerously-skip-permissions` | Comment 1 + thread |
+| spec.md | Updated FR-006: clarified `sl implement` spawns Claude CLI process | Comment 1 + thread |
+| spec.md | Updated FR-007: lock created before spawning Claude CLI | Comment 1 |
+| spec.md | Updated User Story 1 narrative: describes Claude CLI delegation flow | Comment 1 |
+| spec.md | Updated edge case: added `claude` CLI to PATH check | Comment 1 |
+| spec.md | Updated assumptions: added `claude` CLI as PATH dependency | Comment 1 |
+
 ## Revision Session 2026-03-10
 
 ### Cluster: Background Execution Safety & Feedback

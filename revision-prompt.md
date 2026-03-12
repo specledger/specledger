@@ -2,9 +2,7 @@ You are assisting with document revision for spec "127-specledger-scheduler-push
 
 ## Artifacts to Revise
 The following files contain comments that need to be addressed:
-- specledger/127-specledger-scheduler-push-strategy/research.md
-- specledger/127-specledger-scheduler-push-strategy/plan.md
-- specledger/127-specledger-scheduler-push-strategy/plan.md
+- specledger/127-specledger-scheduler-push-strategy/spec.md
 
 You have full access to read and edit these files in the workspace.
 
@@ -19,26 +17,13 @@ Before making any edits:
 ## Comments to Address
 
 ### Comment 1
-- **File**: specledger/127-specledger-scheduler-push-strategy/research.md
-- **Target**: "4. Execution Lock Strategy
-Decision: PID-based lock file at .specledger/exec.lock using gofrs/flock (already a dependency).
+- **File**: specledger/127-specledger-scheduler-push-strategy/spec.md
+- **Target**: "FR-005: The push hook MUST trigger sl implement as a single background process for the detected approved feature. The process reads plan.md and executes tasks sequentially using internal goroutines..."
+- **Feedback**: "specledger doesn't have the sl implement. This command need to be develop."
 
-Rationale:
-
-gofrs/flock already used in issue store for JSONL locking
-
-L..."
-- **Feedback**: "Maybe we should have a command to let user reset/delete the lock file in cases where the file isn't delete properly"
-
-### Comment 2
-- **File**: specledger/127-specledger-scheduler-push-strategy/plan.md
-- **Target**: "Phase 3: Push-Triggered Execution (P1 - US1)"
-- **Feedback**: "Missing: error handling strategy for edge cases (missing sl binary, malformed spec, rejected push). Spec requires graceful failure (FR-011)."
-
-### Comment 3
-- **File**: specledger/127-specledger-scheduler-push-strategy/plan.md
-- **Target**: "Execution lock management in pkg/cli/scheduler/lock.go"
-- **Feedback**: "Underspecified: stale lock detection flow (FR-015). When/how is staleness checked? What's the removal + retry logic?"
+  **Thread:**
+  > **560f5b1b-04e6-456a-babe-d96117c17c0f**: this command need to run a claude command line to execute the claude with a prompt file .claude/commands/specledger.implement.md
+  > **560f5b1b-04e6-456a-babe-d96117c17c0f**: can use claude -p "/specledger.implement" --dangerously-skip-permissions as the command
 
 ## Important Instructions
 - ALWAYS use AskUserQuestion before making any edit

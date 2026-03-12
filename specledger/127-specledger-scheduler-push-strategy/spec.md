@@ -9,8 +9,8 @@
 
 ### Session 2026-03-09
 
-- Q: Should the hook trigger `sl implement` as a single Go binary process with goroutines or spawn separate commands per task? → A: Single process + goroutines. The hook invokes `sl implement` once, which reads plan.md internally and uses goroutines/task queue to execute tasks.
-- Q: Should tasks from plan.md execute sequentially or in parallel? → A: Sequential in dependency order. Tasks execute one by one as defined in plan.md to avoid race conditions.
+- Q: Should the hook trigger `sl implement` as a single Go binary process with goroutines or spawn separate commands per task? → A: `sl implement` is a thin Go command that delegates to the Claude CLI via `claude -p "/specledger.implement" --dangerously-skip-permissions`. The Claude session handles task reading and sequential execution.
+- Q: Should tasks from plan.md execute sequentially or in parallel? → A: Sequential in dependency order. Tasks execute one by one as orchestrated by the Claude session.
 - Q: Should `/specledger.approve` require all artifacts before allowing approval? → A: Yes, require spec.md + plan.md + tasks.md to all exist and be non-empty before approval.
 - Q: Where should hook execution logs be stored? → A: `.specledger/logs/push-hook.log`, consistent with SpecLedger directory conventions.
 
@@ -34,7 +34,7 @@ A developer finishes specifying and planning a feature using SpecLedger. They ru
 
 ### User Story 1 - Push-Triggered Implementation Execution (Priority: P1)
 
-A developer finishes specifying and planning a feature using SpecLedger. They approve the spec via `sl approve`, then run `git push`. A `pre-push` git hook detects that approved SpecLedger artifacts exist for the current feature branch and spawns `sl implement` as a background process. The `sl implement` process reads plan.md, breaks down the tasks, and executes them sequentially using internal goroutines/task queue. The push completes without waiting for implementation to finish.
+A developer finishes specifying and planning a feature using SpecLedger. They approve the spec via `sl approve`, then run `git push`. A `pre-push` git hook detects that approved SpecLedger artifacts exist for the current feature branch and spawns `sl implement` as a detached background process. `sl implement` delegates to the Claude CLI via `claude -p "/specledger.implement" --dangerously-skip-permissions`, which reads plan.md/tasks.md and executes tasks sequentially. The push completes without waiting for implementation to finish.
 
 **Why this priority**: This is the core value proposition - automating the transition from planning to implementation via a familiar git workflow. Without this, the feature has no purpose.
 
@@ -88,7 +88,7 @@ After a push triggers implementation, the developer wants to know what happened.
 - What happens when multiple approved features exist on the same branch? The hook should process only the feature associated with the current branch.
 - What happens when the push is rejected by the remote? The hook should handle this gracefully without leaving partial state.
 - What happens when the user pushes from a non-feature branch (e.g., main)? No implementation should be triggered.
-- What happens when `sl` binary is not available in PATH during hook execution? The hook should fail gracefully with a clear error message.
+- What happens when `sl` binary or `claude` CLI is not available in PATH during hook execution? The hook should fail gracefully with a clear error message.
 - What happens during a force push? The hook should behave the same as a normal push.
 
 ## Requirements *(mandatory)*
@@ -99,9 +99,9 @@ After a push triggers implementation, the developer wants to know what happened.
 - **FR-002**: System MUST provide a command to uninstall the git push hook cleanly.
 - **FR-003**: System MUST provide a command to check the current installation status of the push hook.
 - **FR-004**: The push hook MUST detect when pushed commits contain approved spec/task artifacts for the current feature branch.
-- **FR-005**: The push hook MUST trigger `sl implement` as a single background process for the detected approved feature. The process reads plan.md and executes tasks sequentially using internal goroutines/task queue.
-- **FR-006**: The push hook MUST use the `pre-push` git hook and spawn `sl implement` as a background process (detached from the push). The push MUST NOT be blocked or delayed by implementation execution.
-- **FR-007**: The push hook MUST NOT trigger implementation if a `.specledger/exec.lock` file exists AND the process ID recorded in it is still running. The lock file MUST contain the PID and feature name. `sl implement` MUST create the lock on start and remove it on completion (success or failure).
+- **FR-005**: The push hook MUST trigger `sl implement` as a background process for the detected approved feature. `sl implement` is a Go command that invokes `claude -p "/specledger.implement" --dangerously-skip-permissions`. The Claude session reads plan.md/tasks.md and executes tasks sequentially.
+- **FR-006**: The push hook MUST use the `pre-push` git hook and spawn `sl implement` as a detached background process. `sl implement` in turn spawns the Claude CLI process. The push MUST NOT be blocked or delayed by implementation execution.
+- **FR-007**: The push hook MUST NOT trigger implementation if a `.specledger/exec.lock` file exists AND the process ID recorded in it is still running. The lock file MUST contain the PID and feature name. `sl implement` MUST create the lock on start (before spawning Claude CLI) and remove it on completion (success or failure).
 - **FR-008**: The hook installation MUST preserve any existing git hooks in the project.
 - **FR-009**: The push hook MUST only trigger on feature branches (matching the `NNN-feature-name` pattern).
 - **FR-010**: System MUST log hook execution details to `.specledger/logs/push-hook.log` including timestamp, feature detected, action taken, and outcome.
@@ -143,7 +143,7 @@ After a push triggers implementation, the developer wants to know what happened.
 
 - Git hooks are the appropriate mechanism for this trigger (as opposed to CI/CD pipelines or file watchers). Git hooks run locally on the developer's machine.
 - The `pre-push` git hook will be used. It runs before the push completes but spawns `sl implement` as a detached background process so the push is not blocked. This avoids needing a wrapper or non-existent `post-push` hook.
-- The `sl` binary will be available in PATH during hook execution.
+- The `sl` binary and `claude` CLI will be available in PATH during hook execution.
 - Only one feature is associated with each feature branch (the branch name determines the feature).
 - Asynchronous execution after push is preferred over blocking the push to wait for implementation to complete.
 - Standard git hook chaining practices (e.g., checking for existing hooks, appending rather than replacing) will be followed.
