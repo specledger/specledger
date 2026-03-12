@@ -19,6 +19,43 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// branchPrefixPattern matches common branch naming conventions like feature/xxx, fix/xxx
+var branchPrefixPattern = regexp.MustCompile(`^(?:feature|fix|bugfix|hotfix|chore|refactor|docs|test|ci)/(.+)$`)
+
+// branchNumberPrefix matches branches starting with a number like 608-session-lifecycle
+var branchNumberPrefix = regexp.MustCompile(`^\d+-(.+)$`)
+
+// ExtractTagsFromBranch derives tags from branch naming patterns.
+// Examples: "feature/user-auth" → ["user-auth"], "608-session-lifecycle" → ["session-lifecycle"]
+func ExtractTagsFromBranch(branch string) []string {
+	// Try prefix pattern first (feature/xxx, fix/xxx, etc.)
+	if matches := branchPrefixPattern.FindStringSubmatch(branch); len(matches) == 2 {
+		return []string{matches[1]}
+	}
+	// Try number prefix pattern (608-xxx)
+	if matches := branchNumberPrefix.FindStringSubmatch(branch); len(matches) == 2 {
+		return []string{matches[1]}
+	}
+	// No pattern matched, use branch name as-is (unless it's main/master/develop)
+	if branch != "main" && branch != "master" && branch != "develop" {
+		return []string{branch}
+	}
+	return nil
+}
+
+// DeduplicateTags removes duplicate tags preserving order
+func DeduplicateTags(tags []string) []string {
+	seen := make(map[string]bool)
+	result := make([]string, 0, len(tags))
+	for _, t := range tags {
+		if !seen[t] {
+			seen[t] = true
+			result = append(result, t)
+		}
+	}
+	return result
+}
+
 // gitCommitPattern matches git commit commands (not commit-graph, commit-tree, etc.)
 var gitCommitPattern = regexp.MustCompile(`^\s*git\s+commit(\s|$)`)
 
@@ -386,9 +423,12 @@ func Capture(input *HookInput) *CaptureResult {
 		return queueSession(result, compressed, projectID, branch, &commitHash, nil, creds.UserID)
 	}
 
+	// Auto-tag from branch name
+	tags := ExtractTagsFromBranch(branch)
+
 	// Create metadata
-	metadata := NewMetadataClient()
-	_, err = metadata.Create(accessToken, &CreateSessionInput{
+	metadataClient := NewMetadataClient()
+	_, err = metadataClient.Create(accessToken, &CreateSessionInput{
 		ProjectID:     projectID,
 		FeatureBranch: branch,
 		CommitHash:    &commitHash,
@@ -399,6 +439,7 @@ func Capture(input *HookInput) *CaptureResult {
 		SizeBytes:     result.SizeBytes,
 		RawSizeBytes:  result.RawSizeBytes,
 		MessageCount:  result.MessageCount,
+		Tags:          tags,
 	})
 	if err != nil {
 		// Storage upload succeeded but metadata failed - still queue + log error

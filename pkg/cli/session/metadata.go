@@ -47,6 +47,7 @@ type CreateSessionInput struct {
 	SizeBytes     int64         `json:"size_bytes"`
 	RawSizeBytes  int64         `json:"raw_size_bytes"`
 	MessageCount  int           `json:"message_count"`
+	Tags          []string      `json:"tags,omitempty"`
 }
 
 // Create creates a new session metadata record
@@ -109,6 +110,7 @@ type QueryOptions struct {
 	CommitHash    string
 	TaskID        string
 	AuthorID      string
+	Tag           string
 	StartDate     *time.Time
 	EndDate       *time.Time
 	Limit         int
@@ -145,6 +147,9 @@ func (m *MetadataClient) Query(accessToken string, opts *QueryOptions) ([]Sessio
 	}
 	if opts.AuthorID != "" {
 		params.Set("author_id", "eq."+opts.AuthorID)
+	}
+	if opts.Tag != "" {
+		params.Set("tags", "cs.{"+opts.Tag+"}")
 	}
 	// Date range filtering using PostgREST 'and' operator
 	if opts.StartDate != nil && opts.EndDate != nil {
@@ -207,6 +212,32 @@ func (m *MetadataClient) Query(accessToken string, opts *QueryOptions) ([]Sessio
 	}
 
 	return sessions, nil
+}
+
+// Delete removes a session metadata record by ID
+func (m *MetadataClient) Delete(accessToken string, sessionID string) error {
+	reqURL := fmt.Sprintf("%s/rest/v1/%s?id=eq.%s", m.baseURL, SessionsTable, sessionID)
+
+	req, err := http.NewRequest(http.MethodDelete, reqURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("apikey", m.anonKey)
+
+	resp, err := m.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("delete failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("delete failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
 }
 
 // GetByID retrieves a session by its ID
