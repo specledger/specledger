@@ -34,7 +34,7 @@ func SpawnClaudeCLI(feature, projectRoot, logDir string) (*os.Process, error) {
 		return nil, fmt.Errorf("failed to open claude log file: %w", err)
 	}
 
-	cmd := exec.Command(claudePath, "-p", "/specledger.implement", "--dangerously-skip-permissions")
+	cmd := exec.Command(claudePath, "-p", "\"/specledger.implement\"", "--dangerously-skip-permissions")
 	cmd.Dir = projectRoot
 	cmd.Stdout = f
 	cmd.Stderr = f
