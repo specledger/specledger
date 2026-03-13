@@ -23,13 +23,6 @@ func mustMkdirAll(t *testing.T, path string) {
 	}
 }
 
-func mustWriteFile(t *testing.T, path string, data []byte) {
-	t.Helper()
-	if err := os.WriteFile(path, data, 0600); err != nil {
-		t.Fatalf("failed to write file %s: %v", path, err)
-	}
-}
-
 func TestGenerateFeatureHash(t *testing.T) {
 	hash, err := GenerateFeatureHash()
 	if err != nil {
