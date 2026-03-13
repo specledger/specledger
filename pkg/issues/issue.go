@@ -113,12 +113,12 @@ var (
 	ErrInvalidStatus      = errors.New("status must be one of: open, in_progress, closed")
 	ErrInvalidPriority    = errors.New("priority must be between 0 and 5")
 	ErrInvalidIssueType   = errors.New("issue type must be one of: epic, feature, task, bug")
-	ErrInvalidSpecContext = errors.New("spec context must match pattern ###-name")
+	ErrInvalidSpecContext = errors.New("spec context must match pattern hash-name or ###-name")
 )
 
 var (
 	idPattern          = regexp.MustCompile(`^SL-[a-f0-9]{6}$`)
-	specContextPattern = regexp.MustCompile(`^\d{3,}-[a-z0-9-]+$`)
+	specContextPattern = regexp.MustCompile(`^([a-f0-9]{6}|\d{3,})-[a-z0-9-]+$`)
 )
 
 // Validate validates all fields of an issue

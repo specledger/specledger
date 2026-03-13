@@ -42,26 +42,16 @@ Given that feature description, do this:
      - "Create a dashboard for analytics" → "analytics-dashboard"
      - "Fix payment processing timeout bug" → "fix-payment-timeout"
 
-2. **Check for existing branches before creating new one**:
+2. **Create the feature branch**:
 
-   a. Find the highest feature number for the short-name across specs directories: Check for directories matching `specledger/[0-9]+-<short-name>`
-
-   b. Determine the next available number:
-      - Extract all numbers from specs directory
-      - Find the highest number N
-      - Use N+1 for the new branch number
-
-   c. Run the CLI command `sl spec create --json --number N+1 --short-name "your-short-name"` with the calculated number and short-name:
-      - Pass `--number N+1` and `--short-name "your-short-name"`
-      - For example: `sl spec create --json --number 5 --short-name "user-auth"`
+   Run the CLI command: `sl spec create --json --short-name "your-short-name"`
+   - The CLI auto-generates a unique 6-character hex hash (collision-free)
+   - For example: `sl spec create --json --short-name "user-auth"` → creates `a3f2b1-user-auth`
 
    **IMPORTANT**:
-   - Check specs directories to find the highest number
-   - Only match directories with the exact short-name pattern
-   - If no existing directories found with the short-name pattern, start with number 1
    - You must only ever run this command once per feature
-   - The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for
-   - The JSON output will contain BRANCH_NAME, FEATURE_DIR, and SPEC_FILE paths
+   - The JSON output will contain BRANCH_NAME, FEATURE_DIR, SPEC_FILE, FEATURE_HASH, and FEATURE_ID
+   - Always refer to the JSON output to get the actual paths
 
 3. Load `.specledger/templates/spec-template.md` to understand required sections.
 

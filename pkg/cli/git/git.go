@@ -24,7 +24,8 @@ import (
 	"github.com/go-git/go-git/v5/plumbing/object"
 )
 
-var featureBranchRe = regexp.MustCompile(`^\d{3,}-`)
+// featureBranchRe matches both legacy numeric (e.g., "604-feature") and hash-based (e.g., "a3f2b1-feature") branch names.
+var featureBranchRe = regexp.MustCompile(`^([a-f0-9]{6}|\d{3,})-`)
 
 // repoURLRe extracts owner/name from GitHub remote URLs (both HTTPS and SSH forms).
 // Also matches SSH config aliases like git@github.com-so0k:owner/repo.git where

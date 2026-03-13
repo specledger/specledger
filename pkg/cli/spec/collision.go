@@ -1,6 +1,8 @@
 package spec
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,23 +13,34 @@ import (
 	"github.com/go-git/go-git/v5/plumbing"
 )
 
-func CheckFeatureCollision(repoRoot, featureNum string) error {
-	if err := checkLocalFeatures(repoRoot, featureNum); err != nil {
+// GenerateFeatureHash generates a random 6-character hex hash for feature identification.
+// This eliminates collision risk when multiple people work on the same repo concurrently.
+func GenerateFeatureHash() (string, error) {
+	bytes := make([]byte, 3) // 3 bytes = 6 hex chars
+	if _, err := rand.Read(bytes); err != nil {
+		return "", fmt.Errorf("failed to generate random hash: %w", err)
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
+// CheckFeatureCollision checks if a feature ID (hash or number) already exists
+// in local directories, local branches, or remote branches.
+func CheckFeatureCollision(repoRoot, featureID string) error {
+	if err := checkLocalFeatures(repoRoot, featureID); err != nil {
 		return err
 	}
 
-	if err := checkLocalBranches(repoRoot, featureNum); err != nil {
+	if err := checkLocalBranches(repoRoot, featureID); err != nil {
 		return err
 	}
 
-	if err := checkRemoteBranches(repoRoot, featureNum); err != nil {
-		return nil
-	}
+	// Best-effort remote check — ignore errors (allow offline work)
+	_ = checkRemoteBranches(repoRoot, featureID)
 
 	return nil
 }
 
-func checkLocalFeatures(repoRoot, featureNum string) error {
+func checkLocalFeatures(repoRoot, featureID string) error {
 	specledgerDir := filepath.Join(repoRoot, "specledger")
 
 	info, err := os.Stat(specledgerDir)
@@ -47,23 +60,21 @@ func checkLocalFeatures(repoRoot, featureNum string) error {
 		return fmt.Errorf("failed to read specledger directory: %w", err)
 	}
 
-	featurePattern := regexp.MustCompile(`^(\d{3,})-`)
-
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			continue
 		}
 
-		matches := featurePattern.FindStringSubmatch(entry.Name())
-		if len(matches) > 1 && matches[1] == featureNum {
-			return fmt.Errorf("feature number %s already exists locally: %s", featureNum, entry.Name())
+		prefix := ParseFeatureID(entry.Name())
+		if prefix != "" && prefix == featureID {
+			return fmt.Errorf("feature ID %s already exists locally: %s", featureID, entry.Name())
 		}
 	}
 
 	return nil
 }
 
-func checkLocalBranches(repoRoot, featureNum string) error {
+func checkLocalBranches(repoRoot, featureID string) error {
 	repo, err := openRepo(repoRoot)
 	if err != nil {
 		return err
@@ -74,7 +85,7 @@ func checkLocalBranches(repoRoot, featureNum string) error {
 		return fmt.Errorf("failed to list local branches: %w", err)
 	}
 
-	featurePattern := regexp.MustCompile(`^` + featureNum + `-`)
+	featurePattern := regexp.MustCompile(`^` + regexp.QuoteMeta(featureID) + `-`)
 
 	found := false
 	var existingBranch string
@@ -93,13 +104,13 @@ func checkLocalBranches(repoRoot, featureNum string) error {
 	}
 
 	if found {
-		return fmt.Errorf("feature number %s already has a local branch: %s", featureNum, existingBranch)
+		return fmt.Errorf("feature ID %s already has a local branch: %s", featureID, existingBranch)
 	}
 
 	return nil
 }
 
-func checkRemoteBranches(repoRoot, featureNum string) error {
+func checkRemoteBranches(repoRoot, featureID string) error {
 	repo, err := openRepo(repoRoot)
 	if err != nil {
 		return err
@@ -115,7 +126,7 @@ func checkRemoteBranches(repoRoot, featureNum string) error {
 		return nil
 	}
 
-	featurePattern := regexp.MustCompile(`^` + featureNum + `-`)
+	featurePattern := regexp.MustCompile(`^` + regexp.QuoteMeta(featureID) + `-`)
 
 	for _, ref := range refs {
 		if !ref.Name().IsBranch() {
@@ -124,59 +135,40 @@ func checkRemoteBranches(repoRoot, featureNum string) error {
 
 		branchName := ref.Name().Short()
 		if featurePattern.MatchString(branchName) {
-			return fmt.Errorf("feature number %s already has a remote branch: origin/%s", featureNum, branchName)
+			return fmt.Errorf("feature ID %s already has a remote branch: origin/%s", featureID, branchName)
 		}
 	}
 
 	return nil
 }
 
-func GetNextFeatureNum(repoRoot string) (string, error) {
-	specledgerDir := filepath.Join(repoRoot, "specledger")
-
-	info, err := os.Stat(specledgerDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "001", nil
+// GenerateUniqueFeatureHash generates a hash and verifies it has no collisions.
+// Retries up to 10 times (collision probability is ~1 in 16 million per attempt).
+func GenerateUniqueFeatureHash(repoRoot string) (string, error) {
+	for i := 0; i < 10; i++ {
+		hash, err := GenerateFeatureHash()
+		if err != nil {
+			return "", err
 		}
-		return "", fmt.Errorf("failed to access specledger directory: %w", err)
-	}
-
-	if !info.IsDir() {
-		return "001", nil
-	}
-
-	entries, err := os.ReadDir(specledgerDir)
-	if err != nil {
-		return "", fmt.Errorf("failed to read specledger directory: %w", err)
-	}
-
-	maxNum := 0
-	featurePattern := regexp.MustCompile(`^(\d{3,})-`)
-
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		matches := featurePattern.FindStringSubmatch(entry.Name())
-		if len(matches) > 1 {
-			var num int
-			_, _ = fmt.Sscanf(matches[1], "%d", &num)
-			if num > maxNum {
-				maxNum = num
-			}
+		if err := CheckFeatureCollision(repoRoot, hash); err == nil {
+			return hash, nil
 		}
 	}
-
-	nextNum := maxNum + 1
-	return fmt.Sprintf("%03d", nextNum), nil
+	return "", fmt.Errorf("could not generate unique feature hash after 10 attempts")
 }
 
-func ParseFeatureNum(branchName string) string {
-	parts := strings.SplitN(branchName, "-", 2)
-	if len(parts) == 2 {
-		return parts[0]
+// ParseFeatureID extracts the feature ID prefix from a branch or directory name.
+// Supports both legacy numeric format (e.g., "604" from "604-auto-spec-numbers")
+// and hash format (e.g., "a3f2b1" from "a3f2b1-feature-name").
+func ParseFeatureID(name string) string {
+	parts := strings.SplitN(name, "-", 2)
+	if len(parts) != 2 || parts[1] == "" {
+		return ""
 	}
-	return ""
+	return parts[0]
+}
+
+// ParseFeatureNum is an alias for ParseFeatureID for backward compatibility.
+func ParseFeatureNum(branchName string) string {
+	return ParseFeatureID(branchName)
 }
