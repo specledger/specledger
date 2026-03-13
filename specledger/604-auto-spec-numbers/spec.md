@@ -1,91 +1,88 @@
-# Feature Specification: Auto-Generate Spec Numbers
+# Feature Specification: Hash-Based Spec IDs
 
 **Feature Branch**: `604-auto-spec-numbers`
 **Created**: 2026-03-10
-**Status**: Draft
+**Status**: In Progress
 **Input**: GitHub Issue #66 - Auto-generate spec numbers in sl spec create (remove --number flag)
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Create Feature Without Specifying a Number (Priority: P1)
+### User Story 1 - Create Feature With Auto-Generated Hash (Priority: P1)
 
-A developer wants to start a new feature. They run `sl spec create --short-name "user-auth"` without needing to know what feature numbers already exist. The system automatically assigns the next available number, creates the branch, and sets up the spec directory.
+A developer wants to start a new feature. They run `sl spec create --short-name "user-auth"`. The system generates a unique 6-character hex hash, creates the branch (e.g., `a3f2b1-user-auth`), and sets up the spec directory.
 
-**Why this priority**: This is the core value proposition. Manual number selection is the primary friction point causing collisions and workflow interruption.
+**Why this priority**: This is the core value proposition. Hash-based IDs eliminate collision risk when multiple people work on the same repo concurrently.
 
-**Independent Test**: Can be fully tested by running `sl spec create --short-name "test"` in a repo with existing features and verifying the assigned number doesn't collide with any existing feature.
-
-**Acceptance Scenarios**:
-
-1. **Given** a repo with features 001 through 005, **When** user runs `sl spec create --short-name "new-feature"`, **Then** the system assigns number 006 and creates branch `006-new-feature`
-2. **Given** a repo with no existing features, **When** user runs `sl spec create --short-name "first-feature"`, **Then** the system assigns number 001
-3. **Given** a repo where number 006 exists as a remote branch but not locally, **When** user runs `sl spec create --short-name "new-feature"`, **Then** the system skips 006 and assigns 007
-
----
-
-### User Story 2 - Manual Number Override (Priority: P2)
-
-A developer has a specific number in mind (e.g., matching an external issue tracker) and wants to use it. They run `sl spec create --number 42 --short-name "my-feature"`. The system validates the number is available and uses it.
-
-**Why this priority**: Supports backward compatibility and workflows where numbers are coordinated externally.
-
-**Independent Test**: Can be tested by running `sl spec create --number 42 --short-name "test"` and verifying the number is used as-is.
+**Independent Test**: Can be fully tested by running `sl spec create --short-name "test"` multiple times and verifying each gets a unique hash with no collisions.
 
 **Acceptance Scenarios**:
 
-1. **Given** number 42 is not in use, **When** user runs `sl spec create --number 42 --short-name "my-feature"`, **Then** branch `042-my-feature` is created
-2. **Given** number 42 already has a local directory, **When** user runs `sl spec create --number 42 --short-name "other-feature"`, **Then** an error is returned with the collision details and a suggested available number
+1. **Given** any repo state, **When** user runs `sl spec create --short-name "new-feature"`, **Then** the system generates a 6-char hex hash and creates branch `<hash>-new-feature`
+2. **Given** a repo with no existing features, **When** user runs `sl spec create --short-name "first-feature"`, **Then** a unique hash is generated
+3. **Given** two developers create specs concurrently, **When** both run `sl spec create`, **Then** each gets a unique hash (no coordination needed)
 
 ---
 
-### User Story 3 - AI Agent Creates Specs Without Manual Number Lookup (Priority: P2)
+### User Story 2 - AI Agent Creates Specs Without Manual Lookup (Priority: P2)
 
-The `specledger.specify` AI skill creates new features automatically. Previously, the AI agent had to scan directories to determine the next number. Now it simply runs `sl spec create --json --short-name "feature-name"` and the CLI handles numbering.
+The `specledger.specify` AI skill creates new features automatically. It runs `sl spec create --json --short-name "feature-name"` and the CLI generates a unique hash.
 
 **Why this priority**: Eliminates a common failure mode where AI agents default to "001" or miscalculate the next number.
 
-**Independent Test**: Can be tested by invoking `/specledger.specify` and verifying the JSON output contains a valid, collision-free FEATURE_NUM.
+**Independent Test**: Can be tested by invoking `/specledger.specify` and verifying the JSON output contains a valid, unique FEATURE_HASH.
 
 **Acceptance Scenarios**:
 
-1. **Given** the AI skill invokes `sl spec create --json --short-name "analytics"`, **When** the command completes, **Then** JSON output includes BRANCH_NAME, FEATURE_DIR, SPEC_FILE, FEATURE_NUM, and FEATURE_ID
-2. **Given** the AI skill does not pass `--number`, **When** the command runs, **Then** it auto-assigns a collision-free number without AI intervention
+1. **Given** the AI skill invokes `sl spec create --json --short-name "analytics"`, **When** the command completes, **Then** JSON output includes BRANCH_NAME, FEATURE_DIR, SPEC_FILE, FEATURE_HASH, and FEATURE_ID
+2. **Given** multiple AI agents run concurrently, **When** each creates a spec, **Then** no collisions occur
+
+---
+
+### User Story 3 - Backward Compatibility With Legacy Numeric Specs (Priority: P2)
+
+Existing specs with numeric prefixes (e.g., `604-auto-spec-numbers`) continue to work. The system recognizes both formats for branch detection, issue context, and spec directory scanning.
+
+**Why this priority**: Must not break existing workflows.
+
+**Acceptance Scenarios**:
+
+1. **Given** a repo with legacy spec `604-auto-spec-numbers`, **When** running `sl issue list`, **Then** it correctly detects the spec context
+2. **Given** a mix of legacy numeric and hash-based specs, **When** listing features, **Then** both formats are recognized
 
 ---
 
 ### Edge Cases
 
-- What happens when 100 consecutive numbers are all taken? System returns a clear error message.
-- How does the system handle concurrent feature creation by two users? Each user gets a unique number based on local + remote checks at creation time.
-- What happens when remote is unreachable? System falls back to local-only checks and proceeds (best-effort remote check).
-- What if the specledger/ directory doesn't exist yet? System starts numbering from 001.
+- What happens if a generated hash collides? System retries up to 10 times (probability ~1 in 16 million per attempt).
+- What happens when remote is unreachable? System falls back to local-only collision checks (best-effort remote check).
+- What if the specledger/ directory doesn't exist yet? System generates a hash and creates the directory.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: System MUST create features without requiring the `--number` flag
-- **FR-002**: System MUST auto-assign the next available number by scanning existing feature directories, local branches, and remote branches
-- **FR-003**: System MUST still accept an optional `--number` flag for manual override
-- **FR-004**: When a manually specified number collides, the system MUST report the collision and suggest the next available number
+- **FR-001**: System MUST generate a random 6-character hex hash for each new feature
+- **FR-002**: System MUST verify the hash has no collisions against local directories, local branches, and remote branches
+- **FR-003**: The `--number` flag is REMOVED; all new specs use hash-based IDs
+- **FR-004**: System MUST include a `FEATURE_HASH` field in JSON output
 - **FR-005**: System MUST include a `FEATURE_ID` field in JSON output (matching the branch name)
-- **FR-006**: System MUST support legacy numeric specs (existing NNN-name format remains unchanged)
-- **FR-007**: The AI skill documentation MUST be updated to reflect that `--number` is no longer required
+- **FR-006**: System MUST support legacy numeric specs (existing NNN-name format remains unchanged for detection and context)
+- **FR-007**: The AI skill documentation MUST be updated to reflect hash-based IDs
 
 ### Key Entities
 
-- **Feature Number**: A zero-padded 3+ digit identifier (e.g., "001", "042", "604") assigned to each feature
-- **Feature ID**: The full branch name combining number and short name (e.g., "604-auto-spec-numbers")
-- **Collision**: When a feature number already exists as a local directory, local branch, or remote branch
+- **Feature Hash**: A 6-character lowercase hex string (e.g., "a3f2b1") generated from `crypto/rand`
+- **Feature ID**: The full branch name combining hash and short name (e.g., "a3f2b1-user-auth")
+- **Collision**: When a feature hash already exists as a local directory, local branch, or remote branch
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: 100% of feature creation commands succeed without manual number input
-- **SC-002**: Zero feature number collisions occur during auto-assignment
-- **SC-003**: AI skill (`/specledger.specify`) creates features successfully without number-related failures
-- **SC-004**: Manual `--number` override continues to work for users who need it
+- **SC-001**: 100% of feature creation commands succeed without any manual ID input
+- **SC-002**: Zero feature hash collisions occur during generation
+- **SC-003**: AI skill (`/specledger.specify`) creates features successfully without hash-related failures
+- **SC-004**: All existing legacy numeric specs continue to function correctly
 - **SC-005**: Feature creation completes in under 5 seconds including remote branch checks
 
 ### Previous work
@@ -96,6 +93,6 @@ The `specledger.specify` AI skill creates new features automatically. Previously
 
 ### Assumptions
 
-- Sequential auto-increment (Option A from issue #66) is sufficient; hash-based IDs are not needed for the current project scale
+- Hash-based IDs (6 hex chars = 16.7 million possibilities) are sufficient for any practical project scale
 - Remote branch checking is best-effort; network failures should not block feature creation
-- The zero-padded 3-digit format (e.g., "001") is maintained for readability and backward compatibility
+- Legacy numeric format (e.g., "604") is recognized but no longer generated for new specs

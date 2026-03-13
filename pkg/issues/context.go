@@ -11,12 +11,12 @@ import (
 
 // Context-related errors
 var (
-	ErrNotFeatureBranch = errors.New("not on a feature branch. Use --spec flag or checkout a ###-branch")
+	ErrNotFeatureBranch = errors.New("not on a feature branch. Use --spec flag or checkout a feature branch")
 	ErrNoGitRepo        = errors.New("not in a git repository")
 )
 
-// specBranchPattern matches branch names like "010-my-feature" or "591-issue-tracking"
-var specBranchPattern = regexp.MustCompile(`^(\d{3,}-[a-z0-9-]+)$`)
+// specBranchPattern matches both legacy numeric (e.g., "010-my-feature") and hash-based (e.g., "a3f2b1-my-feature") branch names.
+var specBranchPattern = regexp.MustCompile(`^(([a-f0-9]{6}|\d{3,})-[a-z0-9-]+)$`)
 
 // ContextDetector detects the current spec context from git branch
 type ContextDetector struct {
@@ -115,7 +115,7 @@ func ValidateSpecContext(specContext string) error {
 		return errors.New("spec context cannot be empty")
 	}
 	if !specBranchPattern.MatchString(specContext) {
-		return fmt.Errorf("invalid spec context format: %s (expected ###-name pattern)", specContext)
+		return fmt.Errorf("invalid spec context format: %s (expected hash-name or ###-name pattern)", specContext)
 	}
 	return nil
 }
@@ -123,7 +123,7 @@ func ValidateSpecContext(specContext string) error {
 // FormatNotFeatureBranchError returns a formatted error message with helpful context
 func FormatNotFeatureBranchError(currentBranch string) string {
 	if currentBranch == "" {
-		return "Not on a feature branch. Use --spec flag or checkout a ###-branch."
+		return "Not on a feature branch. Use --spec flag or checkout a feature branch."
 	}
-	return fmt.Sprintf("Current branch '%s' is not a feature branch. Use --spec flag or checkout a ###-branch.", currentBranch)
+	return fmt.Sprintf("Current branch '%s' is not a feature branch. Use --spec flag or checkout a feature branch.", currentBranch)
 }

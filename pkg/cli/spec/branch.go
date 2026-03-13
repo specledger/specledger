@@ -26,7 +26,7 @@ var StopWords = map[string]bool{
 
 var acronymPattern = regexp.MustCompile(`^[A-Z]{2,}[0-9]*$`)
 
-func GenerateBranchName(description string, number int) string {
+func GenerateBranchName(description string, hash string) string {
 	words := tokenizeAndClean(description)
 
 	words = FilterStopWords(words)
@@ -41,7 +41,7 @@ func GenerateBranchName(description string, number int) string {
 	}
 
 	shortName := strings.Join(words, "-")
-	branchName := fmt.Sprintf("%03d-%s", number, shortName)
+	branchName := fmt.Sprintf("%s-%s", hash, shortName)
 
 	return TruncateToLimit(branchName, MaxBranchLength)
 }

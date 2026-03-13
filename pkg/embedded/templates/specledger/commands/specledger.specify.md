@@ -45,13 +45,12 @@ Given that feature description, do this:
 2. **Create the feature branch**:
 
    Run the CLI command: `sl spec create --json --short-name "your-short-name"`
-   - The CLI auto-generates the next available feature number (collision-free)
-   - You can optionally pass `--number N` to override: `sl spec create --json --number 600 --short-name "user-auth"`
-   - For example: `sl spec create --json --short-name "user-auth"`
+   - The CLI auto-generates a unique 6-character hex hash (collision-free)
+   - For example: `sl spec create --json --short-name "user-auth"` → creates `a3f2b1-user-auth`
 
    **IMPORTANT**:
    - You must only ever run this command once per feature
-   - The JSON output will contain BRANCH_NAME, FEATURE_DIR, SPEC_FILE, FEATURE_NUM, and FEATURE_ID
+   - The JSON output will contain BRANCH_NAME, FEATURE_DIR, SPEC_FILE, FEATURE_HASH, and FEATURE_ID
    - Always refer to the JSON output to get the actual paths
 
 3. Load `.specledger/templates/spec-template.md` to understand required sections.

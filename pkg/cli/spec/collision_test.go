@@ -30,90 +30,55 @@ func mustWriteFile(t *testing.T, path string, data []byte) {
 	}
 }
 
-func TestGetNextFeatureNum_EmptyDir(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	num, err := GetNextFeatureNum(tmpDir)
+func TestGenerateFeatureHash(t *testing.T) {
+	hash, err := GenerateFeatureHash()
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if num != "001" {
-		t.Errorf("expected 001, got %s", num)
+	if len(hash) != 6 {
+		t.Errorf("expected 6-char hash, got %q (len %d)", hash, len(hash))
+	}
+	// Verify it's valid hex
+	for _, c := range hash {
+		if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+			t.Errorf("invalid hex character %c in hash %q", c, hash)
+		}
 	}
 }
 
-func TestGetNextFeatureNum_WithExistingFeatures(t *testing.T) {
-	tmpDir := t.TempDir()
-	specDir := filepath.Join(tmpDir, "specledger")
-	mustMkdirAll(t, filepath.Join(specDir, "001-first-feature"))
-	mustMkdirAll(t, filepath.Join(specDir, "005-fifth-feature"))
-	mustMkdirAll(t, filepath.Join(specDir, "003-third-feature"))
-
-	num, err := GetNextFeatureNum(tmpDir)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if num != "006" {
-		t.Errorf("expected 006, got %s", num)
+func TestGenerateFeatureHash_Unique(t *testing.T) {
+	seen := make(map[string]bool)
+	for i := 0; i < 100; i++ {
+		hash, err := GenerateFeatureHash()
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if seen[hash] {
+			t.Errorf("duplicate hash generated: %s", hash)
+		}
+		seen[hash] = true
 	}
 }
 
-func TestGetNextFeatureNum_SkipsNonFeatureDirs(t *testing.T) {
+func TestGenerateUniqueFeatureHash(t *testing.T) {
 	tmpDir := t.TempDir()
-	specDir := filepath.Join(tmpDir, "specledger")
-	mustMkdirAll(t, filepath.Join(specDir, "010-real-feature"))
-	mustMkdirAll(t, filepath.Join(specDir, "migrated"))
-	mustMkdirAll(t, filepath.Join(specDir, "not-a-feature"))
-	// Create a file (not directory)
-	mustWriteFile(t, filepath.Join(specDir, "specledger.yaml"), []byte(""))
-
-	num, err := GetNextFeatureNum(tmpDir)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if num != "011" {
-		t.Errorf("expected 011, got %s", num)
-	}
-}
-
-func TestGetNextAvailableNum_NoCollision(t *testing.T) {
-	tmpDir := t.TempDir()
-	// Init a git repo so branch checks don't fall through to parent repo
 	initGitRepo(t, tmpDir)
 
-	num, err := GetNextAvailableNum(tmpDir)
+	hash, err := GenerateUniqueFeatureHash(tmpDir)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if num != "001" {
-		t.Errorf("expected 001, got %s", num)
-	}
-}
-
-func TestGetNextAvailableNum_SkipsCollisions(t *testing.T) {
-	tmpDir := t.TempDir()
-	initGitRepo(t, tmpDir)
-	specDir := filepath.Join(tmpDir, "specledger")
-	// Create features 001 through 003
-	mustMkdirAll(t, filepath.Join(specDir, "001-first"))
-	mustMkdirAll(t, filepath.Join(specDir, "002-second"))
-	mustMkdirAll(t, filepath.Join(specDir, "003-third"))
-
-	num, err := GetNextAvailableNum(tmpDir)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-	if num != "004" {
-		t.Errorf("expected 004, got %s", num)
+	if len(hash) != 6 {
+		t.Errorf("expected 6-char hash, got %q", hash)
 	}
 }
 
 func TestCheckFeatureCollision_NoCollision(t *testing.T) {
 	tmpDir := t.TempDir()
 	specDir := filepath.Join(tmpDir, "specledger")
-	mustMkdirAll(t, filepath.Join(specDir, "001-first"))
+	mustMkdirAll(t, filepath.Join(specDir, "a1b2c3-first"))
 
-	err := checkLocalFeatures(tmpDir, "002")
+	err := checkLocalFeatures(tmpDir, "d4e5f6")
 	if err != nil {
 		t.Errorf("expected no collision, got: %v", err)
 	}
@@ -122,29 +87,58 @@ func TestCheckFeatureCollision_NoCollision(t *testing.T) {
 func TestCheckFeatureCollision_HasCollision(t *testing.T) {
 	tmpDir := t.TempDir()
 	specDir := filepath.Join(tmpDir, "specledger")
-	mustMkdirAll(t, filepath.Join(specDir, "001-first"))
+	mustMkdirAll(t, filepath.Join(specDir, "a1b2c3-first"))
 
-	err := checkLocalFeatures(tmpDir, "001")
+	err := checkLocalFeatures(tmpDir, "a1b2c3")
 	if err == nil {
 		t.Error("expected collision error, got nil")
 	}
 }
 
-func TestParseFeatureNum(t *testing.T) {
+func TestCheckFeatureCollision_LegacyNumeric(t *testing.T) {
+	tmpDir := t.TempDir()
+	specDir := filepath.Join(tmpDir, "specledger")
+	mustMkdirAll(t, filepath.Join(specDir, "001-first"))
+
+	err := checkLocalFeatures(tmpDir, "001")
+	if err == nil {
+		t.Error("expected collision error for legacy numeric, got nil")
+	}
+}
+
+func TestCheckFeatureCollision_NoSpecledgerDir(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	err := checkLocalFeatures(tmpDir, "a1b2c3")
+	if err != nil {
+		t.Errorf("expected no error for missing specledger dir, got: %v", err)
+	}
+}
+
+func TestParseFeatureID(t *testing.T) {
 	tests := []struct {
-		branch string
-		want   string
+		name string
+		want string
 	}{
-		{"600-my-feature", "600"},
+		{"a3f2b1-my-feature", "a3f2b1"},
+		{"604-auto-spec-numbers", "604"},
 		{"001-first", "001"},
 		{"main", ""},
-		{"feature-no-num", "feature"},
+		{"feature", ""},
 	}
 
 	for _, tt := range tests {
-		got := ParseFeatureNum(tt.branch)
+		got := ParseFeatureID(tt.name)
 		if got != tt.want {
-			t.Errorf("ParseFeatureNum(%q) = %q, want %q", tt.branch, got, tt.want)
+			t.Errorf("ParseFeatureID(%q) = %q, want %q", tt.name, got, tt.want)
 		}
+	}
+}
+
+func TestParseFeatureNum_BackwardCompat(t *testing.T) {
+	// ParseFeatureNum should work the same as ParseFeatureID
+	got := ParseFeatureNum("604-auto-spec")
+	if got != "604" {
+		t.Errorf("ParseFeatureNum(\"604-auto-spec\") = %q, want \"604\"", got)
 	}
 }
