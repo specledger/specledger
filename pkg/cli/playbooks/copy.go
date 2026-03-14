@@ -252,7 +252,7 @@ func mergeFile(srcPath, destPath string, templateContent []byte, opts CopyOption
 	}
 
 	if !opts.DryRun {
-		if err := os.WriteFile(destPath, []byte(merged), 0644); err != nil {
+		if err := os.WriteFile(destPath, []byte(merged), 0644); err != nil { //nolint:gosec // .gitattributes must be world-readable
 			return fmt.Errorf("failed to write merged file: %w", err)
 		}
 	}
