@@ -14,4 +14,9 @@ This file is auto-generated from plan.md. Manual additions are preserved below.
 - `go test` with table-driven tests
 
 <!-- MANUAL ADDITIONS START -->
+
+## Commit & Push Rules
+
+- **NEVER** run `git commit` or `git push` directly. Always use the `/specledger.commit` skill for all commit and push operations. This ensures auth-aware session capture works correctly.
+
 <!-- MANUAL ADDITIONS END -->
