@@ -55,6 +55,9 @@ func ApplyToProject(projectPath, playbookName string, force bool) (string, strin
 	if result.FilesSkipped > 0 {
 		fmt.Printf("Skipped %d existing files\n", result.FilesSkipped)
 	}
+	if result.FilesMerged > 0 {
+		fmt.Printf("Merged %d file(s)\n", result.FilesMerged)
+	}
 	if len(result.Errors) > 0 {
 		for _, e := range result.Errors {
 			if e.IsWarning {

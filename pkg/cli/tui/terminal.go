@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 )
 
@@ -19,18 +18,13 @@ const (
 
 // ModeDetector detects the terminal mode
 type ModeDetector struct {
-	termState    TerminalMode
-	gumAvailable bool
+	termState TerminalMode
 }
 
 // NewModeDetector creates a new mode detector
 func NewModeDetector() *ModeDetector {
-	detectMode := DetectMode()
-	checkGum := checkGum()
-
 	return &ModeDetector{
-		termState:    detectMode,
-		gumAvailable: checkGum,
+		termState: DetectMode(),
 	}
 }
 
@@ -78,20 +72,9 @@ func (d *ModeDetector) IsPlainCLI() bool {
 	return d.termState == ModePlainCLI
 }
 
-// IsGumAvailable returns true if gum is available
-func (d *ModeDetector) IsGumAvailable() bool {
-	return d.gumAvailable
-}
-
 // isTerminal checks if the given file descriptor is a terminal
 func isTerminal(fd uintptr) bool {
 	return true
-}
-
-// checkGum checks if gum is installed
-func checkGum() bool {
-	cmd := exec.Command("command", "-v", "gum")
-	return cmd.Run() == nil
 }
 
 // InputPrompt prompts for user input

@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -37,7 +38,11 @@ func buildSLBinary(t testing.TB, tempDir string) string {
 		t.Fatalf("Failed to find repo root: %v", err)
 	}
 
-	slBinary := filepath.Join(tempDir, "sl")
+	binaryName := "sl"
+	if runtime.GOOS == "windows" {
+		binaryName = "sl.exe"
+	}
+	slBinary := filepath.Join(tempDir, binaryName)
 	buildCmd := exec.Command("go", "build", "-o", slBinary, filepath.Join(repoRoot, "cmd", "sl", "main.go"))
 	if output, err := buildCmd.CombinedOutput(); err != nil {
 		t.Fatalf("Failed to build sl binary: %v\nOutput: %s", err, string(output))

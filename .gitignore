@@ -87,3 +87,4 @@ main
 /sl
 .beads/metadata.json
 branch-map.json
+tmp/

@@ -29,6 +29,7 @@ var (
 	issueTreeFlag        bool
 	issueGraphFlag       bool // Show blocking dependency graph
 	issueBlockedFlag     bool
+	issueOrphanedFlag    bool
 	issueReasonFlag      string
 	issueAssigneeFlag    string
 	issueNotesFlag       string
@@ -180,9 +181,11 @@ var issueLinkCmd = &cobra.Command{
 
 Link types:
   blocks  - from blocks to (from must complete before to can start)
-  related - from and to are related (soft link)`,
+  related - from and to are related (soft link)
+  parent  - set to as the parent of from (hierarchy, not dependency)`,
 	Example: `  sl issue link SL-a3f5d8 blocks SL-b4e6f9
-  sl issue link SL-a3f5d8 related SL-c7e1a2`,
+  sl issue link SL-a3f5d8 related SL-c7e1a2
+  sl issue link SL-child1 parent SL-epic1`,
 	Args: cobra.ExactArgs(3),
 	RunE: runIssueLink,
 }
@@ -225,6 +228,7 @@ func init() {
 	VarIssueCmd.AddCommand(issueReadyCmd)
 	VarIssueCmd.AddCommand(issueMigrateCmd)
 	VarIssueCmd.AddCommand(issueRepairCmd)
+	VarIssueCmd.AddCommand(issueReparentCmd)
 
 	// Create command flags
 	issueCreateCmd.Flags().StringVar(&issueTitleFlag, "title", "", "Issue title (required)")
@@ -254,6 +258,7 @@ func init() {
 	issueListCmd.Flags().BoolVar(&issueTreeFlag, "tree", false, "Show parent-child hierarchy tree")
 	issueListCmd.Flags().BoolVar(&issueGraphFlag, "graph", false, "Show blocking dependency graph")
 	issueListCmd.Flags().BoolVar(&issueBlockedFlag, "blocked", false, "Show only blocked issues")
+	issueListCmd.Flags().BoolVar(&issueOrphanedFlag, "orphaned", false, "Show only non-epic issues without a parent")
 
 	// Show command flags
 	issueShowCmd.Flags().BoolVar(&issueJSONFlag, "json", false, "Output as JSON")
@@ -400,6 +405,7 @@ func runIssueList(cmd *cobra.Command, args []string) error {
 	filter.SpecContext = specContext
 	filter.All = issueAllFlag
 	filter.Blocked = issueBlockedFlag
+	filter.Orphaned = issueOrphanedFlag
 
 	var issueList []issues.Issue
 	var err error
@@ -1599,12 +1605,6 @@ func runIssueLink(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid to issue ID: %w", err)
 	}
 
-	// Validate link type
-	linkType := issues.LinkType(linkTypeStr)
-	if !issues.IsValidLinkType(linkType) {
-		return fmt.Errorf("invalid link type: %s (must be 'blocks' or 'related')", linkTypeStr)
-	}
-
 	// Detect spec context
 	detector := issues.NewContextDetector(".")
 	specContext, err := detector.DetectSpecContext()
@@ -1618,6 +1618,23 @@ func runIssueLink(cmd *cobra.Command, args []string) error {
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create store: %w", err)
+	}
+
+	// Handle parent link type separately — uses ParentID, not dependency graph
+	if linkTypeStr == "parent" {
+		parentID := toID
+		update := issues.IssueUpdate{ParentID: &parentID}
+		if _, err := store.Update(fromID, update); err != nil {
+			return fmt.Errorf("failed to set parent: %w", err)
+		}
+		fmt.Printf("%s Set parent: %s → %s\n", ui.Checkmark(), fromID, toID)
+		return nil
+	}
+
+	// Validate link type for dependency types
+	linkType := issues.LinkType(linkTypeStr)
+	if !issues.IsValidLinkType(linkType) {
+		return fmt.Errorf("invalid link type: %s (must be 'blocks', 'related', or 'parent')", linkTypeStr)
 	}
 
 	if err := store.AddDependency(fromID, toID, linkType); err != nil {
@@ -1716,5 +1733,78 @@ func runIssueRepair(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Printf("\n%s Repair complete\n", ui.Checkmark())
+	return nil
+}
+
+// issueReparentCmd sets a parent for multiple issues at once
+var issueReparentCmd = &cobra.Command{
+	Use:   "reparent <parent-id> <child-id> [child-id...]",
+	Short: "Set the same parent for multiple issues",
+	Long: `Set or change the parent for multiple child issues in a single command.
+Useful for fixing orphaned issues or bulk-reassigning hierarchy after task generation.`,
+	Example: `  sl issue reparent SL-epic1 SL-task1 SL-task2 SL-task3
+  sl issue reparent SL-feat1 SL-task4 SL-task5`,
+	Args: cobra.MinimumNArgs(2),
+	RunE: runIssueReparent,
+}
+
+func runIssueReparent(cmd *cobra.Command, args []string) error {
+	parentID := args[0]
+	childIDs := args[1:]
+
+	// Validate parent ID format
+	if _, err := issues.ParseIssueID(parentID); err != nil {
+		return fmt.Errorf("invalid parent issue ID: %w", err)
+	}
+
+	// Detect spec context
+	detector := issues.NewContextDetector(".")
+	specContext, err := detector.DetectSpecContext()
+	if err != nil {
+		return fmt.Errorf("%w", err)
+	}
+
+	store, err := issues.NewStore(issues.StoreOptions{
+		BasePath:    getArtifactPath(),
+		SpecContext: specContext,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create store: %w", err)
+	}
+
+	// Validate parent exists
+	if _, err := store.Get(parentID); err != nil {
+		return fmt.Errorf("parent issue not found: %s", parentID)
+	}
+
+	var successCount int
+	var failedIDs []string
+
+	for _, childID := range childIDs {
+		if _, err := issues.ParseIssueID(childID); err != nil {
+			fmt.Fprintf(os.Stderr, "  %s %s: invalid issue ID\n", ui.Crossmark(), childID)
+			failedIDs = append(failedIDs, childID)
+			continue
+		}
+
+		pid := parentID
+		update := issues.IssueUpdate{ParentID: &pid}
+		if _, err := store.Update(childID, update); err != nil {
+			fmt.Fprintf(os.Stderr, "  %s %s: %s\n", ui.Crossmark(), childID, err)
+			failedIDs = append(failedIDs, childID)
+			continue
+		}
+
+		fmt.Printf("  %s %s → parent %s\n", ui.Checkmark(), childID, parentID)
+		successCount++
+	}
+
+	fmt.Println()
+	if len(failedIDs) > 0 {
+		fmt.Printf("%s Reparented %d/%d issues (%d failed)\n", ui.Checkmark(), successCount, len(childIDs), len(failedIDs))
+	} else {
+		fmt.Printf("%s Reparented %d issues to %s\n", ui.Checkmark(), successCount, parentID)
+	}
+
 	return nil
 }

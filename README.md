@@ -20,6 +20,7 @@ SpecLedger is an **all-in-one SDD playbook** that provides:
 - **Customizable Playbooks** - Support for multiple SDD playbook workflows
 - **Issue Tracking** - Built-in task tracking with `sl issue` commands (no external dependencies)
 - **Spec Dependencies** - Manage and track specification dependencies across projects
+- **UI Mockup Generation** - Generate UI mockups from specs with framework-aware design system detection
 - **Tool Checking** - Ensures all required tools are installed and configured
 - **Workflow Orchestration** - End-to-end workflows from spec to deployment
 
@@ -382,6 +383,25 @@ Fetch unresolved review comments from the SpecLedger platform and address them i
 6. Open the prompt in your editor for refinement
 7. Launch the configured AI coding agent
 8. Offer to commit/push changes and resolve comments
+
+### UI Mockups
+
+Generate UI mockups from feature specifications. The mockup command auto-detects your frontend framework (React, Next.js, Vue, Nuxt, Svelte, Angular, Astro, etc.), extracts design tokens and styling patterns, then launches an AI agent with a contextual prompt to generate mockups.
+
+| Command | Description |
+|---------|-------------|
+| `sl mockup` | Interactive mockup generation from current spec |
+| `sl mockup <instructions...>` | Generate with custom instructions |
+| `sl mockup update` | Refresh design system (re-extract CSS/tokens) |
+
+**Design System**: On first run, `sl mockup` scans your project for CSS frameworks (Tailwind, Bootstrap, etc.), component libraries (shadcn, MUI, Radix, etc.), and app structure (layouts, routes, global styles). Results are cached in `.specledger/memory/design-system.md` — use `sl mockup update` to refresh.
+
+**Examples:**
+```bash
+sl mockup                                    # Interactive flow
+instructions
+sl mockup focus on the login form            # Focus on specific 
+```
 
 ### Playbooks
 

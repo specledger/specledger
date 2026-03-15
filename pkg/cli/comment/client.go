@@ -34,19 +34,38 @@ type apiChange struct {
 	State      string `json:"state"`
 }
 
+// AuthProvider abstracts credential operations for testability.
+type AuthProvider interface {
+	LoadCredentials() (*auth.Credentials, error)
+	ForceRefreshAccessToken() (string, error)
+}
+
+// defaultAuthProvider delegates to the real auth package functions.
+type defaultAuthProvider struct{}
+
+func (defaultAuthProvider) LoadCredentials() (*auth.Credentials, error) {
+	return auth.LoadCredentials()
+}
+
+func (defaultAuthProvider) ForceRefreshAccessToken() (string, error) {
+	return auth.ForceRefreshAccessToken()
+}
+
 type Client struct {
-	BaseURL     string
-	AnonKey     string
-	accessToken string
-	HTTPClient  *http.Client
+	BaseURL      string
+	AnonKey      string
+	accessToken  string
+	HTTPClient   *http.Client
+	AuthProvider AuthProvider
 }
 
 func NewClient(accessToken string) *Client {
 	return &Client{
-		BaseURL:     auth.GetSupabaseURL(),
-		AnonKey:     auth.GetSupabaseAnonKey(),
-		accessToken: accessToken,
-		HTTPClient:  &http.Client{Timeout: clientTimeout},
+		BaseURL:      auth.GetSupabaseURL(),
+		AnonKey:      auth.GetSupabaseAnonKey(),
+		accessToken:  accessToken,
+		HTTPClient:   &http.Client{Timeout: clientTimeout},
+		AuthProvider: defaultAuthProvider{},
 	}
 }
 
@@ -59,11 +78,22 @@ func (c *Client) DoWithRetry(fn func(token string) (*http.Response, error)) (*ht
 	if resp.StatusCode == http.StatusUnauthorized {
 		resp.Body.Close()
 
-		newToken, err := auth.ForceRefreshAccessToken()
-		if err != nil {
-			return nil, fmt.Errorf("token refresh failed: %w (run 'sl auth login')", err)
+		// Before force-refreshing, reload credentials from disk.
+		// Another process (e.g. session capture hook) may have already
+		// refreshed and saved new tokens. Supabase refresh tokens are
+		// single-use, so re-using a consumed one would fail.
+		creds, loadErr := c.AuthProvider.LoadCredentials()
+		if loadErr == nil && creds != nil && creds.AccessToken != c.accessToken && !creds.IsExpired() {
+			// Credentials were refreshed by another process — use the new token.
+			c.accessToken = creds.AccessToken
+		} else {
+			// Credentials are the same or expired — force refresh.
+			newToken, err := c.AuthProvider.ForceRefreshAccessToken()
+			if err != nil {
+				return nil, fmt.Errorf("token refresh failed: %w", err)
+			}
+			c.accessToken = newToken
 		}
-		c.accessToken = newToken
 
 		resp, err = fn(c.accessToken)
 		if err != nil {

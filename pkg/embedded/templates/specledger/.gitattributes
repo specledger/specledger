@@ -1,1 +1,2 @@
-# SpecLedger gitattributes
+specledger/*/issues.jsonl linguist-generated=true
+specledger/*/tasks.md linguist-generated=true
