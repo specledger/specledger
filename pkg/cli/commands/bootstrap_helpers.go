@@ -91,13 +91,38 @@ func trustMiseConfig(projectPath string) {
 // setupSpecLedgerProject applies playbooks and creates metadata.
 // Optionally initializes git based on flags.
 // If force is true, existing files will be overwritten.
+// selectedAgents is a comma-separated list of agent names to configure (e.g., "claude,opencode").
 // Returns the playbook name, version, and structure for metadata storage.
-func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName string, initGit bool, force bool) (string, string, []string, error) {
+func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName string, initGit bool, force bool, selectedAgents string) (string, string, []string, error) {
 	// Apply embedded playbooks
 	selectedPlaybookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath, playbookName, force)
 	if err != nil {
 		// Playbook application failure is not fatal - log warning and continue
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
+	}
+
+	// Setup multi-agent shared directories if agents selected
+	if selectedAgents != "" && selectedAgents != "None" {
+		agentNames := strings.Split(selectedAgents, ",")
+		for i, name := range agentNames {
+			agentNames[i] = strings.TrimSpace(name)
+		}
+
+		// Create .agent/commands and .agent/skills directories
+		if err := playbooks.CreateAgentSharedDir(projectPath, force); err != nil {
+			if !strings.Contains(err.Error(), "already exists") {
+				ui.PrintWarning(fmt.Sprintf("Failed to create .agent directory: %v", err))
+			}
+		} else {
+			fmt.Printf("%s Created .agent/ directory\n", ui.Checkmark())
+
+			// Link each selected agent to the shared directories
+			if err := playbooks.LinkAgentToShared(projectPath, agentNames, force); err != nil {
+				ui.PrintWarning(fmt.Sprintf("Failed to link agents: %v", err))
+			} else {
+				fmt.Printf("%s Linked agents: %s\n", ui.Checkmark(), strings.Join(agentNames, ", "))
+			}
+		}
 	}
 
 	// Create YAML metadata with playbook info

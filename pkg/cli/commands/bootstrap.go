@@ -146,17 +146,18 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 	}
 
 	// Setup SpecLedger project (playbooks, skills, metadata, git)
-	_, _, _, err = setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName, true, false)
+	agentPref := answers["agent_preference"]
+	if agentPref == "" {
+		agentPref = "None"
+	}
+
+	_, _, _, err = setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName, true, false, agentPref)
 	if err != nil {
 		return err
 	}
 
 	// Write populated constitution with selected principles
 	constitutionPath := filepath.Join(projectPath, ".specledger", "memory", "constitution.md")
-	agentPref := answers["agent_preference"]
-	if agentPref == "" {
-		agentPref = "None"
-	}
 
 	// Parse selected principles from TUI
 	selectedPrinciples := DefaultPrinciples()
@@ -170,7 +171,16 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 		}
 	}
 
-	if err := WriteDefaultConstitution(constitutionPath, selectedPrinciples, agentPref, nil); err != nil {
+	// Parse selected agents for constitution
+	var selectedAgentList []string
+	if agentPref != "None" && agentPref != "" {
+		selectedAgentList = strings.Split(agentPref, ",")
+		for i, name := range selectedAgentList {
+			selectedAgentList[i] = strings.TrimSpace(name)
+		}
+	}
+
+	if err := WriteDefaultConstitution(constitutionPath, selectedPrinciples, agentPref, selectedAgentList); err != nil {
 		ui.PrintWarning(fmt.Sprintf("Failed to write constitution: %v", err))
 	} else {
 		fmt.Printf("%s Constitution created\n", ui.Checkmark())
@@ -241,7 +251,7 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 	}
 
 	// Setup SpecLedger project (playbooks, skills, metadata, git)
-	_, _, _, err := setupSpecLedgerProject(projectPath, projectName, shortCode, "", true, false)
+	_, _, _, err := setupSpecLedgerProject(projectPath, projectName, shortCode, "", true, false, "None")
 	if err != nil {
 		return err
 	}
@@ -361,7 +371,7 @@ func runInit(l *logger.Logger) error {
 	fmt.Println()
 
 	// Setup SpecLedger project (playbooks, skills, metadata, no git)
-	_, _, _, err = setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName, false, initForceFlag)
+	_, _, _, err = setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName, false, initForceFlag, agentPref)
 	if err != nil {
 		return err
 	}

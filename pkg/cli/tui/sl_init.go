@@ -14,7 +14,7 @@ type MissingConfig struct {
 	NeedsShortCode       bool
 	NeedsPlaybook        bool
 	NeedsAgentPreference bool
-	ExistingAgentPref    string // Pre-select this agent if set
+	ExistingAgentPref    string // Pre-select these agents if set (comma-separated)
 }
 
 // InitStepType identifies the kind of input a step requires.
@@ -43,9 +43,10 @@ type InitModel struct {
 	showingError string
 	projectName  string
 
-	// Agent preference options
+	// Agent preference options - multi-select
 	agentOptions     []launcher.AgentOption
 	selectedAgentIdx int
+	selectedAgents   map[string]bool // tracks which agents are selected
 }
 
 // NewInitModel creates an InitModel that presents only the missing configuration steps.
@@ -75,14 +76,27 @@ func NewInitModel(config MissingConfig, projectName string) InitModel {
 	ti.SetValue(defaultShortCode)
 	ti.Placeholder = "xy"
 
-	// Pre-select existing agent preference if available
-	selectedAgent := 0
+	// Initialize selected agents - pre-select existing or default to claude
+	selectedAgents := make(map[string]bool)
 	if config.ExistingAgentPref != "" {
-		for i, a := range launcher.DefaultAgents {
-			if a.Name == config.ExistingAgentPref {
-				selectedAgent = i
-				break
+		// Parse comma-separated list
+		for _, name := range strings.Split(config.ExistingAgentPref, ",") {
+			name = strings.TrimSpace(name)
+			if name != "" {
+				selectedAgents[name] = true
 			}
+		}
+	}
+	if len(selectedAgents) == 0 {
+		selectedAgents["claude"] = true
+	}
+
+	// Find initial cursor position
+	selectedAgentIdx := 0
+	for i, a := range launcher.DefaultAgents {
+		if selectedAgents[a.Name] {
+			selectedAgentIdx = i
+			break
 		}
 	}
 
@@ -95,7 +109,8 @@ func NewInitModel(config MissingConfig, projectName string) InitModel {
 		width:            80,
 		projectName:      projectName,
 		agentOptions:     launcher.DefaultAgents,
-		selectedAgentIdx: selectedAgent,
+		selectedAgentIdx: selectedAgentIdx,
+		selectedAgents:   selectedAgents,
 	}
 }
 
@@ -148,6 +163,13 @@ func (m InitModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 				return m, nil
+			case " ":
+				// Toggle agent selection (only for agent_preference step)
+				if currentStepDef.Key == "agent_preference" {
+					agentName := m.agentOptions[m.selectedAgentIdx].Name
+					m.selectedAgents[agentName] = !m.selectedAgents[agentName]
+					return m, nil
+				}
 			}
 		}
 
@@ -197,9 +219,18 @@ func (m InitModel) handleEnter() (tea.Model, tea.Cmd) {
 		}
 
 	case "agent_preference":
-		if m.selectedAgentIdx >= 0 && m.selectedAgentIdx < len(m.agentOptions) {
-			m.answers["agent_preference"] = m.agentOptions[m.selectedAgentIdx].Name
+		// Collect all selected agents
+		var selectedNames []string
+		for _, agent := range m.agentOptions {
+			if m.selectedAgents[agent.Name] {
+				selectedNames = append(selectedNames, agent.Name)
+			}
 		}
+		if len(selectedNames) == 0 {
+			m.showingError = "Select at least one agent"
+			return m, nil
+		}
+		m.answers["agent_preference"] = strings.Join(selectedNames, ",")
 	}
 
 	// Advance to next step or complete
@@ -252,7 +283,11 @@ func (m InitModel) View() string {
 
 	s.WriteString("\n\n")
 	if currentStepDef.StepType == initStepListSelect {
-		s.WriteString(colorSubtle.Render("↑/↓: Select • Enter: Confirm • Ctrl+C: Cancel"))
+		if currentStepDef.Key == "agent_preference" {
+			s.WriteString(colorSubtle.Render("↑/↓: Navigate • Space: Toggle • Enter: Confirm • Ctrl+C: Cancel"))
+		} else {
+			s.WriteString(colorSubtle.Render("↑/↓: Select • Enter: Confirm • Ctrl+C: Cancel"))
+		}
 	} else {
 		s.WriteString(colorSubtle.Render("Enter: Continue • Ctrl+C: Cancel"))
 	}
@@ -304,23 +339,26 @@ func (m InitModel) viewInitPlaybook() string {
 
 func (m InitModel) viewInitAgentPreference() string {
 	var s strings.Builder
-	s.WriteString(colorPrimary.Render("AI Coding Agent"))
+	s.WriteString(colorPrimary.Render("AI Coding Agents"))
 	s.WriteString("\n")
-	s.WriteString(colorSubtle.Render("Choose an AI agent to launch after setup"))
+	s.WriteString(colorSubtle.Render("Select AI agents to configure for this project (toggle with Space)"))
 	s.WriteString("\n\n")
 
 	for i, agent := range m.agentOptions {
 		cursor := " "
-		radio := "○"
 		style := unselectedStyle
 
 		if i == m.selectedAgentIdx {
 			cursor = "›"
 			style = selectedStyle
-			radio = "◉"
 		}
 
-		s.WriteString(fmt.Sprintf("%s %s %s\n", cursor, radio, style.Render(agent.Name)))
+		checkbox := "[ ]"
+		if m.selectedAgents[agent.Name] {
+			checkbox = "[x]"
+		}
+
+		s.WriteString(fmt.Sprintf("%s %s %s\n", cursor, checkbox, style.Render(agent.Name)))
 		if i == m.selectedAgentIdx {
 			s.WriteString(colorSubtle.Render("  " + agent.Description))
 			s.WriteString("\n")

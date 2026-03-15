@@ -69,9 +69,10 @@ type Model struct {
 	principles      []ConstitutionPrinciple
 	principleCursor int
 
-	// Agent preference (step 6)
-	agentOptions     []launcher.AgentOption
-	selectedAgentIdx int
+	// Agent preference (step 6) - multi-select
+	agentOptions      []launcher.AgentOption
+	selectedAgentIdx  int
+	selectedAgents    map[string]bool // tracks which agents are selected
 }
 
 // InitialModel creates initial model with default directory
@@ -81,6 +82,10 @@ func InitialModel(defaultDir string) Model {
 	ti.Focus()
 	ti.CharLimit = 50
 	ti.Width = 50
+
+	// Initialize selected agents with Claude selected by default
+	selectedAgents := make(map[string]bool)
+	selectedAgents["claude"] = true
 
 	return Model{
 		step:             stepProjectName,
@@ -93,6 +98,7 @@ func InitialModel(defaultDir string) Model {
 		principleCursor:  0,
 		agentOptions:     launcher.DefaultAgents,
 		selectedAgentIdx: 0,
+		selectedAgents:   selectedAgents,
 	}
 }
 
@@ -153,6 +159,11 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if m.selectedAgentIdx < len(m.agentOptions)-1 {
 					m.selectedAgentIdx++
 				}
+				return m, nil
+			case " ":
+				// Toggle agent selection
+				agentName := m.agentOptions[m.selectedAgentIdx].Name
+				m.selectedAgents[agentName] = !m.selectedAgents[agentName]
 				return m, nil
 			}
 		}
@@ -261,9 +272,18 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case stepAgentPreference:
-		if m.selectedAgentIdx >= 0 && m.selectedAgentIdx < len(m.agentOptions) {
-			m.answers["agent_preference"] = m.agentOptions[m.selectedAgentIdx].Name
+		// Collect all selected agents
+		var selectedNames []string
+		for _, agent := range m.agentOptions {
+			if m.selectedAgents[agent.Name] {
+				selectedNames = append(selectedNames, agent.Name)
+			}
 		}
+		if len(selectedNames) == 0 {
+			m.showingError = "Select at least one agent"
+			return m, nil
+		}
+		m.answers["agent_preference"] = strings.Join(selectedNames, ",")
 		m.step = stepConfirm
 		return m, nil
 
@@ -320,9 +340,9 @@ func (m Model) View() string {
 	// Help text
 	s.WriteString("\n\n")
 	switch m.step {
-	case stepConstitution:
+	case stepConstitution, stepAgentPreference:
 		s.WriteString(colorSubtle.Render("↑/↓: Navigate • Space: Toggle • Enter: Confirm • Ctrl+C: Cancel"))
-	case stepPlaybook, stepAgentPreference:
+	case stepPlaybook:
 		s.WriteString(colorSubtle.Render("↑/↓: Select • Enter: Confirm • Ctrl+C: Cancel"))
 	default:
 		s.WriteString(colorSubtle.Render("Enter: Continue • Ctrl+C: Cancel"))
@@ -431,23 +451,26 @@ func (m Model) viewConstitution() string {
 
 func (m Model) viewAgentPreference() string {
 	var s strings.Builder
-	s.WriteString(colorPrimary.Render("AI Coding Agent"))
+	s.WriteString(colorPrimary.Render("AI Coding Agents"))
 	s.WriteString("\n")
-	s.WriteString(colorSubtle.Render("Choose an AI agent to launch after project setup"))
+	s.WriteString(colorSubtle.Render("Select AI agents to configure for this project (toggle with Space)"))
 	s.WriteString("\n\n")
 
 	for i, agent := range m.agentOptions {
 		cursor := " "
-		radio := "○"
 		style := unselectedStyle
 
 		if i == m.selectedAgentIdx {
 			cursor = "›"
 			style = selectedStyle
-			radio = "◉"
 		}
 
-		s.WriteString(fmt.Sprintf("%s %s %s\n", cursor, radio, style.Render(agent.Name)))
+		checkbox := "[ ]"
+		if m.selectedAgents[agent.Name] {
+			checkbox = "[x]"
+		}
+
+		s.WriteString(fmt.Sprintf("%s %s %s\n", cursor, checkbox, style.Render(agent.Name)))
 
 		if i == m.selectedAgentIdx {
 			s.WriteString(colorSubtle.Render("  " + agent.Description))
@@ -478,7 +501,7 @@ func (m Model) viewConfirm() string {
 	}
 
 	if agent, ok := m.answers["agent_preference"]; ok {
-		s.WriteString(colorSuccess.Render("✓ ") + "Agent: " + agent + "\n")
+		s.WriteString(colorSuccess.Render("✓ ") + "Agents: " + agent + "\n")
 	}
 
 	s.WriteString("\n")
