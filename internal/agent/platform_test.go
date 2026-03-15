@@ -32,6 +32,7 @@ func TestSymlinkOrCopy_File(t *testing.T) {
 
 	srcFile := filepath.Join(tmpDir, "source.txt")
 	srcContent := []byte("test content")
+	// #nosec G306 -- Test files need to be readable
 	if err := os.WriteFile(srcFile, srcContent, 0644); err != nil {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
@@ -74,9 +75,11 @@ func TestSymlinkOrCopy_Directory(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(srcDir, "subdir"), 0755); err != nil {
 		t.Fatalf("Failed to create source dir: %v", err)
 	}
+	// #nosec G306 -- Test files need to be readable
 	if err := os.WriteFile(filepath.Join(srcDir, "file1.txt"), []byte("content1"), 0644); err != nil {
 		t.Fatalf("Failed to create file1: %v", err)
 	}
+	// #nosec G306 -- Test files need to be readable
 	if err := os.WriteFile(filepath.Join(srcDir, "subdir", "file2.txt"), []byte("content2"), 0644); err != nil {
 		t.Fatalf("Failed to create file2: %v", err)
 	}
@@ -113,11 +116,13 @@ func TestSymlinkOrCopy_OverwritesExisting(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	srcFile := filepath.Join(tmpDir, "source.txt")
+	// #nosec G306 -- Test files need to be readable
 	if err := os.WriteFile(srcFile, []byte("new content"), 0644); err != nil {
 		t.Fatalf("Failed to create source file: %v", err)
 	}
 
 	dstFile := filepath.Join(tmpDir, "dest.txt")
+	// #nosec G306 -- Test files need to be readable
 	if err := os.WriteFile(dstFile, []byte("old content"), 0644); err != nil {
 		t.Fatalf("Failed to create dest file: %v", err)
 	}
