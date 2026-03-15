@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/specledger/specledger/internal/agent"
 )
 
 // CopyPlaybooks copies a playbook to the destination directory from the embedded filesystem.
@@ -227,15 +229,138 @@ func copySingleFileFromContent(srcPath, destPath string, content []byte, opts Co
 // IsExecutableFile determines if a file should have execute permissions.
 // Returns true if the file has a .sh extension or starts with a shebang (#!).
 func IsExecutableFile(filename string, content []byte) bool {
-	// Check for .sh extension
 	if strings.HasSuffix(filename, ".sh") {
 		return true
 	}
 
-	// Check for shebang in first line
 	if len(content) > 2 && content[0] == '#' && content[1] == '!' {
 		return true
 	}
 
 	return false
+}
+
+func CreateAgentSharedDir(projectDir string, force bool) error {
+	agentDir := filepath.Join(projectDir, ".agent")
+
+	if _, err := os.Stat(agentDir); err == nil {
+		if !force {
+			return fmt.Errorf(".agent/ directory already exists. Use --force to overwrite")
+		}
+		if err := os.RemoveAll(agentDir); err != nil {
+			return fmt.Errorf("failed to remove existing .agent directory: %w", err)
+		}
+	}
+
+	commandsDir := filepath.Join(agentDir, "commands")
+	if err := os.MkdirAll(commandsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .agent/commands: %w", err)
+	}
+
+	skillsDir := filepath.Join(agentDir, "skills")
+	if err := os.MkdirAll(skillsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .agent/skills: %w", err)
+	}
+
+	claudeCommandsDir := filepath.Join(projectDir, ".claude", "commands")
+	if _, err := os.Stat(claudeCommandsDir); err == nil {
+		entries, err := os.ReadDir(claudeCommandsDir)
+		if err != nil {
+			return fmt.Errorf("failed to read .claude/commands: %w", err)
+		}
+		for _, entry := range entries {
+			src := filepath.Join(claudeCommandsDir, entry.Name())
+			dst := filepath.Join(commandsDir, entry.Name())
+			if err := copyFileOrDir(src, dst); err != nil {
+				return fmt.Errorf("failed to migrate %s: %w", entry.Name(), err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func LinkAgentToShared(projectDir string, agentNames []string, force bool) error {
+	for _, agentName := range agentNames {
+		ag, found := agent.Lookup(agentName)
+		if !found {
+			continue
+		}
+
+		if ag.ConfigDir == "" || ag.ConfigDir == ".github" {
+			continue
+		}
+
+		agentDir := filepath.Join(projectDir, ag.ConfigDir)
+		sharedCommandsDir := filepath.Join(projectDir, ".agent", "commands")
+		sharedSkillsDir := filepath.Join(projectDir, ".agent", "skills")
+
+		if err := os.MkdirAll(agentDir, 0755); err != nil {
+			return fmt.Errorf("failed to create %s: %w", agentDir, err)
+		}
+
+		commandsLink := filepath.Join(agentDir, "commands")
+		if _, err := os.Stat(commandsLink); err == nil {
+			if !force {
+				continue
+			}
+			os.Remove(commandsLink)
+		}
+		if err := agent.SymlinkOrCopy(sharedCommandsDir, commandsLink); err != nil {
+			return fmt.Errorf("failed to link %s/commands: %w", ag.Name, err)
+		}
+
+		skillsLink := filepath.Join(agentDir, "skills")
+		if _, err := os.Stat(skillsLink); err == nil {
+			if !force {
+				continue
+			}
+			os.Remove(skillsLink)
+		}
+		if err := agent.SymlinkOrCopy(sharedSkillsDir, skillsLink); err != nil {
+			return fmt.Errorf("failed to link %s/skills: %w", ag.Name, err)
+		}
+	}
+
+	return nil
+}
+
+func copyFileOrDir(src, dst string) error {
+	info, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		return copyDirRecursive(src, dst)
+	}
+	return copyFileContents(src, dst)
+}
+
+func copyDirRecursive(src, dst string) error {
+	if err := os.MkdirAll(dst, 0755); err != nil {
+		return err
+	}
+
+	entries, err := os.ReadDir(src)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		srcPath := filepath.Join(src, entry.Name())
+		dstPath := filepath.Join(dst, entry.Name())
+		if err := copyFileOrDir(srcPath, dstPath); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func copyFileContents(src, dst string) error {
+	content, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, content, 0644)
 }

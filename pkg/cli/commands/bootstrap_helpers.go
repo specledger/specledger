@@ -155,7 +155,7 @@ func IsConstitutionPopulated(path string) bool {
 
 // WriteDefaultConstitution writes a populated constitution file with the given principles
 // and agent preference, replacing template placeholders.
-func WriteDefaultConstitution(path string, principles []ConstitutionPrinciple, agentPref string) error {
+func WriteDefaultConstitution(path string, principles []ConstitutionPrinciple, agentPref string, selectedAgents []string) error {
 	// Ensure parent directory exists
 	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
 		return fmt.Errorf("failed to create constitution directory: %w", err)
@@ -178,6 +178,14 @@ func WriteDefaultConstitution(path string, principles []ConstitutionPrinciple, a
 
 	sb.WriteString("## Agent Preferences\n\n")
 	sb.WriteString(fmt.Sprintf("- **Preferred Agent**: %s\n\n", agentPref))
+
+	if len(selectedAgents) > 0 {
+		sb.WriteString("## Selected Agents\n\n")
+		for _, ag := range selectedAgents {
+			sb.WriteString(fmt.Sprintf("- %s\n", ag))
+		}
+		sb.WriteString("\n")
+	}
 
 	sb.WriteString("## Governance\n\n")
 	sb.WriteString("Constitution supersedes all other practices. Amendments require documentation and team approval.\n\n")
@@ -202,11 +210,9 @@ func ReadAgentPreference(path string) (string, error) {
 
 	for _, line := range strings.Split(string(content), "\n") {
 		if strings.Contains(line, "**Preferred Agent**:") {
-			// Extract value after the label
 			parts := strings.SplitN(line, "**Preferred Agent**:", 2)
 			if len(parts) == 2 {
 				pref := strings.TrimSpace(parts[1])
-				// Strip any placeholder tokens
 				if placeholderPattern.MatchString(pref) {
 					return "", nil
 				}
@@ -215,6 +221,37 @@ func ReadAgentPreference(path string) (string, error) {
 		}
 	}
 	return "", nil
+}
+
+// ReadSelectedAgents extracts the selected agents from a populated constitution file.
+// Returns empty slice and nil error if the file exists but has no selected agents.
+func ReadSelectedAgents(path string) ([]string, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var agents []string
+	inSelectedAgentsSection := false
+
+	for _, line := range strings.Split(string(content), "\n") {
+		if strings.Contains(line, "## Selected Agents") {
+			inSelectedAgentsSection = true
+			continue
+		}
+		if inSelectedAgentsSection {
+			if strings.HasPrefix(line, "## ") {
+				break
+			}
+			if strings.HasPrefix(line, "- ") {
+				agent := strings.TrimSpace(strings.TrimPrefix(line, "- "))
+				if agent != "" && !placeholderPattern.MatchString(agent) {
+					agents = append(agents, agent)
+				}
+			}
+		}
+	}
+	return agents, nil
 }
 
 // romanNumeral converts 1-10 to Roman numerals for principle numbering.

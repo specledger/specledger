@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"strings"
+
+	"github.com/specledger/specledger/internal/agent"
 )
 
 type ConfigKeyType string
@@ -42,6 +44,13 @@ func init() {
 
 func registerAgentKeys() {
 	agentKeys := []*ConfigKeyDef{
+		{
+			Key:         "agent.default",
+			Type:        KeyTypeString,
+			Default:     "claude",
+			Description: "Default coding agent to launch (claude, opencode, github-copilot, codex)",
+			Category:    "Agent",
+		},
 		{
 			Key:         "agent.base-url",
 			Type:        KeyTypeString,
@@ -171,6 +180,38 @@ func (r *SchemaRegistry) Lookup(key string) (*ConfigKeyDef, error) {
 		}
 	}
 
+	if strings.HasPrefix(key, "agent.") && strings.HasSuffix(key, ".arguments") {
+		parts := strings.Split(key, ".")
+		if len(parts) == 3 {
+			agentName := parts[1]
+			if _, found := agent.Lookup(agentName); found {
+				return &ConfigKeyDef{
+					Key:         key,
+					Type:        KeyTypeString,
+					Description: fmt.Sprintf("Arguments for %s agent", agentName),
+					Category:    "Per-Agent",
+				}, nil
+			}
+			return nil, fmt.Errorf("unknown agent name: %s (valid: claude, opencode, github-copilot, codex)", agentName)
+		}
+	}
+
+	if strings.HasPrefix(key, "agent.") && strings.HasSuffix(key, ".env") {
+		parts := strings.Split(key, ".")
+		if len(parts) == 3 {
+			agentName := parts[1]
+			if _, found := agent.Lookup(agentName); found {
+				return &ConfigKeyDef{
+					Key:         key,
+					Type:        KeyTypeStringMap,
+					Description: fmt.Sprintf("Environment variables for %s agent", agentName),
+					Category:    "Per-Agent",
+				}, nil
+			}
+			return nil, fmt.Errorf("unknown agent name: %s (valid: claude, opencode, github-copilot, codex)", agentName)
+		}
+	}
+
 	return nil, fmt.Errorf("unknown config key: %s", key)
 }
 
@@ -191,8 +232,33 @@ func (r *SchemaRegistry) ListByCategory() map[string][]*ConfigKeyDef {
 }
 
 func (r *SchemaRegistry) IsValidKey(key string) bool {
-	_, ok := r.keys[key]
-	return ok
+	if _, ok := r.keys[key]; ok {
+		return true
+	}
+
+	if strings.HasPrefix(key, "agent.") && strings.HasSuffix(key, ".arguments") {
+		parts := strings.Split(key, ".")
+		if len(parts) == 3 {
+			agentName := parts[1]
+			_, found := agent.Lookup(agentName)
+			return found
+		}
+	}
+
+	if strings.HasPrefix(key, "agent.") && strings.HasSuffix(key, ".env") {
+		parts := strings.Split(key, ".")
+		if len(parts) == 3 {
+			agentName := parts[1]
+			_, found := agent.Lookup(agentName)
+			return found
+		}
+	}
+
+	if strings.HasPrefix(key, "agent.env.") {
+		return true
+	}
+
+	return false
 }
 
 func (r *SchemaRegistry) FindSimilar(key string) []string {

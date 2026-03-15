@@ -170,7 +170,7 @@ func runBootstrapInteractive(l *logger.Logger, cfg *config.Config) error {
 		}
 	}
 
-	if err := WriteDefaultConstitution(constitutionPath, selectedPrinciples, agentPref); err != nil {
+	if err := WriteDefaultConstitution(constitutionPath, selectedPrinciples, agentPref, nil); err != nil {
 		ui.PrintWarning(fmt.Sprintf("Failed to write constitution: %v", err))
 	} else {
 		fmt.Printf("%s Constitution created\n", ui.Checkmark())
@@ -248,7 +248,7 @@ func runBootstrapNonInteractive(cmd *cobra.Command, l *logger.Logger, cfg *confi
 
 	// Write default constitution in CI mode (all principles selected, no agent)
 	constitutionPath := filepath.Join(projectPath, ".specledger", "memory", "constitution.md")
-	if err := WriteDefaultConstitution(constitutionPath, DefaultPrinciples(), "None"); err != nil {
+	if err := WriteDefaultConstitution(constitutionPath, DefaultPrinciples(), "None", nil); err != nil {
 		ui.PrintWarning(fmt.Sprintf("Failed to write constitution: %v", err))
 	}
 

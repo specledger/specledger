@@ -21,6 +21,21 @@ var DefaultAgents = []AgentOption{
 		Description: "AI coding assistant with deep SpecLedger integration",
 	},
 	{
+		Name:        "OpenCode",
+		Command:     "opencode",
+		Description: "Open-source AI coding assistant",
+	},
+	{
+		Name:        "Copilot CLI",
+		Command:     "github-copilot",
+		Description: "GitHub Copilot command-line interface",
+	},
+	{
+		Name:        "Codex",
+		Command:     "codex",
+		Description: "OpenAI Codex coding assistant",
+	},
+	{
 		Name:        "None",
 		Command:     "",
 		Description: "Skip agent launch; use SpecLedger manually",

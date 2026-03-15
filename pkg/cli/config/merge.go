@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -307,4 +308,48 @@ func loadPersonalMetadata(projectPath string) (*struct {
 	}
 
 	return &meta, nil
+}
+
+func GetAgentArguments(agentName string) []string {
+	resolved := ResolveAgentConfig()
+	key := "agent." + agentName + ".arguments"
+
+	if v := resolved.GetValue(key); v != nil {
+		if str, ok := v.(string); ok && str != "" {
+			return parseArguments(str)
+		}
+	}
+
+	return nil
+}
+
+func parseArguments(s string) []string {
+	var args []string
+	var current strings.Builder
+	inQuotes := false
+	quoteChar := rune(0)
+
+	for _, r := range s {
+		switch {
+		case !inQuotes && (r == '"' || r == '\''):
+			inQuotes = true
+			quoteChar = r
+		case inQuotes && r == quoteChar:
+			inQuotes = false
+			quoteChar = 0
+		case !inQuotes && r == ' ':
+			if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
+			}
+		default:
+			current.WriteRune(r)
+		}
+	}
+
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+
+	return args
 }

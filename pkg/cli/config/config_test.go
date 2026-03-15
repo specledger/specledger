@@ -280,3 +280,133 @@ func TestPersonalConfig(t *testing.T) {
 		t.Errorf("expected auth token 'sk-test-token', got %q", loaded.Agent.AuthToken)
 	}
 }
+
+func TestSchemaAgentDefault(t *testing.T) {
+	def, err := LookupKey("agent.default")
+	if err != nil {
+		t.Fatalf("LookupKey(agent.default) failed: %v", err)
+	}
+	if def.Type != KeyTypeString {
+		t.Errorf("expected KeyTypeString, got %s", def.Type)
+	}
+	if def.Default != "claude" {
+		t.Errorf("expected default 'claude', got %v", def.Default)
+	}
+}
+
+func TestSchemaPerAgentArguments(t *testing.T) {
+	tests := []struct {
+		key       string
+		wantError bool
+	}{
+		{"agent.claude.arguments", false},
+		{"agent.opencode.arguments", false},
+		{"agent.github-copilot.arguments", false},
+		{"agent.codex.arguments", false},
+		{"agent.unknown.arguments", true},
+		{"agent.CLAUDE.arguments", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			def, err := LookupKey(tt.key)
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("expected error for %s, got nil", tt.key)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if def.Type != KeyTypeString {
+					t.Errorf("expected KeyTypeString, got %s", def.Type)
+				}
+			}
+		})
+	}
+}
+
+func TestSchemaPerAgentEnv(t *testing.T) {
+	tests := []struct {
+		key       string
+		wantError bool
+	}{
+		{"agent.claude.env", false},
+		{"agent.opencode.env", false},
+		{"agent.github-copilot.env", false},
+		{"agent.codex.env", false},
+		{"agent.unknown.env", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			def, err := LookupKey(tt.key)
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("expected error for %s, got nil", tt.key)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if def.Type != KeyTypeStringMap {
+					t.Errorf("expected KeyTypeStringMap, got %s", def.Type)
+				}
+			}
+		})
+	}
+}
+
+func TestIsValidKeyPerAgent(t *testing.T) {
+	tests := []struct {
+		key   string
+		valid bool
+	}{
+		{"agent.default", true},
+		{"agent.claude.arguments", true},
+		{"agent.opencode.arguments", true},
+		{"agent.claude.env", true},
+		{"agent.unknown.arguments", false},
+		{"agent.unknown.env", false},
+		{"agent.env.CUSTOM", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			valid := IsValidKey(tt.key)
+			if valid != tt.valid {
+				t.Errorf("IsValidKey(%q) = %v, want %v", tt.key, valid, tt.valid)
+			}
+		})
+	}
+}
+
+func TestParseArguments(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected []string
+	}{
+		{"", nil},
+		{"--flag", []string{"--flag"}},
+		{"--flag value", []string{"--flag", "value"}},
+		{`--flag "value with spaces"`, []string{"--flag", "value with spaces"}},
+		{`--flag 'single quotes'`, []string{"--flag", "single quotes"}},
+		{"--one --two --three", []string{"--one", "--two", "--three"}},
+		{`--msg "hello world" --count 5`, []string{"--msg", "hello world", "--count", "5"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := parseArguments(tt.input)
+			if len(result) != len(tt.expected) {
+				t.Errorf("parseArguments(%q) = %v, want %v", tt.input, result, tt.expected)
+				return
+			}
+			for i, v := range result {
+				if v != tt.expected[i] {
+					t.Errorf("parseArguments(%q)[%d] = %q, want %q", tt.input, i, v, tt.expected[i])
+				}
+			}
+		})
+	}
+}
