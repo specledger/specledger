@@ -1,8 +1,8 @@
 # Research: Multi-Coding Agent Support
 
 **Feature**: 001-coding-agent-support
-**Date**: 2026-03-07
-**Status**: Complete
+**Date**: 2026-03-15
+**Status**: Complete (Updated with clarifications)
 
 ## Prior Work
 
@@ -11,7 +11,7 @@
 | Component | Location | Relevance |
 |-----------|----------|-----------|
 | Agent Launcher | `pkg/cli/launcher/launcher.go` | Existing Claude Code launcher - extend for multi-agent |
-| Config Schema | `pkg/cli/config/schema.go` | Agent config keys - extend with new fields |
+| Config Schema | `pkg/cli/config/schema.go` | Agent config keys - extend with per-agent fields |
 | TUI Agent Selection | `pkg/cli/tui/sl_new.go`, `sl_init.go` | Single-select agent - change to multi-select |
 | Bootstrap Helpers | `pkg/cli/commands/bootstrap_helpers.go` | `launchAgent()` function - reuse pattern |
 
@@ -26,38 +26,39 @@ No existing issues reference multi-agent support. This is a new feature.
 **Decision**: Static registry with agent definitions in code
 
 **Rationale**:
-- Agents are relatively stable (Claude Code, OpenCode, Codex)
+- Agents are relatively stable (Claude Code, OpenCode, Copilot CLI, Codex)
 - No need for dynamic plugin system
 - Simpler to maintain and test
 - Consistent with existing `launcher.DefaultAgents` pattern
 
 **Alternatives Considered**:
-1. **Plugin-based registry** - Rejected: Over-engineered for 3-4 known agents
+1. **Plugin-based registry** - Rejected: Over-engineered for 4 known agents
 2. **Config-file based registry** - Rejected: Adds complexity, users can't add custom agents easily anyway
 
 ### Config Key Design
 
-**Decision**: Add `agent.default` (string) and `agent.arguments` (string) to existing schema
+**Decision**: Per-agent configuration keys (`agent.<name>.arguments`, `agent.<name>.env`)
 
 **Rationale**:
-- Minimal changes to existing config system
-- `agent.arguments` as string allows any CLI args without schema changes
-- Consistent with existing `agent.*` namespace
+- Different agents have different CLI arguments
+- Per-agent config is clearer and easier to understand
+- Simpler to implement - no global/per-agent merge logic needed
+- YAGNI: No proven use case for global arguments that apply to all agents
 
 **Alternatives Considered**:
-1. **Per-agent config sections** (`agent.claude.arguments`) - Rejected: Over-complicates for single active agent use case
-2. **Individual flag keys** (`agent.skip-permissions`) - Rejected: User requested generic `agent.arguments` instead
+1. **Global `agent.arguments` only** - Rejected: Different agents have different flags, would cause issues
+2. **Both global + per-agent override** - Rejected: YAGNI, adds complexity without clear benefit
 
 ### Symlink Strategy
 
-**Decision**: Create `.agent/` as source of truth, symlink agent-specific dirs to it
+**Decision**: Create `.agent/` as source of truth, symlink (macOS/Linux) or copy (Windows) to agent-specific dirs
 
 **Rationale**:
 - Single source of truth for commands/skills
-- Existing pattern already in codebase (`.opencode/commands -> ../.claude/commands`)
-- Easy to add new agents without duplicating files
+- Symlinks work well on Unix systems
+- Windows file copies provide compatibility without Developer Mode requirement
 
-**Structure**:
+**Structure (macOS/Linux)**:
 ```
 .agent/
 ├── commands/     # Shared commands
@@ -72,9 +73,21 @@ No existing issues reference multi-agent support. This is a new feature.
 └── skills -> ../.agent/skills
 ```
 
+**Structure (Windows)**:
+```
+.agent/
+├── commands/     # Shared commands
+└── skills/       # Shared skills
+
+.claude/
+├── commands/     # COPY of .agent/commands
+└── skills/       # COPY of .agent/skills
+```
+
 **Alternatives Considered**:
-1. **Copy files to each agent dir** - Rejected: Maintenance nightmare, files drift apart
-2. **Agent-agnostic location only** - Rejected: Agents expect their own config directories
+1. **Symlinks only (fail on Windows)** - Rejected: Poor Windows UX
+2. **Require Windows Developer Mode** - Rejected: Adds friction for Windows users
+3. **Copy files to each agent dir (all platforms)** - Rejected: Maintenance nightmare on Unix, files drift apart
 
 ### Multi-Select TUI Pattern
 
@@ -92,26 +105,29 @@ No existing issues reference multi-agent support. This is a new feature.
 
 ## Agent Definitions
 
-| Agent | CLI Command | Config Dir | Install Instructions |
-|-------|-------------|------------|---------------------|
+| Name | CLI Command | Config Dir | Install Command |
+|------|-------------|------------|-----------------|
 | Claude Code | `claude` | `.claude/` | `npm install -g @anthropic-ai/claude-code` |
 | OpenCode | `opencode` | `.opencode/` | `go install github.com/opencode-ai/opencode@latest` |
-| Codex | `codex` | `.codex/` | `pip install openai-codex` (example) |
+| Copilot CLI | `github-copilot` | `.github/` | `npm install -g @github/copilot` |
+| Codex | `codex` | `.codex/` | `npm install -g @openai/codex` |
 
 ## Edge Case Handling
 
-### Agent Not Installed
+### Agent Binary Not Found
 
 **Approach**: Check with `exec.LookPath()` before launch
-- If not found: Print error with install instructions
-- Exit code 1 with helpful message
+- If not found: Print error with actionable install command
+- Example: `Error: 'claude' not found. Install: npm install -g @anthropic-ai/claude-code`
+- Exit code 1
 
 ### Windows Symlink Support
 
-**Approach**: Detect Windows and warn if symlinks unavailable
-- Windows 10+ Developer Mode supports symlinks
-- Fall back to copying files on Windows if symlink fails
-- Log warning about potential drift
+**Approach**: Detect Windows and use file copy instead of symlinks
+- No Developer Mode required
+- Files are copied from `.agent/` to each agent directory
+- User warned that changes to `.agent/` require manual sync or re-run
+- Simpler than trying to detect Developer Mode
 
 ### Conflicting Config
 
@@ -119,9 +135,22 @@ No existing issues reference multi-agent support. This is a new feature.
 - Document precedence: personal-local > team-local > global > default
 - `sl config show` displays effective values with scope
 
-## Open Questions
+### Existing .agent/ Directory
 
-None - all NEEDS CLARIFICATION items resolved.
+**Approach**: Require `--force` flag to overwrite
+- Error message: `Error: .agent/ exists. Use --force to overwrite.`
+- Prevents accidental data loss
+- Consistent with safety-first approach
+
+## Clarifications Applied (2026-03-15)
+
+| Question | Decision | Impact |
+|----------|----------|--------|
+| Agent list | 4 agents: Claude, OpenCode, Copilot CLI, Codex | Registry includes all 4 |
+| Arguments config | Per-agent only | Config schema: `agent.<name>.arguments` |
+| Windows handling | Copy files, no symlinks | Platform detection + copy logic |
+| Binary error | Include install command | Actionable error messages |
+| Existing .agent/ | Require --force | Safety check added |
 
 ## References
 

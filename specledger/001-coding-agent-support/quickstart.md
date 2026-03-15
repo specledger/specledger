@@ -1,12 +1,13 @@
 # Quickstart: Multi-Coding Agent Support
 
 **Feature**: 001-coding-agent-support
-**Date**: 2026-03-07
+**Date**: 2026-03-15
+**Updated**: Aligned with spec clarifications
 
 ## Prerequisites
 
 - SpecLedger CLI (`sl`) installed
-- At least one coding agent installed (Claude Code, OpenCode, or Codex)
+- At least one coding agent installed (Claude Code, OpenCode, Copilot CLI, or Codex)
 
 ## Basic Usage
 
@@ -27,6 +28,9 @@ sl code claude
 
 # Launch OpenCode
 sl code opencode
+
+# Launch Copilot CLI
+sl code github-copilot
 
 # Launch Codex
 sl code codex
@@ -51,24 +55,27 @@ sl config set --global agent.default opencode
 sl config set agent.default opencode
 ```
 
-### Pass Custom Arguments
+### Pass Custom Arguments (Per-Agent)
 
 ```bash
-# Configure arguments to pass to agent
-sl config set agent.arguments "--dangerously-skip-permissions"
+# Configure arguments for Claude Code
+sl config set agent.claude.arguments "--dangerously-skip-permissions"
+
+# Configure arguments for OpenCode
+sl config set agent.opencode.arguments "--model gpt-4"
 
 # Multiple arguments
-sl config set agent.arguments "--dangerously-skip-permissions --verbose"
+sl config set agent.claude.arguments "--dangerously-skip-permissions --verbose"
 ```
 
 ### Set Environment Variables
 
 ```bash
-# Set custom environment variable
-sl config set agent.env.CUSTOM_VAR value
+# Set environment variable for Claude
+sl config set agent.claude.env.ANTHROPIC_API_KEY "sk-xxx"
 
-# Set model override
-sl config set agent.model opus
+# Set environment variable for OpenCode
+sl config set agent.opencode.env.OPENAI_API_KEY "sk-xxx"
 ```
 
 ## Project Setup with Multiple Agents
@@ -79,6 +86,7 @@ sl config set agent.model opus
 sl new
 # When prompted for "AI Coding Agent":
 # - Use Space to toggle multiple agents
+# - Options: Claude Code, OpenCode, Copilot CLI, Codex
 # - Press Enter to confirm selection
 ```
 
@@ -90,21 +98,45 @@ sl init
 # Select multiple agents when prompted
 ```
 
+### Force Overwrite
+
+If `.agent/` directory already exists:
+
+```bash
+sl init --force
+# This will overwrite existing .agent/ directory
+```
+
 ### What Gets Created
 
-When you select multiple agents:
+**macOS/Linux** (symlinks):
 
 ```
 your-project/
 ├── .agent/
-│   ├── commands/    # Shared commands
-│   └── skills/      # Shared skills
+│   ├── commands/    # Shared commands (source)
+│   └── skills/      # Shared skills (source)
 ├── .claude/
 │   ├── commands -> ../.agent/commands
 │   └── skills -> ../.agent/skills
 └── .opencode/
     ├── commands -> ../.agent/commands
     └── skills -> ../.agent/skills
+```
+
+**Windows** (copies):
+
+```
+your-project/
+├── .agent/
+│   ├── commands/    # Shared commands (source)
+│   └── skills/      # Shared skills (source)
+├── .claude/
+│   ├── commands/    # COPY of .agent/commands
+│   └── skills/      # COPY of .agent/skills
+└── .opencode/
+    ├── commands/    # COPY of .agent/commands
+    └── skills/      # COPY of .agent/skills
 ```
 
 ## View Current Configuration
@@ -115,7 +147,7 @@ sl config show
 
 # Get specific value
 sl config get agent.default
-sl config get agent.arguments
+sl config get agent.claude.arguments
 ```
 
 ## Troubleshooting
@@ -123,17 +155,43 @@ sl config get agent.arguments
 ### Agent Not Found
 
 ```
-Error: claude is not installed.
-Install Claude Code: npm install -g @anthropic-ai/claude-code
+Error: 'claude' not found. Install: npm install -g @anthropic-ai/claude-code
 ```
 
-Install the missing agent and try again.
+Install the missing agent using the command shown and try again.
 
-### Symlink Issues on Windows
+**Install commands by agent**:
 
-Windows requires Developer Mode or admin privileges for symlinks. If symlinks fail:
-- Enable Developer Mode in Windows Settings
-- Or run terminal as Administrator
+| Agent | Install Command |
+|-------|-----------------|
+| Claude Code | `npm install -g @anthropic-ai/claude-code` |
+| OpenCode | `go install github.com/opencode-ai/opencode@latest` |
+| Copilot CLI | `npm install -g @github/copilot` |
+| Codex | `npm install -g @openai/codex` |
+
+### .agent/ Directory Already Exists
+
+```
+Error: .agent/ exists. Use --force to overwrite.
+```
+
+Add the `--force` flag to proceed:
+```bash
+sl init --force
+```
+
+### Windows: Changes Not Reflected
+
+On Windows, files are copied (not symlinked). If you update `.agent/commands/`, changes won't automatically appear in `.claude/commands/`.
+
+**Solution**: Re-run setup or manually copy files:
+```bash
+# Re-run setup
+sl init --force
+
+# Or manually copy
+xcopy /E /Y .agent\commands .claude\commands
+```
 
 ### Config Not Applied
 
