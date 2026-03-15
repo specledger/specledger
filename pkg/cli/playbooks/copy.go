@@ -282,25 +282,25 @@ func IsExecutableFile(filename string, content []byte) bool {
 }
 
 func CreateAgentSharedDir(projectDir string, force bool) error {
-	agentDir := filepath.Join(projectDir, ".agent")
+	agentDir := filepath.Join(projectDir, ".agents")
 
 	if _, err := os.Stat(agentDir); err == nil {
 		if !force {
-			return fmt.Errorf(".agent/ directory already exists. Use --force to overwrite")
+			return fmt.Errorf(".agents/ directory already exists. Use --force to overwrite")
 		}
 		if err := os.RemoveAll(agentDir); err != nil {
-			return fmt.Errorf("failed to remove existing .agent directory: %w", err)
+			return fmt.Errorf("failed to remove existing .agents directory: %w", err)
 		}
 	}
 
 	commandsDir := filepath.Join(agentDir, "commands")
 	if err := os.MkdirAll(commandsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .agent/commands: %w", err)
+		return fmt.Errorf("failed to create .agents/commands: %w", err)
 	}
 
 	skillsDir := filepath.Join(agentDir, "skills")
 	if err := os.MkdirAll(skillsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create .agent/skills: %w", err)
+		return fmt.Errorf("failed to create .agents/skills: %w", err)
 	}
 
 	claudeCommandsDir := filepath.Join(projectDir, ".claude", "commands")
@@ -333,8 +333,8 @@ func LinkAgentToShared(projectDir string, agentNames []string, force bool) error
 		}
 
 		agentDir := filepath.Join(projectDir, ag.ConfigDir)
-		sharedCommandsDir := filepath.Join(projectDir, ".agent", "commands")
-		sharedSkillsDir := filepath.Join(projectDir, ".agent", "skills")
+		sharedCommandsDir := filepath.Join(projectDir, ".agents", "commands")
+		sharedSkillsDir := filepath.Join(projectDir, ".agents", "skills")
 
 		if err := os.MkdirAll(agentDir, 0755); err != nil {
 			return fmt.Errorf("failed to create %s: %w", agentDir, err)

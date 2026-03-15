@@ -108,13 +108,13 @@ func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName st
 			agentNames[i] = strings.TrimSpace(name)
 		}
 
-		// Create .agent/commands and .agent/skills directories
+		// Create .agents/commands and .agents/skills directories
 		if err := playbooks.CreateAgentSharedDir(projectPath, force); err != nil {
 			if !strings.Contains(err.Error(), "already exists") {
-				ui.PrintWarning(fmt.Sprintf("Failed to create .agent directory: %v", err))
+				ui.PrintWarning(fmt.Sprintf("Failed to create .agents directory: %v", err))
 			}
 		} else {
-			fmt.Printf("%s Created .agent/ directory\n", ui.Checkmark())
+			fmt.Printf("%s Created .agents/ directory\n", ui.Checkmark())
 
 			// Link each selected agent to the shared directories
 			if err := playbooks.LinkAgentToShared(projectPath, agentNames, force); err != nil {
