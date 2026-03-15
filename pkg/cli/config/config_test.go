@@ -6,188 +6,398 @@ import (
 	"testing"
 )
 
-func TestMergeConfigs(t *testing.T) {
+func TestSchemaAgentDefault(t *testing.T) {
+	def, err := LookupKey("agent.default")
+	if err != nil {
+		t.Fatalf("LookupKey(agent.default) failed: %v", err)
+	}
+	if def.Type != KeyTypeString {
+		t.Errorf("expected KeyTypeString, got %s", def.Type)
+	}
+	if def.Default != "claude" {
+		t.Errorf("expected default 'claude', got %v", def.Default)
+	}
+}
+
+func TestSchemaPerAgentAPIKey(t *testing.T) {
 	tests := []struct {
-		name          string
-		defaults      *AgentConfig
-		global        *AgentConfig
-		profile       *AgentConfig
-		teamLocal     *AgentConfig
-		personalLocal *AgentConfig
-		expectedKey   string
-		expectedValue string
-		expectedScope ConfigScope
+		key       string
+		wantError bool
 	}{
-		{
-			name:          "default only",
-			defaults:      DefaultAgentConfig(),
-			global:        nil,
-			profile:       nil,
-			teamLocal:     nil,
-			personalLocal: nil,
-			expectedKey:   "agent.provider",
-			expectedValue: "anthropic",
-			expectedScope: ScopeDefault,
-		},
-		{
-			name: "global overrides default",
-			defaults: &AgentConfig{
-				Provider: "anthropic",
-			},
-			global: &AgentConfig{
-				Provider: "bedrock",
-			},
-			expectedKey:   "agent.provider",
-			expectedValue: "bedrock",
-			expectedScope: ScopeGlobal,
-		},
-		{
-			name:     "profile overrides global",
-			defaults: &AgentConfig{},
-			global: &AgentConfig{
-				Model: "claude-sonnet",
-			},
-			profile: &AgentConfig{
-				Model: "claude-opus",
-			},
-			expectedKey:   "agent.model",
-			expectedValue: "claude-opus",
-			expectedScope: ScopeProfile,
-		},
-		{
-			name:     "team-local overrides profile",
-			defaults: &AgentConfig{},
-			global: &AgentConfig{
-				Model: "global-model",
-			},
-			profile: &AgentConfig{
-				Model: "profile-model",
-			},
-			teamLocal: &AgentConfig{
-				Model: "team-model",
-			},
-			expectedKey:   "agent.model",
-			expectedValue: "team-model",
-			expectedScope: ScopeTeamLocal,
-		},
-		{
-			name:     "personal-local highest precedence",
-			defaults: &AgentConfig{},
-			global: &AgentConfig{
-				Model: "global-model",
-			},
-			profile: &AgentConfig{
-				Model: "profile-model",
-			},
-			teamLocal: &AgentConfig{
-				Model: "team-model",
-			},
-			personalLocal: &AgentConfig{
-				Model: "personal-model",
-			},
-			expectedKey:   "agent.model",
-			expectedValue: "personal-model",
-			expectedScope: ScopePersonalLocal,
-		},
-		{
-			name: "empty value does not override",
-			defaults: &AgentConfig{
-				Model: "default-model",
-			},
-			global: &AgentConfig{
-				Model: "",
-			},
-			expectedKey:   "agent.model",
-			expectedValue: "default-model",
-			expectedScope: ScopeDefault,
-		},
+		{"agent.claude.api_key", false},
+		{"agent.opencode.api_key", false},
+		{"agent.github-copilot.api_key", false},
+		{"agent.codex.api_key", false},
+		{"agent.unknown.api_key", true},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resolved := MergeConfigs(tt.defaults, tt.global, tt.profile, tt.teamLocal, tt.personalLocal)
-
-			value := resolved.Get(tt.expectedKey)
-			if value == nil {
-				t.Fatalf("expected key %s not found", tt.expectedKey)
-			}
-
-			if str, ok := value.Value.(string); !ok || str != tt.expectedValue {
-				t.Errorf("expected value %q, got %v", tt.expectedValue, value.Value)
-			}
-
-			if value.Source != tt.expectedScope {
-				t.Errorf("expected scope %s, got %s", tt.expectedScope, value.Source)
+		t.Run(tt.key, func(t *testing.T) {
+			def, err := LookupKey(tt.key)
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("expected error for %s, got nil", tt.key)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if def.Type != KeyTypeString {
+					t.Errorf("expected KeyTypeString, got %s", def.Type)
+				}
+				if !def.Sensitive {
+					t.Errorf("expected api_key to be sensitive")
+				}
 			}
 		})
 	}
 }
 
-func TestGetEnvVars(t *testing.T) {
+func TestSchemaPerAgentBaseURL(t *testing.T) {
 	tests := []struct {
-		name       string
-		config     *AgentConfig
-		expectedKV map[string]string
+		key       string
+		wantError bool
 	}{
-		{
-			name: "base-url mapped to env",
-			config: &AgentConfig{
-				BaseURL: "https://api.test.com",
-			},
-			expectedKV: map[string]string{
-				"ANTHROPIC_BASE_URL": "https://api.test.com",
-			},
-		},
-		{
-			name: "model mapped to env",
-			config: &AgentConfig{
-				Model: "claude-sonnet-4",
-			},
-			expectedKV: map[string]string{
-				"ANTHROPIC_MODEL": "claude-sonnet-4",
-			},
-		},
-		{
-			name: "agent.env injected directly",
-			config: &AgentConfig{
-				Env: map[string]string{
-					"CUSTOM_VAR": "custom-value",
-				},
-			},
-			expectedKV: map[string]string{
-				"CUSTOM_VAR": "custom-value",
-			},
-		},
-		{
-			name: "multiple values merged",
-			config: &AgentConfig{
-				BaseURL: "https://api.test.com",
-				Model:   "claude-opus",
-				Env: map[string]string{
-					"EXTRA_VAR": "extra",
-				},
-			},
-			expectedKV: map[string]string{
-				"ANTHROPIC_BASE_URL": "https://api.test.com",
-				"ANTHROPIC_MODEL":    "claude-opus",
-				"EXTRA_VAR":          "extra",
-			},
-		},
+		{"agent.claude.base_url", false},
+		{"agent.opencode.base_url", false},
+		{"agent.codex.base_url", false},
+		{"agent.unknown.base_url", true},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			resolved := MergeConfigs(DefaultAgentConfig(), tt.config, nil, nil, nil)
-			envVars := resolved.GetEnvVars()
-
-			for key, expectedValue := range tt.expectedKV {
-				if actualValue, ok := envVars[key]; !ok {
-					t.Errorf("expected env var %s not found", key)
-				} else if actualValue != expectedValue {
-					t.Errorf("env var %s: expected %q, got %q", key, expectedValue, actualValue)
+		t.Run(tt.key, func(t *testing.T) {
+			def, err := LookupKey(tt.key)
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("expected error for %s, got nil", tt.key)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if def.Type != KeyTypeString {
+					t.Errorf("expected KeyTypeString, got %s", def.Type)
 				}
 			}
 		})
+	}
+}
+
+func TestSchemaPerAgentModel(t *testing.T) {
+	tests := []struct {
+		key       string
+		wantError bool
+	}{
+		{"agent.claude.model", false},
+		{"agent.opencode.model", false},
+		{"agent.codex.model", false},
+		{"agent.unknown.model", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			def, err := LookupKey(tt.key)
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("expected error for %s, got nil", tt.key)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if def.Type != KeyTypeString {
+					t.Errorf("expected KeyTypeString, got %s", def.Type)
+				}
+			}
+		})
+	}
+}
+
+func TestSchemaPerAgentArguments(t *testing.T) {
+	tests := []struct {
+		key       string
+		wantError bool
+	}{
+		{"agent.claude.arguments", false},
+		{"agent.opencode.arguments", false},
+		{"agent.github-copilot.arguments", false},
+		{"agent.codex.arguments", false},
+		{"agent.unknown.arguments", true},
+		{"agent.CLAUDE.arguments", false}, // case-insensitive agent name
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			def, err := LookupKey(tt.key)
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("expected error for %s, got nil", tt.key)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if def.Type != KeyTypeString {
+					t.Errorf("expected KeyTypeString, got %s", def.Type)
+				}
+			}
+		})
+	}
+}
+
+func TestSchemaPerAgentEnv(t *testing.T) {
+	tests := []struct {
+		key       string
+		wantError bool
+	}{
+		{"agent.claude.env", false},
+		{"agent.opencode.env", false},
+		{"agent.github-copilot.env", false},
+		{"agent.codex.env", false},
+		{"agent.unknown.env", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			def, err := LookupKey(tt.key)
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("expected error for %s, got nil", tt.key)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if def.Type != KeyTypeStringMap {
+					t.Errorf("expected KeyTypeStringMap, got %s", def.Type)
+				}
+			}
+		})
+	}
+}
+
+func TestSchemaClaudeModelAliases(t *testing.T) {
+	tests := []struct {
+		key       string
+		wantError bool
+	}{
+		{"agent.claude.model_aliases.sonnet", false},
+		{"agent.claude.model_aliases.opus", false},
+		{"agent.claude.model_aliases.haiku", false},
+		{"agent.claude.model_aliases.unknown", true},
+		{"agent.opencode.model_aliases.sonnet", true}, // only claude has model_aliases
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			def, err := LookupKey(tt.key)
+			if tt.wantError {
+				if err == nil {
+					t.Errorf("expected error for %s, got nil", tt.key)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("unexpected error: %v", err)
+				}
+				if def.Type != KeyTypeString {
+					t.Errorf("expected KeyTypeString, got %s", def.Type)
+				}
+			}
+		})
+	}
+}
+
+func TestIsValidKeyPerAgent(t *testing.T) {
+	tests := []struct {
+		key   string
+		valid bool
+	}{
+		// Universal keys
+		{"agent.default", true},
+		{"agent.env.CUSTOM", true}, // legacy
+
+		// Per-agent keys
+		{"agent.claude.api_key", true},
+		{"agent.claude.base_url", true},
+		{"agent.claude.model", true},
+		{"agent.claude.arguments", true},
+		{"agent.claude.env", true},
+		{"agent.claude.env.CUSTOM_VAR", true},
+
+		{"agent.opencode.api_key", true},
+		{"agent.opencode.arguments", true},
+
+		{"agent.github-copilot.api_key", true},
+		{"agent.codex.arguments", true},
+
+		// Claude-specific
+		{"agent.claude.model_aliases.sonnet", true},
+		{"agent.claude.model_aliases.opus", true},
+		{"agent.claude.model_aliases.haiku", true},
+
+		// Invalid
+		{"agent.unknown.arguments", false},
+		{"agent.unknown.env", false},
+		{"agent.claude.model_aliases.unknown", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			valid := IsValidKey(tt.key)
+			if valid != tt.valid {
+				t.Errorf("IsValidKey(%q) = %v, want %v", tt.key, valid, tt.valid)
+			}
+		})
+	}
+}
+
+func TestResolveAgentSettings(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "specledger-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	// Create specledger directory
+	slDir := filepath.Join(tmpDir, "specledger")
+	if err := os.MkdirAll(slDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Create project config with claude settings
+	projectConfig := `agents:
+  claude:
+    api_key: project-key
+    model: claude-sonnet-4-20250514
+    arguments: "--verbose"
+    env:
+      CUSTOM_VAR: project-value
+`
+	if err := os.WriteFile(filepath.Join(slDir, "specledger.yaml"), []byte(projectConfig), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Save original dir and change to temp dir
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(origDir)
+
+	// Resolve settings
+	settings := ResolveAgentSettings("claude")
+	if settings == nil {
+		t.Fatal("expected settings, got nil")
+	}
+
+	if settings.APIKey != "project-key" {
+		t.Errorf("expected APIKey 'project-key', got %q", settings.APIKey)
+	}
+	if settings.Model != "claude-sonnet-4-20250514" {
+		t.Errorf("expected Model 'claude-sonnet-4-20250514', got %q", settings.Model)
+	}
+	if len(settings.Arguments) != 1 || settings.Arguments[0] != "--verbose" {
+		t.Errorf("expected Arguments [--verbose], got %v", settings.Arguments)
+	}
+	if settings.EnvVars["CUSTOM_VAR"] != "project-value" {
+		t.Errorf("expected EnvVars[CUSTOM_VAR] 'project-value', got %q", settings.EnvVars["CUSTOM_VAR"])
+	}
+}
+
+func TestResolveAgentSettingsPrecedence(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "specledger-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	slDir := filepath.Join(tmpDir, "specledger")
+	if err := os.MkdirAll(slDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Project config (lower precedence)
+	projectConfig := `agents:
+  claude:
+    api_key: project-key
+    model: project-model
+`
+	if err := os.WriteFile(filepath.Join(slDir, "specledger.yaml"), []byte(projectConfig), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// Personal config (higher precedence)
+	personalConfig := `agents:
+  claude:
+    api_key: personal-key
+`
+	if err := os.WriteFile(filepath.Join(slDir, "specledger.local.yaml"), []byte(personalConfig), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(origDir)
+
+	settings := ResolveAgentSettings("claude")
+	if settings == nil {
+		t.Fatal("expected settings, got nil")
+	}
+
+	// Personal should override project for api_key
+	if settings.APIKey != "personal-key" {
+		t.Errorf("expected APIKey 'personal-key' (from personal), got %q", settings.APIKey)
+	}
+	// Project value should still be used for model (not set in personal)
+	if settings.Model != "project-model" {
+		t.Errorf("expected Model 'project-model' (from project), got %q", settings.Model)
+	}
+}
+
+func TestResolveAgentSettingsClaudeModelAliases(t *testing.T) {
+	tmpDir, err := os.MkdirTemp("", "specledger-test-*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	slDir := filepath.Join(tmpDir, "specledger")
+	if err := os.MkdirAll(slDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	projectConfig := `agents:
+  claude:
+    model_aliases:
+      sonnet: claude-sonnet-4-20250514
+      opus: claude-opus-4-20250514
+      haiku: claude-haiku-3-5-20241022
+`
+	if err := os.WriteFile(filepath.Join(slDir, "specledger.yaml"), []byte(projectConfig), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	origDir, _ := os.Getwd()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+	defer os.Chdir(origDir)
+
+	settings := ResolveAgentSettings("claude")
+	if settings == nil {
+		t.Fatal("expected settings, got nil")
+	}
+
+	if settings.ModelAliases["sonnet"] != "claude-sonnet-4-20250514" {
+		t.Errorf("expected sonnet alias, got %q", settings.ModelAliases["sonnet"])
+	}
+	if settings.ModelAliases["opus"] != "claude-opus-4-20250514" {
+		t.Errorf("expected opus alias, got %q", settings.ModelAliases["opus"])
+	}
+	if settings.ModelAliases["haiku"] != "claude-haiku-3-5-20241022" {
+		t.Errorf("expected haiku alias, got %q", settings.ModelAliases["haiku"])
 	}
 }
 
@@ -263,7 +473,7 @@ func TestPersonalConfig(t *testing.T) {
 
 	personal := &PersonalConfig{
 		Agent: &AgentConfig{
-			AuthToken: "sk-test-token",
+			APIKey: "sk-test-key",
 		},
 	}
 
@@ -276,108 +486,8 @@ func TestPersonalConfig(t *testing.T) {
 		t.Fatalf("LoadPersonal failed: %v", err)
 	}
 
-	if loaded.Agent.AuthToken != "sk-test-token" {
-		t.Errorf("expected auth token 'sk-test-token', got %q", loaded.Agent.AuthToken)
-	}
-}
-
-func TestSchemaAgentDefault(t *testing.T) {
-	def, err := LookupKey("agent.default")
-	if err != nil {
-		t.Fatalf("LookupKey(agent.default) failed: %v", err)
-	}
-	if def.Type != KeyTypeString {
-		t.Errorf("expected KeyTypeString, got %s", def.Type)
-	}
-	if def.Default != "claude" {
-		t.Errorf("expected default 'claude', got %v", def.Default)
-	}
-}
-
-func TestSchemaPerAgentArguments(t *testing.T) {
-	tests := []struct {
-		key       string
-		wantError bool
-	}{
-		{"agent.claude.arguments", false},
-		{"agent.opencode.arguments", false},
-		{"agent.github-copilot.arguments", false},
-		{"agent.codex.arguments", false},
-		{"agent.unknown.arguments", true},
-		{"agent.CLAUDE.arguments", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.key, func(t *testing.T) {
-			def, err := LookupKey(tt.key)
-			if tt.wantError {
-				if err == nil {
-					t.Errorf("expected error for %s, got nil", tt.key)
-				}
-			} else {
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-				if def.Type != KeyTypeString {
-					t.Errorf("expected KeyTypeString, got %s", def.Type)
-				}
-			}
-		})
-	}
-}
-
-func TestSchemaPerAgentEnv(t *testing.T) {
-	tests := []struct {
-		key       string
-		wantError bool
-	}{
-		{"agent.claude.env", false},
-		{"agent.opencode.env", false},
-		{"agent.github-copilot.env", false},
-		{"agent.codex.env", false},
-		{"agent.unknown.env", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.key, func(t *testing.T) {
-			def, err := LookupKey(tt.key)
-			if tt.wantError {
-				if err == nil {
-					t.Errorf("expected error for %s, got nil", tt.key)
-				}
-			} else {
-				if err != nil {
-					t.Fatalf("unexpected error: %v", err)
-				}
-				if def.Type != KeyTypeStringMap {
-					t.Errorf("expected KeyTypeStringMap, got %s", def.Type)
-				}
-			}
-		})
-	}
-}
-
-func TestIsValidKeyPerAgent(t *testing.T) {
-	tests := []struct {
-		key   string
-		valid bool
-	}{
-		{"agent.default", true},
-		{"agent.claude.arguments", true},
-		{"agent.opencode.arguments", true},
-		{"agent.claude.env", true},
-		{"agent.unknown.arguments", false},
-		{"agent.unknown.env", false},
-		{"agent.env.CUSTOM", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.key, func(t *testing.T) {
-			valid := IsValidKey(tt.key)
-			if valid != tt.valid {
-				t.Errorf("IsValidKey(%q) = %v, want %v", tt.key, valid, tt.valid)
-			}
-		})
+	if loaded.Agent.APIKey != "sk-test-key" {
+		t.Errorf("expected api key 'sk-test-key', got %q", loaded.Agent.APIKey)
 	}
 }
 
@@ -408,5 +518,33 @@ func TestParseArguments(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestConfigAgentsGetOrCreateAgentSettings(t *testing.T) {
+	agents := NewConfigAgents()
+
+	// Get settings for claude (should create ClaudeSettings)
+	claudeSettings := agents.GetOrCreateAgentSettings("claude")
+	if claudeSettings == nil {
+		t.Fatal("expected claude settings, got nil")
+	}
+	if agents.Claude == nil {
+		t.Error("expected Claude to be initialized")
+	}
+
+	// Get settings for opencode (should create AgentSettings)
+	opencodeSettings := agents.GetOrCreateAgentSettings("opencode")
+	if opencodeSettings == nil {
+		t.Fatal("expected opencode settings, got nil")
+	}
+	if agents.OpenCode == nil {
+		t.Error("expected OpenCode to be initialized")
+	}
+
+	// Get existing settings should return same instance
+	claudeSettings2 := agents.GetOrCreateAgentSettings("claude")
+	if claudeSettings != claudeSettings2 {
+		t.Error("expected same instance for claude settings")
 	}
 }

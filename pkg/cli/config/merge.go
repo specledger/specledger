@@ -15,7 +15,7 @@ const (
 	ScopeDefault       ConfigScope = "default"
 	ScopeGlobal        ConfigScope = "global"
 	ScopeProfile       ConfigScope = "profile"
-	ScopeTeamLocal     ConfigScope = "local"
+	ScopeTeamLocal     ConfigScope = "team-local"
 	ScopePersonalLocal ConfigScope = "personal"
 )
 
@@ -352,4 +352,147 @@ func parseArguments(s string) []string {
 	}
 
 	return args
+}
+
+// ResolvedAgentSettings holds resolved settings for a specific agent.
+type ResolvedAgentSettings struct {
+	AgentName string
+	APIKey    string
+	BaseURL   string
+	Model     string
+	Arguments []string
+	EnvVars   map[string]string
+
+	// Claude-specific
+	ModelAliases map[string]string
+}
+
+// ResolveAgentSettings resolves settings for a specific agent.
+// It merges settings from global, project, and personal configs,
+// then maps config values to environment variables using the agent's env var mappings.
+func ResolveAgentSettings(agentName string) *ResolvedAgentSettings {
+	resolved := &ResolvedAgentSettings{
+		AgentName:    agentName,
+		EnvVars:      make(map[string]string),
+		ModelAliases: make(map[string]string),
+	}
+
+	// Load config layers
+	globalCfg, _ := Load()
+	if globalCfg == nil {
+		globalCfg = DefaultConfig()
+	}
+
+	// Collect settings from all layers (in precedence order: global -> team-local -> personal)
+	var agentSettings []*AgentSettings
+	var claudeSettings []*ClaudeSettings
+
+	// Global config
+	if globalCfg.Agents != nil {
+		if s := globalCfg.Agents.GetAgentSettings(agentName); s != nil {
+			agentSettings = append(agentSettings, s)
+		}
+		if agentName == "claude" && globalCfg.Agents.Claude != nil {
+			claudeSettings = append(claudeSettings, globalCfg.Agents.Claude)
+		}
+	}
+
+	// Project config (team-local)
+	teamAgents := loadProjectAgents(".")
+	if teamAgents != nil {
+		if s := teamAgents.GetAgentSettings(agentName); s != nil {
+			agentSettings = append(agentSettings, s)
+		}
+		if agentName == "claude" && teamAgents.Claude != nil {
+			claudeSettings = append(claudeSettings, teamAgents.Claude)
+		}
+	}
+
+	// Personal config
+	personalAgents := loadPersonalAgents(".")
+	if personalAgents != nil {
+		if s := personalAgents.GetAgentSettings(agentName); s != nil {
+			agentSettings = append(agentSettings, s)
+		}
+		if agentName == "claude" && personalAgents.Claude != nil {
+			claudeSettings = append(claudeSettings, personalAgents.Claude)
+		}
+	}
+
+	// Merge settings with precedence (later overwrites earlier)
+	for _, s := range agentSettings {
+		if s.APIKey != "" {
+			resolved.APIKey = s.APIKey
+		}
+		if s.BaseURL != "" {
+			resolved.BaseURL = s.BaseURL
+		}
+		if s.Model != "" {
+			resolved.Model = s.Model
+		}
+		if s.Arguments != "" {
+			resolved.Arguments = parseArguments(s.Arguments)
+		}
+		for k, v := range s.Env {
+			resolved.EnvVars[k] = v
+		}
+	}
+
+	// Claude-specific: model aliases
+	for _, cs := range claudeSettings {
+		if cs.ModelAliases != nil {
+			if cs.ModelAliases.Sonnet != "" {
+				resolved.ModelAliases["sonnet"] = cs.ModelAliases.Sonnet
+			}
+			if cs.ModelAliases.Opus != "" {
+				resolved.ModelAliases["opus"] = cs.ModelAliases.Opus
+			}
+			if cs.ModelAliases.Haiku != "" {
+				resolved.ModelAliases["haiku"] = cs.ModelAliases.Haiku
+			}
+		}
+	}
+
+	return resolved
+}
+
+// loadProjectAgents loads the agents config from project-level specledger.yaml.
+func loadProjectAgents(projectPath string) *ConfigAgents {
+	metaPath := filepath.Join(projectPath, "specledger", "specledger.yaml")
+	data, err := os.ReadFile(metaPath)
+	if err != nil {
+		return nil
+	}
+
+	var meta struct {
+		Agents *ConfigAgents `yaml:"agents,omitempty"`
+	}
+	if err := yaml.Unmarshal(data, &meta); err != nil {
+		return nil
+	}
+
+	return meta.Agents
+}
+
+// loadPersonalAgents loads the agents config from personal-level specledger.local.yaml.
+func loadPersonalAgents(projectPath string) *ConfigAgents {
+	personalPath := filepath.Join(projectPath, "specledger", "specledger.local.yaml")
+	data, err := os.ReadFile(personalPath)
+	if err != nil {
+		return nil
+	}
+
+	var meta struct {
+		Agents *ConfigAgents `yaml:"agents,omitempty"`
+	}
+	if err := yaml.Unmarshal(data, &meta); err != nil {
+		return nil
+	}
+
+	return meta.Agents
+}
+
+// GetAgentSettingsFromConfig gets per-agent arguments from the new config structure.
+func GetAgentSettingsFromConfig(agentName string) *ResolvedAgentSettings {
+	return ResolveAgentSettings(agentName)
 }

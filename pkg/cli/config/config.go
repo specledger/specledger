@@ -42,9 +42,14 @@ type Config struct {
 	LogLevel           string                  `yaml:"log_level" json:"log_level"`
 	Theme              string                  `yaml:"theme" json:"theme"`
 	Language           string                  `yaml:"language" json:"language"`
-	Agent              *AgentConfig            `yaml:"agent,omitempty" json:"agent,omitempty"`
-	Profiles           map[string]*AgentConfig `yaml:"profiles,omitempty" json:"profiles,omitempty"`
-	ActiveProfile      string                  `yaml:"active-profile,omitempty" json:"active_profile,omitempty"`
+
+	// NEW: Namespaced agent config
+	Agents *ConfigAgents `yaml:"agents,omitempty" json:"agents,omitempty"`
+
+	// DEPRECATED: Keep for backward compatibility during migration
+	Agent         *AgentConfig            `yaml:"agent,omitempty" json:"agent,omitempty"`
+	Profiles      map[string]*AgentConfig `yaml:"profiles,omitempty" json:"profiles,omitempty"`
+	ActiveProfile string                  `yaml:"active-profile,omitempty" json:"active_profile,omitempty"`
 }
 
 // DefaultConfig returns the default configuration
@@ -58,6 +63,7 @@ func DefaultConfig() *Config {
 		LogLevel:           "debug",
 		Theme:              "default",
 		Language:           "en",
+		Agents:             NewConfigAgents(),
 		Agent:              DefaultAgentConfig(),
 		Profiles:           make(map[string]*AgentConfig),
 	}
@@ -89,6 +95,9 @@ func Load() (*Config, error) {
 	}
 	if cfg.LogLevel == "" {
 		cfg.LogLevel = "debug"
+	}
+	if cfg.Agents == nil {
+		cfg.Agents = NewConfigAgents()
 	}
 	if cfg.Agent == nil {
 		cfg.Agent = DefaultAgentConfig()

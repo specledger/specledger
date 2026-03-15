@@ -32,12 +32,25 @@ Commands:
   sl config show                Show all configuration values
   sl config unset <key>         Remove a configuration value
 
+Per-Agent Keys (namespaced):
+  agent.<name>.api_key          API key for the agent
+  agent.<name>.base_url         Custom API endpoint
+  agent.<name>.model            Model to use
+  agent.<name>.arguments        CLI arguments to pass
+  agent.<name>.env.<VAR>        Environment variable
+
+Claude-Specific Keys:
+  agent.claude.model_aliases.sonnet   Sonnet model alias
+  agent.claude.model_aliases.opus     Opus model alias
+  agent.claude.model_aliases.haiku    Haiku model alias
+
 Examples:
-  sl config set agent.base-url https://api.example.com
-  sl config set --global agent.model sonnet
-  sl config set --personal agent.auth-token sk-xxx
-  sl config show
-  sl config unset agent.base-url`,
+  sl config set agent.claude.api_key sk-ant-xxx
+  sl config set agent.claude.model claude-sonnet-4-20250514
+  sl config set agent.codex.api_key sk-xxx
+  sl config set --global agent.default claude
+  sl config set agent.claude.arguments "--dangerously-skip-permissions"
+  sl config show`,
 }
 
 var configSetCmd = &cobra.Command{
@@ -45,12 +58,15 @@ var configSetCmd = &cobra.Command{
 	Short: "Set a configuration value",
 	Long: `Set a configuration value.
 
-Keys are namespaced (e.g., agent.base-url, agent.model.sonnet).
+Keys are namespaced per agent (e.g., agent.claude.api_key, agent.claude.model).
 Use --global to set in user-wide config.
 Use --personal to set in gitignored personal config (recommended for secrets).`,
-	Example: `  sl config set agent.base-url https://api.example.com
-  sl config set --global agent.model sonnet
-  sl config set --personal agent.auth-token sk-xxx`,
+	Example: `  sl config set agent.claude.api_key sk-ant-xxx
+  sl config set --global agent.default claude
+  sl config set --personal agent.claude.api_key sk-ant-xxx
+  sl config set agent.claude.model claude-sonnet-4-20250514
+  sl config set agent.codex.api_key sk-xxx
+  sl config set agent.claude.arguments "--dangerously-skip-permissions"`,
 	Args: cobra.ExactArgs(2),
 	RunE: runConfigSet,
 }
@@ -171,43 +187,74 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 	fmt.Println("Agent Configuration")
 	fmt.Println()
 
-	keysByCategory := config.GetRegistry().ListByCategory()
-	for _, category := range []string{"Provider", "Models", "Launch Flags", "Environment", "Profiles"} {
-		keys := keysByCategory[category]
-		if len(keys) == 0 && category != "Environment" {
+	// Show default agent
+	defaultAgent := "claude"
+	if cfg.Agents != nil && cfg.Agents.Default != "" {
+		defaultAgent = cfg.Agents.Default
+	}
+	fmt.Printf("  Default Agent: %s\n\n", defaultAgent)
+
+	// Show per-agent configuration
+	agentNames := []string{"claude", "opencode", "github-copilot", "codex"}
+	for _, agentName := range agentNames {
+		var settings *config.AgentSettings
+		if cfg.Agents != nil {
+			settings = cfg.Agents.GetAgentSettings(agentName)
+		}
+
+		if settings == nil {
 			continue
 		}
 
-		fmt.Printf("  %s\n", category)
-
-		if category == "Environment" && cfg.Agent != nil && len(cfg.Agent.Env) > 0 {
-			fmt.Printf("    %-25s\n", "agent.env")
-			for envKey, envValue := range cfg.Agent.Env {
-				fmt.Printf("      %-23s %-35s [local]\n", envKey, envValue)
+		fmt.Printf("  %s\n", agentName)
+		if settings.APIKey != "" {
+			fmt.Printf("    %-23s %-35s [local]\n", "api_key", maskSensitive(settings.APIKey))
+		}
+		if settings.BaseURL != "" {
+			fmt.Printf("    %-23s %-35s [local]\n", "base_url", settings.BaseURL)
+		}
+		if settings.Model != "" {
+			fmt.Printf("    %-23s %-35s [local]\n", "model", settings.Model)
+		}
+		if settings.Arguments != "" {
+			fmt.Printf("    %-23s %-35s [local]\n", "arguments", settings.Arguments)
+		}
+		if len(settings.Env) > 0 {
+			fmt.Printf("    %-23s\n", "env")
+			for envKey, envValue := range settings.Env {
+				fmt.Printf("      %-21s %-35s [local]\n", envKey, envValue)
 			}
 		}
 
-		for _, keyDef := range keys {
-			if keyDef.Key == "agent.env" {
-				continue
+		// Claude-specific: model aliases
+		if agentName == "claude" && cfg.Agents.Claude != nil && cfg.Agents.Claude.ModelAliases != nil {
+			ma := cfg.Agents.Claude.ModelAliases
+			if ma.Sonnet != "" || ma.Opus != "" || ma.Haiku != "" {
+				fmt.Printf("    %-23s\n", "model_aliases")
+				if ma.Sonnet != "" {
+					fmt.Printf("      %-21s %-35s [local]\n", "sonnet", ma.Sonnet)
+				}
+				if ma.Opus != "" {
+					fmt.Printf("      %-21s %-35s [local]\n", "opus", ma.Opus)
+				}
+				if ma.Haiku != "" {
+					fmt.Printf("      %-21s %-35s [local]\n", "haiku", ma.Haiku)
+				}
 			}
-			value, scope := getAgentConfigValue(cfg, keyDef.Key)
-			if value == "" {
-				continue
-			}
-
-			displayValue := value
-			if keyDef.Sensitive {
-				displayValue = maskSensitive(value)
-			}
-
-			fmt.Printf("    %-25s %-35s [%s]\n", keyDef.Key, displayValue, scope)
 		}
 		fmt.Println()
 	}
 
-	if cfg.ActiveProfile != "" {
-		fmt.Printf("  Active Profile: %s\n\n", cfg.ActiveProfile)
+	// Show legacy agent config if present (for backward compatibility)
+	if cfg.Agent != nil && (cfg.Agent.APIKey != "" || cfg.Agent.Model != "") {
+		fmt.Println("  Legacy (deprecated)")
+		if cfg.Agent.APIKey != "" {
+			fmt.Printf("    %-23s %-35s [local]\n", "api-key", maskSensitive(cfg.Agent.APIKey))
+		}
+		if cfg.Agent.Model != "" {
+			fmt.Printf("    %-23s %-35s [local]\n", "model", cfg.Agent.Model)
+		}
+		fmt.Println()
 	}
 
 	fmt.Println("General")
@@ -254,143 +301,316 @@ func determineScope() string {
 }
 
 func setAgentConfigValue(cfg *config.Config, key, value string) error {
-	if cfg.Agent == nil {
-		cfg.Agent = config.DefaultAgentConfig()
+	// Initialize Agents if nil
+	if cfg.Agents == nil {
+		cfg.Agents = config.NewConfigAgents()
 	}
 
-	switch key {
-	case "agent.base-url":
-		cfg.Agent.BaseURL = value
-	case "agent.auth-token":
-		cfg.Agent.AuthToken = value
-	case "agent.api-key":
-		cfg.Agent.APIKey = value
-	case "agent.model":
-		cfg.Agent.Model = value
-	case "agent.model.sonnet":
-		cfg.Agent.ModelSonnet = value
-	case "agent.model.opus":
-		cfg.Agent.ModelOpus = value
-	case "agent.model.haiku":
-		cfg.Agent.ModelHaiku = value
-	case "agent.subagent-model":
-		cfg.Agent.SubagentModel = value
-	case "agent.provider":
-		cfg.Agent.Provider = value
-	case "agent.permission-mode":
-		cfg.Agent.PermissionMode = value
-	case "agent.skip-permissions":
-		cfg.Agent.SkipPermissions = value == "true"
-	case "agent.effort":
-		cfg.Agent.Effort = value
-	case "active-profile":
-		cfg.ActiveProfile = value
-	default:
+	// Handle agent.default
+	if key == "agent.default" {
+		cfg.Agents.Default = value
+		return nil
+	}
+
+	// Handle per-agent keys: agent.<name>.<field>
+	if strings.HasPrefix(key, "agent.") {
+		parts := strings.Split(key, ".")
+		if len(parts) >= 3 {
+			agentName := parts[1]
+
+			// Validate agent name
+			if agentName != "claude" && agentName != "opencode" && agentName != "github-copilot" && agentName != "codex" {
+				return fmt.Errorf("unknown agent name: %s (valid: claude, opencode, github-copilot, codex)", agentName)
+			}
+
+			// Handle agent.<name>.api_key
+			if len(parts) == 3 && parts[2] == "api_key" {
+				settings := cfg.Agents.GetOrCreateAgentSettings(agentName)
+				settings.APIKey = value
+				return nil
+			}
+
+			// Handle agent.<name>.base_url
+			if len(parts) == 3 && parts[2] == "base_url" {
+				settings := cfg.Agents.GetOrCreateAgentSettings(agentName)
+				settings.BaseURL = value
+				return nil
+			}
+
+			// Handle agent.<name>.model
+			if len(parts) == 3 && parts[2] == "model" {
+				settings := cfg.Agents.GetOrCreateAgentSettings(agentName)
+				settings.Model = value
+				return nil
+			}
+
+			// Handle agent.<name>.arguments
+			if len(parts) == 3 && parts[2] == "arguments" {
+				settings := cfg.Agents.GetOrCreateAgentSettings(agentName)
+				settings.Arguments = value
+				return nil
+			}
+
+			// Handle agent.<name>.env.<VAR>
+			if len(parts) == 4 && parts[2] == "env" {
+				envVar := parts[3]
+				settings := cfg.Agents.GetOrCreateAgentSettings(agentName)
+				if settings.Env == nil {
+					settings.Env = make(map[string]string)
+				}
+				settings.Env[envVar] = value
+				return nil
+			}
+
+			// Handle agent.claude.model_aliases.<alias>
+			if agentName == "claude" && len(parts) == 4 && parts[2] == "model_aliases" {
+				alias := parts[3]
+				if alias != "sonnet" && alias != "opus" && alias != "haiku" {
+					return fmt.Errorf("unknown model alias: %s (valid: sonnet, opus, haiku)", alias)
+				}
+				if cfg.Agents.Claude == nil {
+					cfg.Agents.Claude = config.NewClaudeSettings()
+				}
+				if cfg.Agents.Claude.ModelAliases == nil {
+					cfg.Agents.Claude.ModelAliases = &config.ClaudeModelAliases{}
+				}
+				switch alias {
+				case "sonnet":
+					cfg.Agents.Claude.ModelAliases.Sonnet = value
+				case "opus":
+					cfg.Agents.Claude.ModelAliases.Opus = value
+				case "haiku":
+					cfg.Agents.Claude.ModelAliases.Haiku = value
+				}
+				return nil
+			}
+		}
+
+		// Handle legacy agent.env.<VAR> (maps to claude for backward compat)
 		if strings.HasPrefix(key, "agent.env.") {
-			envKey := strings.TrimPrefix(key, "agent.env.")
+			envKey, _ := strings.CutPrefix(key, "agent.env.")
+			if cfg.Agent == nil {
+				cfg.Agent = config.DefaultAgentConfig()
+			}
 			if cfg.Agent.Env == nil {
 				cfg.Agent.Env = make(map[string]string)
 			}
 			cfg.Agent.Env[envKey] = value
 			return nil
 		}
-		return fmt.Errorf("unknown config key: %s", key)
 	}
-	return nil
+
+	// Handle active-profile
+	if key == "active-profile" {
+		cfg.ActiveProfile = value
+		return nil
+	}
+
+	return fmt.Errorf("unknown config key: %s", key)
 }
 
 func getAgentConfigValue(cfg *config.Config, key string) (string, string) {
-	if cfg.Agent == nil {
-		return "", "default"
-	}
-
 	scope := "local"
 
-	switch key {
-	case "agent.base-url":
-		return cfg.Agent.BaseURL, scope
-	case "agent.auth-token":
-		return cfg.Agent.AuthToken, scope
-	case "agent.api-key":
-		return cfg.Agent.APIKey, scope
-	case "agent.model":
-		return cfg.Agent.Model, scope
-	case "agent.model.sonnet":
-		return cfg.Agent.ModelSonnet, scope
-	case "agent.model.opus":
-		return cfg.Agent.ModelOpus, scope
-	case "agent.model.haiku":
-		return cfg.Agent.ModelHaiku, scope
-	case "agent.subagent-model":
-		return cfg.Agent.SubagentModel, scope
-	case "agent.provider":
-		if cfg.Agent.Provider == "" {
-			return "anthropic", "default"
+	// Handle agent.default
+	if key == "agent.default" {
+		if cfg.Agents != nil && cfg.Agents.Default != "" {
+			return cfg.Agents.Default, scope
 		}
-		return cfg.Agent.Provider, scope
-	case "agent.permission-mode":
-		if cfg.Agent.PermissionMode == "" {
-			return "default", "default"
+		return "claude", "default"
+	}
+
+	// Handle per-agent keys: agent.<name>.<field>
+	if strings.HasPrefix(key, "agent.") {
+		parts := strings.Split(key, ".")
+		if len(parts) >= 3 {
+			agentName := parts[1]
+
+			// Get agent settings
+			var settings *config.AgentSettings
+			if cfg.Agents != nil {
+				settings = cfg.Agents.GetAgentSettings(agentName)
+			}
+
+			// Handle agent.<name>.api_key
+			if len(parts) == 3 && parts[2] == "api_key" {
+				if settings != nil && settings.APIKey != "" {
+					return settings.APIKey, scope
+				}
+				return "", "default"
+			}
+
+			// Handle agent.<name>.base_url
+			if len(parts) == 3 && parts[2] == "base_url" {
+				if settings != nil && settings.BaseURL != "" {
+					return settings.BaseURL, scope
+				}
+				return "", "default"
+			}
+
+			// Handle agent.<name>.model
+			if len(parts) == 3 && parts[2] == "model" {
+				if settings != nil && settings.Model != "" {
+					return settings.Model, scope
+				}
+				return "", "default"
+			}
+
+			// Handle agent.<name>.arguments
+			if len(parts) == 3 && parts[2] == "arguments" {
+				if settings != nil && settings.Arguments != "" {
+					return settings.Arguments, scope
+				}
+				return "", "default"
+			}
+
+			// Handle agent.<name>.env.<VAR>
+			if len(parts) == 4 && parts[2] == "env" {
+				envVar := parts[3]
+				if settings != nil && settings.Env != nil {
+					if v, ok := settings.Env[envVar]; ok {
+						return v, scope
+					}
+				}
+				return "", "default"
+			}
+
+			// Handle agent.claude.model_aliases.<alias>
+			if agentName == "claude" && len(parts) == 4 && parts[2] == "model_aliases" {
+				alias := parts[3]
+				if cfg.Agents != nil && cfg.Agents.Claude != nil && cfg.Agents.Claude.ModelAliases != nil {
+					switch alias {
+					case "sonnet":
+						if cfg.Agents.Claude.ModelAliases.Sonnet != "" {
+							return cfg.Agents.Claude.ModelAliases.Sonnet, scope
+						}
+					case "opus":
+						if cfg.Agents.Claude.ModelAliases.Opus != "" {
+							return cfg.Agents.Claude.ModelAliases.Opus, scope
+						}
+					case "haiku":
+						if cfg.Agents.Claude.ModelAliases.Haiku != "" {
+							return cfg.Agents.Claude.ModelAliases.Haiku, scope
+						}
+					}
+				}
+				return "", "default"
+			}
 		}
-		return cfg.Agent.PermissionMode, scope
-	case "agent.skip-permissions":
-		return fmt.Sprintf("%v", cfg.Agent.SkipPermissions), scope
-	case "agent.effort":
-		return cfg.Agent.Effort, scope
-	case "active-profile":
-		return cfg.ActiveProfile, scope
-	default:
+
+		// Handle legacy agent.env.<VAR> (maps to claude for backward compat)
 		if strings.HasPrefix(key, "agent.env.") {
-			envKey := strings.TrimPrefix(key, "agent.env.")
-			if cfg.Agent.Env != nil {
+			envKey, _ := strings.CutPrefix(key, "agent.env.")
+			if cfg.Agent != nil && cfg.Agent.Env != nil {
 				return cfg.Agent.Env[envKey], scope
 			}
 		}
 	}
+
+	// Handle active-profile
+	if key == "active-profile" {
+		return cfg.ActiveProfile, scope
+	}
+
 	return "", "default"
 }
 
 func unsetAgentConfigValue(cfg *config.Config, key string) error {
-	if cfg.Agent == nil {
-		return fmt.Errorf("no config value set for: %s", key)
+	// Handle agent.default
+	if key == "agent.default" {
+		if cfg.Agents != nil {
+			cfg.Agents.Default = ""
+		}
+		return nil
 	}
 
-	switch key {
-	case "agent.base-url":
-		cfg.Agent.BaseURL = ""
-	case "agent.auth-token":
-		cfg.Agent.AuthToken = ""
-	case "agent.api-key":
-		cfg.Agent.APIKey = ""
-	case "agent.model":
-		cfg.Agent.Model = ""
-	case "agent.model.sonnet":
-		cfg.Agent.ModelSonnet = ""
-	case "agent.model.opus":
-		cfg.Agent.ModelOpus = ""
-	case "agent.model.haiku":
-		cfg.Agent.ModelHaiku = ""
-	case "agent.subagent-model":
-		cfg.Agent.SubagentModel = ""
-	case "agent.provider":
-		cfg.Agent.Provider = ""
-	case "agent.permission-mode":
-		cfg.Agent.PermissionMode = ""
-	case "agent.skip-permissions":
-		cfg.Agent.SkipPermissions = false
-	case "agent.effort":
-		cfg.Agent.Effort = ""
-	case "active-profile":
-		cfg.ActiveProfile = ""
-	default:
+	// Handle per-agent keys: agent.<name>.<field>
+	if strings.HasPrefix(key, "agent.") {
+		parts := strings.Split(key, ".")
+		if len(parts) >= 3 {
+			agentName := parts[1]
+
+			// Get agent settings
+			var settings *config.AgentSettings
+			if cfg.Agents != nil {
+				settings = cfg.Agents.GetAgentSettings(agentName)
+			}
+
+			// Handle agent.<name>.api_key
+			if len(parts) == 3 && parts[2] == "api_key" {
+				if settings != nil {
+					settings.APIKey = ""
+				}
+				return nil
+			}
+
+			// Handle agent.<name>.base_url
+			if len(parts) == 3 && parts[2] == "base_url" {
+				if settings != nil {
+					settings.BaseURL = ""
+				}
+				return nil
+			}
+
+			// Handle agent.<name>.model
+			if len(parts) == 3 && parts[2] == "model" {
+				if settings != nil {
+					settings.Model = ""
+				}
+				return nil
+			}
+
+			// Handle agent.<name>.arguments
+			if len(parts) == 3 && parts[2] == "arguments" {
+				if settings != nil {
+					settings.Arguments = ""
+				}
+				return nil
+			}
+
+			// Handle agent.<name>.env.<VAR>
+			if len(parts) == 4 && parts[2] == "env" {
+				envVar := parts[3]
+				if settings != nil && settings.Env != nil {
+					delete(settings.Env, envVar)
+				}
+				return nil
+			}
+
+			// Handle agent.claude.model_aliases.<alias>
+			if agentName == "claude" && len(parts) == 4 && parts[2] == "model_aliases" {
+				alias := parts[3]
+				if cfg.Agents != nil && cfg.Agents.Claude != nil && cfg.Agents.Claude.ModelAliases != nil {
+					switch alias {
+					case "sonnet":
+						cfg.Agents.Claude.ModelAliases.Sonnet = ""
+					case "opus":
+						cfg.Agents.Claude.ModelAliases.Opus = ""
+					case "haiku":
+						cfg.Agents.Claude.ModelAliases.Haiku = ""
+					}
+				}
+				return nil
+			}
+		}
+
+		// Handle legacy agent.env.<VAR>
 		if strings.HasPrefix(key, "agent.env.") {
-			envKey := strings.TrimPrefix(key, "agent.env.")
-			delete(cfg.Agent.Env, envKey)
+			envKey, _ := strings.CutPrefix(key, "agent.env.")
+			if cfg.Agent != nil && cfg.Agent.Env != nil {
+				delete(cfg.Agent.Env, envKey)
+			}
 			return nil
 		}
-		return fmt.Errorf("unknown config key: %s", key)
 	}
-	return nil
+
+	// Handle active-profile
+	if key == "active-profile" {
+		cfg.ActiveProfile = ""
+		return nil
+	}
+
+	return fmt.Errorf("unknown config key: %s", key)
 }
 
 func maskSensitive(value string) string {

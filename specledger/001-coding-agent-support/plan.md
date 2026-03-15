@@ -92,26 +92,46 @@ tests/
 
 ## Implementation Phases
 
-### Phase 1: Core Agent Launch (P1 Stories)
+The implementation follows a 5-phase structure with parallel execution paths after setup:
+
+```
+Setup (Phase 0) ──┬──► P1 (US1+US2) ──┬──► Polish (Phase 4)
+                  │                   │
+                  ├──► P2 (US3+US4) ───┤
+                  │                   │
+                  └──► P3 (US5) ───────┘
+```
+
+### Phase 0: Setup - Agent Infrastructure
 
 1. Create agent registry with Claude Code, OpenCode, Copilot CLI, Codex definitions (including install commands)
-2. Extend `AgentConfig` with per-agent `Arguments` and `Env` fields (e.g., `agent.claude.arguments`)
-3. Implement `sl code [<agent>]` command with error messages including install commands
-4. Add config schema keys: `agent.default`, `agent.<name>.arguments`, `agent.<name>.env`
+2. Add platform detection for Windows vs Unix (symlink vs copy)
+3. Extend config schema for `agent.default`, `agent.<name>.arguments`, `agent.<name>.env`
 
-### Phase 2: Multi-Agent Setup (P2 Stories)
+### Phase 1: Core Agent Launch (P1 - US1+US2)
+
+1. Implement `sl code [<agent>]` command with agent selection
+2. Extend launcher for multi-agent support with env var injection
+3. Add binary detection with install command error messages
+4. Read per-agent config for arguments with project/global merge
+5. Wire command to launcher
+
+### Phase 2: Multi-Agent Setup (P2 - US3+US4)
 
 1. Extend TUI for multi-select in `sl new` and `sl init`
-2. Implement symlink creation for `.agent/commands` and `.agent/skills` on macOS/Linux
-3. Implement file copy fallback for Windows
-4. Add `--force` flag handling for existing `.agent/` directory
-5. Update constitution to store selected agents
+2. Create `.agent/commands` and `.agent/skills` directory structure
+3. Implement symlink/copy logic for agent directories
+4. Store selected agents in constitution
 
-### Phase 3: Polish & Edge Cases (P3 Stories)
+### Phase 3: Per-Agent Custom Arguments (P3 - US5)
 
-1. Handle agent binary not found with actionable install command
-2. Test Windows file copy behavior
-3. Document manual sync requirement for Windows users
+1. Verify per-agent arguments work correctly (multiple flags, quotes, special chars)
+2. Verify per-agent env vars work correctly
+
+### Phase 4: Polish - Cross-Cutting Concerns
+
+1. Update documentation for `sl code`
+2. Validate quickstart.md scenarios
 
 ## Clarifications Applied (2026-03-15)
 
@@ -122,3 +142,89 @@ tests/
 | Windows | Copy files instead of symlinks | New `platform.go` for OS detection + copy logic |
 | Binary error | Include install command | Error messages include npm install command |
 | Existing .agent/ | Require --force flag | Add --force flag to sl new/init |
+
+## Config Schema Refactoring (2026-03-15)
+
+### Decision: Namespaced Per-Agent Config
+
+The config system was refactored from Claude-centric to namespaced per-agent settings.
+
+**Before (Claude-centric):**
+```yaml
+agent:
+  api-key: sk-xxx
+  model: claude-sonnet
+  model.sonnet: claude-sonnet-4-20250514
+  skip-permissions: true
+```
+
+**After (Namespaced):**
+```yaml
+agents:
+  default: claude
+  claude:
+    api_key: sk-xxx
+    model: claude-sonnet-4-20250514
+    model_aliases:
+      sonnet: claude-sonnet-4-20250514
+    arguments: "--dangerously-skip-permissions"
+  opencode:
+    api_key: sk-openai
+    model: gpt-4
+```
+
+### Keys Removed (Claude-Specific, No Multi-Agent Equivalent)
+
+| Removed Key | Reason |
+|-------------|--------|
+| `agent.provider` | Claude-specific (anthropic/bedrock/vertex) |
+| `agent.subagent_model` | Claude-only concept |
+| `agent.permission_mode` | Claude flag, use `agent.claude.arguments` |
+| `agent.skip_permissions` | Claude flag, use `agent.claude.arguments` |
+| `agent.effort` | Claude flag, use `agent.claude.arguments` |
+| `agent.allowed_tools` | Claude flag, use `agent.claude.arguments` |
+| `agent.auth_token` | Duplicate of `agent.claude.api_key` |
+| `agent.model.sonnet/opus/haiku` | Moved to `agent.claude.model_aliases.*` |
+
+### Env Var Mappings Per Agent
+
+Added to Agent struct in registry:
+```go
+type Agent struct {
+    Name           string
+    Command        string
+    ConfigDir      string
+    InstallCommand string
+    APIKeyEnvVar   string  // e.g., "ANTHROPIC_API_KEY"
+    BaseURLEnvVar  string  // e.g., "ANTHROPIC_BASE_URL"
+    ModelEnvVar    string  // e.g., "ANTHROPIC_MODEL"
+}
+```
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `internal/agent/registry.go` | Added env var mappings to Agent struct |
+| `pkg/cli/config/agent_settings.go` | NEW: AgentSettings, ClaudeSettings, ConfigAgents structs |
+| `pkg/cli/config/schema.go` | Updated for per-agent key patterns |
+| `pkg/cli/config/merge.go` | Added ResolveAgentSettings() |
+| `pkg/cli/config/config.go` | Added Agents field |
+| `pkg/cli/config/migration.go` | NEW: Migration logic |
+| `pkg/cli/config/config_test.go` | Updated tests for new namespaced schema |
+| `pkg/cli/commands/config.go` | Updated for new key patterns |
+| `pkg/cli/commands/code.go` | Use ResolveAgentSettings() with env var mapping |
+
+## Implementation Status (2026-03-15)
+
+All phases complete:
+- [x] Phase 1: Update Agent Registry (env var mappings)
+- [x] Phase 2: Create AgentSettings struct
+- [x] Phase 3: Update Schema Registry
+- [x] Phase 4: Update Merge Logic
+- [x] Phase 5: Update Config Commands
+- [x] Phase 6: Update Config Struct
+- [x] Phase 7: Update sl code Command
+- [x] Phase 8: Add Migration Logic
+- [x] Phase 9: Update Tests (70 tests passing)
+- [x] Phase 10: Update Spec Artifacts

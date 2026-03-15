@@ -31,7 +31,7 @@ As a developer, I want to launch my preferred AI coding agent from the command l
 2. **Given** a project without agent configuration, **When** I run `sl code`, **Then** the default agent (Claude Code) launches with default settings
 3. **Given** I want to launch a specific agent, **When** I run `sl code opencode`, **Then** OpenCode launches instead of the default
 4. **Given** a project with `agent.claude.arguments="--dangerously-skip-permissions"`, **When** I run `sl code claude`, **Then** the agent launches with those arguments passed directly
-5. **Given** global config specifies `agent.claude.model=opus`, **When** I run `sl code claude`, **Then** the agent launches with the correct model environment variable
+5. **Given** global config specifies `agent.claude.env.ANTHROPIC_MODEL=opus`, **When** I run `sl code claude`, **Then** the agent launches with the correct model environment variable
 
 ---
 
@@ -127,19 +127,54 @@ As a developer, I want to pass arbitrary arguments to each coding agent via per-
 - **FR-009**: System MUST pass environment variables from config to the launched agent process
 - **FR-010**: System MUST detect and report when a selected agent binary is not in PATH
 - **FR-011**: System MUST display install command in error message when a selected agent is unavailable (e.g., "Error: 'claude' not found. Install: npm install -g @anthropic-ai/claude-code")
-- **FR-012**: System MUST support new config keys: `agent.default`, `agent.<name>.arguments`, `agent.<name>.env`
+- **FR-012**: System MUST support new config keys: `agent.default`, `agent.<name>.api_key`, `agent.<name>.base_url`, `agent.<name>.model`, `agent.<name>.arguments`, `agent.<name>.env`
 - **FR-013**: System MUST require `--force` flag when `.agent/` directory already exists during setup
+- **FR-014**: System MUST map per-agent config values to appropriate environment variables (e.g., `agent.claude.api_key` → `ANTHROPIC_API_KEY`)
+- **FR-015**: System MUST support Claude-specific model aliases via `agent.claude.model_aliases.sonnet`, `agent.claude.model_aliases.opus`, `agent.claude.model_aliases.haiku`
 
 ### Key Entities
 
-- **Agent Definition**: Represents a coding agent with its name, CLI command, and install command
-  - Claude Code: `claude` → `npm install -g @anthropic-ai/claude-code`
-  - OpenCode: `opencode` → `npm install -g opencode-ai/opencode`
-  - Copilot CLI: `github-copilot` → `npm install -g @github/copilot`
-  - Codex: `codex` → `npm install -g @openai/codex`
-- **Agent Configuration**: User preferences including default agent, per-agent custom arguments, and environment variables
+- **Agent Definition**: Represents a coding agent with its name, CLI command, install command, and env var mappings
+  - Claude Code: `claude` → `npm install -g @anthropic-ai/claude-code` (env: `ANTHROPIC_API_KEY`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`)
+  - OpenCode: `opencode` → `go install github.com/opencode-ai/opencode@latest` (env: `OPENAI_API_KEY`, `OPENAI_BASE_URL`)
+  - Copilot CLI: `github-copilot` → `npm install -g @github/copilot` (env: `GITHUB_TOKEN`)
+  - Codex: `codex` → `npm install -g @openai/codex` (env: `OPENAI_API_KEY`, `OPENAI_BASE_URL`)
+- **Agent Configuration**: User preferences including default agent, per-agent API keys, base URLs, models, custom arguments, and environment variables
 - **Launch Profile**: A combination of agent selection and configuration settings used to launch an agent
 - **Shared Configuration Directory**: The `.agent/` directory containing shared commands and skills, symlinked (macOS/Linux) or copied (Windows) to agent-specific directories
+
+### Config Schema (Namespaced)
+
+The config system uses namespaced keys for per-agent settings:
+
+**Universal Per-Agent Keys:**
+| Key | Type | Sensitive | Description |
+|-----|------|-----------|-------------|
+| `agent.default` | string | No | Default agent to launch |
+| `agent.<name>.api_key` | string | Yes | API key for this agent |
+| `agent.<name>.base_url` | string | No | Custom API endpoint |
+| `agent.<name>.model` | string | No | Model to use |
+| `agent.<name>.arguments` | string | No | CLI arguments |
+| `agent.<name>.env.<VAR>` | string | Varies | Arbitrary env vars |
+
+**Claude-Specific Keys:**
+| Key | Type | Description |
+|-----|------|-------------|
+| `agent.claude.model_aliases.sonnet` | string | Sonnet model ID |
+| `agent.claude.model_aliases.opus` | string | Opus model ID |
+| `agent.claude.model_aliases.haiku` | string | Haiku model ID |
+
+**Environment Variable Mappings:**
+| Agent | API Key Env | Base URL Env | Model Env |
+|-------|-------------|--------------|-----------|
+| Claude | `ANTHROPIC_API_KEY` | `ANTHROPIC_BASE_URL` | `ANTHROPIC_MODEL` |
+| OpenCode | `OPENAI_API_KEY` | `OPENAI_BASE_URL` | - |
+| Copilot CLI | `GITHUB_TOKEN` | - | - |
+| Codex | `OPENAI_API_KEY` | `OPENAI_BASE_URL` | - |
+
+**Deprecated Keys (removed):**
+- `agent.provider`, `agent.subagent_model`, `agent.permission_mode`, `agent.skip_permissions`, `agent.effort`, `agent.allowed_tools`, `agent.auth_token`
+- `agent.model.sonnet`, `agent.model.opus`, `agent.model.haiku` (use `agent.claude.model_aliases.*`)
 
 ## Success Criteria *(mandatory)*
 

@@ -36,7 +36,14 @@ Examples:
 }
 
 func runCode(cmd *cobra.Command, args []string) error {
-	agentName := "claude"
+	// Get default agent from config
+	cfg, _ := config.Load()
+	defaultAgent := "claude"
+	if cfg != nil && cfg.Agents != nil && cfg.Agents.Default != "" {
+		defaultAgent = cfg.Agents.Default
+	}
+
+	agentName := defaultAgent
 	if len(args) > 0 {
 		agentName = args[0]
 	}
@@ -54,15 +61,53 @@ func runCode(cmd *cobra.Command, args []string) error {
 
 	l := launcher.NewLauncherForAgent(ag, ".")
 
-	arguments := config.GetAgentArguments(ag.Command)
-	if len(arguments) > 0 {
-		l.SetFlags(arguments)
-	}
+	// Get per-agent settings
+	settings := config.ResolveAgentSettings(agentName)
+	if settings != nil {
+		// Set arguments
+		if len(settings.Arguments) > 0 {
+			l.SetFlags(settings.Arguments)
+		}
 
-	resolved := config.ResolveAgentConfig()
-	envVars := resolved.GetEnvVars()
-	if len(envVars) > 0 {
-		l.SetEnv(envVars)
+		// Map config values to env vars using agent's env var mappings
+		envVars := make(map[string]string)
+
+		// Map API key to agent's env var
+		if settings.APIKey != "" && ag.APIKeyEnvVar != "" {
+			envVars[ag.APIKeyEnvVar] = settings.APIKey
+		}
+
+		// Map base URL to agent's env var
+		if settings.BaseURL != "" && ag.BaseURLEnvVar != "" {
+			envVars[ag.BaseURLEnvVar] = settings.BaseURL
+		}
+
+		// Map model to agent's env var
+		if settings.Model != "" && ag.ModelEnvVar != "" {
+			envVars[ag.ModelEnvVar] = settings.Model
+		}
+
+		// Add per-agent env vars
+		for k, v := range settings.EnvVars {
+			envVars[k] = v
+		}
+
+		// Claude-specific: map model aliases to env vars
+		if agentName == "claude" {
+			if v, ok := settings.ModelAliases["sonnet"]; ok && v != "" {
+				envVars["ANTHROPIC_DEFAULT_SONNET_MODEL"] = v
+			}
+			if v, ok := settings.ModelAliases["opus"]; ok && v != "" {
+				envVars["ANTHROPIC_DEFAULT_OPUS_MODEL"] = v
+			}
+			if v, ok := settings.ModelAliases["haiku"]; ok && v != "" {
+				envVars["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = v
+			}
+		}
+
+		if len(envVars) > 0 {
+			l.SetEnv(envVars)
+		}
 	}
 
 	fmt.Println(ui.Info(fmt.Sprintf("Launching %s...", ag.Name)))

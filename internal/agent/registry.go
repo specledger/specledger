@@ -9,6 +9,11 @@ type Agent struct {
 	Command        string
 	ConfigDir      string
 	InstallCommand string
+
+	// Env var mappings for config resolution
+	APIKeyEnvVar  string // e.g., "ANTHROPIC_API_KEY" for Claude
+	BaseURLEnvVar string // e.g., "ANTHROPIC_BASE_URL" for Claude
+	ModelEnvVar   string // e.g., "ANTHROPIC_MODEL" for Claude
 }
 
 type Registry struct {
@@ -24,28 +29,40 @@ func init() {
 func NewRegistry() *Registry {
 	agents := []Agent{
 		{
-			Name:           "Claude Code",
-			Command:        "claude",
-			ConfigDir:      ".claude",
+			Name:          "Claude Code",
+			Command:       "claude",
+			ConfigDir:     ".claude",
 			InstallCommand: "npm install -g @anthropic-ai/claude-code",
+			APIKeyEnvVar:  "ANTHROPIC_API_KEY",
+			BaseURLEnvVar: "ANTHROPIC_BASE_URL",
+			ModelEnvVar:   "ANTHROPIC_MODEL",
 		},
 		{
-			Name:           "OpenCode",
-			Command:        "opencode",
-			ConfigDir:      ".opencode",
+			Name:          "OpenCode",
+			Command:       "opencode",
+			ConfigDir:     ".opencode",
 			InstallCommand: "go install github.com/opencode-ai/opencode@latest",
+			APIKeyEnvVar:  "OPENAI_API_KEY",
+			BaseURLEnvVar: "OPENAI_BASE_URL",
+			ModelEnvVar:   "", // OpenCode uses config file for model
 		},
 		{
-			Name:           "Copilot CLI",
-			Command:        "github-copilot",
-			ConfigDir:      ".github",
+			Name:          "Copilot CLI",
+			Command:       "github-copilot",
+			ConfigDir:     ".github",
 			InstallCommand: "npm install -g @github/copilot",
+			APIKeyEnvVar:  "GITHUB_TOKEN",
+			BaseURLEnvVar: "",
+			ModelEnvVar:   "", // Copilot uses config file for model
 		},
 		{
-			Name:           "Codex",
-			Command:        "codex",
-			ConfigDir:      ".codex",
+			Name:          "Codex",
+			Command:       "codex",
+			ConfigDir:     ".codex",
 			InstallCommand: "npm install -g @openai/codex",
+			APIKeyEnvVar:  "OPENAI_API_KEY",
+			BaseURLEnvVar: "OPENAI_BASE_URL",
+			ModelEnvVar:   "", // Codex uses config file for model
 		},
 	}
 
