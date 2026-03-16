@@ -8,6 +8,46 @@ on:
   workflow_dispatch:
 
 jobs:
+  pr-lint:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for banned files
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { execSync } = require('child_process');
+            const banned = ['.beads/*', '.claude/settings.local.json'];
+            const found = [];
+            for (const pattern of banned) {
+              try {
+                execSync(`git ls-files --error-unmatch '${pattern}'`, { stdio: 'pipe' });
+                found.push(pattern);
+              } catch {
+                // not tracked — OK
+              }
+            }
+            if (found.length > 0) {
+              core.setFailed(`Banned files detected: ${found.join(', ')}`);
+            }
+
+      - name: Check PR body is not empty
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const body = context.payload.pull_request.body || '';
+            if (!body.trim()) {
+              core.setFailed('PR body is empty. Please describe what this PR does.');
+              return;
+            }
+            const template = fs.readFileSync('.github/PULL_REQUEST_TEMPLATE.md', 'utf8');
+            if (body.trim() === template.trim()) {
+              core.setFailed('PR body matches the template exactly. Please fill in the details.');
+            }
+
   test:
     runs-on: ubuntu-latest
     steps:

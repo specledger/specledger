@@ -41,6 +41,7 @@ Thumbs.db
 .beads/beads.db-wal
 .beads/.local_version
 .beads/export-state/
+.beads/issues.jsonl
 
 # SpecLedger specific
 .spec-cache/
