@@ -45,11 +45,11 @@ This feature follows a 2-level graph structure:
 
 ## Convention Summary
 
-| Type    | Description                  | Labels                                 |
-| ------- | ---------------------------- | -------------------------------------- |
-| epic    | Full feature epic            | `spec:[name]`                          |
-| feature | Implementation phase / story | `phase:[n]`, `story:[US#]`             |
-| task    | Implementation task          | `component:[x]`, `requirement:[fr-id]` |
+| Type    | Description                  | Parent                  | Labels                                 |
+| ------- | ---------------------------- | ----------------------- | -------------------------------------- |
+| epic    | Full feature epic            | _(none)_                | `spec:[name]`                          |
+| feature | Implementation phase / story | `--parent <epic-id>`    | `phase:[n]`, `story:[US#]`             |
+| task    | Implementation task          | `--parent <feature-id>` | `component:[x]`, `requirement:[fr-id]` |
 
 ## Agent Execution Flow
 
@@ -64,8 +64,11 @@ MCP agents and AI workflows should:
 ## Example Queries for Agents
 
 ```bash
-# Create a new task
-sl issue create "Implement OAuth redirect handler" --type task --labels "spec:[feature-name],component:backend-services"
+# Create a new feature (phase) — MUST set --parent to epic ID
+sl issue create "Setup Phase" --type feature --parent SL-[epic-id] --labels "spec:[feature-name],phase:setup"
+
+# Create a new task — MUST set --parent to its feature (phase) ID
+sl issue create "Implement OAuth redirect handler" --type task --parent SL-[feature-id] --labels "spec:[feature-name],component:backend-services"
 
 # Update notes on a task
 sl issue update SL-xyz123 --notes "Re-use helper functions from auth module"
