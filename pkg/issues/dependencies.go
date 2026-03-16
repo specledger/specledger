@@ -3,6 +3,7 @@ package issues
 import (
 	"errors"
 	"fmt"
+	"sort"
 )
 
 // Dependency-related errors
@@ -392,6 +393,11 @@ func (s *Store) buildHierarchyTree(id string, issueMap map[string]*Issue, visite
 			}
 		}
 	}
+
+	// Sort children by creation time for stable ordering
+	sort.Slice(tree.Children, func(i, j int) bool {
+		return tree.Children[i].Issue.CreatedAt.Before(tree.Children[j].Issue.CreatedAt)
+	})
 
 	return tree
 }
