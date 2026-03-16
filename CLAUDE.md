@@ -15,9 +15,14 @@ This file is auto-generated from plan.md. Manual additions are preserved below.
 
 <!-- MANUAL ADDITIONS START -->
 
+# >>> specledger-generated
+# Auto-managed by specledger - do not edit this section
+
 ## Session Start
 
-- Run `sl doctor` to check CLI version and template freshness. If templates are outdated, run `sl doctor --template` to sync.
+- Run `sl doctor --json` to verify CLI version and template freshness. If `cli_update_available` or `template_update_available` is true, suggest running `sl doctor --update --template` to resolve.
+
+# <<< specledger-generated
 
 ## Pre-push Checklist
 

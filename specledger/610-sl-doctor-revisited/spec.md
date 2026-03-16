@@ -54,6 +54,7 @@ A developer is working in a subdirectory of their SpecLedger project (e.g., `pkg
 1. **Given** a SpecLedger project at `/path/to/project/`, **When** the user runs `sl doctor --template` from `/path/to/project/pkg/cli/`, **Then** the command succeeds and updates templates correctly.
 2. **Given** a directory that is not inside any SpecLedger project, **When** the user runs `sl doctor --template`, **Then** the command returns a clear error: "not in a SpecLedger project (no specledger.yaml found)".
 3. **Given** a SpecLedger project, **When** the user runs `sl doctor` (interactive mode) from a subdirectory, **Then** the template status section correctly identifies the project and offers updates.
+4. **Given** a SpecLedger project with outdated templates, **When** the user runs `sl doctor --check`, **Then** the command prints human-readable status showing what's outdated and exits non-zero, without prompting or making changes.
 
 ---
 
@@ -120,9 +121,11 @@ A new SpecLedger user runs the onboarding workflow (`/specledger.onboard`). The 
 - **FR-014**: The onboarding constitution prompt (`specledger.onboard.md` and/or `specledger.constitution.md`) MUST guide toward high-level software design principles, not technology inventory
 - **FR-015**: The onboarding constitution prompt MUST provide example principle categories (testing philosophy, code standards, deployment strategy, error handling approach) to steer agents away from tech-stack enumeration
 - **FR-016**: ~~All embedded templates MUST be synced with their runtime copies~~ **DONE** — `checklist-template.md` and `specledger.tasks.md` embedded copies have been synced to match runtime. The CI drift guard (FR-019) prevents this from recurring
-- **FR-017**: CLAUDE.md MUST be made mergeable in the manifest (like `.gitattributes`) so `sl doctor --template` can inject a managed section with the session-start `sl doctor` reminder using `# >>> specledger-generated` / `# <<< specledger-generated` sentinels — keeping it separate from `<!-- MANUAL ADDITIONS -->` which remains human-managed and project-specific
+- **FR-017**: `sl context update` (`pkg/cli/context/updater.go`) MUST be refactored to use `MergeSentinelSection()` from `pkg/cli/playbooks/merge.go` instead of its bespoke `<!-- MANUAL ADDITIONS -->` marker system. Both implement the same pattern (managed section + preserved user content) but the sentinel approach is explicit, composable, and already manifest-driven. After refactoring, CLAUDE.md becomes a regular mergeable file — `sl doctor --template` manages the specledger-generated section, `sl context update` manages Active Technologies within a second sentinel block, and user content lives outside both
 - **FR-018**: The CLI MUST provide a way for agents to retrieve the current checklist template — either via `sl spec create` footer hints pointing to `.specledger/templates/checklist-template.md`, or via a dedicated `sl spec checklist` command that outputs the latest embedded checklist template. The hardcoded checklist structure in agent command prompts should be removed in favor of reading the CLI-provided template
 - **FR-019**: CI MUST include a template drift guard: `make build && ./bin/sl doctor --template` followed by `git diff --exit-code` on template-managed paths (`.claude/commands/`, `.claude/skills/`, `.specledger/templates/`). If drift is detected, the CI check fails — forcing contributors to update embedded templates when they change runtime copies (or vice versa)
+- **FR-020**: `sl doctor` MUST support a `--check` flag: human-readable dry-run that reports CLI version status and template freshness without prompting or making changes. Exits non-zero if updates are needed. This is the flag CLAUDE.md should recommend at session start (not `--json` which is for CI piping)
+- **FR-021**: The CLAUDE.md managed section (injected by FR-017) MUST recommend `sl doctor --check` and suggest `sl doctor --update --template` if outdated
 
 ### Key Entities
 
@@ -177,3 +180,8 @@ This spec directly addresses the following open issues:
 > - **E2E tests**: `tests/e2e/` directory does not exist yet. This spec should create it if quickstart scenarios are defined, or at minimum note the gap.
 >
 > The plan must not add tests that violate the constitution's testing tiers (Principle VI). Specifically: no hand-crafted `httptest` mocks where go-vcr cassettes are prescribed, and no unit tests pretending to be integration tests.
+>
+> **CLAUDE.md migration**: The plan MUST include a phase to migrate CLAUDE.md from the bespoke `<!-- MANUAL ADDITIONS START/END -->` pattern to the standard `MergeSentinelSection()` pattern. During this migration:
+> - The temporary `sl doctor --json` Session Start block (currently inside specledger sentinels within manual additions) MUST be removed — it will be replaced by the `--check` flag guidance once FR-020 is implemented
+> - Existing user content from manual additions (e.g., Pre-push Checklist) MUST be preserved outside the sentinel blocks
+> - The `sl context update` code MUST be refactored to use a second sentinel block (e.g., `# >>> specledger-context`) for Active Technologies instead of regenerating the entire file above manual additions
