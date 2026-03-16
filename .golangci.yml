@@ -30,11 +30,17 @@ linters:
       # QF* rules (QF1001 De Morgan, QF1003 tagged switch, QF1011 omit
       # type) are style suggestions, not correctness issues. We prefer
       # readability over mechanical transformation in these cases.
+      #
+      # G306 (WriteFile permissions > 0600) — files like .gitattributes
+      # must be world-readable (0644). The std-error-handling preset
+      # covers G301/G302 but not G306.
       # ──────────────────────────────────────────────────────────────────
       - linters: [staticcheck]
         text: "ST1005"
       - linters: [staticcheck]
         text: "QF1"
+      - linters: [gosec]
+        text: "G306"
     paths:
       - third_party$
       - builtin$
