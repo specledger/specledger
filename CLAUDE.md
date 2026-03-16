@@ -5,19 +5,23 @@ This file is auto-generated from plan.md. Manual additions are preserved below.
 ## Active Technologies
 
 - Cobra (CLI)
-- Embedded filesystem (`pkg/embedded/`) + local file I/O
 - Go 1.24.2
 - Go embed FS
-- JSONL file store (pkg/issues)
-- JSONL files per spec (`specledger/<spec>/issues.jsonl`)
-- GoReleaser (build/release)
-- `go test` with table-driven tests
+- JSONL files per spec (`specledger/<spec>/issues.jsonl`), YAML config (`specledger.yaml`), embedded filesystem (`pkg/embedded/`)
+- `go test` with table-driven tests (unit), binary invocation via `exec.Command` (integration in `tests/integration/`)
+- `pkg/cli/playbooks/` (template management)
+- `pkg/templates/` (update logic)
 
 <!-- MANUAL ADDITIONS START -->
 
-## Commit & Push Rules
+# >>> specledger-generated
+# Auto-managed by specledger - do not edit this section
 
-- **NEVER** run `git commit` or `git push` directly. Always use the `/specledger.commit` skill for all commit and push operations. This ensures auth-aware session capture works correctly.
+## Session Start
+
+- Run `sl doctor --json` to verify CLI version and template freshness. If `cli_update_available` or `template_update_available` is true, suggest running `sl doctor --update --template` to resolve.
+
+# <<< specledger-generated
 
 ## Pre-push Checklist
 
