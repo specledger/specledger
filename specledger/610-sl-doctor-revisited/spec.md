@@ -137,10 +137,26 @@ A developer runs `sl comment list` which shows truncated comment IDs (e.g., `fda
 
 ---
 
+### User Story 9 - Hook installation respects opt-out config (Priority: P2)
+
+A developer who doesn't want session capture runs `sl auth hook --remove` to uninstall the PostToolUse hook. Currently, the next `sl auth login` silently re-installs it. The CLI should respect an opt-out so users don't have to remove the hook after every login.
+
+**Why this priority**: Re-installing after explicit removal is "virus-like" behavior. Users must be able to control what gets installed to their global Claude settings.
+
+**Independent Test**: Remove the hook, set the opt-out config, run `sl auth login`, verify the hook is NOT re-installed.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user runs `sl auth hook --remove`, **When** the opt-out is persisted (e.g., in `~/.specledger/config.yaml` or `specledger.yaml`), **Then** subsequent `sl auth login` calls do NOT re-install the hook.
+2. **Given** a user with opt-out enabled, **When** they run `sl auth hook --install`, **Then** the hook is installed AND the opt-out is cleared (explicit install overrides opt-out).
+3. **Given** a fresh project with no opt-out config, **When** the user runs `sl auth login`, **Then** the hook is installed as before (backward compatible).
+
+---
+
 ### Edge Cases
 
 - What happens when `.claude/commands/` directory doesn't exist? Stale detection silently returns with no error.
-- What happens when a user has `specledger.commit.md` AND it was customized? Stale warning shown. `--force` deletes it. Files are git-tracked so recovery via `git checkout` is trivial.
+- What happens when a user has `specledger.commit.md` AND it was customized? Stale warning shown. `--force` deletes it with a warning that anything not tracked by version control will be lost without backup. Files under git are recoverable via `git checkout`.
 - What happens when `sl doctor --template` is run outside any git repository? Fails with: "Not in a git directory — are you sure you're in a SpecLedger project?"
 - What happens when multiple stale files exist? All are listed in the warning output. All deleted when `--force` is used.
 - What happens when `findProjectRoot()` reaches filesystem root without finding `specledger.yaml`? Returns clear error with navigation guidance per cli.md Principle 2.
