@@ -1,3 +1,6 @@
+version: "2"
+run:
+  tests: true
 linters:
   enable:
     - govet
@@ -6,7 +9,40 @@ linters:
     - ineffassign
     - unused
     - gosec
-
-run:
-  timeout: 5m
-  tests: true
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      # ──────────────────────────────────────────────────────────────────
+      # Disabled staticcheck rules — intentional, not oversight.
+      #
+      # ST1005 (error string style) conflicts with our "Error Messages as
+      # Navigation" principle (docs/design/cli.md, Principle 2). That
+      # principle requires multi-line errors with proper casing, arrows,
+      # and punctuation so that CLI agents and humans get actionable
+      # guidance on failure. Flattening these into lowercase single-line
+      # strings degrades the user experience.
+      #
+      # QF* rules (QF1001 De Morgan, QF1003 tagged switch, QF1011 omit
+      # type) are style suggestions, not correctness issues. We prefer
+      # readability over mechanical transformation in these cases.
+      # ──────────────────────────────────────────────────────────────────
+      - linters: [staticcheck]
+        text: "ST1005"
+      - linters: [staticcheck]
+        text: "QF1"
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
