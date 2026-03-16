@@ -17,9 +17,10 @@ A developer upgrades their `sl` CLI binary to a new version where a command has 
 
 **Acceptance Scenarios**:
 
-1. **Given** a project with `.claude/commands/specledger.commit.md` that is not in the manifest, **When** the user runs `sl doctor --template`, **Then** the output includes a warning listing `specledger.commit.md` as stale with a recommendation for manual cleanup.
-2. **Given** a project where all `.claude/commands/specledger.*.md` files match the manifest, **When** the user runs `sl doctor --template`, **Then** no stale file warnings are shown.
-3. **Given** a project with custom non-specledger commands (e.g., `my-deploy.md`) in `.claude/commands/`, **When** the user runs `sl doctor --template`, **Then** custom commands are never flagged as stale.
+1. **Given** a project with `.claude/commands/specledger.commit.md` that is not in the manifest, **When** the user runs `sl doctor --template`, **Then** the output includes a warning listing `specledger.commit.md` as stale with a recommendation to re-run with `--force` to delete.
+2. **Given** stale files detected, **When** the user runs `sl doctor --template --force`, **Then** all stale `specledger.*.md` files are deleted with a confirmation message listing each removed file.
+3. **Given** a project where all `.claude/commands/specledger.*.md` files match the manifest, **When** the user runs `sl doctor --template`, **Then** no stale file warnings are shown.
+4. **Given** a project with custom non-specledger commands (e.g., `my-deploy.md`) in `.claude/commands/`, **When** the user runs `sl doctor --template` (with or without `--force`), **Then** custom commands are never flagged or deleted.
 
 ---
 
@@ -27,7 +28,7 @@ A developer upgrades their `sl` CLI binary to a new version where a command has 
 
 A developer using SpecLedger no longer needs the `/specledger.commit` skill because the L0 PostToolUse hook (`sl session capture`) already handles session capture automatically when `git commit` is detected via regex. The redundant skill and all references to it are removed from embedded templates, project files, and documentation.
 
-**Historical context**: The PostToolUse hook was originally project-level (`.claude/settings.json`), but was removed in commit `a215636` (Mar 4, 2026) because it "was not reliably firing (especially after mid-session settings changes)". Inline capture was then moved INTO the `/specledger.commit` skill (commit `c0dffe7`). However, `sl auth login` still installs the hook to the **global** `~/.claude/settings.json`, where it works reliably. Both mechanisms currently coexist — removing the skill leaves the global hook as the sole session capture mechanism, which is the simpler and correct design (L0 hooks handle invisible automation, not L2 commands).
+**Historical context**: The PostToolUse hook was originally project-level (`.claude/settings.json`), but was removed in commit `a215636` (Mar 4, 2026) because it "was not reliably firing (especially after mid-session settings changes)". Inline capture was then moved INTO the `/specledger.commit` skill (commit `c0dffe7`). Currently `sl auth login` installs the hook to **global** `~/.claude/settings.json`. Both mechanisms coexist — removing the skill leaves the global hook as the sole session capture mechanism. The global installation must include an opt-out config option so users who don't want session capture can disable it without the hook being re-added on every `sl auth login`.
 
 **Why this priority**: The skill actively causes friction — CLAUDE.md mandates its use, overriding Claude's natural git workflow. Removing it unblocks normal commit behavior while the L0 hook continues to provide session capture.
 
@@ -90,29 +91,86 @@ A new SpecLedger user runs the onboarding workflow (`/specledger.onboard`). The 
 
 ---
 
+### User Story 6 - Checkpoint captures implementation decisions (Priority: P3)
+
+During implementation, developers make decisions that diverge from the plan (e.g., a whitespace normalization choice not identified during planning). The `/specledger.checkpoint` command should have a structured `### Decision Log` section to capture these decisions so they don't get lost between sessions.
+
+**Why this priority**: Decisions made during implementation are high-value context that gets lost without structured capture. Currently the checkpoint template has `### Notes` but no dedicated place for decisions.
+
+**Independent Test**: Run `/specledger.checkpoint` after closing tasks and verify the decision log section is present and prompts for divergences.
+
+**Acceptance Scenarios**:
+
+1. **Given** a checkpoint is triggered after closing tasks, **When** the agent generates the checkpoint, **Then** the `### Decision Log` section prompts: "Did implementation diverge from plan/spec? Were assumptions invalidated?"
+2. **Given** a decision was made during implementation, **When** the user records it in the decision log, **Then** the entry includes What, Why, Impact level, and Artifacts affected.
+
+---
+
+### User Story 7 - Implement command uses sl issue ready for task selection (Priority: P3)
+
+The `/specledger.implement` command currently uses `sl issue list --status in_progress` for task selection. It should use `sl issue ready` which handles dependency resolution automatically — finding tasks whose blockers are all satisfied.
+
+**Why this priority**: `sl issue ready` already exists and handles the complexity of dependency checking. Using it aligns with the documented command inventory and provides better UX.
+
+**Independent Test**: Run `/specledger.implement` and verify it calls `sl issue ready` for picking the next task.
+
+**Acceptance Scenarios**:
+
+1. **Given** the implement workflow starts, **When** it picks the next task to work on, **Then** it uses `sl issue ready` (not `sl issue list --status in_progress`).
+2. **Given** a task has unsatisfied blockers, **When** `sl issue ready` is called, **Then** that task is not offered as the next work item.
+
+---
+
+### User Story 8 - Comment commands accept short UUID prefixes (Priority: P3)
+
+A developer runs `sl comment list` which shows truncated comment IDs (e.g., `fda6ac86-cab`). When they try to resolve a comment using this truncated ID, the command fails because it requires the full UUID. All `sl comment` subcommands that accept `<comment-id>` should resolve short prefixes to full UUIDs, like git does with commit hashes.
+
+**Why this priority**: This is a usability bug discovered during clarification of this spec. It affects all comment operations (resolve, show, reply) and makes the CLI frustrating to use.
+
+**Independent Test**: Run `sl comment resolve <short-prefix> --reason "test"` and verify it resolves to the full UUID and succeeds.
+
+**Acceptance Scenarios**:
+
+1. **Given** a comment with ID `fda6ac86-cab4-4850-...`, **When** the user runs `sl comment resolve fda6ac86 --reason "test"`, **Then** it resolves the prefix to the full UUID and succeeds.
+2. **Given** two comments whose IDs share a prefix, **When** the user provides the ambiguous prefix, **Then** the command errors with "ambiguous comment ID, matches: ..." listing the full IDs.
+3. **Given** no comment matches the prefix, **When** the user provides a non-matching prefix, **Then** the command errors with "comment not found" and suggests `sl comment list`.
+
+---
+
 ### Edge Cases
 
 - What happens when `.claude/commands/` directory doesn't exist? Stale detection silently returns with no error.
-- What happens when a user has `specledger.commit.md` AND it was customized? Stale warning is shown; user decides whether to delete — no auto-deletion per design D3.
-- What happens when `sl doctor --template` is run outside any git repository? Fails with clear error about not being in a SpecLedger project.
-- What happens when multiple stale files exist? All are listed in the warning output.
-- What happens when `findProjectRoot()` reaches filesystem root without finding `specledger.yaml`? Returns clear error, same as "not in a SpecLedger project".
-- What happens when `sl spec create` is called but the template file doesn't exist in `.specledger/templates/`? CLI should fall back to embedded templates and note the source in output.
-- What happens when onboarding is run on a project that already has a constitution? The existing constitution should be preserved (already protected in manifest).
-- What happens when embedded checklist template is out of sync with the runtime copy? `sl doctor --template` should overwrite runtime with embedded (since checklist template is not protected).
+- What happens when a user has `specledger.commit.md` AND it was customized? Stale warning shown. `--force` deletes it. Files are git-tracked so recovery via `git checkout` is trivial.
+- What happens when `sl doctor --template` is run outside any git repository? Fails with: "Not in a git directory — are you sure you're in a SpecLedger project?"
+- What happens when multiple stale files exist? All are listed in the warning output. All deleted when `--force` is used.
+- What happens when `findProjectRoot()` reaches filesystem root without finding `specledger.yaml`? Returns clear error with navigation guidance per cli.md Principle 2.
+- What happens when `sl spec create` is called but `.specledger/templates/` doesn't exist on disk? CLI reads directly from embedded templates (they are always available in the binary). No fallback needed — embedded is the source of truth. Templates on disk are copies for user reference only.
+- What happens when onboarding is run on a project that already has a constitution? The existing constitution is preserved (protected in manifest).
+- What happens when `sl doctor --template` overwrites a user-modified runtime template? Embedded is source of truth — runtime copies are always overwritten. Users who customized templates rely on git to resolve conflicts (KISS).
+
+## Clarifications
+
+### Session 2026-03-16
+
+- Q: Should `sl doctor --template` offer `--force` to auto-delete stale `specledger.*` files? → A: Yes — warn by default, `--force` deletes with confirmation. The `specledger.` prefix is CLI-owned.
+- Q: Should hook installation stay global or move to project-level? → A: Keep global but add opt-out config so users can disable session capture without the hook being re-added on every `sl auth login`.
+- Q: Should users be able to modify runtime templates, and what happens on conflict? → A: Embedded is source of truth. `sl doctor --template` always overwrites. Users who customize rely on git for conflict resolution (KISS).
+- Q: Should #84 (decision log) and #92 (sl issue ready) be added to this spec? → A: Yes, as P3 stories. Also add KISS to the project constitution.
+- Q: Should FR-008 also audit `docs/design/commands.md`? → A: Yes, audit both README.md and commands.md.
+- Q: Should the "protected" concept be visible to users? → A: Yes, show in `sl doctor --template` output which files were skipped as protected.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
 - **FR-001**: `detectStaleFiles()` MUST scan `.claude/commands/` using `os.ReadDir()` and report files matching `specledger.*.md` that are not in the playbook manifest
-- **FR-002**: Stale files MUST be reported in `result.Stale` but NOT auto-deleted (warn-only, per design decision D3)
+- **FR-002**: By default, stale files MUST be warned about but NOT auto-deleted. With `--force` flag, stale `specledger.*` files MUST be deleted with a confirmation message listing each removed file. The `specledger.` prefix is CLI-owned; custom commands (no prefix) are never touched
 - **FR-003**: `specledger.commit` MUST be removed from the playbook manifest
 - **FR-004**: The embedded template file `specledger.commit.md` MUST be deleted
 - **FR-005**: The project-level `.claude/commands/specledger.commit.md` MUST be deleted
-- **FR-006**: ~~CLAUDE.md "Commit & Push Rules" section MUST be removed from `<!-- MANUAL ADDITIONS -->`~~ **DONE** — replaced with session-start `sl doctor` reminder. Sentinel markers preserved. The `<!-- MANUAL ADDITIONS -->` section remains human-managed for project-specific content like the Pre-push Checklist
+- **FR-006**: ~~CLAUDE.md "Commit & Push Rules" section MUST be removed~~ **DONE** — replaced with session-start `sl doctor` reminder inside specledger sentinels. The `<!-- MANUAL ADDITIONS -->` markers will be fully removed when FR-017 (sentinel unification) is implemented; user content (Pre-push Checklist) will be preserved outside sentinel blocks
 - **FR-007**: Constitution line referencing `/specledger.commit` MUST be removed
-- **FR-008**: Design docs MUST remove `commit` from the workflow diagram and escape hatches list
+- **FR-008**: Design docs MUST remove `commit` from the workflow diagram and escape hatches list in `docs/design/README.md` (lines 63, 77) AND audit `docs/design/commands.md` for any remaining commit command references
 - **FR-009**: `performTemplateUpdate()` and `outputDoctorHuman()` MUST use a shared `findProjectRoot()` utility instead of `os.Getwd()`
 - **FR-010**: The existing `findProjectRoot()` in `deps.go` MUST be extracted to a shared package and reused by both `doctor.go` and `deps.go`
 - **FR-011**: `sl spec create --json` output MUST include a `NEXT_STEPS` field instructing agents to read `.specledger/templates/spec-template.md` before writing the spec file
@@ -126,6 +184,12 @@ A new SpecLedger user runs the onboarding workflow (`/specledger.onboard`). The 
 - **FR-019**: CI MUST include a template drift guard: `make build && ./bin/sl doctor --template` followed by `git diff --exit-code` on template-managed paths (`.claude/commands/`, `.claude/skills/`, `.specledger/templates/`). If drift is detected, the CI check fails — forcing contributors to update embedded templates when they change runtime copies (or vice versa)
 - **FR-020**: `sl doctor` MUST support a `--check` flag: human-readable dry-run that reports CLI version status and template freshness without prompting or making changes. Exits non-zero if updates are needed. This is the flag CLAUDE.md should recommend at session start (not `--json` which is for CI piping)
 - **FR-021**: The CLAUDE.md managed section (injected by FR-017) MUST recommend `sl doctor --check` and suggest `sl doctor --update --template` if outdated
+- **FR-022**: `sl auth login` MUST respect an opt-out config (e.g., `session_capture: false` in `specledger.yaml` or `~/.specledger/config.yaml`) to prevent the PostToolUse hook from being re-installed on every login. `sl auth hook --remove` should persist the opt-out so the user doesn't have to remove it again
+- **FR-023**: `sl doctor --template` output MUST list protected files separately (e.g., "Skipped N protected files: constitution.md, AGENTS.md") so users can see what won't be overwritten
+- **FR-024**: The `/specledger.checkpoint` command template MUST include a `### Decision Log` section that captures implementation decisions diverging from plan/spec/tasks — structured as: What, Why, Impact (minimal/moderate/significant), Artifacts affected
+- **FR-025**: The `/specledger.implement` command template MUST use `sl issue ready` instead of `sl issue list --status in_progress` for task selection. Resume logic may still check in-progress tasks, but picking the next task should use the readiness-based command
+- **FR-026**: The project constitution MUST include a KISS (Keep It Simple, Stupid) principle — embedded templates on disk are copies of the CLI binary's source of truth; users who customize rely on git for conflict resolution; no complex merge infrastructure needed
+- **FR-027**: All `sl comment` subcommands that accept `<comment-id>` MUST support short UUID prefix matching — load all comment IDs for the current spec, find those starting with the given prefix, error if 0 or >1 match, use the full UUID if exactly 1 match
 
 ### Key Entities
 
@@ -148,6 +212,12 @@ A new SpecLedger user runs the onboarding workflow (`/specledger.onboard`). The 
 - **SC-010**: ~~Embedded templates match runtime copies~~ **DONE** — verified zero drift. CI drift guard (FR-019) prevents recurrence
 - **SC-011**: After `sl doctor --template`, CLAUDE.md contains a `# >>> specledger-generated` section with a session-start `sl doctor` reminder, separate from the `<!-- MANUAL ADDITIONS -->` block
 - **SC-012**: The `/specledger.specify` checklist is sourced from the CLI's embedded template, not hardcoded in the command prompt
+- **SC-013**: `sl doctor --template --force` deletes stale `specledger.*` files and reports each deletion
+- **SC-014**: After `sl auth hook --remove`, re-running `sl auth login` does NOT re-install the hook (opt-out persisted)
+- **SC-015**: `sl doctor --template` output lists protected files that were skipped
+- **SC-016**: Checkpoint template includes `### Decision Log` with structured fields
+- **SC-017**: Implement command uses `sl issue ready` for task selection
+- **SC-018**: `sl comment resolve <short-prefix>` succeeds when prefix is unambiguous
 
 ### Previous work
 
@@ -167,6 +237,9 @@ This spec directly addresses the following open issues:
 | [#91](https://github.com/specledger/specledger/issues/91) | Onboarding explore/audit for principles is too technical | US-5: Fix constitution prompt to guide toward design principles |
 | [#96](https://github.com/specledger/specledger/issues/96) | refactor: extract ContextDetector to shared package and standardize --spec flag | FR-010: Overlaps with extracting `findProjectRoot()` to shared package |
 | [#82](https://github.com/specledger/specledger/issues/82) | Improve embedded skill templates: fix duplicates, optimize triggering | FR-016: Sync embedded checklist template drift |
+| [#84](https://github.com/specledger/specledger/issues/84) | Add decision log section to checkpoint prompt template | US-6: Decision log in checkpoint template |
+| [#92](https://github.com/specledger/specledger/issues/92) | Use `sl issue ready` in implement command | US-7: Replace task selection with readiness-based command |
+| [#106](https://github.com/specledger/specledger/issues/106) | sl comment resolve requires full UUID, should accept short prefix | US-8: Prefix-matching UUID resolution for comment commands |
 
 ---
 
