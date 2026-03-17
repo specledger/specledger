@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/specledger/specledger/internal/agent"
 	"github.com/specledger/specledger/pkg/cli/auth"
 	"github.com/specledger/specledger/pkg/cli/config"
 	"github.com/specledger/specledger/pkg/cli/launcher"
@@ -301,53 +302,84 @@ func launchAgent(projectDir string, agentPref string) error {
 		return nil
 	}
 
-	var agent launcher.AgentOption
-	for _, a := range launcher.DefaultAgents {
-		if a.Name == agentPref {
-			agent = a
-			break
-		}
-	}
-	if agent.Command == "" {
-		ui.PrintWarning(fmt.Sprintf("Unknown agent '%s'. Skipping agent launch.", agentPref))
+	// Parse comma-separated agent preference (TUI may return "Claude Code,OpenCode")
+	// Use the first agent in the list as the primary agent to launch
+	primaryAgent := strings.TrimSpace(strings.Split(agentPref, ",")[0])
+
+	// Look up agent using the registry (supports both display name and command)
+	ag, found := agent.Lookup(primaryAgent)
+	if !found {
+		ui.PrintWarning(fmt.Sprintf("Unknown agent '%s'. Skipping agent launch.", primaryAgent))
 		return nil
 	}
 
-	al := launcher.NewAgentLauncher(agent, projectDir)
+	// Create launcher using agent definition
+	l := launcher.NewLauncherForAgent(ag, projectDir)
 
-	if !al.IsAvailable() {
+	// Check if agent is installed
+	wrappedAgent := launcher.NewAgentFromDefinition(ag)
+	if err := wrappedAgent.CheckInstalled(); err != nil {
 		fmt.Println()
-		ui.PrintWarning(fmt.Sprintf("%s is not installed.", agent.Name))
-		fmt.Printf("  %s\n", al.InstallInstructions())
+		ui.PrintWarning(fmt.Sprintf("%s is not installed.", ag.Name))
+		fmt.Printf("  Install: %s\n", ag.InstallCommand)
 		fmt.Println(ui.Dim("  Project setup is complete. You can launch the agent manually after installing."))
 		return nil
 	}
 
-	cfg, err := config.Load()
-	if err == nil && cfg.Agent != nil {
-		resolved := config.MergeConfigs(
-			config.DefaultAgentConfig(),
-			cfg.Agent,
-			nil,
-			nil,
-			nil,
-		)
-		envVars := resolved.GetEnvVars()
-		if len(envVars) > 0 {
-			al.SetEnv(envVars)
+	// Get agent settings from config (using same logic as 'sl code')
+	settings := config.ResolveAgentSettings(ag.Command)
+	if settings != nil {
+		envVars := make(map[string]string)
+
+		// Set arguments
+		if len(settings.Arguments) > 0 {
+			l.SetFlags(settings.Arguments)
 		}
-		cliFlags := resolved.GetCLIFlags()
-		if len(cliFlags) > 0 {
-			al.SetFlags(cliFlags)
+
+		// Map API key to agent's env var
+		if settings.APIKey != "" && ag.APIKeyEnvVar != "" {
+			envVars[ag.APIKeyEnvVar] = settings.APIKey
+		}
+
+		// Map base URL to agent's env var
+		if settings.BaseURL != "" && ag.BaseURLEnvVar != "" {
+			envVars[ag.BaseURLEnvVar] = settings.BaseURL
+		}
+
+		// Map model to agent's env var
+		if settings.Model != "" && ag.ModelEnvVar != "" {
+			envVars[ag.ModelEnvVar] = settings.Model
+		}
+
+		// Add per-agent env vars
+		for k, v := range settings.EnvVars {
+			envVars[k] = v
+		}
+
+		// Claude-specific: map model aliases to env vars
+		if ag.Command == "claude" {
+			if v, ok := settings.ModelAliases["sonnet"]; ok && v != "" {
+				envVars["ANTHROPIC_DEFAULT_SONNET_MODEL"] = v
+			}
+			if v, ok := settings.ModelAliases["opus"]; ok && v != "" {
+				envVars["ANTHROPIC_DEFAULT_OPUS_MODEL"] = v
+			}
+			if v, ok := settings.ModelAliases["haiku"]; ok && v != "" {
+				envVars["ANTHROPIC_DEFAULT_HAIKU_MODEL"] = v
+			}
+		}
+
+		if len(envVars) > 0 {
+			l.SetEnv(envVars)
 		}
 	}
 
 	fmt.Println()
-	ui.PrintSection("Launching " + agent.Name)
+	ui.PrintSection("Launching " + ag.Name)
 	fmt.Println(ui.Dim("  Type /specledger.onboard to start the guided workflow."))
 	fmt.Println()
 
-	if err := al.Launch(); err != nil {
+	if err := l.Launch(); err != nil {
 		ui.PrintWarning(fmt.Sprintf("Agent exited: %v", err))
 	}
 

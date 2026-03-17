@@ -336,34 +336,81 @@ func LinkAgentToShared(projectDir string, agentNames []string, force bool) error
 		sharedCommandsDir := filepath.Join(projectDir, ".agents", "commands")
 		sharedSkillsDir := filepath.Join(projectDir, ".agents", "skills")
 
+		// Ensure .agents directories exist
+		if err := os.MkdirAll(sharedCommandsDir, 0755); err != nil {
+			return fmt.Errorf("failed to create .agents/commands: %w", err)
+		}
+		if err := os.MkdirAll(sharedSkillsDir, 0755); err != nil {
+			return fmt.Errorf("failed to create .agents/skills: %w", err)
+		}
+
 		if err := os.MkdirAll(agentDir, 0755); err != nil {
 			return fmt.Errorf("failed to create %s: %w", agentDir, err)
 		}
 
+		// Handle commands directory
 		commandsLink := filepath.Join(agentDir, "commands")
-		if _, err := os.Stat(commandsLink); err == nil {
-			if !force {
-				continue
-			}
-			os.Remove(commandsLink)
-		}
-		if err := agent.SymlinkOrCopy(sharedCommandsDir, commandsLink); err != nil {
+		if err := migrateAndLink(commandsLink, sharedCommandsDir, force); err != nil {
 			return fmt.Errorf("failed to link %s/commands: %w", ag.Name, err)
 		}
 
+		// Handle skills directory
 		skillsLink := filepath.Join(agentDir, "skills")
-		if _, err := os.Stat(skillsLink); err == nil {
-			if !force {
-				continue
-			}
-			os.Remove(skillsLink)
-		}
-		if err := agent.SymlinkOrCopy(sharedSkillsDir, skillsLink); err != nil {
+		if err := migrateAndLink(skillsLink, sharedSkillsDir, force); err != nil {
 			return fmt.Errorf("failed to link %s/skills: %w", ag.Name, err)
 		}
 	}
 
 	return nil
+}
+
+// migrateAndLink handles migrating contents from an existing directory to shared,
+// then creates a symlink to the shared directory.
+func migrateAndLink(linkPath, sharedDir string, force bool) error {
+	// Check if linkPath already exists
+	info, err := os.Lstat(linkPath)
+	if err == nil {
+		// Already exists
+		if info.Mode()&os.ModeSymlink != 0 {
+			// It's already a symlink, check if it points to the right place
+			target, _ := os.Readlink(linkPath)
+			if target == sharedDir {
+				return nil // Already correctly linked
+			}
+		}
+
+		if !force {
+			return nil // Skip if not forcing
+		}
+
+		// If it's a directory (not a symlink), migrate contents first
+		if info.IsDir() {
+			// Migrate contents to shared directory
+			entries, err := os.ReadDir(linkPath)
+			if err != nil {
+				return fmt.Errorf("failed to read %s: %w", linkPath, err)
+			}
+			for _, entry := range entries {
+				src := filepath.Join(linkPath, entry.Name())
+				dst := filepath.Join(sharedDir, entry.Name())
+				// Only copy if destination doesn't exist
+				if _, err := os.Stat(dst); os.IsNotExist(err) {
+					if err := copyFileOrDir(src, dst); err != nil {
+						// Log warning but continue
+						fmt.Printf("Warning: failed to migrate %s: %v\n", src, err)
+					}
+				}
+			}
+		}
+
+		// Remove existing file/directory/symlink
+		if err := os.RemoveAll(linkPath); err != nil {
+			return fmt.Errorf("failed to remove %s: %w", linkPath, err)
+		}
+	}
+
+	// Create symlink
+	return agent.SymlinkOrCopy(sharedDir, linkPath)
 }
 
 func copyFileOrDir(src, dst string) error {

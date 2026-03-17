@@ -2,14 +2,14 @@ version: 1.0.0
 project:
     id: 7109364a-2ebc-451f-b052-2fbe5453459e
     name: specledger
-    short_code: sp
-    created: 2026-03-17T23:25:43.685837+08:00
-    modified: 2026-03-17T23:25:46.219534+08:00
+    short_code: sl
+    created: 2026-03-18T00:21:32.099584+08:00
+    modified: 2026-03-18T00:21:33.411067+08:00
     version: 0.1.0
 playbook:
     name: specledger
     version: 1.0.0
-    applied_at: 2026-03-17T23:25:43.685837+08:00
+    applied_at: 2026-03-18T00:21:32.099584+08:00
     structure:
         - .specledger/
         - .gitattributes
@@ -18,5 +18,5 @@ playbook:
 template_version: dev
 task_tracker:
     choice: builtin
-    enabled_at: 2026-03-17T23:25:43.685837+08:00
+    enabled_at: 2026-03-18T00:21:32.099584+08:00
 artifact_path: specledger/

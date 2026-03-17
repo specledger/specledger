@@ -305,7 +305,7 @@ sl issue create --title "Login Feature" --description "Implement user authentica
 ### Feature (Phase)
 
 ```bash
-sl issue create --title "Setup Phase" --description "Initialize project structure and dependencies" --type feature --parent SL-xxxxxx --labels "spec:006-login-auth,phase:setup,component:infra" --priority 1
+sl issue create --title "Setup Phase" --description "Initialize project structure and dependencies" --type feature --labels "spec:006-login-auth,phase:setup,component:infra" --priority 1
 ```
 
 ### Task
@@ -327,7 +327,7 @@ sl issue link SL-xxxxx blocks SL-yyyyy
 - `--labels` (comma-separated)
 - `--priority` (0-5)
 - `--spec` (override spec context)
-- `--parent` **(MANDATORY for all non-epic issues)** — parent issue ID for hierarchy. Features must have the epic as parent. Tasks must have a feature as parent.
+- `--parent` (parent issue ID for hierarchy)
 - `--acceptance-criteria` (acceptance criteria text)
 - `--design` (design notes/approach)
 - `--dod` (definition of done item, can be repeated)
@@ -378,24 +378,3 @@ sl issue create --title "Feature" --description "With '\''quotes'\''" --type tas
 echo "Warning: Could not create issue 'Feature'. Error: [specific error]"
 echo "Suggestion: [remediation step]"
 ```
-
-## Post-Creation Validation
-
-**CRITICAL**: After creating all issues, verify no orphaned issues exist:
-
-```bash
-# Check for orphaned issues (non-epic issues without a parent)
-sl issue list --orphaned
-```
-
-If orphaned issues are found, fix them immediately using:
-
-```bash
-# Set parent for multiple issues at once
-sl issue reparent <parent-id> <child1> <child2> <child3>
-
-# Or use sl issue link for individual issues
-sl issue link <child-id> parent <parent-id>
-```
-
-**Every feature issue MUST have the epic as parent. Every task issue MUST have a feature as parent.** Orphaned issues break tree views and hierarchy navigation.
