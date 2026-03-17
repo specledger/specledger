@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/specledger/specledger/internal/agent"
 	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/playbooks"
 )
@@ -94,8 +95,9 @@ func UpdateTemplates(projectDir, cliVersion string) (*TemplateUpdateResult, erro
 
 // updateAgentSymlinks reads selected agents from constitution and recreates symlinks.
 // This is called during template update to ensure agent symlinks are in sync.
+// It migrates all agent directories (not just selected ones) to .agents/ and creates symlinks.
 func updateAgentSymlinks(projectDir string) error {
-	// Read selected agents from constitution
+	// Read selected agents from constitution for linking
 	constitutionPath := filepath.Join(projectDir, ".specledger", "memory", "constitution.md")
 	content, err := os.ReadFile(constitutionPath)
 	if err != nil {
@@ -103,24 +105,24 @@ func updateAgentSymlinks(projectDir string) error {
 		return nil
 	}
 
-	// Parse selected agents from constitution
+	// Parse preferred agent from constitution (format: "- **Preferred Agent**: Claude Code")
 	var selectedAgents []string
-	inSelectedAgentsSection := false
 	for _, line := range strings.Split(string(content), "\n") {
-		if strings.Contains(line, "## Selected Agents") {
-			inSelectedAgentsSection = true
-			continue
-		}
-		if inSelectedAgentsSection {
-			if strings.HasPrefix(line, "## ") {
-				break
-			}
-			if strings.HasPrefix(line, "- ") {
-				agentName := strings.TrimSpace(strings.TrimPrefix(line, "- "))
-				if agentName != "" {
-					selectedAgents = append(selectedAgents, agentName)
+		if strings.Contains(line, "**Preferred Agent**:") {
+			parts := strings.SplitN(line, "**Preferred Agent**:", 2)
+			if len(parts) == 2 {
+				agentName := strings.TrimSpace(parts[1])
+				if agentName != "" && agentName != "None" {
+					// Handle comma-separated list (e.g., "Claude Code, OpenCode")
+					for _, name := range strings.Split(agentName, ",") {
+						name = strings.TrimSpace(name)
+						if name != "" {
+							selectedAgents = append(selectedAgents, name)
+						}
+					}
 				}
 			}
+			break
 		}
 	}
 
@@ -131,31 +133,53 @@ func updateAgentSymlinks(projectDir string) error {
 
 	// Ensure .agents/ directory exists
 	agentsDir := filepath.Join(projectDir, ".agents")
-	commandsDir := filepath.Join(agentsDir, "commands")
-	skillsDir := filepath.Join(agentsDir, "skills")
+	sharedCommandsDir := filepath.Join(agentsDir, "commands")
+	sharedSkillsDir := filepath.Join(agentsDir, "skills")
 
-	if _, err := os.Stat(agentsDir); os.IsNotExist(err) {
-		if err := os.MkdirAll(commandsDir, 0755); err != nil {
-			return fmt.Errorf("failed to create .agents/commands: %w", err)
-		}
-		if err := os.MkdirAll(skillsDir, 0755); err != nil {
-			return fmt.Errorf("failed to create .agents/skills: %w", err)
-		}
+	if err := os.MkdirAll(sharedCommandsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .agents/commands: %w", err)
+	}
+	if err := os.MkdirAll(sharedSkillsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .agents/skills: %w", err)
 	}
 
-	// Migrate existing .claude/commands to .agents/commands if needed
-	claudeCommandsDir := filepath.Join(projectDir, ".claude", "commands")
-	if _, err := os.Stat(claudeCommandsDir); err == nil {
-		// Check if it's a symlink (already linked) or a real directory
-		if fi, err := os.Lstat(claudeCommandsDir); err == nil && fi.Mode()&os.ModeSymlink == 0 {
-			// It's a real directory, migrate contents to .agents/commands
-			entries, err := os.ReadDir(claudeCommandsDir)
+	// Migrate ALL agent directories to .agents/ (not just selected ones)
+	// This ensures we don't leave orphaned directories when switching agents
+	for _, ag := range agent.All() {
+		// Skip agents without a config dir or with special dirs (like .github)
+		if ag.ConfigDir == "" || ag.ConfigDir == ".github" {
+			continue
+		}
+
+		agentDir := filepath.Join(projectDir, ag.ConfigDir)
+		agentCommandsDir := filepath.Join(agentDir, "commands")
+		agentSkillsDir := filepath.Join(agentDir, "skills")
+
+		// Migrate commands if it's a real directory (not symlink)
+		if fi, err := os.Lstat(agentCommandsDir); err == nil && fi.Mode()&os.ModeSymlink == 0 {
+			entries, err := os.ReadDir(agentCommandsDir)
 			if err == nil {
 				for _, entry := range entries {
-					src := filepath.Join(claudeCommandsDir, entry.Name())
-					dst := filepath.Join(commandsDir, entry.Name())
+					src := filepath.Join(agentCommandsDir, entry.Name())
+					dst := filepath.Join(sharedCommandsDir, entry.Name())
 					if _, err := os.Stat(dst); os.IsNotExist(err) {
-						copyFileOrDir(src, dst)
+						// Best effort copy - ignore errors
+						_ = copyFileOrDir(src, dst)
+					}
+				}
+			}
+		}
+
+		// Migrate skills if it's a real directory (not symlink)
+		if fi, err := os.Lstat(agentSkillsDir); err == nil && fi.Mode()&os.ModeSymlink == 0 {
+			entries, err := os.ReadDir(agentSkillsDir)
+			if err == nil {
+				for _, entry := range entries {
+					src := filepath.Join(agentSkillsDir, entry.Name())
+					dst := filepath.Join(sharedSkillsDir, entry.Name())
+					if _, err := os.Stat(dst); os.IsNotExist(err) {
+						// Best effort copy - ignore errors
+						_ = copyFileOrDir(src, dst)
 					}
 				}
 			}

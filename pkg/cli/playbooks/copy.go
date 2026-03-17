@@ -322,26 +322,43 @@ func CreateAgentSharedDir(projectDir string, force bool) error {
 }
 
 func LinkAgentToShared(projectDir string, agentNames []string, force bool) error {
-	for _, agentName := range agentNames {
-		ag, found := agent.Lookup(agentName)
-		if !found {
-			continue
-		}
+	// Ensure .agents directories exist
+	sharedCommandsDir := filepath.Join(projectDir, ".agents", "commands")
+	sharedSkillsDir := filepath.Join(projectDir, ".agents", "skills")
+	if err := os.MkdirAll(sharedCommandsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .agents/commands: %w", err)
+	}
+	if err := os.MkdirAll(sharedSkillsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create .agents/skills: %w", err)
+	}
 
+	// Build set of selected agents for quick lookup
+	selectedSet := make(map[string]bool)
+	for _, name := range agentNames {
+		selectedSet[strings.ToLower(strings.TrimSpace(name))] = true
+	}
+
+	// Link ALL agents that have existing config directories or are selected
+	// This ensures we don't leave orphaned directories with wrong symlinks
+	for _, ag := range agent.All() {
+		// Skip agents without a config dir or with special dirs (like .github)
 		if ag.ConfigDir == "" || ag.ConfigDir == ".github" {
 			continue
 		}
 
 		agentDir := filepath.Join(projectDir, ag.ConfigDir)
-		sharedCommandsDir := filepath.Join(projectDir, ".agents", "commands")
-		sharedSkillsDir := filepath.Join(projectDir, ".agents", "skills")
+		commandsLink := filepath.Join(agentDir, "commands")
+		skillsLink := filepath.Join(agentDir, "skills")
 
-		// Ensure .agents directories exist
-		if err := os.MkdirAll(sharedCommandsDir, 0755); err != nil {
-			return fmt.Errorf("failed to create .agents/commands: %w", err)
-		}
-		if err := os.MkdirAll(sharedSkillsDir, 0755); err != nil {
-			return fmt.Errorf("failed to create .agents/skills: %w", err)
+		// Check if this agent should be linked:
+		// 1. It's in the selected list, OR
+		// 2. It has an existing config directory (commands or skills)
+		isSelected := selectedSet[strings.ToLower(ag.Name)] || selectedSet[strings.ToLower(ag.Command)]
+		hasCommandsDir := dirExists(commandsLink)
+		hasSkillsDir := dirExists(skillsLink)
+
+		if !isSelected && !hasCommandsDir && !hasSkillsDir {
+			continue // Skip agents that aren't selected and don't have existing dirs
 		}
 
 		if err := os.MkdirAll(agentDir, 0755); err != nil {
@@ -349,19 +366,26 @@ func LinkAgentToShared(projectDir string, agentNames []string, force bool) error
 		}
 
 		// Handle commands directory
-		commandsLink := filepath.Join(agentDir, "commands")
 		if err := migrateAndLink(commandsLink, sharedCommandsDir, force); err != nil {
 			return fmt.Errorf("failed to link %s/commands: %w", ag.Name, err)
 		}
 
 		// Handle skills directory
-		skillsLink := filepath.Join(agentDir, "skills")
 		if err := migrateAndLink(skillsLink, sharedSkillsDir, force); err != nil {
 			return fmt.Errorf("failed to link %s/skills: %w", ag.Name, err)
 		}
 	}
 
 	return nil
+}
+
+// dirExists checks if a path exists and is a directory (or symlink to directory)
+func dirExists(path string) bool {
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+	return info.IsDir()
 }
 
 // migrateAndLink handles migrating contents from an existing directory to shared,

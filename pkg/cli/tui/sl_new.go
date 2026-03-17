@@ -70,9 +70,9 @@ type Model struct {
 	principleCursor int
 
 	// Agent preference (step 6) - multi-select
-	agentOptions      []launcher.AgentOption
-	selectedAgentIdx  int
-	selectedAgents    map[string]bool // tracks which agents are selected
+	agentOptions     []launcher.AgentOption
+	selectedAgentIdx int
+	selectedAgents   map[string]bool // tracks which agents are selected
 }
 
 // InitialModel creates initial model with default directory

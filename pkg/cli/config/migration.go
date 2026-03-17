@@ -2,10 +2,6 @@ package config
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-
-	"gopkg.in/yaml.v3"
 )
 
 // MigrateConfig migrates old AgentConfig format to new ConfigAgents format.
@@ -120,102 +116,4 @@ func LoadWithMigration() (*Config, error) {
 	cfg.MigrateConfig()
 
 	return cfg, nil
-}
-
-// migrateProjectConfig migrates project-level config files.
-func migrateProjectConfig(projectPath string) error {
-	teamPath := filepath.Join(projectPath, "specledger", "specledger.yaml")
-	personalPath := filepath.Join(projectPath, "specledger", "specledger.local.yaml")
-
-	// Migrate team config
-	if err := migrateYamlFile(teamPath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to migrate team config: %w", err)
-	}
-
-	// Migrate personal config
-	if err := migrateYamlFile(personalPath); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to migrate personal config: %w", err)
-	}
-
-	return nil
-}
-
-// migrateYamlFile migrates a single YAML config file.
-func migrateYamlFile(path string) error {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return err
-	}
-
-	var raw map[string]interface{}
-	if err := yaml.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-
-	// Check if migration is needed
-	agentRaw, hasOldAgent := raw["agent"]
-	if !hasOldAgent {
-		return nil // No old config
-	}
-
-	_, hasNewAgents := raw["agents"]
-	if hasNewAgents {
-		return nil // Already migrated
-	}
-
-	// Perform migration
-	agentMap, ok := agentRaw.(map[string]interface{})
-	if !ok {
-		return nil
-	}
-
-	// Create new structure
-	newClaude := make(map[string]interface{})
-	if v, ok := agentMap["api-key"]; ok {
-		newClaude["api_key"] = v
-	}
-	if v, ok := agentMap["base-url"]; ok {
-		newClaude["base_url"] = v
-	}
-	if v, ok := agentMap["model"]; ok {
-		newClaude["model"] = v
-	}
-	if v, ok := agentMap["env"]; ok {
-		newClaude["env"] = v
-	}
-
-	// Migrate model aliases
-	modelAliases := make(map[string]interface{})
-	if v, ok := agentMap["model.sonnet"]; ok {
-		modelAliases["sonnet"] = v
-	}
-	if v, ok := agentMap["model.opus"]; ok {
-		modelAliases["opus"] = v
-	}
-	if v, ok := agentMap["model.haiku"]; ok {
-		modelAliases["haiku"] = v
-	}
-	if len(modelAliases) > 0 {
-		newClaude["model_aliases"] = modelAliases
-	}
-
-	// Build new agents structure
-	agents := map[string]interface{}{
-		"default": "claude",
-	}
-	if len(newClaude) > 0 {
-		agents["claude"] = newClaude
-	}
-
-	// Update raw map
-	raw["agents"] = agents
-	delete(raw, "agent")
-
-	// Write back
-	newData, err := yaml.Marshal(raw)
-	if err != nil {
-		return err
-	}
-
-	return os.WriteFile(path, newData, 0600)
 }

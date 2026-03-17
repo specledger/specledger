@@ -258,6 +258,9 @@ func TestResolveAgentSettings(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
+	// Isolate from user's real config by setting HOME to temp dir
+	t.Setenv("HOME", tmpDir)
+
 	// Create specledger directory
 	slDir := filepath.Join(tmpDir, "specledger")
 	if err := os.MkdirAll(slDir, 0755); err != nil {
@@ -269,7 +272,8 @@ func TestResolveAgentSettings(t *testing.T) {
   claude:
     api_key: project-key
     model: claude-sonnet-4-20250514
-    arguments: "--verbose"
+    arguments:
+      - --verbose
     env:
       CUSTOM_VAR: project-value
 `
@@ -282,7 +286,7 @@ func TestResolveAgentSettings(t *testing.T) {
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chdir(origDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	// Resolve settings
 	settings := ResolveAgentSettings("claude")
@@ -310,6 +314,9 @@ func TestResolveAgentSettingsPrecedence(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
+
+	// Isolate from user's real config by setting HOME to temp dir
+	t.Setenv("HOME", tmpDir)
 
 	slDir := filepath.Join(tmpDir, "specledger")
 	if err := os.MkdirAll(slDir, 0755); err != nil {
@@ -339,7 +346,7 @@ func TestResolveAgentSettingsPrecedence(t *testing.T) {
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chdir(origDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	settings := ResolveAgentSettings("claude")
 	if settings == nil {
@@ -363,6 +370,9 @@ func TestResolveAgentSettingsClaudeModelAliases(t *testing.T) {
 	}
 	defer os.RemoveAll(tmpDir)
 
+	// Isolate from user's real config by setting HOME to temp dir
+	t.Setenv("HOME", tmpDir)
+
 	slDir := filepath.Join(tmpDir, "specledger")
 	if err := os.MkdirAll(slDir, 0755); err != nil {
 		t.Fatal(err)
@@ -383,7 +393,7 @@ func TestResolveAgentSettingsClaudeModelAliases(t *testing.T) {
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatal(err)
 	}
-	defer os.Chdir(origDir)
+	defer func() { _ = os.Chdir(origDir) }()
 
 	settings := ResolveAgentSettings("claude")
 	if settings == nil {

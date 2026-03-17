@@ -4,7 +4,7 @@ project:
     name: specledger
     short_code: sl
     created: 2026-03-18T00:21:32.099584+08:00
-    modified: 2026-03-18T00:21:33.411067+08:00
+    modified: 2026-03-18T00:31:35.787506+08:00
     version: 0.1.0
 playbook:
     name: specledger

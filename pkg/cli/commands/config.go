@@ -75,7 +75,7 @@ Use --personal to set in gitignored personal config (recommended for secrets).`,
 		}
 		return nil
 	},
-	RunE: runConfigSet,
+	RunE:               runConfigSet,
 	DisableFlagParsing: true, // Allow values that look like flags (e.g., --dangerously-skip-permissions)
 }
 
@@ -113,7 +113,7 @@ The value will fall back to the next layer in the precedence hierarchy.`,
 		}
 		return nil
 	},
-	RunE:              runConfigUnset,
+	RunE:               runConfigUnset,
 	DisableFlagParsing: true, // Allow keys that look like flags
 }
 

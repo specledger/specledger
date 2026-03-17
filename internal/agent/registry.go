@@ -38,31 +38,31 @@ func NewRegistry() *Registry {
 			ModelEnvVar:    "ANTHROPIC_MODEL",
 		},
 		{
-			Name:          "OpenCode",
-			Command:       "opencode",
-			ConfigDir:     ".opencode",
+			Name:           "OpenCode",
+			Command:        "opencode",
+			ConfigDir:      ".opencode",
 			InstallCommand: "go install github.com/opencode-ai/opencode@latest",
-			APIKeyEnvVar:  "",
-			BaseURLEnvVar: "",
-			ModelEnvVar:   "", // OpenCode uses config file for model
+			APIKeyEnvVar:   "",
+			BaseURLEnvVar:  "",
+			ModelEnvVar:    "", // OpenCode uses config file for model
 		},
 		{
-			Name:          "Copilot CLI",
-			Command:       "github-copilot",
-			ConfigDir:     ".github",
+			Name:           "Copilot CLI",
+			Command:        "github-copilot",
+			ConfigDir:      ".github",
 			InstallCommand: "npm install -g @github/copilot",
-			APIKeyEnvVar:  "GITHUB_TOKEN",
-			BaseURLEnvVar: "",
-			ModelEnvVar:   "", // Copilot uses config file for model
+			APIKeyEnvVar:   "GITHUB_TOKEN",
+			BaseURLEnvVar:  "",
+			ModelEnvVar:    "", // Copilot uses config file for model
 		},
 		{
-			Name:          "Codex",
-			Command:       "codex",
-			ConfigDir:     ".codex",
+			Name:           "Codex",
+			Command:        "codex",
+			ConfigDir:      ".codex",
 			InstallCommand: "npm install -g @openai/codex",
-			APIKeyEnvVar:  "OPENAI_API_KEY",
-			BaseURLEnvVar: "OPENAI_BASE_URL",
-			ModelEnvVar:   "", // Codex uses config file for model
+			APIKeyEnvVar:   "OPENAI_API_KEY",
+			BaseURLEnvVar:  "OPENAI_BASE_URL",
+			ModelEnvVar:    "", // Codex uses config file for model
 		},
 	}
 
