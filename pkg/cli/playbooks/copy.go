@@ -15,8 +15,8 @@ import (
 // CopyPlaybooks copies a playbook to the destination directory from the embedded filesystem.
 // It copies files based on:
 // 1. Structure items (files/directories copied to project root)
-// 2. Commands (copied to .claude/commands/)
-// 3. Skills (copied to .claude/skills/)
+// 2. Commands (copied to .agents/commands/ or .claude/commands/ depending on AgentTargetDir)
+// 3. Skills (copied to .agents/skills/ or .claude/skills/ depending on AgentTargetDir)
 func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) (*CopyResult, error) {
 	startTime := time.Now()
 	result := &CopyResult{}
@@ -45,6 +45,12 @@ func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) 
 		mergeableMap[m] = true
 	}
 
+	// Determine target directory for commands and skills
+	agentTargetDir := opts.AgentTargetDir
+	if agentTargetDir == "" {
+		agentTargetDir = ".claude"
+	}
+
 	// 1. Copy structure items (files/directories to project root)
 	for _, structureItem := range playbook.Structure {
 		// path.Join for embedded FS source, filepath.Join for local destination
@@ -60,11 +66,11 @@ func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) 
 		}
 	}
 
-	// 2. Copy commands to .claude/commands/
+	// 2. Copy commands to {agentTargetDir}/commands/
 	for _, cmd := range playbook.Commands {
 		// path.Join for embedded FS source, filepath.Join for local destination
 		srcFilePath := path.Join(srcPath, cmd.Path)
-		destFilePath := filepath.Join(destDir, ".claude", "commands", filepath.Base(cmd.Path))
+		destFilePath := filepath.Join(destDir, agentTargetDir, "commands", filepath.Base(cmd.Path))
 
 		if err := copySingleFile(srcFilePath, destFilePath, opts, result, protectedMap); err != nil {
 			result.Errors = append(result.Errors, CopyError{
@@ -75,11 +81,11 @@ func CopyPlaybooks(srcDir, destDir string, playbook Playbook, opts CopyOptions) 
 		}
 	}
 
-	// 3. Copy skills to .claude/skills/
+	// 3. Copy skills to {agentTargetDir}/skills/
 	for _, skill := range playbook.Skills {
 		// path.Join for embedded FS source, filepath.Join for local destination
 		srcFilePath := path.Join(srcPath, skill.Path)
-		destFilePath := filepath.Join(destDir, ".claude", skill.Path)
+		destFilePath := filepath.Join(destDir, agentTargetDir, skill.Path)
 
 		if err := copySingleFile(srcFilePath, destFilePath, opts, result, protectedMap); err != nil {
 			result.Errors = append(result.Errors, CopyError{
@@ -484,4 +490,35 @@ func copyFileContents(src, dst string) error {
 		return err
 	}
 	return os.WriteFile(dst, content, 0644)
+}
+
+// CleanupAgentSymlinks removes existing agent symlinks/directories for all known agents.
+// This is called when --force is used to reset the agent configuration.
+func CleanupAgentSymlinks(projectPath string) error {
+	for _, ag := range agent.All() {
+		// Skip agents without a config dir or with special dirs (like .github)
+		if ag.ConfigDir == "" || ag.ConfigDir == ".github" {
+			continue
+		}
+
+		agentDir := filepath.Join(projectPath, ag.ConfigDir)
+		commandsDir := filepath.Join(agentDir, "commands")
+		skillsDir := filepath.Join(agentDir, "skills")
+
+		// Remove commands symlink/directory if it exists
+		if _, err := os.Lstat(commandsDir); err == nil {
+			if err := os.RemoveAll(commandsDir); err != nil {
+				fmt.Printf("Warning: failed to remove %s: %v\n", commandsDir, err)
+			}
+		}
+
+		// Remove skills symlink/directory if it exists
+		if _, err := os.Lstat(skillsDir); err == nil {
+			if err := os.RemoveAll(skillsDir); err != nil {
+				fmt.Printf("Warning: failed to remove %s: %v\n", skillsDir, err)
+			}
+		}
+	}
+
+	return nil
 }

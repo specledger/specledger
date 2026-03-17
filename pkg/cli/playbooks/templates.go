@@ -11,6 +11,13 @@ import (
 // If force is true, existing files will be overwritten.
 // Returns the playbook name, version, and structure.
 func ApplyToProject(projectPath, playbookName string, force bool) (string, string, []string, error) {
+	return ApplyToProjectWithAgentTarget(projectPath, playbookName, force, "")
+}
+
+// ApplyToProjectWithAgentTarget applies playbooks to a project with a custom agent target directory.
+// agentTargetDir specifies where to copy commands and skills (e.g., ".agents").
+// If empty, defaults to ".claude".
+func ApplyToProjectWithAgentTarget(projectPath, playbookName string, force bool, agentTargetDir string) (string, string, []string, error) {
 	source, err := NewEmbeddedSource()
 	if err != nil {
 		return "", "", nil, fmt.Errorf("failed to initialize playbook source: %w", err)
@@ -37,10 +44,11 @@ func ApplyToProject(projectPath, playbookName string, force bool) (string, strin
 
 	// Copy playbooks
 	opts := CopyOptions{
-		SkipExisting: !force,
-		Overwrite:    force,
-		Verbose:      false,
-		DryRun:       false,
+		SkipExisting:   !force,
+		Overwrite:      force,
+		Verbose:        false,
+		DryRun:         false,
+		AgentTargetDir: agentTargetDir,
 	}
 
 	result, err := source.Copy(playbook.Name, projectPath, opts)

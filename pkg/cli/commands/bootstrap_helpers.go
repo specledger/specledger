@@ -56,12 +56,22 @@ func detectArtifactPath(projectPath string) string {
 // applyEmbeddedPlaybooks copies embedded playbooks to the project directory.
 // If playbookName is empty, uses the default playbook.
 // If force is true, existing files will be overwritten.
+// If agentTargetDir is set, commands and skills are copied there instead of .claude/
 // Returns the playbook name, version, and structure for metadata storage.
-func applyEmbeddedPlaybooks(projectPath string, playbookName string, force bool) (string, string, []string, error) {
+func applyEmbeddedPlaybooks(projectPath string, playbookName string, force bool, agentTargetDir string) (string, string, []string, error) {
 	ui.PrintSection("Copying Playbooks")
 	fmt.Printf("Applying SpecLedger playbooks...\n")
 
-	pbName, pbVersion, pbStructure, err := playbooks.ApplyToProject(projectPath, playbookName, force)
+	var pbName, pbVersion string
+	var pbStructure []string
+	var err error
+
+	if agentTargetDir != "" {
+		pbName, pbVersion, pbStructure, err = playbooks.ApplyToProjectWithAgentTarget(projectPath, playbookName, force, agentTargetDir)
+	} else {
+		pbName, pbVersion, pbStructure, err = playbooks.ApplyToProject(projectPath, playbookName, force)
+	}
+
 	if err != nil {
 		// Playbooks are helpful but not critical - log warning and continue
 		ui.PrintWarning(fmt.Sprintf("Playbook copying failed: %v", err))
@@ -95,8 +105,14 @@ func trustMiseConfig(projectPath string) {
 // selectedAgents is a comma-separated list of agent names to configure (e.g., "claude,opencode").
 // Returns the playbook name, version, and structure for metadata storage.
 func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName string, initGit bool, force bool, selectedAgents string) (string, string, []string, error) {
-	// Apply embedded playbooks
-	selectedPlaybookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath, playbookName, force)
+	// Determine agent target directory - use .agents if multiple agents selected
+	agentTargetDir := ""
+	if selectedAgents != "" && selectedAgents != "None" {
+		agentTargetDir = ".agents"
+	}
+
+	// Apply embedded playbooks (commands/skills go to agentTargetDir if set)
+	selectedPlaybookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath, playbookName, force, agentTargetDir)
 	if err != nil {
 		// Playbook application failure is not fatal - log warning and continue
 		fmt.Printf("Warning: playbook application had issues: %v\n", err)
@@ -116,20 +132,20 @@ func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName st
 			}
 		}
 
-		// Create .agents/commands and .agents/skills directories
+		// Create .agents/commands and .agents/skills directories (if not already created by playbook)
 		if err := playbooks.CreateAgentSharedDir(projectPath, force); err != nil {
 			if !strings.Contains(err.Error(), "already exists") {
 				ui.PrintWarning(fmt.Sprintf("Failed to create .agents directory: %v", err))
 			}
 		} else {
 			fmt.Printf("%s Created .agents/ directory\n", ui.Checkmark())
+		}
 
-			// Link each selected agent to the shared directories
-			if err := playbooks.LinkAgentToShared(projectPath, agentNames, force); err != nil {
-				ui.PrintWarning(fmt.Sprintf("Failed to link agents: %v", err))
-			} else {
-				fmt.Printf("%s Linked agents: %s\n", ui.Checkmark(), strings.Join(agentNames, ", "))
-			}
+		// Link each selected agent to the shared directories
+		if err := playbooks.LinkAgentToShared(projectPath, agentNames, force); err != nil {
+			ui.PrintWarning(fmt.Sprintf("Failed to link agents: %v", err))
+		} else {
+			fmt.Printf("%s Linked agents: %s\n", ui.Checkmark(), strings.Join(agentNames, ", "))
 		}
 	}
 

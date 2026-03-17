@@ -101,6 +101,11 @@ type CopyOptions struct {
 	// Framework filters templates by framework type (optional)
 	// If set, only templates matching this framework are copied
 	Framework string
+
+	// AgentTargetDir specifies where to copy commands and skills (e.g., ".agents")
+	// If empty, defaults to ".claude"
+	// When multi-agent mode is enabled, this should be set to ".agents"
+	AgentTargetDir string
 }
 
 // CopyResult contains the results of a playbook copy operation.
