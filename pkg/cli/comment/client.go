@@ -252,7 +252,7 @@ func (c *Client) FetchComments(changeID string) ([]ReviewComment, error) {
 func (c *Client) FetchCommentByID(commentID string) (*ReviewComment, error) {
 	path := fmt.Sprintf(
 		"/rest/v1/review_comments?id=eq.%s"+
-			"&select=id,file_path,content,selected_text,line,start_line,author_name,author_email,is_resolved,created_at",
+			"&select=id,change_id,file_path,content,selected_text,line,start_line,author_name,author_email,is_resolved,created_at",
 		url.QueryEscape(commentID),
 	)
 
@@ -353,10 +353,26 @@ func BuildReplyMap(replies []ReviewComment) ReplyMap {
 }
 
 func (c *Client) CreateReply(parentID, content string) (*ThreadReply, error) {
+	// Fetch parent comment to get change_id and file_path
+	// (required NOT NULL columns and used by RLS INSERT policy).
+	parent, err := c.FetchCommentByID(parentID)
+	if err != nil {
+		return nil, fmt.Errorf("CreateReply: failed to fetch parent comment: %w", err)
+	}
+
+	// Load credentials to get author_id (NOT NULL constraint).
+	creds, err := c.AuthProvider.LoadCredentials()
+	if err != nil || creds == nil {
+		return nil, fmt.Errorf("CreateReply: failed to load credentials for author_id")
+	}
+
 	reqURL := fmt.Sprintf("%s/rest/v1/review_comments", c.BaseURL)
 
 	body := map[string]interface{}{
 		"parent_comment_id": parentID,
+		"change_id":         parent.ChangeID,
+		"file_path":         parent.FilePath,
+		"author_id":         creds.UserID,
 		"content":           content,
 	}
 

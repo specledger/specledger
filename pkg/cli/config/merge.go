@@ -53,7 +53,7 @@ func MergeConfigs(defaults, global, profile, teamLocal, personalLocal *AgentConf
 		}
 
 		var finalValue interface{}
-		var finalSource ConfigScope = ScopeDefault
+		var finalSource ConfigScope = ScopeDefault //nolint:staticcheck // ST1023: explicit type improves readability when name doesn't convey the type
 		var found bool
 
 		for _, layer := range layers {

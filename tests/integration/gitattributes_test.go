@@ -75,7 +75,7 @@ func TestGitattributesInitMerges(t *testing.T) {
 
 	// Create existing .gitattributes with user content
 	userContent := "*.pbxproj binary\n*.png filter=lfs diff=lfs merge=lfs -text\n"
-	if err := os.WriteFile(filepath.Join(projectDir, ".gitattributes"), []byte(userContent), 0644); err != nil { //nolint:gosec // test file
+	if err := os.WriteFile(filepath.Join(projectDir, ".gitattributes"), []byte(userContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -114,7 +114,7 @@ func TestGitattributesInitUpdates(t *testing.T) {
 		playbooks.SentinelComment + "\n" +
 		"old/pattern linguist-generated=true\n" +
 		playbooks.SentinelEnd + "\n"
-	if err := os.WriteFile(filepath.Join(projectDir, ".gitattributes"), []byte(oldContent), 0644); err != nil { //nolint:gosec // test file
+	if err := os.WriteFile(filepath.Join(projectDir, ".gitattributes"), []byte(oldContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -152,7 +152,7 @@ func TestGitattributesInitIdempotent(t *testing.T) {
 	}
 
 	// Create existing user content
-	if err := os.WriteFile(filepath.Join(projectDir, ".gitattributes"), []byte("*.pbxproj binary\n"), 0644); err != nil { //nolint:gosec // test file
+	if err := os.WriteFile(filepath.Join(projectDir, ".gitattributes"), []byte("*.pbxproj binary\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -179,7 +179,7 @@ func TestGitattributesInitForceMerges(t *testing.T) {
 
 	// Create existing .gitattributes with user content
 	userContent := "*.pbxproj binary\n"
-	if err := os.WriteFile(filepath.Join(projectDir, ".gitattributes"), []byte(userContent), 0644); err != nil { //nolint:gosec // test file
+	if err := os.WriteFile(filepath.Join(projectDir, ".gitattributes"), []byte(userContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -213,7 +213,7 @@ func TestGitattributesInitMalformedSentinel(t *testing.T) {
 		playbooks.SentinelBegin + "\n" +
 		"orphaned content\n" +
 		"more orphaned\n"
-	if err := os.WriteFile(filepath.Join(projectDir, ".gitattributes"), []byte(malformed), 0644); err != nil { //nolint:gosec // test file
+	if err := os.WriteFile(filepath.Join(projectDir, ".gitattributes"), []byte(malformed), 0644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -254,7 +254,7 @@ func TestGitattributesDoctorTemplateMerges(t *testing.T) {
 	// Add user content to .gitattributes after init
 	content := readGitattributes(t, projectDir)
 	newContent := "*.custom-ext binary\n" + content
-	if err := os.WriteFile(filepath.Join(projectDir, ".gitattributes"), []byte(newContent), 0644); err != nil { //nolint:gosec // test file
+	if err := os.WriteFile(filepath.Join(projectDir, ".gitattributes"), []byte(newContent), 0644); err != nil {
 		t.Fatal(err)
 	}
 

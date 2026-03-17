@@ -21,7 +21,7 @@ Subcommands:
   list     List review comments (compact or JSON format)
   show     Show full comment details with thread replies
   reply    Reply to a comment thread
-  resolve  Mark comments as resolved`,
+  resolve  Mark comments as resolved (--reason required)`,
 	Args:         cobra.NoArgs,
 	RunE:         func(cmd *cobra.Command, args []string) error { return cmd.Help() },
 	SilenceUsage: true,
@@ -98,11 +98,12 @@ Examples:
 }
 
 var (
-	commentListJSON    bool
-	commentListStatus  string
-	commentShowJSON    bool
-	commentReplyJSON   bool
-	commentResolveJSON bool
+	commentListJSON      bool
+	commentListStatus    string
+	commentShowJSON      bool
+	commentReplyJSON     bool
+	commentResolveJSON   bool
+	commentResolveReason string
 )
 
 func init() {
@@ -114,6 +115,8 @@ func init() {
 	commentReplyCmd.Flags().BoolVar(&commentReplyJSON, "json", false, "Output as JSON")
 
 	commentResolveCmd.Flags().BoolVar(&commentResolveJSON, "json", false, "Output as JSON")
+	commentResolveCmd.Flags().StringVar(&commentResolveReason, "reason", "", "Resolution reason (required — posted as reply before resolving)")
+	_ = commentResolveCmd.MarkFlagRequired("reason")
 
 	VarCommentCmd.AddCommand(commentListCmd)
 	VarCommentCmd.AddCommand(commentShowCmd)
@@ -449,10 +452,11 @@ func runCommentReply(cmd *cobra.Command, args []string) error {
 }
 
 var commentResolveCmd = &cobra.Command{
-	Use:   "resolve <comment-id> [comment-id...]",
-	Short: "Mark comments as resolved",
+	Use:   "resolve <comment-id> [comment-id...] --reason \"text\"",
+	Short: "Mark comments as resolved with a reason",
 	Long: `Mark one or more review comments as resolved.
 
+A reason is required — it is posted as a reply before resolving.
 When resolving a parent comment, all thread replies are also resolved (cascade).
 
 Arguments:
@@ -463,9 +467,9 @@ Output formats:
   --json:  JSON array with resolved comment IDs
 
 Examples:
-  sl comment resolve abc123
-  sl comment resolve abc123 def456
-  sl comment resolve abc123 --json`,
+  sl comment resolve abc123 --reason "Fixed in PR #42"
+  sl comment resolve abc123 def456 --reason "Batch resolved: all addressed in latest revision"
+  sl comment resolve abc123 --reason "No action needed" --json`,
 	Args:         cobra.MinimumNArgs(1),
 	RunE:         runCommentResolve,
 	SilenceUsage: true,
@@ -482,6 +486,11 @@ func runCommentResolve(cmd *cobra.Command, args []string) error {
 	resolvedIDs := make([]string, 0, len(args))
 
 	for _, commentID := range args {
+		// Post reason as a reply before resolving (audit trail)
+		if _, err := client.CreateReply(commentID, commentResolveReason); err != nil {
+			return fmt.Errorf("failed to post resolution reason for %s: %w\n→ The comment was NOT resolved. Fix the reply issue first.", commentID, err)
+		}
+
 		replies, err := client.FetchRepliesByParentID(commentID)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Warning: failed to fetch replies for %s: %v\n", commentID, err)

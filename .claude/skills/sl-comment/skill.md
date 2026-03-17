@@ -13,7 +13,7 @@ The `sl comment` CLI provides review comment management for SpecLedger projects.
 | `sl comment list` | List all comments (compact) | Truncated previews, reply counts |
 | `sl comment show <id>` | Full comment details | Complete content, all replies |
 | `sl comment reply <id> "msg"` | Reply to a comment | Minimal confirmation |
-| `sl comment resolve <id>` | Mark comment resolved | Minimal confirmation |
+| `sl comment resolve <id> --reason "text"` | Mark comment resolved (reason required, posted as reply) | Minimal confirmation |
 
 ## Decision Criteria
 
@@ -36,8 +36,8 @@ The `sl comment` CLI provides review comment management for SpecLedger projects.
 - Asking clarifying questions
 - Explaining implementation approach
 
-**Resolve (`sl comment resolve`):**
-- Comment has been addressed in code
+**Resolve (`sl comment resolve --reason`):**
+- Comment has been addressed in code — `--reason` is required and auto-posts a reply
 - Issue is no longer relevant
 - Duplicate of another comment
 
@@ -102,11 +102,8 @@ sl comment list --status open --json
 # 2. For each comment, get full details
 sl comment show <id> --json
 
-# 3. After addressing in code, reply
-sl comment reply <id> "Fixed in commit abc123. Added role check."
-
-# 4. Mark resolved
-sl comment resolve <id>
+# 3. After addressing in code, resolve with reason (auto-posts reply)
+sl comment resolve <id> --reason "Fixed in commit abc123. Added role check."
 ```
 
 ### Pattern 2: Batch Processing
@@ -115,7 +112,7 @@ sl comment resolve <id>
 # List all open comments, then resolve multiple
 sl comment list --status open --json
 # ... after addressing all ...
-sl comment resolve id1 id2 id3
+sl comment resolve id1 id2 id3 --reason "Batch resolved: all addressed in latest revision"
 ```
 
 ## Error Handling

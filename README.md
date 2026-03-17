@@ -579,6 +579,19 @@ Full documentation is available at [https://specledger.io/docs](https://specledg
 - **Contributing**: Development setup and contribution guidelines
 - **Governance**: Project governance and decision-making
 
+## Prerequisites
+
+| Tool | Required For | Install |
+|------|-------------|---------|
+| **Go 1.24+** | Building from source | [go.dev/dl](https://go.dev/dl/) |
+| **Make** | Build targets | Included with Xcode CLT (macOS) or `apt install make` |
+| **Git** | Version control | [git-scm.com](https://git-scm.com/) |
+| **Docker** | Local Supabase stack for integration/E2E tests | [docker.com](https://www.docker.com/) |
+| **Supabase CLI** | Local backend stack (`supabase start`) | `brew install supabase/tap/supabase` |
+| **golangci-lint** | Linting (CI and local) | `brew install golangci-lint` |
+
+> **Note:** Docker and Supabase CLI are only required for running integration and E2E tests locally. See [CONTRIBUTING.md](CONTRIBUTING.md) for full setup details.
+
 ## Tech Stack
 
 - **Go 1.24+** - Core language
@@ -586,6 +599,7 @@ Full documentation is available at [https://specledger.io/docs](https://specledg
 - **Bubble Tea** - Terminal UI
 - **go-git** - Git operations
 - **YAML v3** - Configuration parsing
+- **Supabase** - Backend (PostgREST API, Auth, Storage)
 
 ## License
 

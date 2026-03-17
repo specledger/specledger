@@ -41,6 +41,7 @@ Thumbs.db
 .beads/beads.db-wal
 .beads/.local_version
 .beads/export-state/
+.beads/issues.jsonl
 
 # SpecLedger specific
 .spec-cache/
@@ -57,6 +58,9 @@ issues.jsonl.lock
 # Personal-local config (gitignored per-user overrides)
 specledger.local.yaml
 **/specledger.local.yaml
+
+# Claude Code local settings (per-user overrides, never commit)
+.claude/settings.local.json
 
 # Migration logs
 .migration-log

@@ -145,6 +145,11 @@ Execution steps:
     - Save the spec file AFTER each integration to minimize risk of context loss (atomic overwrite).
     - Preserve formatting: do not reorder unrelated sections; keep heading hierarchy intact.
     - Keep each inserted clarification minimal and testable (avoid narrative drift).
+    - **Resolve reviewer comments with reason**: If a clarification originated from a reviewer comment (fetched in step 2), resolve it with a reason (the CLI posts the reason as a reply automatically):
+      ```
+      sl comment resolve <comment-id> --reason "Resolved: <1-sentence summary of how the comment was addressed>"
+      ```
+      This preserves the decision rationale in the comment thread for reviewers.
 
 6. Validation (performed after EACH write plus final pass):
    - Clarifications session contains exactly one bullet per accepted answer (no duplicates).

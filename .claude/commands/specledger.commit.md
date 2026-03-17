@@ -1,12 +1,12 @@
 ---
-description: Commit and push with auth-aware session capture. Use when the user asks to commit via chat.
+description: "TRIGGER: When the user asks to commit, push, commit and push, or save changes to git/github in ANY language (e.g. 'commit and push', 'commit giúp tôi', 'push to github', 'commit for me', 'save and push'). This skill MUST be invoked instead of manual git commands."
 ---
 
 ## Purpose
 
-Auth-aware commit workflow. When the user asks you to commit and push (e.g., "commit giúp tôi", "commit and push for me"), follow this workflow.
+Auth-aware commit workflow. When the user asks you to commit and push (e.g., "commit giúp tôi", "commit and push for me", "commit and push to github", "push to github"), follow this workflow.
 
-This does NOT replace Claude's built-in `/commit` command. It only applies when the user asks you to commit via chat.
+**IMPORTANT**: This skill MUST be used for ALL commit/push requests. Do NOT run manual git commit/push commands — always invoke this skill instead.
 
 ## Workflow
 
