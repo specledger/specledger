@@ -91,7 +91,7 @@ func trustMiseConfig(projectPath string) {
 
 // setupSpecLedgerProject applies playbooks and creates metadata.
 // Optionally initializes git based on flags.
-// If force is true, existing files will be overwritten.
+// If force is true, existing files will be overwritten and agent symlinks will be reset.
 // selectedAgents is a comma-separated list of agent names to configure (e.g., "claude,opencode").
 // Returns the playbook name, version, and structure for metadata storage.
 func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName string, initGit bool, force bool, selectedAgents string) (string, string, []string, error) {
@@ -107,6 +107,13 @@ func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName st
 		agentNames := strings.Split(selectedAgents, ",")
 		for i, name := range agentNames {
 			agentNames[i] = strings.TrimSpace(name)
+		}
+
+		// If force is true, clean up existing agent symlinks/directories first
+		if force {
+			if err := playbooks.CleanupAgentSymlinks(projectPath); err != nil {
+				ui.PrintWarning(fmt.Sprintf("Failed to cleanup existing agent symlinks: %v", err))
+			}
 		}
 
 		// Create .agents/commands and .agents/skills directories

@@ -391,6 +391,14 @@ func dirExists(path string) bool {
 // migrateAndLink handles migrating contents from an existing directory to shared,
 // then creates a symlink to the shared directory.
 func migrateAndLink(linkPath, sharedDir string, force bool) error {
+	// Compute relative path from linkPath's parent to sharedDir for portable symlinks
+	linkParent := filepath.Dir(linkPath)
+	relSharedDir, err := filepath.Rel(linkParent, sharedDir)
+	if err != nil {
+		// Fall back to absolute path if relative computation fails
+		relSharedDir = sharedDir
+	}
+
 	// Check if linkPath already exists
 	info, err := os.Lstat(linkPath)
 	if err == nil {
@@ -398,7 +406,8 @@ func migrateAndLink(linkPath, sharedDir string, force bool) error {
 		if info.Mode()&os.ModeSymlink != 0 {
 			// It's already a symlink, check if it points to the right place
 			target, _ := os.Readlink(linkPath)
-			if target == sharedDir {
+			// Compare against relative path since that's what we use
+			if target == relSharedDir {
 				return nil // Already correctly linked
 			}
 		}
@@ -433,8 +442,8 @@ func migrateAndLink(linkPath, sharedDir string, force bool) error {
 		}
 	}
 
-	// Create symlink
-	return agent.SymlinkOrCopy(sharedDir, linkPath)
+	// Create symlink using relative path for portability
+	return agent.SymlinkOrCopy(relSharedDir, linkPath)
 }
 
 func copyFileOrDir(src, dst string) error {
