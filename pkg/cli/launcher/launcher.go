@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 // AgentOption represents an available AI coding agent choice.
@@ -78,8 +79,22 @@ func (l *AgentLauncher) SetFlags(flags []string) {
 }
 
 func (l *AgentLauncher) BuildEnv() []string {
-	result := os.Environ()
+	// Start with current environment
+	envMap := make(map[string]string)
+	for _, entry := range os.Environ() {
+		if idx := strings.Index(entry, "="); idx > 0 {
+			envMap[entry[:idx]] = entry[idx+1:]
+		}
+	}
+
+	// Override with launcher's env vars (these take precedence)
 	for k, v := range l.env {
+		envMap[k] = v
+	}
+
+	// Convert back to slice
+	result := make([]string, 0, len(envMap))
+	for k, v := range envMap {
 		result = append(result, fmt.Sprintf("%s=%s", k, v))
 	}
 	return result

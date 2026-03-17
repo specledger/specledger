@@ -430,8 +430,8 @@ func ResolveAgentSettings(agentName string) *ResolvedAgentSettings {
 		if s.Model != "" {
 			resolved.Model = s.Model
 		}
-		if s.Arguments != "" {
-			resolved.Arguments = parseArguments(s.Arguments)
+		if len(s.Arguments) > 0 {
+			resolved.Arguments = s.Arguments
 		}
 		for k, v := range s.Env {
 			resolved.EnvVars[k] = v

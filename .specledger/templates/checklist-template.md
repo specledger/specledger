@@ -32,39 +32,6 @@
 - [ ] CHK005 Item with specific criteria
 - [ ] CHK006 Final item in this category
 
-## CLI Changes (if applicable)
-
-<!-- Include this section when the spec adds or modifies `sl` CLI subcommands.
-     Remove entirely if no CLI work is involved. See docs/design/cli.md for details. -->
-
-- [ ] CLI-001 Pattern classified — new subcommand mapped to: Data CRUD / Launcher / Hook Trigger / Environment / Template Management
-- [ ] CLI-002 `--help` includes at least 2 usage examples
-- [ ] CLI-003 Error messages include: what failed, why, suggested fix command
-- [ ] CLI-004 Human output uses truncation + footer hints for next step
-- [ ] CLI-005 JSON output is complete and pipeable (no truncation)
-- [ ] CLI-006 Errors to stderr, data to stdout
-- [ ] CLI-007 Uses shared ContextDetector for spec auto-detection (not custom branch parsing)
-- [ ] CLI-008 `--spec` flag available for manual override
-- [ ] CLI-009 Failure mode matches pattern constraints (see docs/design/cli.md)
-
-## Template & Sync (if applicable)
-
-<!-- Include this section when the spec modifies embedded templates, skills, or commands.
-     Remove entirely if no template work is involved. See docs/design/commands.md for details. -->
-
-- [ ] SYNC-001 After modifying embedded templates in `pkg/embedded/templates/`, ran `sl init` to sync runtime copies
-- [ ] SYNC-002 Runtime copies in `.claude/commands/` and `.claude/skills/` match embedded source
-- [ ] SYNC-003 Skill subcommand tables still match actual Cobra flags after CLI changes (cross-check)
-
-## Architecture Compliance (if applicable)
-
-<!-- Include this section for features that add significant new behavior.
-     Remove for small bug fixes or documentation-only changes. See docs/design/README.md for details. -->
-
-- [ ] ARCH-001 Agent Owns Outcomes — CLI does NOT auto-resolve comments, auto-commit, or auto-act on behalf of the user. CLI warns and guides; agent acts.
-- [ ] ARCH-002 Cross-layer calls follow documented patterns (L2→L1, L0→L1, etc. — no L3→L2, no L0→L2)
-- [ ] ARCH-003 Supabase local stack updated — migrations, RLS policies, and edge functions validated against `supabase start`
-
 ## Notes
 
 - Check items off as completed: `[x]`

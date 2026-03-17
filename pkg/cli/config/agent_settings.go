@@ -6,7 +6,7 @@ type AgentSettings struct {
 	APIKey    string            `yaml:"api_key,omitempty" json:"api_key,omitempty"`
 	BaseURL   string            `yaml:"base_url,omitempty" json:"base_url,omitempty"`
 	Model     string            `yaml:"model,omitempty" json:"model,omitempty"`
-	Arguments string            `yaml:"arguments,omitempty" json:"arguments,omitempty"`
+	Arguments []string          `yaml:"arguments,omitempty" json:"arguments,omitempty"`
 	Env       map[string]string `yaml:"env,omitempty" json:"env,omitempty"`
 }
 

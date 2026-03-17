@@ -29,21 +29,21 @@ func init() {
 func NewRegistry() *Registry {
 	agents := []Agent{
 		{
-			Name:          "Claude Code",
-			Command:       "claude",
-			ConfigDir:     ".claude",
+			Name:           "Claude Code",
+			Command:        "claude",
+			ConfigDir:      ".claude",
 			InstallCommand: "npm install -g @anthropic-ai/claude-code",
-			APIKeyEnvVar:  "ANTHROPIC_API_KEY",
-			BaseURLEnvVar: "ANTHROPIC_BASE_URL",
-			ModelEnvVar:   "ANTHROPIC_MODEL",
+			APIKeyEnvVar:   "ANTHROPIC_AUTH_TOKEN",
+			BaseURLEnvVar:  "ANTHROPIC_BASE_URL",
+			ModelEnvVar:    "ANTHROPIC_MODEL",
 		},
 		{
 			Name:          "OpenCode",
 			Command:       "opencode",
 			ConfigDir:     ".opencode",
 			InstallCommand: "go install github.com/opencode-ai/opencode@latest",
-			APIKeyEnvVar:  "OPENAI_API_KEY",
-			BaseURLEnvVar: "OPENAI_BASE_URL",
+			APIKeyEnvVar:  "",
+			BaseURLEnvVar: "",
 			ModelEnvVar:   "", // OpenCode uses config file for model
 		},
 		{

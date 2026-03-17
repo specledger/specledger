@@ -67,8 +67,16 @@ Use --personal to set in gitignored personal config (recommended for secrets).`,
   sl config set agent.claude.model claude-sonnet-4-20250514
   sl config set agent.codex.api_key sk-xxx
   sl config set agent.claude.arguments "--dangerously-skip-permissions"`,
-	Args: cobra.ExactArgs(2),
+	Args: func(cmd *cobra.Command, args []string) error {
+		// Filter out --global and --personal flags from args
+		filtered := filterConfigFlags(args)
+		if len(filtered) != 2 {
+			return fmt.Errorf("accepts 2 arg(s), received %d", len(filtered))
+		}
+		return nil
+	},
 	RunE: runConfigSet,
+	DisableFlagParsing: true, // Allow values that look like flags (e.g., --dangerously-skip-permissions)
 }
 
 var configGetCmd = &cobra.Command{
@@ -98,8 +106,15 @@ var configUnsetCmd = &cobra.Command{
 The value will fall back to the next layer in the precedence hierarchy.`,
 	Example: `  sl config unset agent.base-url
   sl config unset --personal agent.auth-token`,
-	Args: cobra.ExactArgs(1),
-	RunE: runConfigUnset,
+	Args: func(cmd *cobra.Command, args []string) error {
+		filtered := filterConfigFlags(args)
+		if len(filtered) != 1 {
+			return fmt.Errorf("accepts 1 arg(s), received %d", len(filtered))
+		}
+		return nil
+	},
+	RunE:              runConfigUnset,
+	DisableFlagParsing: true, // Allow keys that look like flags
 }
 
 func init() {
@@ -108,13 +123,69 @@ func init() {
 	VarConfigCmd.AddCommand(configShowCmd)
 	VarConfigCmd.AddCommand(configUnsetCmd)
 
-	configSetCmd.Flags().BoolVar(&configGlobalFlag, "global", false, "Set in global config (~/.specledger/config.yaml)")
-	configSetCmd.Flags().BoolVar(&configPersonalFlag, "personal", false, "Set in personal-local config (gitignored)")
-	configUnsetCmd.Flags().BoolVar(&configGlobalFlag, "global", false, "Unset from global config")
-	configUnsetCmd.Flags().BoolVar(&configPersonalFlag, "personal", false, "Unset from personal-local config")
+	// Flags are manually parsed in runConfigSet/runConfigUnset due to DisableFlagParsing
+}
+
+// filterConfigFlags extracts --global and --personal flags from args and sets the flag variables.
+// Returns the remaining positional arguments.
+func filterConfigFlags(args []string) []string {
+	var filtered []string
+	for i := 0; i < len(args); i++ {
+		if args[i] == "--global" {
+			configGlobalFlag = true
+		} else if args[i] == "--personal" {
+			configPersonalFlag = true
+		} else {
+			filtered = append(filtered, args[i])
+		}
+	}
+	return filtered
+}
+
+// parseArgumentsValue parses a command-line arguments string into a slice.
+// Handles quoted strings and space-separated arguments.
+func parseArgumentsValue(s string) []string {
+	var args []string
+	var current strings.Builder
+	inQuotes := false
+	quoteChar := rune(0)
+
+	for _, r := range s {
+		switch {
+		case !inQuotes && (r == '"' || r == '\''):
+			inQuotes = true
+			quoteChar = r
+		case inQuotes && r == quoteChar:
+			inQuotes = false
+			quoteChar = 0
+		case !inQuotes && r == ' ':
+			if current.Len() > 0 {
+				args = append(args, current.String())
+				current.Reset()
+			}
+		default:
+			current.WriteRune(r)
+		}
+	}
+
+	if current.Len() > 0 {
+		args = append(args, current.String())
+	}
+
+	return args
 }
 
 func runConfigSet(cmd *cobra.Command, args []string) error {
+	// Reset flags (in case of repeated calls in tests)
+	configGlobalFlag = false
+	configPersonalFlag = false
+
+	// Filter out --global and --personal flags
+	args = filterConfigFlags(args)
+	if len(args) != 2 {
+		return fmt.Errorf("accepts 2 arg(s), received %d", len(args))
+	}
+
 	key := args[0]
 	value := args[1]
 
@@ -216,8 +287,8 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 		if settings.Model != "" {
 			fmt.Printf("    %-23s %-35s [local]\n", "model", settings.Model)
 		}
-		if settings.Arguments != "" {
-			fmt.Printf("    %-23s %-35s [local]\n", "arguments", settings.Arguments)
+		if len(settings.Arguments) > 0 {
+			fmt.Printf("    %-23s %-35s [local]\n", "arguments", strings.Join(settings.Arguments, " "))
 		}
 		if len(settings.Env) > 0 {
 			fmt.Printf("    %-23s\n", "env")
@@ -265,6 +336,16 @@ func runConfigShow(cmd *cobra.Command, args []string) error {
 }
 
 func runConfigUnset(cmd *cobra.Command, args []string) error {
+	// Reset flags (in case of repeated calls in tests)
+	configGlobalFlag = false
+	configPersonalFlag = false
+
+	// Filter out --global and --personal flags
+	args = filterConfigFlags(args)
+	if len(args) != 1 {
+		return fmt.Errorf("accepts 1 arg(s), received %d", len(args))
+	}
+
 	key := args[0]
 
 	if _, err := config.LookupKey(key); err != nil {
@@ -347,7 +428,7 @@ func setAgentConfigValue(cfg *config.Config, key, value string) error {
 			// Handle agent.<name>.arguments
 			if len(parts) == 3 && parts[2] == "arguments" {
 				settings := cfg.Agents.GetOrCreateAgentSettings(agentName)
-				settings.Arguments = value
+				settings.Arguments = parseArgumentsValue(value)
 				return nil
 			}
 
@@ -458,8 +539,8 @@ func getAgentConfigValue(cfg *config.Config, key string) (string, string) {
 
 			// Handle agent.<name>.arguments
 			if len(parts) == 3 && parts[2] == "arguments" {
-				if settings != nil && settings.Arguments != "" {
-					return settings.Arguments, scope
+				if settings != nil && len(settings.Arguments) > 0 {
+					return strings.Join(settings.Arguments, " "), scope
 				}
 				return "", "default"
 			}
@@ -563,7 +644,7 @@ func unsetAgentConfigValue(cfg *config.Config, key string) error {
 			// Handle agent.<name>.arguments
 			if len(parts) == 3 && parts[2] == "arguments" {
 				if settings != nil {
-					settings.Arguments = ""
+					settings.Arguments = nil
 				}
 				return nil
 			}
