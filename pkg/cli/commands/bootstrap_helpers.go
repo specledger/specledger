@@ -101,7 +101,7 @@ func trustMiseConfig(projectPath string) {
 
 // setupSpecLedgerProject applies playbooks and creates metadata.
 // Optionally initializes git based on flags.
-// If force is true, existing files will be overwritten and agent symlinks will be reset.
+// If force is true, existing files will be overwritten and agent symlinks will be fixed.
 // selectedAgents is a comma-separated list of agent names to configure (e.g., "claude,opencode").
 // Returns the playbook name, version, and structure for metadata storage.
 func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName string, initGit bool, force bool, selectedAgents string) (string, string, []string, error) {
@@ -112,6 +112,7 @@ func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName st
 	}
 
 	// Apply embedded playbooks (commands/skills go to agentTargetDir if set)
+	// When force=true, templates in .agents/ will be overwritten
 	selectedPlaybookName, playbookVersion, playbookStructure, err := applyEmbeddedPlaybooks(projectPath, playbookName, force, agentTargetDir)
 	if err != nil {
 		// Playbook application failure is not fatal - log warning and continue
@@ -125,13 +126,6 @@ func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName st
 			agentNames[i] = strings.TrimSpace(name)
 		}
 
-		// If force is true, clean up existing agent symlinks/directories first
-		if force {
-			if err := playbooks.CleanupAgentSymlinks(projectPath); err != nil {
-				ui.PrintWarning(fmt.Sprintf("Failed to cleanup existing agent symlinks: %v", err))
-			}
-		}
-
 		// Create .agents/commands and .agents/skills directories (if not already created by playbook)
 		if err := playbooks.CreateAgentSharedDir(projectPath, force); err != nil {
 			if !strings.Contains(err.Error(), "already exists") {
@@ -142,6 +136,7 @@ func setupSpecLedgerProject(projectPath, projectName, shortCode, playbookName st
 		}
 
 		// Link each selected agent to the shared directories
+		// This will fix broken/incorrect symlinks without deleting .agents/ content
 		if err := playbooks.LinkAgentToShared(projectPath, agentNames, force); err != nil {
 			ui.PrintWarning(fmt.Sprintf("Failed to link agents: %v", err))
 		} else {
