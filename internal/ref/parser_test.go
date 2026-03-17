@@ -107,9 +107,11 @@ func TestSetAndGetDependencies(t *testing.T) {
 func TestValidateReferences(t *testing.T) {
 	t.Run("valid reference", func(t *testing.T) {
 		resolver := NewResolver("")
-		resolver.SetDependencies(map[string]string{
+		if err := resolver.SetDependencies(map[string]string{
 			"test": "https://github.com/test/repo",
-		})
+		}); err != nil {
+			t.Fatalf("SetDependencies() error: %v", err)
+		}
 
 		refs := []Reference{
 			{
@@ -144,7 +146,9 @@ func TestValidateReferences(t *testing.T) {
 
 	t.Run("unknown reference", func(t *testing.T) {
 		resolver := NewResolver("")
-		resolver.SetDependencies(map[string]string{})
+		if err := resolver.SetDependencies(map[string]string{}); err != nil {
+			t.Fatalf("SetDependencies() error: %v", err)
+		}
 
 		refs := []Reference{
 			{
@@ -252,9 +256,11 @@ func TestExtractImageLinks(t *testing.T) {
 
 func TestResolveReference(t *testing.T) {
 	resolver := NewResolver("")
-	resolver.SetDependencies(map[string]string{
+	if err := resolver.SetDependencies(map[string]string{
 		"mydep": "https://github.com/org/repo",
-	})
+	}); err != nil {
+		t.Fatalf("SetDependencies() error: %v", err)
+	}
 
 	tests := []struct {
 		url      string
