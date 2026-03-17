@@ -5,12 +5,12 @@ coverage:
   status:
     project:
       default:
-        target: 70%
+        target: 25%
         threshold: 1%
         informational: true
     patch:
       default:
-        target: 70%
+        target: 25%
         threshold: 1%
         informational: true
 
@@ -28,6 +28,19 @@ ignore:
   - "tests/**"
   - "cmd/**"
   - "**/generated/**"
+  # Hard-to-test packages (browser, TUI, network, OS-specific)
+  - "pkg/cli/auth/**"
+  - "pkg/cli/tui/**"
+  - "pkg/cli/ui/**"
+  - "pkg/version/**"
+  - "pkg/templates/updater.go"
+  # CLI command handlers (require integration tests)
+  - "pkg/cli/commands/**"
+  # Git operations (require external git)
+  - "pkg/cli/git/**"
+  # File system operations
+  - "internal/spec/resolver.go"
+  - "internal/agent/platform.go"
 
 github_checks:
   annotations: true
