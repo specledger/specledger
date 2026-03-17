@@ -290,15 +290,16 @@ func IsExecutableFile(filename string, content []byte) bool {
 func CreateAgentSharedDir(projectDir string, force bool) error {
 	agentDir := filepath.Join(projectDir, ".agents")
 
+	// Check if .agents/ already exists
 	if _, err := os.Stat(agentDir); err == nil {
 		if !force {
-			return fmt.Errorf(".agents/ directory already exists. Use --force to overwrite")
+			return fmt.Errorf(".agents/ directory already exists. Use --force to proceed")
 		}
-		if err := os.RemoveAll(agentDir); err != nil {
-			return fmt.Errorf("failed to remove existing .agents directory: %w", err)
-		}
+		// With --force, we just proceed without deleting existing content
+		// This preserves any custom commands/skills the user has added
 	}
 
+	// Ensure commands and skills directories exist (MkdirAll is idempotent)
 	commandsDir := filepath.Join(agentDir, "commands")
 	if err := os.MkdirAll(commandsDir, 0755); err != nil {
 		return fmt.Errorf("failed to create .agents/commands: %w", err)
@@ -309,6 +310,7 @@ func CreateAgentSharedDir(projectDir string, force bool) error {
 		return fmt.Errorf("failed to create .agents/skills: %w", err)
 	}
 
+	// Migrate from .claude/commands if it exists (only copy files that don't already exist)
 	claudeCommandsDir := filepath.Join(projectDir, ".claude", "commands")
 	if _, err := os.Stat(claudeCommandsDir); err == nil {
 		entries, err := os.ReadDir(claudeCommandsDir)
@@ -318,8 +320,11 @@ func CreateAgentSharedDir(projectDir string, force bool) error {
 		for _, entry := range entries {
 			src := filepath.Join(claudeCommandsDir, entry.Name())
 			dst := filepath.Join(commandsDir, entry.Name())
-			if err := copyFileOrDir(src, dst); err != nil {
-				return fmt.Errorf("failed to migrate %s: %w", entry.Name(), err)
+			// Only copy if destination doesn't exist (preserve existing customizations)
+			if _, err := os.Stat(dst); os.IsNotExist(err) {
+				if err := copyFileOrDir(src, dst); err != nil {
+					return fmt.Errorf("failed to migrate %s: %w", entry.Name(), err)
+				}
 			}
 		}
 	}
