@@ -112,6 +112,12 @@ As a developer, I want to pass arbitrary arguments to each coding agent via per-
 - **Windows symlink limitations**: Files are copied instead of symlinked; changes to `.agent/` require manual sync or re-run
 - **Existing `.agent/` directory**: Setup fails with message "Error: .agent/ exists. Use --force to overwrite."
 
+### Test Cases (Edge Cases)
+
+1. **Given** no agent configuration exists, **When** I run `sl code opencode`, **Then** OpenCode launches with default settings (no API key, no model specified)
+2. **Given** `agent.claude.model_aliases.sonnet=claude-sonnet-4-20250514`, **When** I run `sl code claude`, **Then** the `ANTHROPIC_MODEL` env var is NOT set (model aliases are for user reference only, not auto-injected)
+3. **Given** `agent.claude.model=claude-sonnet-4-20250514`, **When** I run `sl code claude`, **Then** `ANTHROPIC_MODEL=claude-sonnet-4-20250514` is set in the agent process
+
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
@@ -143,38 +149,9 @@ As a developer, I want to pass arbitrary arguments to each coding agent via per-
 - **Launch Profile**: A combination of agent selection and configuration settings used to launch an agent
 - **Shared Configuration Directory**: The `.agent/` directory containing shared commands and skills, symlinked (macOS/Linux) or copied (Windows) to agent-specific directories
 
-### Config Schema (Namespaced)
+### Config Schema
 
-The config system uses namespaced keys for per-agent settings:
-
-**Universal Per-Agent Keys:**
-| Key | Type | Sensitive | Description |
-|-----|------|-----------|-------------|
-| `agent.default` | string | No | Default agent to launch |
-| `agent.<name>.api_key` | string | Yes | API key for this agent |
-| `agent.<name>.base_url` | string | No | Custom API endpoint |
-| `agent.<name>.model` | string | No | Model to use |
-| `agent.<name>.arguments` | string | No | CLI arguments |
-| `agent.<name>.env.<VAR>` | string | Varies | Arbitrary env vars |
-
-**Claude-Specific Keys:**
-| Key | Type | Description |
-|-----|------|-------------|
-| `agent.claude.model_aliases.sonnet` | string | Sonnet model ID |
-| `agent.claude.model_aliases.opus` | string | Opus model ID |
-| `agent.claude.model_aliases.haiku` | string | Haiku model ID |
-
-**Environment Variable Mappings:**
-| Agent | API Key Env | Base URL Env | Model Env |
-|-------|-------------|--------------|-----------|
-| Claude | `ANTHROPIC_API_KEY` | `ANTHROPIC_BASE_URL` | `ANTHROPIC_MODEL` |
-| OpenCode | `OPENAI_API_KEY` | `OPENAI_BASE_URL` | - |
-| Copilot CLI | `GITHUB_TOKEN` | - | - |
-| Codex | `OPENAI_API_KEY` | `OPENAI_BASE_URL` | - |
-
-**Deprecated Keys (removed):**
-- `agent.provider`, `agent.subagent_model`, `agent.permission_mode`, `agent.skip_permissions`, `agent.effort`, `agent.allowed_tools`, `agent.auth_token`
-- `agent.model.sonnet`, `agent.model.opus`, `agent.model.haiku` (use `agent.claude.model_aliases.*`)
+See [plan.md](./plan.md#config-schema-refactoring-2026-03-15) for the complete config schema including per-agent keys, environment variable mappings, and deprecated keys.
 
 ## Success Criteria *(mandatory)*
 
