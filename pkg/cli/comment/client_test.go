@@ -275,6 +275,72 @@ func TestDoWithRetry_401_LoadCredentialsFails_ForceRefreshes(t *testing.T) {
 	}
 }
 
+func TestResolveIDPrefix_FullUUID(t *testing.T) {
+	mock := &mockAuthProvider{}
+	client := newTestClient("http://unused", "token", mock)
+
+	full := "12345678-1234-1234-1234-123456789012"
+	got, err := client.ResolveIDPrefix(full)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != full {
+		t.Fatalf("expected %s, got %s", full, got)
+	}
+}
+
+func TestResolveIDPrefix_SingleMatch(t *testing.T) {
+	fullID := "abcd1234-0000-0000-0000-000000000000"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintf(w, `[{"id":"%s"}]`, fullID)
+	}))
+	defer srv.Close()
+
+	mock := &mockAuthProvider{}
+	client := newTestClient(srv.URL, "token", mock)
+
+	got, err := client.ResolveIDPrefix("abcd")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got != fullID {
+		t.Fatalf("expected %s, got %s", fullID, got)
+	}
+}
+
+func TestResolveIDPrefix_NoMatch(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `[]`)
+	}))
+	defer srv.Close()
+
+	mock := &mockAuthProvider{}
+	client := newTestClient(srv.URL, "token", mock)
+
+	_, err := client.ResolveIDPrefix("zzzz")
+	if err == nil {
+		t.Fatal("expected error for no match, got nil")
+	}
+}
+
+func TestResolveIDPrefix_AmbiguousMatch(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `[{"id":"abcd1111-0000-0000-0000-000000000000"},{"id":"abcd2222-0000-0000-0000-000000000000"}]`)
+	}))
+	defer srv.Close()
+
+	mock := &mockAuthProvider{}
+	client := newTestClient(srv.URL, "token", mock)
+
+	_, err := client.ResolveIDPrefix("abcd")
+	if err == nil {
+		t.Fatal("expected error for ambiguous match, got nil")
+	}
+}
+
 func TestDoWithRetry_401_NilDiskCreds_ForceRefreshes(t *testing.T) {
 	// LoadCredentials returns nil (no credentials file) — should force refresh.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
