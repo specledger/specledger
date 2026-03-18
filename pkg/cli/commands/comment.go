@@ -298,6 +298,7 @@ func outputCommentsCompact(comments []comment.ReviewComment, client *comment.Cli
 	}
 
 	fmt.Printf("\n%d comment(s) across %d artifact(s)\n", len(comments), len(artifacts))
+	fmt.Printf("→ Use 'sl comment show <id>' for full details\n")
 	return nil
 }
 
@@ -418,6 +419,7 @@ func outputCommentHuman(c *comment.ReviewComment, replies []comment.ReviewCommen
 		}
 	}
 
+	fmt.Printf("\n→ Use 'sl comment reply %s <message>' to reply\n", c.ID)
 	return nil
 }
 
