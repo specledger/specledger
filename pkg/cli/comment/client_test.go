@@ -579,3 +579,233 @@ func TestFetchCommentByID_NotFound_Guidance(t *testing.T) {
 		t.Errorf("expected guidance to list comments, got: %s", msg)
 	}
 }
+
+func TestGetSpec_StructuredError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprint(w, `{"message":"permission denied"}`)
+	}))
+	defer srv.Close()
+
+	client := newTestClient(srv.URL, "token", &mockAuthProvider{})
+	_, err := client.GetSpec("proj-id", "my-spec")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "GetSpec failed (403)") {
+		t.Errorf("expected structured error, got: %s", err)
+	}
+}
+
+func TestGetSpec_NotFound_Guidance(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, `[]`)
+	}))
+	defer srv.Close()
+
+	client := newTestClient(srv.URL, "token", &mockAuthProvider{})
+	_, err := client.GetSpec("proj-id", "my-spec")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "my-spec") {
+		t.Errorf("expected spec key in error, got: %s", err)
+	}
+}
+
+func TestGetChange_StructuredError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprint(w, `{"message":"denied"}`)
+	}))
+	defer srv.Close()
+
+	client := newTestClient(srv.URL, "token", &mockAuthProvider{})
+	_, err := client.GetChange("spec-id")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "GetChange failed (403)") {
+		t.Errorf("expected structured error, got: %s", err)
+	}
+}
+
+func TestGetChange_NotFound_Guidance(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, `[]`)
+	}))
+	defer srv.Close()
+
+	client := newTestClient(srv.URL, "token", &mockAuthProvider{})
+	_, err := client.GetChange("spec-id")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "no change found") {
+		t.Errorf("expected guidance, got: %s", err)
+	}
+}
+
+func TestGetChange_ReturnsOpenChange(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, `[{"id":"c1","spec_id":"s1","head_branch":"feat","base_branch":"main","state":"closed"},{"id":"c2","spec_id":"s1","head_branch":"feat","base_branch":"main","state":"open"}]`)
+	}))
+	defer srv.Close()
+
+	client := newTestClient(srv.URL, "token", &mockAuthProvider{})
+	ch, err := client.GetChange("s1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ch.ID != "c2" {
+		t.Errorf("expected open change c2, got %s", ch.ID)
+	}
+}
+
+func TestFetchComments_StructuredError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, `{"message":"internal error"}`)
+	}))
+	defer srv.Close()
+
+	client := newTestClient(srv.URL, "token", &mockAuthProvider{})
+	_, err := client.FetchComments("change-id")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "FetchComments failed (500)") {
+		t.Errorf("expected structured error, got: %s", err)
+	}
+}
+
+func TestFetchReplies_StructuredError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, `{"message":"internal error"}`)
+	}))
+	defer srv.Close()
+
+	client := newTestClient(srv.URL, "token", &mockAuthProvider{})
+	_, err := client.FetchReplies("change-id")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "FetchReplies failed (500)") {
+		t.Errorf("expected structured error, got: %s", err)
+	}
+}
+
+func TestFetchRepliesByParentID_StructuredError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprint(w, `{"message":"denied"}`)
+	}))
+	defer srv.Close()
+
+	client := newTestClient(srv.URL, "token", &mockAuthProvider{})
+	_, err := client.FetchRepliesByParentID("parent-id")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "FetchRepliesByParentID failed (403)") {
+		t.Errorf("expected structured error, got: %s", err)
+	}
+}
+
+func TestFetchResolvedComments_StructuredError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprint(w, `{"message":"denied"}`)
+	}))
+	defer srv.Close()
+
+	client := newTestClient(srv.URL, "token", &mockAuthProvider{})
+	_, err := client.FetchResolvedComments("change-id")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "FetchResolvedComments failed (403)") {
+		t.Errorf("expected structured error, got: %s", err)
+	}
+}
+
+func TestCreateReply_StructuredError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.WriteHeader(http.StatusOK)
+			fmt.Fprint(w, `[{"id":"c1","change_id":"ch1","file_path":"main.go","content":"test","author_name":"a","author_email":"a@b.com","is_resolved":false,"created_at":"2024-01-01"}]`)
+			return
+		}
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprint(w, `{"message":"rls violation"}`)
+	}))
+	defer srv.Close()
+
+	mock := &mockAuthProvider{
+		creds: &auth.Credentials{UserID: "user-1", AccessToken: "token"},
+	}
+	client := newTestClient(srv.URL, "token", mock)
+	_, err := client.CreateReply("c1", "hello")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "CreateReply failed (403)") {
+		t.Errorf("expected structured error, got: %s", err)
+	}
+}
+
+func TestCreateReply_NoCreds_Guidance(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, `[{"id":"c1","change_id":"ch1","file_path":"main.go","content":"test","author_name":"a","author_email":"a@b.com","is_resolved":false,"created_at":"2024-01-01"}]`)
+	}))
+	defer srv.Close()
+
+	mock := &mockAuthProvider{loadErr: fmt.Errorf("no creds")}
+	client := newTestClient(srv.URL, "token", mock)
+	_, err := client.CreateReply("c1", "hello")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "sl auth login") {
+		t.Errorf("expected auth guidance, got: %s", err)
+	}
+}
+
+func TestResolveComment_StructuredError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprint(w, `{"message":"denied"}`)
+	}))
+	defer srv.Close()
+
+	client := newTestClient(srv.URL, "token", &mockAuthProvider{})
+	err := client.ResolveComment("comment-id")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "ResolveComment failed (403)") {
+		t.Errorf("expected structured error, got: %s", err)
+	}
+}
+
+func TestResolveCommentWithReplies_StructuredError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		fmt.Fprint(w, `{"message":"denied"}`)
+	}))
+	defer srv.Close()
+
+	client := newTestClient(srv.URL, "token", &mockAuthProvider{})
+	err := client.ResolveCommentWithReplies("comment-id", []string{"r1", "r2"})
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "ResolveCommentWithReplies failed (403)") {
+		t.Errorf("expected structured error, got: %s", err)
+	}
+}
