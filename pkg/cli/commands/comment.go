@@ -98,6 +98,7 @@ Examples:
 }
 
 var (
+	commentVerbose       bool
 	commentListJSON      bool
 	commentListStatus    string
 	commentShowJSON      bool
@@ -107,6 +108,8 @@ var (
 )
 
 func init() {
+	VarCommentCmd.PersistentFlags().BoolVar(&commentVerbose, "verbose", false, "Show full API responses on error")
+
 	commentListCmd.Flags().BoolVar(&commentListJSON, "json", false, "Output as JSON array")
 	commentListCmd.Flags().StringVar(&commentListStatus, "status", "open", "Filter by status: open, resolved, all")
 
@@ -124,6 +127,12 @@ func init() {
 	VarCommentCmd.AddCommand(commentResolveCmd)
 }
 
+func newCommentClient(accessToken string) *comment.Client {
+	c := comment.NewClient(accessToken)
+	c.Verbose = commentVerbose
+	return c
+}
+
 func runCommentList(cmd *cobra.Command, args []string) error {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -136,7 +145,7 @@ func runCommentList(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	client := comment.NewClient(accessToken)
+	client := newCommentClient(accessToken)
 
 	var specKey string
 	if len(args) > 0 {
@@ -289,6 +298,7 @@ func outputCommentsCompact(comments []comment.ReviewComment, client *comment.Cli
 	}
 
 	fmt.Printf("\n%d comment(s) across %d artifact(s)\n", len(comments), len(artifacts))
+	fmt.Printf("→ Use 'sl comment show <id>' for full details\n")
 	return nil
 }
 
@@ -298,7 +308,7 @@ func runCommentShow(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("authentication required: %w\n\nRun 'sl auth login' to authenticate.", err)
 	}
 
-	client := comment.NewClient(accessToken)
+	client := newCommentClient(accessToken)
 
 	for i, commentID := range args {
 		if i > 0 {
@@ -409,6 +419,7 @@ func outputCommentHuman(c *comment.ReviewComment, replies []comment.ReviewCommen
 		}
 	}
 
+	fmt.Printf("\n→ Use 'sl comment reply %s <message>' to reply\n", c.ID)
 	return nil
 }
 
@@ -421,7 +432,7 @@ func runCommentReply(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("authentication required: %w\n\nRun 'sl auth login' to authenticate.", err)
 	}
 
-	client := comment.NewClient(accessToken)
+	client := newCommentClient(accessToken)
 
 	reply, err := client.CreateReply(commentID, message)
 	if err != nil {
@@ -481,7 +492,7 @@ func runCommentResolve(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("authentication required: %w\n\nRun 'sl auth login' to authenticate.", err)
 	}
 
-	client := comment.NewClient(accessToken)
+	client := newCommentClient(accessToken)
 
 	resolvedIDs := make([]string, 0, len(args))
 
