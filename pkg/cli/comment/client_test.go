@@ -341,6 +341,40 @@ func TestResolveIDPrefix_AmbiguousMatch(t *testing.T) {
 	}
 }
 
+func TestResolveIDPrefix_HTTPError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Simulate a server error that causes ReadJSON to return an error.
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		fmt.Fprint(w, `{"message":"internal server error"}`)
+	}))
+	defer srv.Close()
+
+	mock := &mockAuthProvider{}
+	client := newTestClient(srv.URL, "token", mock)
+
+	_, err := client.ResolveIDPrefix("abcd")
+	if err == nil {
+		t.Fatal("expected error for HTTP error, got nil")
+	}
+}
+
+func TestResolveIDPrefix_InvalidJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprint(w, `not-valid-json`)
+	}))
+	defer srv.Close()
+
+	mock := &mockAuthProvider{}
+	client := newTestClient(srv.URL, "token", mock)
+
+	_, err := client.ResolveIDPrefix("abcd")
+	if err == nil {
+		t.Fatal("expected error for invalid JSON, got nil")
+	}
+}
+
 func TestDoWithRetry_401_NilDiskCreds_ForceRefreshes(t *testing.T) {
 	// LoadCredentials returns nil (no credentials file) — should force refresh.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
