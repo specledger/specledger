@@ -292,6 +292,17 @@ func outputCommentsCompact(comments []comment.ReviewComment, client *comment.Cli
 	return nil
 }
 
+func resolvePrefix(client *comment.Client, prefix string) (string, error) {
+	resolved, err := client.ResolveIDPrefix(prefix)
+	if err != nil {
+		return "", err
+	}
+	if resolved != prefix {
+		fmt.Fprintf(os.Stderr, "Resolved %s → %s\n", prefix, resolved)
+	}
+	return resolved, nil
+}
+
 func runCommentShow(cmd *cobra.Command, args []string) error {
 	accessToken, err := auth.GetValidAccessToken()
 	if err != nil {
@@ -303,6 +314,11 @@ func runCommentShow(cmd *cobra.Command, args []string) error {
 	for i, commentID := range args {
 		if i > 0 {
 			fmt.Println("\n---")
+		}
+
+		commentID, err = resolvePrefix(client, commentID)
+		if err != nil {
+			return err
 		}
 
 		c, err := client.FetchCommentByID(commentID)
@@ -413,7 +429,6 @@ func outputCommentHuman(c *comment.ReviewComment, replies []comment.ReviewCommen
 }
 
 func runCommentReply(cmd *cobra.Command, args []string) error {
-	commentID := args[0]
 	message := args[1]
 
 	accessToken, err := auth.GetValidAccessToken()
@@ -422,6 +437,11 @@ func runCommentReply(cmd *cobra.Command, args []string) error {
 	}
 
 	client := comment.NewClient(accessToken)
+
+	commentID, err := resolvePrefix(client, args[0])
+	if err != nil {
+		return err
+	}
 
 	reply, err := client.CreateReply(commentID, message)
 	if err != nil {
@@ -485,7 +505,12 @@ func runCommentResolve(cmd *cobra.Command, args []string) error {
 
 	resolvedIDs := make([]string, 0, len(args))
 
-	for _, commentID := range args {
+	for _, rawID := range args {
+		commentID, err := resolvePrefix(client, rawID)
+		if err != nil {
+			return err
+		}
+
 		// Post reason as a reply before resolving (audit trail)
 		if _, err := client.CreateReply(commentID, commentResolveReason); err != nil {
 			return fmt.Errorf("failed to post resolution reason for %s: %w\n→ The comment was NOT resolved. Fix the reply issue first.", commentID, err)
