@@ -26,17 +26,18 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
 
    This ensures you have the latest changes from other team members.
 
-2. **Check for in-progress tasks** (resume logic):
+2. **Check for in-progress tasks and select next task** (resume logic):
 
-   Run `sl issue list --status in_progress` for the current spec to check for any tasks that were started but not completed in a previous session.
+   First, check for tasks started but not completed in a previous session:
+   Run `sl issue list --status in_progress` to find any in-progress tasks.
 
    **If in-progress tasks found**:
    - Display the in-progress tasks with their notes/last checkpoint
    - Ask the user: "Found in-progress tasks from a previous session. Would you like to resume from the last checkpoint, or start fresh?"
    - **If resume**: Continue from the last checkpoint by reading the task's `notes` field for context and proceeding with the next steps
-   - **If start fresh**: Mark in-progress tasks as open and proceed with step 3
+   - **If start fresh**: Mark in-progress tasks as open and proceed below
 
-   **If no in-progress tasks**: Proceed directly to step 3
+   **Pick next task**: Use `sl issue ready` to find the next task to work on. This command handles dependency resolution automatically, returning only tasks whose dependencies are satisfied and that are ready to start. Do **not** use `sl issue list --status open` or other list commands for task selection — `sl issue ready` is the authoritative source for determining work order.
 
 3. Run `sl spec info --json --require-tasks --include-tasks` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute.
 
