@@ -141,8 +141,7 @@ func runCommentList(cmd *cobra.Command, args []string) error {
 
 	accessToken, err := auth.GetValidAccessToken()
 	if err != nil {
-		os.Exit(1)
-		return nil
+		return fmt.Errorf("authentication required: %w\n→ Run 'sl auth login' to authenticate", err)
 	}
 
 	client := newCommentClient(accessToken)
@@ -153,30 +152,29 @@ func runCommentList(cmd *cobra.Command, args []string) error {
 	} else {
 		currentBranch, err := cligit.GetCurrentBranch(cwd)
 		if err != nil {
-			os.Exit(1)
-			return nil
+			return fmt.Errorf("failed to detect current branch: %w\n→ Pass the branch name explicitly: sl comment list <branch-name>", err)
 		}
 		specKey = currentBranch
 	}
 
 	repoOwner, repoName, err := cligit.GetRepoOwnerName(cwd)
 	if err != nil {
-		return fmt.Errorf("failed to get repo info: %w", err)
+		return fmt.Errorf("%w\n→ Check repo remote with 'git remote -v'", err)
 	}
 
 	project, err := client.GetProject(repoOwner, repoName)
 	if err != nil {
-		return fmt.Errorf("failed to get project: %w", err)
+		return err
 	}
 
 	spec, err := client.GetSpec(project.ID, specKey)
 	if err != nil {
-		return fmt.Errorf("failed to get spec: %w", err)
+		return err
 	}
 
 	change, err := client.GetChange(spec.ID)
 	if err != nil {
-		return fmt.Errorf("failed to get change: %w", err)
+		return err
 	}
 
 	comments, err := fetchCommentsByStatus(client, change.ID, commentListStatus)
