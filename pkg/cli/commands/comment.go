@@ -98,6 +98,7 @@ Examples:
 }
 
 var (
+	commentVerbose       bool
 	commentListJSON      bool
 	commentListStatus    string
 	commentShowJSON      bool
@@ -107,6 +108,8 @@ var (
 )
 
 func init() {
+	VarCommentCmd.PersistentFlags().BoolVar(&commentVerbose, "verbose", false, "Show full API responses on error")
+
 	commentListCmd.Flags().BoolVar(&commentListJSON, "json", false, "Output as JSON array")
 	commentListCmd.Flags().StringVar(&commentListStatus, "status", "open", "Filter by status: open, resolved, all")
 
@@ -124,6 +127,12 @@ func init() {
 	VarCommentCmd.AddCommand(commentResolveCmd)
 }
 
+func newCommentClient(accessToken string) *comment.Client {
+	c := comment.NewClient(accessToken)
+	c.Verbose = commentVerbose
+	return c
+}
+
 func runCommentList(cmd *cobra.Command, args []string) error {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -132,11 +141,10 @@ func runCommentList(cmd *cobra.Command, args []string) error {
 
 	accessToken, err := auth.GetValidAccessToken()
 	if err != nil {
-		os.Exit(1)
-		return nil
+		return fmt.Errorf("authentication required: %w\n→ Run 'sl auth login' to authenticate", err)
 	}
 
-	client := comment.NewClient(accessToken)
+	client := newCommentClient(accessToken)
 
 	var specKey string
 	if len(args) > 0 {
@@ -144,30 +152,29 @@ func runCommentList(cmd *cobra.Command, args []string) error {
 	} else {
 		currentBranch, err := cligit.GetCurrentBranch(cwd)
 		if err != nil {
-			os.Exit(1)
-			return nil
+			return fmt.Errorf("failed to detect current branch: %w\n→ Pass the branch name explicitly: sl comment list <branch-name>", err)
 		}
 		specKey = currentBranch
 	}
 
 	repoOwner, repoName, err := cligit.GetRepoOwnerName(cwd)
 	if err != nil {
-		return fmt.Errorf("failed to get repo info: %w", err)
+		return fmt.Errorf("failed to get repo info: %w\n→ Check repo remote with 'git remote -v'", err)
 	}
 
 	project, err := client.GetProject(repoOwner, repoName)
 	if err != nil {
-		return fmt.Errorf("failed to get project: %w", err)
+		return err
 	}
 
 	spec, err := client.GetSpec(project.ID, specKey)
 	if err != nil {
-		return fmt.Errorf("failed to get spec: %w", err)
+		return err
 	}
 
 	change, err := client.GetChange(spec.ID)
 	if err != nil {
-		return fmt.Errorf("failed to get change: %w", err)
+		return err
 	}
 
 	comments, err := fetchCommentsByStatus(client, change.ID, commentListStatus)
@@ -289,20 +296,37 @@ func outputCommentsCompact(comments []comment.ReviewComment, client *comment.Cli
 	}
 
 	fmt.Printf("\n%d comment(s) across %d artifact(s)\n", len(comments), len(artifacts))
+	fmt.Printf("→ Use 'sl comment show <id>' for full details\n")
 	return nil
+}
+
+func resolvePrefix(client *comment.Client, prefix string) (string, error) {
+	resolved, err := client.ResolveIDPrefix(prefix)
+	if err != nil {
+		return "", err
+	}
+	if resolved != prefix {
+		fmt.Fprintf(os.Stderr, "Resolved %s → %s\n", prefix, resolved)
+	}
+	return resolved, nil
 }
 
 func runCommentShow(cmd *cobra.Command, args []string) error {
 	accessToken, err := auth.GetValidAccessToken()
 	if err != nil {
-		return fmt.Errorf("authentication required: %w\n\nRun 'sl auth login' to authenticate.", err)
+		return fmt.Errorf("authentication required: %w\n→ Run 'sl auth login' to authenticate", err)
 	}
 
-	client := comment.NewClient(accessToken)
+	client := newCommentClient(accessToken)
 
 	for i, commentID := range args {
 		if i > 0 {
 			fmt.Println("\n---")
+		}
+
+		commentID, err = resolvePrefix(client, commentID)
+		if err != nil {
+			return err
 		}
 
 		c, err := client.FetchCommentByID(commentID)
@@ -409,19 +433,24 @@ func outputCommentHuman(c *comment.ReviewComment, replies []comment.ReviewCommen
 		}
 	}
 
+	fmt.Printf("\n→ Use 'sl comment reply %s <message>' to reply\n", c.ID)
 	return nil
 }
 
 func runCommentReply(cmd *cobra.Command, args []string) error {
-	commentID := args[0]
 	message := args[1]
 
 	accessToken, err := auth.GetValidAccessToken()
 	if err != nil {
-		return fmt.Errorf("authentication required: %w\n\nRun 'sl auth login' to authenticate.", err)
+		return fmt.Errorf("authentication required: %w\n→ Run 'sl auth login' to authenticate", err)
 	}
 
-	client := comment.NewClient(accessToken)
+	client := newCommentClient(accessToken)
+
+	commentID, err := resolvePrefix(client, args[0])
+	if err != nil {
+		return err
+	}
 
 	reply, err := client.CreateReply(commentID, message)
 	if err != nil {
@@ -478,14 +507,19 @@ Examples:
 func runCommentResolve(cmd *cobra.Command, args []string) error {
 	accessToken, err := auth.GetValidAccessToken()
 	if err != nil {
-		return fmt.Errorf("authentication required: %w\n\nRun 'sl auth login' to authenticate.", err)
+		return fmt.Errorf("authentication required: %w\n→ Run 'sl auth login' to authenticate", err)
 	}
 
-	client := comment.NewClient(accessToken)
+	client := newCommentClient(accessToken)
 
 	resolvedIDs := make([]string, 0, len(args))
 
-	for _, commentID := range args {
+	for _, rawID := range args {
+		commentID, err := resolvePrefix(client, rawID)
+		if err != nil {
+			return err
+		}
+
 		// Post reason as a reply before resolving (audit trail)
 		if _, err := client.CreateReply(commentID, commentResolveReason); err != nil {
 			return fmt.Errorf("failed to post resolution reason for %s: %w\n→ The comment was NOT resolved. Fix the reply issue first.", commentID, err)
