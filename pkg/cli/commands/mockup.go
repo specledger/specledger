@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/huh"
 	"github.com/charmbracelet/lipgloss"
 	cligit "github.com/specledger/specledger/pkg/cli/git"
+	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/launcher"
 	"github.com/specledger/specledger/pkg/cli/mockup"
 	"github.com/specledger/specledger/pkg/cli/prompt"
@@ -77,9 +78,9 @@ func init() {
 }
 
 func runMockup(cmd *cobra.Command, args []string) error {
-	cwd, err := os.Getwd()
+	cwd, err := metadata.FindProjectRoot()
 	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
+		return err
 	}
 
 	// If args provided, use as user prompt and skip confirmations
@@ -349,9 +350,9 @@ func runMockup(cmd *cobra.Command, args []string) error {
 }
 
 func runMockupUpdate(cmd *cobra.Command, args []string) error {
-	cwd, err := os.Getwd()
+	cwd, err := metadata.FindProjectRoot()
 	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
+		return err
 	}
 
 	dsPath := filepath.Join(cwd, ".specledger", "memory", "design-system.md")

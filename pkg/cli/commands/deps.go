@@ -122,7 +122,7 @@ func init() {
 
 func runAddDependency(cmd *cobra.Command, args []string) error {
 	// Get current directory or find project root
-	projectDir, err := findProjectRoot()
+	projectDir, err := metadata.FindProjectRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find project root: %w", err)
 	}
@@ -295,7 +295,7 @@ func runAddDependency(cmd *cobra.Command, args []string) error {
 }
 
 func runListDependencies(cmd *cobra.Command, args []string) error {
-	projectDir, err := findProjectRoot()
+	projectDir, err := metadata.FindProjectRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find project root: %w", err)
 	}
@@ -348,7 +348,7 @@ func runListDependencies(cmd *cobra.Command, args []string) error {
 }
 
 func runRemoveDependency(cmd *cobra.Command, args []string) error {
-	projectDir, err := findProjectRoot()
+	projectDir, err := metadata.FindProjectRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find project root: %w", err)
 	}
@@ -392,7 +392,7 @@ func runRemoveDependency(cmd *cobra.Command, args []string) error {
 }
 
 func runResolveDependencies(cmd *cobra.Command, args []string) error {
-	projectDir, err := findProjectRoot()
+	projectDir, err := metadata.FindProjectRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find project root: %w", err)
 	}
@@ -572,7 +572,7 @@ func generateDirName(url string) string {
 }
 
 func runUpdateDependencies(cmd *cobra.Command, args []string) error {
-	projectDir, err := findProjectRoot()
+	projectDir, err := metadata.FindProjectRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find project root: %w", err)
 	}
@@ -693,7 +693,7 @@ func runUpdateDependencies(cmd *cobra.Command, args []string) error {
 }
 
 func runLinkDependencies(cmd *cobra.Command, args []string) error {
-	projectDir, err := findProjectRoot()
+	projectDir, err := metadata.FindProjectRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find project root: %w", err)
 	}
@@ -876,7 +876,7 @@ func isValidGitURL(s string) bool {
 }
 
 func runUnlinkDependencies(cmd *cobra.Command, args []string) error {
-	projectDir, err := findProjectRoot()
+	projectDir, err := metadata.FindProjectRoot()
 	if err != nil {
 		return fmt.Errorf("failed to find project root: %w", err)
 	}
@@ -957,29 +957,3 @@ func runUnlinkDependencies(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func findProjectRoot() (string, error) {
-	// Start from current directory and work up
-	dir, err := os.Getwd()
-	if err != nil {
-		return "", err
-	}
-
-	// Check current directory
-	if metadata.HasYAMLMetadata(dir) {
-		return dir, nil
-	}
-
-	// Check parent directories
-	for {
-		parent := filepath.Dir(dir)
-		if parent == dir {
-			// Reached root
-			return "", fmt.Errorf("not in a SpecLedger project (no github.com/specledger/specledger/specledger.yaml found)")
-		}
-		dir = parent
-
-		if metadata.HasYAMLMetadata(dir) {
-			return dir, nil
-		}
-	}
-}
