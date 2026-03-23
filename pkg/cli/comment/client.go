@@ -310,6 +310,48 @@ func (c *Client) FetchComments(changeID string) ([]ReviewComment, error) {
 	return comments, nil
 }
 
+// ResolveIDPrefix resolves a short comment ID prefix to the full UUID.
+// If the input is already a full UUID (36 chars), it is returned as-is.
+// Returns an error if zero or multiple comments match the prefix.
+func (c *Client) ResolveIDPrefix(prefix string) (string, error) {
+	// Full UUID: skip prefix lookup
+	if len(prefix) == 36 {
+		return prefix, nil
+	}
+
+	path := fmt.Sprintf(
+		"/rest/v1/review_comments?id=like.%s%%25&select=id",
+		url.QueryEscape(prefix),
+	)
+
+	resp, err := c.DoWithRetry(func(token string) (*http.Response, error) {
+		return c.Get(token, path)
+	})
+	if err != nil {
+		return "", fmt.Errorf("ResolveIDPrefix: %w", err)
+	}
+
+	var matches []struct {
+		ID string `json:"id"`
+	}
+	if err := ReadJSON(resp, &matches); err != nil {
+		return "", fmt.Errorf("ResolveIDPrefix: %w", err)
+	}
+
+	switch len(matches) {
+	case 0:
+		return "", fmt.Errorf("no comment found with prefix: %s", prefix)
+	case 1:
+		return matches[0].ID, nil
+	default:
+		ids := make([]string, len(matches))
+		for i, m := range matches {
+			ids[i] = m.ID
+		}
+		return "", fmt.Errorf("ambiguous comment ID prefix %q, matches: %s", prefix, strings.Join(ids, ", "))
+	}
+}
+
 func (c *Client) FetchCommentByID(commentID string) (*ReviewComment, error) {
 	path := fmt.Sprintf(
 		"/rest/v1/review_comments?id=eq.%s"+
