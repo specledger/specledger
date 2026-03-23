@@ -159,7 +159,7 @@ func runCommentList(cmd *cobra.Command, args []string) error {
 
 	repoOwner, repoName, err := cligit.GetRepoOwnerName(cwd)
 	if err != nil {
-		return fmt.Errorf("%w\n→ Check repo remote with 'git remote -v'", err)
+		return fmt.Errorf("failed to get repo info: %w\n→ Check repo remote with 'git remote -v'", err)
 	}
 
 	project, err := client.GetProject(repoOwner, repoName)
@@ -314,7 +314,7 @@ func resolvePrefix(client *comment.Client, prefix string) (string, error) {
 func runCommentShow(cmd *cobra.Command, args []string) error {
 	accessToken, err := auth.GetValidAccessToken()
 	if err != nil {
-		return fmt.Errorf("authentication required: %w\n\nRun 'sl auth login' to authenticate.", err)
+		return fmt.Errorf("authentication required: %w\n→ Run 'sl auth login' to authenticate", err)
 	}
 
 	client := newCommentClient(accessToken)
@@ -442,7 +442,7 @@ func runCommentReply(cmd *cobra.Command, args []string) error {
 
 	accessToken, err := auth.GetValidAccessToken()
 	if err != nil {
-		return fmt.Errorf("authentication required: %w\n\nRun 'sl auth login' to authenticate.", err)
+		return fmt.Errorf("authentication required: %w\n→ Run 'sl auth login' to authenticate", err)
 	}
 
 	client := newCommentClient(accessToken)
@@ -507,7 +507,7 @@ Examples:
 func runCommentResolve(cmd *cobra.Command, args []string) error {
 	accessToken, err := auth.GetValidAccessToken()
 	if err != nil {
-		return fmt.Errorf("authentication required: %w\n\nRun 'sl auth login' to authenticate.", err)
+		return fmt.Errorf("authentication required: %w\n→ Run 'sl auth login' to authenticate", err)
 	}
 
 	client := newCommentClient(accessToken)
