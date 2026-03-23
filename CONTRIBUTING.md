@@ -1,44 +1,74 @@
 # Contributing to SpecLedger
 
-First off, thank you for considering contributing to SpecLedger! It's people like you that make SpecLedger such a great tool.
+Thank you for considering contributing to SpecLedger!
 
-## How Can I Contribute?
+**Required reading before contributing:** [docs/design/README.md](docs/design/README.md) — the 4-layer architecture and design contracts all contributions must respect.
 
-### Reporting Bugs
+---
 
-Before creating bug reports, please check the existing issues as you might find that the problem has already been reported. When creating a bug report, please include:
+## Two Contribution Paths
 
-- **Title**: A clear and descriptive title
-- **Description**: A detailed description of the problem
-- **Steps to Reproduce**: Step-by-step instructions to reproduce the issue
-- **Expected Behavior**: What you expected to happen
-- **Actual Behavior**: What actually happened
-- **Environment**:
-  - OS and version
-  - SpecLedger version (`sl --version`)
-  - Go version (if building from source)
-- **Screenshots/Logs**: If applicable
+SpecLedger uses itself for contributions. Choose the path that matches the scope of your change.
 
-### Suggesting Enhancements
+### Path 1: Vibe-coded (small fixes)
 
-Enhancement suggestions are tracked as GitHub issues. When creating an enhancement suggestion, include:
+Use this path for changes that are:
+- Isolated to ~3 files or fewer
+- Low architectural risk (bug fix, typo, small enhancement)
+- No new commands, no schema changes, no cross-layer impact
 
-- **Use Case**: What problem does this solve?
-- **Proposed Solution**: How would you like it to work?
-- **Alternatives**: What other solutions have you considered?
-- **Examples**: Mockups, code examples, or documentation
+**Workflow:**
+1. Create a Claude Code plan (not a full spec)
+2. Implement the fix
+3. Validate against [`.specledger/memory/constitution.md`](.specledger/memory/constitution.md) and [`docs/design/`](docs/design/) guidelines
+4. `make lint && make test && make fmt`
+5. Open a PR
 
-### Pull Requests
+> The PR will be reviewed against the constitution and design docs. If the reviewer determines the change has broader impact than expected, they may request a full SDD flow.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes with clear, descriptive commit messages
-4. Add or update tests if applicable
-5. Ensure the code passes all tests (`make test`)
-6. Format your code (`make fmt`)
-7. Commit your changes (`git commit -m 'Add some amazing feature'`)
-8. Push to the branch (`git push origin feature/amazing-feature`)
-9. Open a Pull Request
+### Path 2: Full SDD (features / large changes)
+
+Use this path for changes that are:
+- Multi-file, cross-package, or cross-layer
+- New commands, new API surface, schema migrations
+- Anything that affects the 4-layer model contracts
+
+**Workflow:**
+1. `/specledger.specify` — write the spec
+2. `/specledger.clarify` — answer questions, resolve reviewer comments from core team
+3. `/specledger.plan` — design the implementation
+4. **Alignment with core team** on spec + plan (via app.specledger.io review comments)
+5. `/specledger.tasks` — generate task breakdown
+6. `/specledger.verify` — cross-validate artifacts
+7. `/specledger.implement` — execute
+8. Open a PR
+
+---
+
+## Pre-push Checklist
+
+Run these before every PR:
+
+```bash
+make lint   # golangci-lint v2
+make test   # unit tests
+make fmt    # formatting
+```
+
+---
+
+## Reporting Bugs
+
+Before creating a bug report, check existing issues. Include:
+
+- **Title**: Clear and descriptive
+- **Description**: Detailed description of the problem
+- **Steps to Reproduce**: Step-by-step instructions
+- **Expected Behavior**: What you expected
+- **Actual Behavior**: What happened
+- **Environment**: OS, `sl --version`, Go version (if building from source)
+
+---
 
 ## Development Setup
 
@@ -51,7 +81,7 @@ Enhancement suggestions are tracked as GitHub issues. When creating an enhanceme
 | **Git** | 2.x+ | Version control | [git-scm.com](https://git-scm.com/) |
 | **Docker** | 24+ | Local Supabase stack for integration/E2E tests | [docker.com](https://www.docker.com/) |
 | **Supabase CLI** | 1.x+ | Local backend stack | `brew install supabase/tap/supabase` |
-| **golangci-lint** | 1.x+ | Linting | `brew install golangci-lint` |
+| **golangci-lint** | v2+ | Linting | `mise install golangci-lint` |
 
 ### Why Docker + Supabase CLI?
 
@@ -107,6 +137,8 @@ supabase status
 make lint && make test && make test-integration
 ```
 
+---
+
 ## Testing
 
 SpecLedger uses a three-tier testing strategy. See [tests/README.md](tests/README.md) for full details.
@@ -128,6 +160,8 @@ SpecLedger uses a three-tier testing strategy. See [tests/README.md](tests/READM
 For the testing design rationale, see:
 - [Project Constitution](/.specledger/memory/constitution.md) — Principles VI, VII, VIII
 - [docs/design/testing.md](docs/design/testing.md) — Layer-by-layer testing strategy
+
+---
 
 ## Project Structure
 
@@ -161,6 +195,8 @@ specledger/
 └── .golangci.yml        # Lint rules
 ```
 
+---
+
 ## Architecture
 
 SpecLedger uses a 4-layer tooling model. See [docs/design/README.md](docs/design/README.md) for the full architecture.
@@ -172,9 +208,11 @@ SpecLedger uses a 4-layer tooling model. See [docs/design/README.md](docs/design
 | L2 | AI Commands | Workflow orchestration (`/specledger.*`) |
 | L3 | Skills | Passive context for agent decision-making |
 
+---
+
 ## Commit Messages
 
-Follow conventional commits format:
+Follow [conventional commits](https://www.conventionalcommits.org/) format:
 
 - `feat:` New feature
 - `fix:` Bug fix
@@ -192,10 +230,12 @@ This allows users to interactively select which dependencies to resolve
 when running `sl deps resolve --interactive`.
 ```
 
+---
+
 ## License
 
 By contributing, you agree that your contributions will be licensed under the MIT License.
 
 ## Questions?
 
-Feel free to open an issue with the `question` label, or start a discussion on GitHub Discussions.
+Open an issue with the `question` label, or start a discussion on GitHub Discussions.
