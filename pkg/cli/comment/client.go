@@ -3,6 +3,7 @@ package comment
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -57,6 +58,7 @@ type Client struct {
 	accessToken  string
 	HTTPClient   *http.Client
 	AuthProvider AuthProvider
+	Verbose      bool
 }
 
 func NewClient(accessToken string) *Client {
@@ -118,6 +120,17 @@ func (c *Client) Get(token, path string) (*http.Response, error) {
 	return c.HTTPClient.Do(req)
 }
 
+// RawAPIError is returned when the API responds with a non-2xx status.
+// It preserves the status code and raw body for structured formatting upstream.
+type RawAPIError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *RawAPIError) Error() string {
+	return fmt.Sprintf("API error (%d): %s", e.StatusCode, e.Body)
+}
+
 func ReadJSON(resp *http.Response, dest interface{}) error {
 	defer resp.Body.Close()
 
@@ -127,13 +140,7 @@ func ReadJSON(resp *http.Response, dest interface{}) error {
 	}
 
 	if resp.StatusCode >= 400 {
-		var errResp map[string]any
-		if json.Unmarshal(body, &errResp) == nil {
-			if msg, ok := errResp["message"].(string); ok {
-				return fmt.Errorf("API error (%d): %s", resp.StatusCode, msg)
-			}
-		}
-		return fmt.Errorf("API error (%d): %s", resp.StatusCode, string(body))
+		return &RawAPIError{StatusCode: resp.StatusCode, Body: string(body)}
 	}
 
 	if err := json.Unmarshal(body, dest); err != nil {
@@ -141,6 +148,60 @@ func ReadJSON(resp *http.Response, dest interface{}) error {
 	}
 
 	return nil
+}
+
+// wrapErr checks if err is a RawAPIError and formats it with structured guidance.
+// For non-API errors, it wraps with the operation name as before.
+func (c *Client) wrapErr(op string, err error) error {
+	var rawErr *RawAPIError
+	if errors.As(err, &rawErr) {
+		return c.formatAPIError(op, rawErr.StatusCode, rawErr.Body)
+	}
+	return fmt.Errorf("%s: %w", op, err)
+}
+
+// formatAPIError builds a structured error with guidance per cli.md Principle 2.
+// It always preserves the raw error; guidance is based on common causes.
+func (c *Client) formatAPIError(op string, statusCode int, rawBody string) error {
+	summary := summarizeAPIError(rawBody)
+
+	msg := fmt.Sprintf("%s failed (%d): %s", op, statusCode, summary)
+
+	switch {
+	case statusCode == 401:
+		msg += "\n→ Auth token expired or invalid. Run 'sl auth login' to refresh."
+	case statusCode == 403:
+		msg += "\n→ Common cause: stale auth or missing permissions. Run 'sl auth login' to refresh."
+	case statusCode == 404:
+		msg += "\n→ The requested resource was not found. Verify the ID is correct."
+	case statusCode == 400:
+		msg += "\n→ The request was malformed. Check the input values."
+	case statusCode >= 500:
+		msg += "\n→ Server error. Retry in a moment, or check https://status.supabase.com"
+	}
+
+	if c.Verbose {
+		msg += fmt.Sprintf("\n→ Raw response: %s", rawBody)
+	} else {
+		msg += "\n→ Run with --verbose for the full API response."
+	}
+
+	return fmt.Errorf("%s", msg)
+}
+
+// summarizeAPIError extracts a human-readable summary from the raw API body.
+func summarizeAPIError(rawBody string) string {
+	var errResp map[string]any
+	if json.Unmarshal([]byte(rawBody), &errResp) == nil {
+		if msg, ok := errResp["message"].(string); ok {
+			return msg
+		}
+	}
+	// Fallback for non-JSON responses
+	if len(rawBody) > 200 {
+		return rawBody[:197] + "..."
+	}
+	return rawBody
 }
 
 func (c *Client) GetProject(repoOwner, repoName string) (*apiProject, error) {
@@ -154,16 +215,16 @@ func (c *Client) GetProject(repoOwner, repoName string) (*apiProject, error) {
 		return c.Get(token, path)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("GetProject: %w", err)
+		return nil, c.wrapErr("GetProject", err)
 	}
 
 	var projects []apiProject
 	if err := ReadJSON(resp, &projects); err != nil {
-		return nil, fmt.Errorf("GetProject: %w", err)
+		return nil, c.wrapErr("GetProject", err)
 	}
 
 	if len(projects) == 0 {
-		return nil, fmt.Errorf("project not found: %s/%s", repoOwner, repoName)
+		return nil, fmt.Errorf("GetProject: project not found for '%s/%s'.\n→ Check repo remote with 'git remote -v'", repoOwner, repoName)
 	}
 
 	return &projects[0], nil
@@ -180,16 +241,16 @@ func (c *Client) GetSpec(projectID, specKey string) (*apiSpec, error) {
 		return c.Get(token, path)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("GetSpec: %w", err)
+		return nil, c.wrapErr("GetSpec", err)
 	}
 
 	var specs []apiSpec
 	if err := ReadJSON(resp, &specs); err != nil {
-		return nil, fmt.Errorf("GetSpec: %w", err)
+		return nil, c.wrapErr("GetSpec", err)
 	}
 
 	if len(specs) == 0 {
-		return nil, fmt.Errorf("spec not found: %s", specKey)
+		return nil, fmt.Errorf("GetSpec: spec not found for key '%s'.\n→ Verify the branch name or pass it explicitly: sl comment list <branch-name>", specKey)
 	}
 
 	return &specs[0], nil
@@ -205,16 +266,16 @@ func (c *Client) GetChange(specID string) (*apiChange, error) {
 		return c.Get(token, path)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("GetChange: %w", err)
+		return nil, c.wrapErr("GetChange", err)
 	}
 
 	var changes []apiChange
 	if err := ReadJSON(resp, &changes); err != nil {
-		return nil, fmt.Errorf("GetChange: %w", err)
+		return nil, c.wrapErr("GetChange", err)
 	}
 
 	if len(changes) == 0 {
-		return nil, fmt.Errorf("no change found for spec %s", specID)
+		return nil, fmt.Errorf("GetChange: no change found for spec '%s'.\n→ Ensure a change (PR) exists for this spec", specID)
 	}
 
 	for _, ch := range changes {
@@ -229,7 +290,7 @@ func (c *Client) GetChange(specID string) (*apiChange, error) {
 func (c *Client) FetchComments(changeID string) ([]ReviewComment, error) {
 	path := fmt.Sprintf(
 		"/rest/v1/review_comments?change_id=eq.%s&is_resolved=eq.false&parent_comment_id=is.null"+
-			"&select=id,file_path,content,selected_text,line,start_line,author_name,author_email,created_at"+
+			"&select=id,file_path,content,selected_text,line,start_line,author_name,author_email,is_resolved,created_at"+
 			"&order=created_at.asc",
 		url.QueryEscape(changeID),
 	)
@@ -238,12 +299,12 @@ func (c *Client) FetchComments(changeID string) ([]ReviewComment, error) {
 		return c.Get(token, path)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("FetchComments: %w", err)
+		return nil, c.wrapErr("FetchComments", err)
 	}
 
 	var comments []ReviewComment
 	if err := ReadJSON(resp, &comments); err != nil {
-		return nil, fmt.Errorf("FetchComments: %w", err)
+		return nil, c.wrapErr("FetchComments", err)
 	}
 
 	return comments, nil
@@ -302,16 +363,16 @@ func (c *Client) FetchCommentByID(commentID string) (*ReviewComment, error) {
 		return c.Get(token, path)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("FetchCommentByID: %w", err)
+		return nil, c.wrapErr("FetchCommentByID", err)
 	}
 
 	var comments []ReviewComment
 	if err := ReadJSON(resp, &comments); err != nil {
-		return nil, fmt.Errorf("FetchCommentByID: %w", err)
+		return nil, c.wrapErr("FetchCommentByID", err)
 	}
 
 	if len(comments) == 0 {
-		return nil, fmt.Errorf("comment not found: %s", commentID)
+		return nil, fmt.Errorf("FetchCommentByID: comment not found for ID '%s'.\n→ Run 'sl comment list' to see available comment IDs", commentID)
 	}
 
 	return &comments[0], nil
@@ -329,12 +390,12 @@ func (c *Client) FetchReplies(changeID string) ([]ReviewComment, error) {
 		return c.Get(token, path)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("FetchReplies: %w", err)
+		return nil, c.wrapErr("FetchReplies", err)
 	}
 
 	var replies []ReviewComment
 	if err := ReadJSON(resp, &replies); err != nil {
-		return nil, fmt.Errorf("FetchReplies: %w", err)
+		return nil, c.wrapErr("FetchReplies", err)
 	}
 
 	return replies, nil
@@ -352,12 +413,12 @@ func (c *Client) FetchRepliesByParentID(parentID string) ([]ReviewComment, error
 		return c.Get(token, path)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("FetchRepliesByParentID: %w", err)
+		return nil, c.wrapErr("FetchRepliesByParentID", err)
 	}
 
 	var replies []ReviewComment
 	if err := ReadJSON(resp, &replies); err != nil {
-		return nil, fmt.Errorf("FetchRepliesByParentID: %w", err)
+		return nil, c.wrapErr("FetchRepliesByParentID", err)
 	}
 
 	return replies, nil
@@ -366,7 +427,7 @@ func (c *Client) FetchRepliesByParentID(parentID string) ([]ReviewComment, error
 func (c *Client) FetchResolvedComments(changeID string) ([]ReviewComment, error) {
 	path := fmt.Sprintf(
 		"/rest/v1/review_comments?change_id=eq.%s&is_resolved=eq.true&parent_comment_id=is.null"+
-			"&select=id,file_path,content,selected_text,line,start_line,author_name,author_email,created_at"+
+			"&select=id,file_path,content,selected_text,line,start_line,author_name,author_email,is_resolved,created_at"+
 			"&order=created_at.asc",
 		url.QueryEscape(changeID),
 	)
@@ -375,12 +436,12 @@ func (c *Client) FetchResolvedComments(changeID string) ([]ReviewComment, error)
 		return c.Get(token, path)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("FetchResolvedComments: %w", err)
+		return nil, c.wrapErr("FetchResolvedComments", err)
 	}
 
 	var comments []ReviewComment
 	if err := ReadJSON(resp, &comments); err != nil {
-		return nil, fmt.Errorf("FetchResolvedComments: %w", err)
+		return nil, c.wrapErr("FetchResolvedComments", err)
 	}
 
 	return comments, nil
@@ -405,7 +466,7 @@ func (c *Client) CreateReply(parentID, content string) (*ThreadReply, error) {
 	// Load credentials to get author_id (NOT NULL constraint).
 	creds, err := c.AuthProvider.LoadCredentials()
 	if err != nil || creds == nil {
-		return nil, fmt.Errorf("CreateReply: failed to load credentials for author_id")
+		return nil, fmt.Errorf("CreateReply: failed to load credentials.\n→ Run 'sl auth login' to authenticate")
 	}
 
 	reqURL := fmt.Sprintf("%s/rest/v1/review_comments", c.BaseURL)
@@ -438,17 +499,13 @@ func (c *Client) CreateReply(parentID, content string) (*ThreadReply, error) {
 
 	resp, err := c.DoWithRetry(postFn)
 	if err != nil {
-		return nil, fmt.Errorf("CreateReply: %w", err)
+		return nil, c.wrapErr("CreateReply", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("CreateReply: parent comment not found: %s", parentID)
-	}
-
 	if resp.StatusCode >= 400 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("CreateReply: API error (%d): %s", resp.StatusCode, string(bodyBytes))
+		return nil, c.formatAPIError("CreateReply", resp.StatusCode, string(bodyBytes))
 	}
 
 	var replies []struct {
@@ -461,7 +518,7 @@ func (c *Client) CreateReply(parentID, content string) (*ThreadReply, error) {
 	}
 
 	if len(replies) == 0 {
-		return nil, fmt.Errorf("CreateReply: no reply returned from API")
+		return nil, fmt.Errorf("CreateReply: no reply returned from API.\n→ This is unexpected. Run with --verbose and report the issue")
 	}
 
 	return &ThreadReply{
@@ -492,13 +549,13 @@ func (c *Client) ResolveComment(commentID string) error {
 
 	resp, err := c.DoWithRetry(patchFn)
 	if err != nil {
-		return fmt.Errorf("ResolveComment: %w", err)
+		return c.wrapErr("ResolveComment", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("ResolveComment: API error (%d): %s", resp.StatusCode, string(bodyBytes))
+		return c.formatAPIError("ResolveComment", resp.StatusCode, string(bodyBytes))
 	}
 
 	return nil
@@ -529,13 +586,13 @@ func (c *Client) ResolveCommentWithReplies(commentID string, replyIDs []string) 
 
 	resp, err := c.DoWithRetry(patchFn)
 	if err != nil {
-		return fmt.Errorf("ResolveCommentWithReplies: %w", err)
+		return c.wrapErr("ResolveCommentWithReplies", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("ResolveCommentWithReplies: API error (%d): %s", resp.StatusCode, string(bodyBytes))
+		return c.formatAPIError("ResolveCommentWithReplies", resp.StatusCode, string(bodyBytes))
 	}
 
 	return nil
