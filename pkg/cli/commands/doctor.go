@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/prerequisites"
 	"github.com/specledger/specledger/pkg/cli/tui"
 	"github.com/specledger/specledger/pkg/cli/ui"
@@ -138,7 +139,10 @@ func performCLIUpdate() error {
 
 // performTemplateUpdate applies embedded templates to the project without prompting.
 func performTemplateUpdate() error {
-	projectDir, _ := os.Getwd()
+	projectDir, err := metadata.FindProjectRoot()
+	if err != nil {
+		return err
+	}
 	cliVersion := version.GetVersion()
 	templateStatus, err := templates.CheckTemplateStatus(projectDir, cliVersion)
 	if err != nil || templateStatus == nil || !templateStatus.InProject {
@@ -212,7 +216,7 @@ func outputDoctorJSON(check prerequisites.PrerequisiteCheck) error {
 	}
 
 	// Add template version info
-	projectDir, _ := os.Getwd()
+	projectDir, _ := metadata.FindProjectRoot()
 	templateStatus, _ := templates.CheckTemplateStatus(projectDir, version.GetVersion())
 	if templateStatus != nil && templateStatus.InProject {
 		output.TemplateVersion = templateStatus.ProjectTemplateVersion
@@ -293,7 +297,7 @@ func outputDoctorHuman(check prerequisites.PrerequisiteCheck) error {
 	fmt.Println()
 
 	// Template status section (only if in a project)
-	projectDir, _ := os.Getwd()
+	projectDir, _ := metadata.FindProjectRoot()
 	templateStatus, _ := templates.CheckTemplateStatus(projectDir, cliVersion)
 	if templateStatus != nil && templateStatus.InProject {
 		fmt.Println(ui.Bold("Project Templates"))

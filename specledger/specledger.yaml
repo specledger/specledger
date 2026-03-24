@@ -3,20 +3,20 @@ project:
     id: 7109364a-2ebc-451f-b052-2fbe5453459e
     name: specledger
     short_code: sl
-    created: 2026-03-18T01:47:18.017471+08:00
-    modified: 2026-03-18T01:47:19.331289+08:00
+    created: 2026-03-23T10:48:33.458637+07:00
+    modified: 2026-03-23T10:48:34.937636+07:00
     version: 0.1.0
 playbook:
     name: specledger
     version: 1.0.0
-    applied_at: 2026-03-18T01:47:18.017471+08:00
+    applied_at: 2026-03-23T10:48:33.458637+07:00
     structure:
         - .specledger/
         - .gitattributes
         - AGENTS.md
         - mise.toml
-template_version: dev
+template_version: 1.0.58
 task_tracker:
     choice: builtin
-    enabled_at: 2026-03-18T01:47:18.017471+08:00
+    enabled_at: 2026-03-23T10:48:33.458637+07:00
 artifact_path: specledger/
