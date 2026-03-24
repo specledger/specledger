@@ -132,45 +132,45 @@ func checkRemoteBranches(repoRoot, featureNum string) error {
 }
 
 func GetNextFeatureNum(repoRoot string) (string, error) {
-	specledgerDir := filepath.Join(repoRoot, "specledger")
-
-	info, err := os.Stat(specledgerDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return "001", nil
-		}
-		return "", fmt.Errorf("failed to access specledger directory: %w", err)
-	}
-
-	if !info.IsDir() {
-		return "001", nil
-	}
-
-	entries, err := os.ReadDir(specledgerDir)
-	if err != nil {
-		return "", fmt.Errorf("failed to read specledger directory: %w", err)
-	}
-
-	maxNum := 0
 	featurePattern := regexp.MustCompile(`^(\d{3,})-`)
+	maxNum := 0
 
-	for _, entry := range entries {
-		if !entry.IsDir() {
-			continue
-		}
-
-		matches := featurePattern.FindStringSubmatch(entry.Name())
-		if len(matches) > 1 {
-			var num int
-			_, _ = fmt.Sscanf(matches[1], "%d", &num)
-			if num > maxNum {
-				maxNum = num
+	// Scan local specledger directories
+	specledgerDir := filepath.Join(repoRoot, "specledger")
+	if info, err := os.Stat(specledgerDir); err == nil && info.IsDir() {
+		if entries, err := os.ReadDir(specledgerDir); err == nil {
+			for _, entry := range entries {
+				if !entry.IsDir() {
+					continue
+				}
+				if matches := featurePattern.FindStringSubmatch(entry.Name()); len(matches) > 1 {
+					var num int
+					_, _ = fmt.Sscanf(matches[1], "%d", &num)
+					if num > maxNum {
+						maxNum = num
+					}
+				}
 			}
 		}
 	}
 
-	nextNum := maxNum + 1
-	return fmt.Sprintf("%03d", nextNum), nil
+	// Scan local branches
+	if repo, err := openRepo(repoRoot); err == nil {
+		if branches, err := repo.Branches(); err == nil {
+			_ = branches.ForEach(func(ref *plumbing.Reference) error {
+				if matches := featurePattern.FindStringSubmatch(ref.Name().Short()); len(matches) > 1 {
+					var num int
+					_, _ = fmt.Sscanf(matches[1], "%d", &num)
+					if num > maxNum {
+						maxNum = num
+					}
+				}
+				return nil
+			})
+		}
+	}
+
+	return fmt.Sprintf("%03d", maxNum+1), nil
 }
 
 func ParseFeatureNum(branchName string) string {
