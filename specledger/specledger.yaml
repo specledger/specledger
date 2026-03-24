@@ -1,5 +1,6 @@
 version: 1.0.0
 project:
+    id: 7109364a-2ebc-451f-b052-2fbe5453459e
     name: specledger
     short_code: sl
     created: 2026-03-23T10:48:33.458637+07:00
