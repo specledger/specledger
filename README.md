@@ -8,32 +8,28 @@
 
 > All-in-one SDD Playbook for modern development teams
 
-SpecLedger (`sl`) is a comprehensive Specification-Driven Development playbook that unifies project creation, customizable workflows, issue tracking, and specification dependency management.
+SpecLedger (`sl`) is a comprehensive Specification-Driven Development toolkit that unifies project creation, issue tracking, artifact review and refinement and cross repo spec management.
 
-**Documentation**: [https://specledger.io/docs](https://specledger.io/docs) | **Website**: [https://specledger.io](https://specledger.io)
+**CLI Documentation**: [https://specledger.io/cli](https://specledger.io/cli) | **Website**: [https://specledger.io](https://specledger.io)
 
 ## What is SpecLedger?
 
-SpecLedger is an **all-in-one SDD playbook** that provides:
+SpecLedger is an **all-in-one SDD toolkit** that provides:
 
-- **Easy Bootstrap** - Create new projects with a single command
-- **Customizable Playbooks** - Support for multiple SDD playbook workflows
-- **Issue Tracking** - Built-in task tracking with `sl issue` commands (no external dependencies)
+- **Easy Bootstrap** - Create new projects with a single command and keep projects aligned across the team. This includes Artifact templates, checklists, and skills management ensuring consistent agent shell configurations.
+- **Team Alignment** - Leverage the specledger.io web portal to preview and discuss across the team, from specification, stack research to task phases, blockers and definition of done. With tailored prompts to address and resolve points of discussion at the speed of AI.
+- **Issue Tracking** - Built-in task tracking with `sl issue` commands (no external dependencies, inspired by [steveyegge/beads](https://github.com/steveyegge/beads))
 - **Spec Dependencies** - Manage and track specification dependencies across projects
-- **UI Mockup Generation** - Generate UI mockups from specs with framework-aware design system detection
-- **Tool Checking** - Ensures all required tools are installed and configured
-- **Workflow Orchestration** - End-to-end workflows from spec to deployment
+- **Repo And Tool Health** - Verify Repo and Tool set up as well as detect and fix identified issues
+- **Workflow Orchestration** - End-to-end workflows from spec to ship
 
 ## Features
 
 - **All-in-One SDD**: Complete Specification-Driven Development workflow built-in
-- **Interactive TUI**: Create projects with a beautiful terminal interface
-- **Prerequisites Checking**: Automatically detect and install required tools (mise)
-- **Dependency Management**: Add, remove, and list spec dependencies
+- **Team alignment via Web platform**: The [specledger.io](https://specledgerio.io) web app is a mobile friendly way to share and review each artifact produced via the SDD Workflow.
+- **Prerequisites Checking**: Automatically detect and install required tools (using [mise](https://mise.jdx.dev/))
+- **Spec Dependency Management**: Add, remove, and list spec dependencies with caching and Agent Shell Referencing.
 - **YAML Metadata**: Modern, human-readable project configuration with `specledger.yaml`
-- **Local Caching**: Dependencies are cached locally at `~/.specledger/cache` for offline use
-- **LLM Integration**: Cached specs can be easily referenced by AI agents
-- **Cross-Platform**: Works on Linux, macOS, and Windows
 - **Browser-Based Auth**: Secure OAuth authentication via browser with automatic token refresh
 
 ## Installation
@@ -129,6 +125,38 @@ sl deps resolve
 | `sl new --ci --project-name <name> --short-code <code>` | Create a project (non-interactive) |
 | `sl init` | Initialize SpecLedger in an existing repository |
 
+### Slash Commands: Specification Workflow
+
+SpecLedger provides slash commands for Agent Shells such as [Claude Code](https://claude.ai/claude-code).
+
+| Command | Description |
+|---------|-------------|
+| `/specledger.adopt` | Create/update spec from feature description |
+| `/specledger.specify` | Create/update feature specification |
+| `/specledger.clarify` | Ask clarification questions for spec |
+| `/specledger.plan` | Generate implementation plan |
+| `/specledger.tasks` | Generate actionable tasks from plan |
+| `/specledger.implement` | Execute tasks from tasks.md |
+| `/specledger.resume` | Resume implementation from where you left off |
+| `/specledger.analyze` | Cross-artifact consistency analysis |
+| `/specledger.audit` | Full codebase audit with dependency graphs |
+| `/specledger.checklist` | Generate a custom checklist for the current feature |
+
+### Slash Commands: Spec Dependencies
+
+| Command | Description |
+|---------|-------------|
+| `/specledger.add-deps` | Add a new spec dependency |
+| `/specledger.remove-deps` | Remove a spec dependency |
+
+### Slash Commands: Project Setup
+
+| Command | Description |
+|---------|-------------|
+| `/specledger.onboard` | Guided onboarding from constitution to implementation |
+| `/specledger.constitution` | Create or update the project constitution |
+| `/specledger.help` | Show all available SpecLedger commands |
+
 ### Diagnostics
 
 | Command | Description |
@@ -137,9 +165,58 @@ sl deps resolve
 | `sl doctor --json` | Get tool status in JSON format for CI/CD |
 | `sl version` | Show version, commit, and build information |
 
-### Dependencies
+### Issue Tracking
 
-Dependencies allow you to reference external specifications from other teams or projects. When you add a dependency, SpecLedger automatically downloads and caches the specifications for offline use and AI reference.
+SpecLedger includes a built-in issue tracker for managing tasks within specs. Issues are stored per-spec in `specledger/<spec>/issues.jsonl`.
+
+| Command | Description |
+|---------|-------------|
+| `sl issue create --title "..." --type task` | Create a new issue |
+| `sl issue create --title "..." --type task --parent SL-abc123` | Create a subtask with parent |
+| `sl issue list` | List issues in current spec |
+| `sl issue list --all` | List issues across all specs |
+| `sl issue list --tree` | Show parent-child hierarchy tree |
+| `sl issue list --graph` | Show blocking dependency graph |
+| `sl issue show <id>` | Show issue details |
+| `sl issue show <id> --tree` | Show issue with dependency context |
+| `sl issue ready` | List issues ready to work on (not blocked) |
+| `sl issue ready --all` | Ready issues across all specs |
+| `sl issue ready --json` | Ready issues as JSON (for scripting) |
+| `sl issue update <id> --status in_progress` | Update issue status |
+| `sl issue update <id> --title "New title"` | Update issue title |
+| `sl issue update <id> --priority 0` | Update priority (0-5, 0=highest) |
+| `sl issue update <id> --assignee alice` | Assign issue to user |
+| `sl issue update <id> --design "Approach..."` | Update design notes |
+| `sl issue update <id> --notes "Progress..."` | Update implementation notes |
+| `sl issue update <id> --acceptance-criteria "..."` | Update acceptance criteria |
+| `sl issue update <id> --add-label "urgent"` | Add a label |
+| `sl issue update <id> --remove-label "wontfix"` | Remove a label |
+| `sl issue update <id> --dod "Task 1" --dod "Task 2"` | Set Definition of Done items |
+| `sl issue update <id> --check-dod "Task 1"` | Mark DoD item as checked |
+| `sl issue update <id> --uncheck-dod "Task 1"` | Mark DoD item as unchecked |
+| `sl issue update <id> --parent SL-abc123` | Set parent issue |
+| `sl issue update <id> --parent ""` | Clear parent issue |
+| `sl issue close <id> --reason "..."` | Close an issue |
+| `sl issue link <from> blocks <to>` | Add dependency |
+| `sl issue unlink <from> blocks <to>` | Remove dependency |
+| `sl issue migrate` | Migrate from Beads format |
+
+**Issue IDs**: Issues use deterministic IDs in format `SL-xxxxxx` (6 hex characters derived from SHA-256 hash).
+
+**Spec Storage**: Issues are stored per-spec to avoid merge conflicts. Use `--all` flag to work across all specs.
+
+**Ready State**: An issue is "ready" when it has status `open` or `in_progress` AND all issues blocking it are `closed`. Use `sl issue ready` to quickly find unblocked work.
+
+**Tree View**:
+- `sl issue list --tree` - Shows parent-child hierarchy (Epic → Feature → Task)
+- `sl issue list --graph` - Shows blocking dependency graph (which issues block others)
+- `sl issue show <id> --tree` - Shows full hierarchy: parent, children, blockers, and blocked issues
+
+**Parent-Child Hierarchy**: Use `--parent` to create task breakdowns. View with `sl issue show <id> --tree` to see the full parent-child tree.
+
+### Spec Dependencies
+
+Spec Dependencies allow you to reference external specifications from other teams or projects. When you add a dependency, SpecLedger automatically downloads and caches the specifications for offline use and AI reference.
 
 | Command | Description |
 |---------|-------------|
@@ -167,6 +244,145 @@ sl deps resolve --link
 Or manually link all dependencies: `sl deps link`
 
 **Unlinking**: Use `sl deps unlink [alias]` to remove symlinks. Useful for cleaning up or re-linking dependencies.
+
+### Authentication
+
+| Command | Description |
+|---------|-------------|
+| `sl auth login` | Sign in via browser (OAuth) |
+| `sl auth login --token <token>` | Authenticate with access token (CI/headless) |
+| `sl auth login --refresh <token>` | Authenticate with refresh token |
+| `sl auth logout` | Sign out and clear stored credentials |
+| `sl auth status` | Check authentication status and token expiry |
+| `sl auth refresh` | Manually refresh the access token |
+| `sl auth token` | Print access token (for scripts, auto-refreshes) |
+| `sl auth supabase` | Show Supabase URL and anon key |
+
+**Authentication Flow:**
+
+The CLI uses browser-based OAuth authentication:
+
+1. Run `sl auth login` to start the authentication flow
+2. Your browser opens to the SpecLedger sign-in page
+3. Complete authentication in the browser
+4. Credentials are automatically saved to `~/.specledger/credentials.json`
+
+For CI/CD or headless environments, use token-based authentication:
+```bash
+sl auth login --token "$SPECLEDGER_ACCESS_TOKEN"
+sl auth login --refresh "$SPECLEDGER_REFRESH_TOKEN"
+```
+
+**Environment Variables:**
+
+| Variable | Description |
+|----------|-------------|
+| `SPECLEDGER_AUTH_URL` | Override the authentication URL |
+| `SPECLEDGER_SUPABASE_URL` | Override the Supabase project URL |
+| `SPECLEDGER_SUPABASE_ANON_KEY` | Override the Supabase anon key |
+| `SPECLEDGER_ENV` | Set to `dev` or `development` for local development |
+
+###  Comments (`sl comment`)
+
+Fetch review comments from the SpecLedger platform and address them interactively with an AI coding agent. Requires authentication (`sl auth login`).
+
+> Used by the `/specledger.clarify` command
+
+| Command              | Description |
+|----------------------|-------------|
+| `sl comment list`    | List review comments (compact or JSON format) |
+| `sl comment show`    | Show full comment details with thread replies |
+| `sl comment reply`   | Reply to a comment thread |
+| `sl comment resolve` | Mark comments as resolved (--reason required) |
+
+### CLI Configuration
+
+SpecLedger supports persistent configuration for agent launch settings. Configuration is stored in a three-tier hierarchy:
+
+**Config Locations:**
+| Scope | Path | Description |
+|-------|------|-------------|
+| Global | `~/.specledger/config.yaml` | User-wide defaults |
+| Team-local | `specledger/specledger.yaml` | Project-level, git-tracked |
+| Personal-local | `specledger/specledger.local.yaml` | Project-level, gitignored |
+
+**Precedence:** personal-local > team-local > global > default
+
+| Command | Description |
+|---------|-------------|
+| `sl config set <key> <value>` | Set a config value |
+| `sl config set --global <key> <value>` | Set in global config |
+| `sl config set --personal <key> <value>` | Set in gitignored personal config |
+| `sl config get <key>` | Get a single value |
+| `sl config show` | Show all config with scope indicators |
+| `sl config unset <key>` | Remove a config value |
+
+**Agent Config Keys:**
+
+| Key | Env Var | Description |
+|-----|---------|-------------|
+| `agent.base-url` | `ANTHROPIC_BASE_URL` | Custom API endpoint |
+| `agent.auth-token` | `ANTHROPIC_AUTH_TOKEN` | Auth token (sensitive) |
+| `agent.api-key` | `ANTHROPIC_API_KEY` | API key (sensitive) |
+| `agent.model` | `ANTHROPIC_MODEL` | Default model |
+| `agent.model.sonnet` | `ANTHROPIC_DEFAULT_SONNET_MODEL` | Sonnet model alias |
+| `agent.model.opus` | `ANTHROPIC_DEFAULT_OPUS_MODEL` | Opus model alias |
+| `agent.model.haiku` | `ANTHROPIC_DEFAULT_HAIKU_MODEL` | Haiku model alias |
+| `agent.subagent-model` | `CLAUDE_CODE_SUBAGENT_MODEL` | Model for subagents |
+| `agent.provider` | - | Provider: `anthropic`, `bedrock`, `vertex` |
+| `agent.permission-mode` | - | Permission mode |
+| `agent.skip-permissions` | - | Skip permission prompts |
+| `agent.effort` | - | Effort level: `low`, `medium`, `high` |
+| `agent.env.<KEY>` | - | Arbitrary env vars |
+
+**Examples:**
+```bash
+# Set global model preference
+sl config set --global agent.model claude-sonnet-4-20250514
+
+# Set personal auth token (gitignored)
+sl config set --personal agent.auth-token sk-ant-xxx
+
+# Set team-local base URL
+sl config set agent.base-url https://api.company.com/v1
+
+# Add custom environment variable
+sl config set agent.env.CLAUDE_CODE_EFFORT_LEVEL high
+
+# View all config
+sl config show
+```
+
+**Profiles:**
+
+Profiles bundle multiple config values for quick switching:
+
+| Command | Description |
+|---------|-------------|
+| `sl config profile create <name>` | Create a new profile |
+| `sl config profile use <name>` | Activate a profile |
+| `sl config profile use --none` | Deactivate all profiles |
+| `sl config profile list` | List all profiles |
+| `sl config profile delete <name>` | Delete a profile |
+
+```bash
+# Create a work profile
+sl config profile create work
+sl config set agent.base-url https://corp-api.example.com
+
+# Switch to personal profile
+sl config profile create personal
+sl config profile use personal
+```
+
+**Sensitive Values:**
+
+Auth tokens and API keys are automatically masked in output (`****[last4]`). Use `--personal` flag to store sensitive values in `specledger.local.yaml` (gitignored):
+
+```bash
+# Recommended: store secrets in personal config
+sl config set --personal agent.auth-token sk-ant-xxx
+```
 
 ### Spec & Context Management
 
@@ -313,78 +529,7 @@ sl context update claude --json
 
 **Marker Preservation:** The command preserves any manual additions between `<!-- MANUAL ADDITIONS START -->` and `<!-- MANUAL ADDITIONS END -->` markers.
 
-### Issue Tracking
-
-SpecLedger includes a built-in issue tracker for managing tasks within specs. Issues are stored per-spec in `specledger/<spec>/issues.jsonl`.
-
-| Command | Description |
-|---------|-------------|
-| `sl issue create --title "..." --type task` | Create a new issue |
-| `sl issue create --title "..." --type task --parent SL-abc123` | Create a subtask with parent |
-| `sl issue list` | List issues in current spec |
-| `sl issue list --all` | List issues across all specs |
-| `sl issue list --tree` | Show parent-child hierarchy tree |
-| `sl issue list --graph` | Show blocking dependency graph |
-| `sl issue show <id>` | Show issue details |
-| `sl issue show <id> --tree` | Show issue with dependency context |
-| `sl issue ready` | List issues ready to work on (not blocked) |
-| `sl issue ready --all` | Ready issues across all specs |
-| `sl issue ready --json` | Ready issues as JSON (for scripting) |
-| `sl issue update <id> --status in_progress` | Update issue status |
-| `sl issue update <id> --title "New title"` | Update issue title |
-| `sl issue update <id> --priority 0` | Update priority (0-5, 0=highest) |
-| `sl issue update <id> --assignee alice` | Assign issue to user |
-| `sl issue update <id> --design "Approach..."` | Update design notes |
-| `sl issue update <id> --notes "Progress..."` | Update implementation notes |
-| `sl issue update <id> --acceptance-criteria "..."` | Update acceptance criteria |
-| `sl issue update <id> --add-label "urgent"` | Add a label |
-| `sl issue update <id> --remove-label "wontfix"` | Remove a label |
-| `sl issue update <id> --dod "Task 1" --dod "Task 2"` | Set Definition of Done items |
-| `sl issue update <id> --check-dod "Task 1"` | Mark DoD item as checked |
-| `sl issue update <id> --uncheck-dod "Task 1"` | Mark DoD item as unchecked |
-| `sl issue update <id> --parent SL-abc123` | Set parent issue |
-| `sl issue update <id> --parent ""` | Clear parent issue |
-| `sl issue close <id> --reason "..."` | Close an issue |
-| `sl issue link <from> blocks <to>` | Add dependency |
-| `sl issue unlink <from> blocks <to>` | Remove dependency |
-| `sl issue migrate` | Migrate from Beads format |
-
-**Issue IDs**: Issues use deterministic IDs in format `SL-xxxxxx` (6 hex characters derived from SHA-256 hash).
-
-**Spec Storage**: Issues are stored per-spec to avoid merge conflicts. Use `--all` flag to work across all specs.
-
-**Ready State**: An issue is "ready" when it has status `open` or `in_progress` AND all issues blocking it are `closed`. Use `sl issue ready` to quickly find unblocked work.
-
-**Tree View**:
-- `sl issue list --tree` - Shows parent-child hierarchy (Epic → Feature → Task)
-- `sl issue list --graph` - Shows blocking dependency graph (which issues block others)
-- `sl issue show <id> --tree` - Shows full hierarchy: parent, children, blockers, and blocked issues
-
-**Parent-Child Hierarchy**: Use `--parent` to create task breakdowns. View with `sl issue show <id> --tree` to see the full parent-child tree.
-
-### Review Comments (`sl revise`)
-
-Fetch unresolved review comments from the SpecLedger platform and address them interactively with an AI coding agent. Requires authentication (`sl auth login`).
-
-| Command | Description |
-|---------|-------------|
-| `sl revise` | Interactive: auto-detect branch, fetch comments, launch agent |
-| `sl revise <branch>` | Use a specific branch name |
-| `sl revise --summary` | Print compact comment listing and exit |
-| `sl revise --dry-run` | Write prompt to file instead of launching agent |
-| `sl revise --auto <fixture.json>` | Non-interactive fixture-driven prompt generation |
-
-**Interactive workflow:**
-1. Detect or select the target branch
-2. Fetch unresolved comments from SpecLedger (issue comments + review comments)
-3. Select artifacts to work on (multi-select TUI)
-4. Process each comment — provide guidance or skip
-5. Generate a combined revision prompt
-6. Open the prompt in your editor for refinement
-7. Launch the configured AI coding agent
-8. Offer to commit/push changes and resolve comments
-
-### UI Mockups
+### UI Mockups (ALPHA)
 
 Generate UI mockups from feature specifications. The mockup command auto-detects your frontend framework (React, Next.js, Vue, Nuxt, Svelte, Angular, Astro, etc.), extracts design tokens and styling patterns, then launches an AI agent with a contextual prompt to generate mockups.
 
@@ -403,176 +548,9 @@ instructions
 sl mockup focus on the login form            # Focus on specific 
 ```
 
-### Playbooks
-
-| Command | Description |
-|---------|-------------|
-| `sl playbook list` | List available SDD playbooks |
-| `sl playbook list --json` | List playbooks in JSON format |
-
-### Authentication
-
-| Command | Description |
-|---------|-------------|
-| `sl auth login` | Sign in via browser (OAuth) |
-| `sl auth login --token <token>` | Authenticate with access token (CI/headless) |
-| `sl auth login --refresh <token>` | Authenticate with refresh token |
-| `sl auth logout` | Sign out and clear stored credentials |
-| `sl auth status` | Check authentication status and token expiry |
-| `sl auth refresh` | Manually refresh the access token |
-| `sl auth token` | Print access token (for scripts, auto-refreshes) |
-| `sl auth supabase` | Show Supabase URL and anon key |
-
-**Authentication Flow:**
-
-The CLI uses browser-based OAuth authentication:
-
-1. Run `sl auth login` to start the authentication flow
-2. Your browser opens to the SpecLedger sign-in page
-3. Complete authentication in the browser
-4. Credentials are automatically saved to `~/.specledger/credentials.json`
-
-For CI/CD or headless environments, use token-based authentication:
-```bash
-sl auth login --token "$SPECLEDGER_ACCESS_TOKEN"
-sl auth login --refresh "$SPECLEDGER_REFRESH_TOKEN"
-```
-
-**Environment Variables:**
-
-| Variable | Description |
-|----------|-------------|
-| `SPECLEDGER_AUTH_URL` | Override the authentication URL |
-| `SPECLEDGER_SUPABASE_URL` | Override the Supabase project URL |
-| `SPECLEDGER_SUPABASE_ANON_KEY` | Override the Supabase anon key |
-| `SPECLEDGER_ENV` | Set to `dev` or `development` for local development |
-
-### Configuration
-
-SpecLedger supports persistent configuration for agent launch settings. Configuration is stored in a three-tier hierarchy:
-
-**Config Locations:**
-| Scope | Path | Description |
-|-------|------|-------------|
-| Global | `~/.specledger/config.yaml` | User-wide defaults |
-| Team-local | `specledger/specledger.yaml` | Project-level, git-tracked |
-| Personal-local | `specledger/specledger.local.yaml` | Project-level, gitignored |
-
-**Precedence:** personal-local > team-local > global > default
-
-| Command | Description |
-|---------|-------------|
-| `sl config set <key> <value>` | Set a config value |
-| `sl config set --global <key> <value>` | Set in global config |
-| `sl config set --personal <key> <value>` | Set in gitignored personal config |
-| `sl config get <key>` | Get a single value |
-| `sl config show` | Show all config with scope indicators |
-| `sl config unset <key>` | Remove a config value |
-
-**Agent Config Keys:**
-
-| Key | Env Var | Description |
-|-----|---------|-------------|
-| `agent.base-url` | `ANTHROPIC_BASE_URL` | Custom API endpoint |
-| `agent.auth-token` | `ANTHROPIC_AUTH_TOKEN` | Auth token (sensitive) |
-| `agent.api-key` | `ANTHROPIC_API_KEY` | API key (sensitive) |
-| `agent.model` | `ANTHROPIC_MODEL` | Default model |
-| `agent.model.sonnet` | `ANTHROPIC_DEFAULT_SONNET_MODEL` | Sonnet model alias |
-| `agent.model.opus` | `ANTHROPIC_DEFAULT_OPUS_MODEL` | Opus model alias |
-| `agent.model.haiku` | `ANTHROPIC_DEFAULT_HAIKU_MODEL` | Haiku model alias |
-| `agent.subagent-model` | `CLAUDE_CODE_SUBAGENT_MODEL` | Model for subagents |
-| `agent.provider` | - | Provider: `anthropic`, `bedrock`, `vertex` |
-| `agent.permission-mode` | - | Permission mode |
-| `agent.skip-permissions` | - | Skip permission prompts |
-| `agent.effort` | - | Effort level: `low`, `medium`, `high` |
-| `agent.env.<KEY>` | - | Arbitrary env vars |
-
-**Examples:**
-```bash
-# Set global model preference
-sl config set --global agent.model claude-sonnet-4-20250514
-
-# Set personal auth token (gitignored)
-sl config set --personal agent.auth-token sk-ant-xxx
-
-# Set team-local base URL
-sl config set agent.base-url https://api.company.com/v1
-
-# Add custom environment variable
-sl config set agent.env.CLAUDE_CODE_EFFORT_LEVEL high
-
-# View all config
-sl config show
-```
-
-**Profiles:**
-
-Profiles bundle multiple config values for quick switching:
-
-| Command | Description |
-|---------|-------------|
-| `sl config profile create <name>` | Create a new profile |
-| `sl config profile use <name>` | Activate a profile |
-| `sl config profile use --none` | Deactivate all profiles |
-| `sl config profile list` | List all profiles |
-| `sl config profile delete <name>` | Delete a profile |
-
-```bash
-# Create a work profile
-sl config profile create work
-sl config set agent.base-url https://corp-api.example.com
-
-# Switch to personal profile
-sl config profile create personal
-sl config profile use personal
-```
-
-**Sensitive Values:**
-
-Auth tokens and API keys are automatically masked in output (`****[last4]`). Use `--personal` flag to store sensitive values in `specledger.local.yaml` (gitignored):
-
-```bash
-# Recommended: store secrets in personal config
-sl config set --personal agent.auth-token sk-ant-xxx
-```
-
-## Claude Code Slash Commands
-
-SpecLedger provides slash commands for [Claude Code](https://claude.ai/claude-code) integration:
-
-### Specification Workflow
-
-| Command | Description |
-|---------|-------------|
-| `/specledger.adopt` | Create/update spec from feature description |
-| `/specledger.specify` | Create/update feature specification |
-| `/specledger.clarify` | Ask clarification questions for spec |
-| `/specledger.plan` | Generate implementation plan |
-| `/specledger.tasks` | Generate actionable tasks from plan |
-| `/specledger.implement` | Execute tasks from tasks.md |
-| `/specledger.resume` | Resume implementation from where you left off |
-| `/specledger.analyze` | Cross-artifact consistency analysis |
-| `/specledger.audit` | Full codebase audit with dependency graphs |
-| `/specledger.checklist` | Generate a custom checklist for the current feature |
-
-### Dependencies
-
-| Command | Description |
-|---------|-------------|
-| `/specledger.add-deps` | Add a new spec dependency |
-| `/specledger.remove-deps` | Remove a spec dependency |
-
-### Project Setup
-
-| Command | Description |
-|---------|-------------|
-| `/specledger.onboard` | Guided onboarding from constitution to implementation |
-| `/specledger.constitution` | Create or update the project constitution |
-| `/specledger.help` | Show all available SpecLedger commands |
-
 ## Documentation
 
-Full documentation is available at [https://specledger.io/docs](https://specledger.io/docs)
+Full CLI documentation is available at [https://specledger.io/cli](https://specledger.io/cli)
 
 - **Getting Started**: Installation and first project setup
 - **User Guide**: Complete command reference and workflows
@@ -607,7 +585,6 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ## Support
 
-- **Documentation**: [https://specledger.io/docs](https://specledger.io/docs)
 - **Issues**: [GitHub Issues](https://github.com/specledger/specledger/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/specledger/specledger/discussions)
 - **Website**: [https://specledger.io](https://specledger.io)
