@@ -397,7 +397,7 @@ func launchAgent(projectDir string, agentPref string) error {
 	fmt.Println(ui.Dim("  Type /specledger.onboard to start the guided workflow."))
 	fmt.Println()
 
-	if err := l.Launch(); err != nil {
+	if err := l.LaunchWithPrompt("/specledger.onboard"); err != nil {
 		ui.PrintWarning(fmt.Sprintf("Agent exited: %v", err))
 	}
 

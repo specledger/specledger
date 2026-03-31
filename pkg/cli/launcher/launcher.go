@@ -156,10 +156,9 @@ func (l *AgentLauncher) LaunchWithPromptAndOptions(prompt string, opts LaunchOpt
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Env = l.BuildEnv()
 
-	// Set environment variables for agent
-	cmd.Env = os.Environ()
+	// Start with merged env (os.Environ + launcher's configured env vars from config)
+	cmd.Env = l.BuildEnv()
 	if opts.Model != "" {
 		cmd.Env = append(cmd.Env, "ANTHROPIC_MODEL="+opts.Model)
 	}
