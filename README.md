@@ -131,31 +131,23 @@ SpecLedger provides slash commands for Agent Shells such as [Claude Code](https:
 
 | Command | Description |
 |---------|-------------|
-| `/specledger.adopt` | Create/update spec from feature description |
-| `/specledger.specify` | Create/update feature specification |
-| `/specledger.clarify` | Ask clarification questions for spec |
-| `/specledger.plan` | Generate implementation plan |
-| `/specledger.tasks` | Generate actionable tasks from plan |
-| `/specledger.implement` | Execute tasks from tasks.md |
-| `/specledger.resume` | Resume implementation from where you left off |
-| `/specledger.analyze` | Cross-artifact consistency analysis |
-| `/specledger.audit` | Full codebase audit with dependency graphs |
-| `/specledger.checklist` | Generate a custom checklist for the current feature |
-
-### Slash Commands: Spec Dependencies
-
-| Command | Description |
-|---------|-------------|
-| `/specledger.add-deps` | Add a new spec dependency |
-| `/specledger.remove-deps` | Remove a spec dependency |
+| `/specledger.specify` | Create or update feature specification from natural language |
+| `/specledger.clarify` | Identify underspecified areas and current spec |
+| `/specledger.plan` | Generate implementation plan from spec |
+| `/specledger.tasks` | Generate dependency-ordered tasks from plan |
+| `/specledger.implement` | Execute implementation plan by processing tasks |
+| `/specledger.verify` | Cross-artifact consistency verification |
+| `/specledger.checklist` | Generate custom checklist for current feature |
+| `/specledger.spike` | Time-boxed exploratory research |
+| `/specledger.checkpoint` | Verify implementation progress and run tests |
+| `/specledger.commit` | Commit and push with auth-aware session capture |
 
 ### Slash Commands: Project Setup
 
 | Command | Description |
 |---------|-------------|
-| `/specledger.onboard` | Guided onboarding from constitution to implementation |
-| `/specledger.constitution` | Create or update the project constitution |
-| `/specledger.help` | Show all available SpecLedger commands |
+| `/specledger.onboard` | Guided onboarding workflow |
+| `/specledger.constitution` | Create or update project constitution |
 
 ### Diagnostics
 
