@@ -44,16 +44,16 @@ Execution steps:
 
    **Detect force-closed issues**: Iterate closed issues. Any issue where `definition_of_done` exists and contains items with `checked: false` was force-closed (DoD bypassed). Flag every one of these — they are the highest-signal findings.
 
-3. Run tests for modified packages:
-   ```bash
-   # Identify modified Go packages
-   git diff --name-only HEAD~1 | grep '\.go$' | xargs -I {} dirname {} | sort -u
-
-   # Run tests for each modified package
-   go test ./pkg/cli/commands/... -v
-   ```
-   - All tests must pass (exit code 0) for a clean checkpoint
-   - If tests fail, report failures and include them as CRITICAL divergences
+3. Run project tests and checks:
+   - Consult the project's `CLAUDE.md` (or equivalent) for the canonical test/lint/format commands.
+   - If no project-level instructions exist, detect the project type and use conventional commands:
+     - **Go**: `go test ./...`
+     - **Node (npm/pnpm/yarn)**: check `package.json` for `test`, `lint`, `format:check` scripts and run those that exist
+     - **Python**: `pytest` or the configured test runner
+     - **Other**: look for a `Makefile`, `justfile`, or CI config for test commands
+   - If no test runner is configured, state that explicitly — do not fabricate a test step
+   - All executed checks must pass (exit code 0) for a clean checkpoint
+   - If any check fails, report failures and include them as CRITICAL divergences
 
 4. Compare implementation against plan artifacts:
 
@@ -125,9 +125,9 @@ Execution steps:
    1. [CRITICAL] Fix <specific gap> — <why it matters>
    2. [HIGH] Write test for <scenario> — <what's at risk>
 
-   ### Tests
-   - Status: PASS/FAIL
-   - Packages tested: <list>
+   ### Tests & Checks
+   - Status: PASS/FAIL/SKIPPED
+   - Commands run: <list of commands executed>
    - Failures: <details if any>
 
    ### Progress Summary
@@ -155,7 +155,7 @@ Execution steps:
 - **Flag every force-closed issue** — unchecked DoD on a closed issue is always worth reporting
 - **Classify every divergence** as conscious or oversight by checking issue notes and decision logs
 - **If zero divergences found**, report that explicitly — this is a positive signal worth stating, not a default
-- Tests must pass for a clean checkpoint
+- All executed tests/checks must pass for a clean checkpoint
 - Don't auto-commit — prompt user instead
 - If CRITICAL divergences exist, strongly recommend resolving before merge
 - If no progress since last checkpoint, report "no changes detected"
@@ -210,9 +210,9 @@ Session logs are stored at `.specledger/sessions/<branch>-session.md`:
 2. [MEDIUM] Write TestPlanShowCacheReuse or document why it's deferred
 3. [MEDIUM] Verify formatAttrValue output matches quickstart scenarios
 
-### Tests
+### Tests & Checks
 - Status: PASS
-- Packages tested: pkg/cli/commands, pkg/plan
+- Commands run: go test ./pkg/cli/commands/... ./pkg/plan/...
 - 21 tests passing
 
 ### Progress Summary
@@ -222,8 +222,7 @@ Session logs are stored at `.specledger/sessions/<branch>-session.md`:
 - Force-Closed: 7 issues (DoD bypassed)
 
 ### Uncommitted Changes
-- pkg/cli/commands/comment.go
-- pkg/cli/comment/client.go
+- None
 
 ---
 ```
