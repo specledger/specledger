@@ -1,138 +1,56 @@
-# .github/workflows/release.yml - GitHub Release Workflow
-# Triggers:
-#   1. Push tag v* (manual) -> runs GoReleaser directly
-#   2. Push to main -> auto-tag -> runs GoReleaser
-#   3. Manual workflow_dispatch -> auto-tag -> runs GoReleaser
-
 name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
     branches:
       - main
-  workflow_dispatch:
-    inputs:
-      version:
-        description: 'Version to release (e.g., v1.2.3). Leave empty for auto patch bump.'
-        required: false
-        type: string
 
-permissions:
-  contents: write
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions: {}
 
 jobs:
-  # Auto-tag job: runs on main branch push OR manual workflow_dispatch (not tag push)
-  auto-tag:
-    name: Auto Tag
+  release-please:
+    name: Release Please
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    permissions:
+      contents: write
+      pull-requests: write
     outputs:
-      new_tag: ${{ steps.tag.outputs.new_tag }}
-      should_release: ${{ steps.tag.outputs.should_release }}
+      release_created: ${{ steps.release.outputs.release_created }}
+      tag_name: ${{ steps.release.outputs.tag_name }}
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v1
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+
+      - name: Run Release Please
+        id: release
+        uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+
+  goreleaser:
+    name: GoReleaser
+    needs: release-please
+    if: ${{ needs.release-please.outputs.release_created == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Get latest tag and determine version
-        id: tag
-        run: |
-          # If manual trigger with version specified, use it
-          if [ -n "${{ inputs.version }}" ]; then
-            NEW_TAG="${{ inputs.version }}"
-            # Ensure 'v' prefix
-            [[ "$NEW_TAG" != v* ]] && NEW_TAG="v$NEW_TAG"
-            echo "Using manual version: $NEW_TAG"
-            echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
-            echo "should_release=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Get latest tag
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "Latest tag: $LATEST_TAG"
-
-          # Check if HEAD is already tagged
-          HEAD_TAG=$(git tag --points-at HEAD 2>/dev/null | grep "^v" | head -n1 || echo "")
-          if [ -n "$HEAD_TAG" ]; then
-            echo "HEAD already tagged as $HEAD_TAG, skipping"
-            echo "should_release=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          # Parse version (remove 'v' prefix)
-          VERSION=${LATEST_TAG#v}
-          MAJOR=$(echo $VERSION | cut -d. -f1)
-          MINOR=$(echo $VERSION | cut -d. -f2)
-          PATCH=$(echo $VERSION | cut -d. -f3 | cut -d- -f1)
-
-          # Bump patch version
-          NEW_PATCH=$((PATCH + 1))
-          NEW_TAG="v${MAJOR}.${MINOR}.${NEW_PATCH}"
-
-          echo "New tag: $NEW_TAG"
-          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
-          echo "should_release=true" >> $GITHUB_OUTPUT
-
-      - name: Create and push tag
-        if: steps.tag.outputs.should_release == 'true'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag ${{ steps.tag.outputs.new_tag }}
-          git push origin ${{ steps.tag.outputs.new_tag }}
-          echo "✅ Tag ${{ steps.tag.outputs.new_tag }} created"
-
-  # Release job: runs after auto-tag OR directly on tag push
-  release:
-    name: Release
-    runs-on: ubuntu-latest
-    needs: [auto-tag]
-    if: |
-      always() && (
-        startsWith(github.ref, 'refs/tags/v') ||
-        (needs.auto-tag.result == 'success' && needs.auto-tag.outputs.should_release == 'true')
-      )
-    steps:
-      - name: Determine tag to release
-        id: release_tag
-        run: |
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            # Direct tag push - use github.ref
-            TAG="${{ github.ref_name }}"
-          else
-            # Auto-tag created a new tag
-            TAG="${{ needs.auto-tag.outputs.new_tag }}"
-          fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          echo "🏷️ Releasing tag: $TAG"
-
-      - name: Checkout at tag
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: refs/tags/${{ steps.release_tag.outputs.tag }}
-
-      - name: Verify tag matches HEAD
-        run: |
-          TAG="${{ steps.release_tag.outputs.tag }}"
-          TAG_COMMIT=$(git rev-list -n 1 "refs/tags/$TAG")
-          HEAD_COMMIT=$(git rev-parse HEAD)
-          echo "Tag $TAG points to: $TAG_COMMIT"
-          echo "HEAD is at: $HEAD_COMMIT"
-          if [ "$TAG_COMMIT" != "$HEAD_COMMIT" ]; then
-            echo "❌ Tag commit mismatch!"
-            exit 1
-          fi
-          echo "✅ Tag and HEAD match"
-
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version-file: go.mod
           cache: true
 
       - name: Run GoReleaser

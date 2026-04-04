@@ -92,3 +92,6 @@ main
 .beads/metadata.json
 branch-map.json
 tmp/
+
+# Release bot credentials (GitHub App secrets)
+release-bot/
