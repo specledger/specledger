@@ -13,6 +13,7 @@ package git
 
 import (
 	"fmt"
+	"net/url"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -28,15 +29,15 @@ var featureBranchRe = regexp.MustCompile(`^\d{3,}-`)
 
 // sshURLRe matches SSH remote URLs with any hostname (including custom SSH config aliases).
 // Examples: git@github.com:o/r.git, git@github-so0k:o/r.git, git@my-host:o/r.git
-var sshURLRe = regexp.MustCompile(`git@[^:]+:([^/]+)/([^/.]+?)(?:\.git)?$`)
+var sshURLRe = regexp.MustCompile(`git@[^:]+:([^/]+)/([^/]+?)(?:\.git)?$`)
 
 // sshProtoURLRe matches ssh:// protocol URLs.
 // Examples: ssh://git@github.com/owner/repo.git, ssh://git@host:22/owner/repo.git
-var sshProtoURLRe = regexp.MustCompile(`ssh://[^/]+/([^/]+)/([^/.]+?)(?:\.git)?$`)
+var sshProtoURLRe = regexp.MustCompile(`ssh://[^/]+/([^/]+)/([^/]+?)(?:\.git)?$`)
 
 // httpsURLRe matches HTTPS remote URLs with any hostname (including non-standard ports).
 // Examples: https://github.com/owner/repo.git, https://git.corp:8443/owner/repo.git
-var httpsURLRe = regexp.MustCompile(`https?://[^/]+/([^/]+)/([^/.]+?)(?:\.git)?$`)
+var httpsURLRe = regexp.MustCompile(`https?://[^/]+/([^/]+)/([^/]+?)(?:\.git)?$`)
 
 // openRepo opens the git repository at repoPath, searching parent dirs for .git.
 func openRepo(repoPath string) (*gogit.Repository, error) {
@@ -52,17 +53,24 @@ func openRepo(repoPath string) (*gogit.Repository, error) {
 // ParseRepoURL extracts owner and repo name from a git remote URL.
 // Supports SSH (git@host:owner/repo.git), ssh:// protocol (ssh://git@host/owner/repo.git),
 // and HTTPS (https://host/owner/repo.git) with any hostname, including custom SSH config aliases.
+// Repo names may contain dots (e.g., "my.repo").
 func ParseRepoURL(rawURL string) (owner, name string, err error) {
-	if m := sshURLRe.FindStringSubmatch(rawURL); m != nil {
-		return m[1], m[2], nil
+	for _, re := range []*regexp.Regexp{sshURLRe, sshProtoURLRe, httpsURLRe} {
+		if m := re.FindStringSubmatch(rawURL); m != nil {
+			return m[1], strings.TrimSuffix(m[2], ".git"), nil
+		}
 	}
-	if m := sshProtoURLRe.FindStringSubmatch(rawURL); m != nil {
-		return m[1], m[2], nil
+	return "", "", fmt.Errorf("cannot parse owner/repo from remote URL: %s", sanitizeURL(rawURL))
+}
+
+// sanitizeURL strips userinfo (credentials) from URLs to avoid leaking secrets in error messages.
+func sanitizeURL(rawURL string) string {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.User == nil {
+		return rawURL
 	}
-	if m := httpsURLRe.FindStringSubmatch(rawURL); m != nil {
-		return m[1], m[2], nil
-	}
-	return "", "", fmt.Errorf("cannot parse owner/repo from remote URL: %s", rawURL)
+	u.User = nil
+	return u.String()
 }
 
 // ParseRepoFlag parses a --repo flag value in "owner/repo" format.

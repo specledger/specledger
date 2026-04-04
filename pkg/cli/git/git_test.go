@@ -99,6 +99,24 @@ func TestParseRepoURL(t *testing.T) {
 			wantOwner: "owner",
 			wantName:  "repo",
 		},
+		{
+			name:      "SSH dotted repo name",
+			url:       "git@github.com:owner/my.repo.git",
+			wantOwner: "owner",
+			wantName:  "my.repo",
+		},
+		{
+			name:      "HTTPS dotted repo name without .git",
+			url:       "https://github.com/owner/my.repo",
+			wantOwner: "owner",
+			wantName:  "my.repo",
+		},
+		{
+			name:      "ssh:// dotted repo name",
+			url:       "ssh://git@host:22/owner/my.dotted.repo.git",
+			wantOwner: "owner",
+			wantName:  "my.dotted.repo",
+		},
 	}
 
 	for _, tt := range tests {
