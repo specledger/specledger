@@ -4,7 +4,7 @@ project:
     name: specledger
     short_code: sl
     created: 2026-03-23T10:48:33.458637+07:00
-    modified: 2026-03-23T10:48:34.937636+07:00
+    modified: 2026-03-31T15:39:04.727375+07:00
     version: 0.1.0
 playbook:
     name: specledger
@@ -15,7 +15,7 @@ playbook:
         - .gitattributes
         - AGENTS.md
         - mise.toml
-template_version: 1.0.58
+template_version: dev
 task_tracker:
     choice: builtin
     enabled_at: 2026-03-23T10:48:33.458637+07:00

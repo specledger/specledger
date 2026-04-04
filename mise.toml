@@ -3,4 +3,5 @@
 
 [tools]
 go = "1.24"
+golangci-lint = "latest"
 # Add your project tools here
