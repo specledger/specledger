@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/specledger/specledger/pkg/cli/auth"
+	cligit "github.com/specledger/specledger/pkg/cli/git"
 	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/revise"
 	"gopkg.in/yaml.v3"
@@ -153,21 +154,10 @@ func GetProjectIDFromRemote(workdir string) (string, error) {
 	return project.ID, nil
 }
 
-// parseGitRemote extracts owner and repo from git remote URL
+// parseGitRemote extracts owner and repo from git remote URL.
+// Delegates to cligit.ParseRepoURL for consistent parsing across the CLI.
 func parseGitRemote(remoteURL string) (owner, repo string, err error) {
-	// SSH format: git@github.com:owner/repo.git
-	sshPattern := regexp.MustCompile(`git@[^:]+:([^/]+)/(.+?)(?:\.git)?$`)
-	if matches := sshPattern.FindStringSubmatch(remoteURL); len(matches) == 3 {
-		return matches[1], strings.TrimSuffix(matches[2], ".git"), nil
-	}
-
-	// HTTPS format: https://github.com/owner/repo.git
-	httpsPattern := regexp.MustCompile(`https?://[^/]+/([^/]+)/(.+?)(?:\.git)?$`)
-	if matches := httpsPattern.FindStringSubmatch(remoteURL); len(matches) == 3 {
-		return matches[1], strings.TrimSuffix(matches[2], ".git"), nil
-	}
-
-	return "", "", fmt.Errorf("unable to parse git remote URL: %s", remoteURL)
+	return cligit.ParseRepoURL(remoteURL)
 }
 
 // GetProjectIDWithFallback tries specledger.yaml first, then falls back to git remote lookup.

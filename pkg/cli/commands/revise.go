@@ -38,7 +38,8 @@ Examples:
   sl revise 136-revise-comments      # Use the specified branch directly
   sl revise --summary                # Print compact comment listing and exit
   sl revise --auto fixture.json      # Non-interactive: fixture-driven prompt generation
-  sl revise --dry-run                # Interactive flow but write prompt to file instead of launching agent`,
+  sl revise --dry-run                # Interactive flow but write prompt to file instead of launching agent
+  sl revise --repo owner/repo        # Override git remote detection`,
 	Args:         cobra.MaximumNArgs(1),
 	RunE:         runRevise,
 	SilenceUsage: true,
@@ -48,12 +49,26 @@ var (
 	reviseAutoFixture string
 	reviseDryRun      bool
 	reviseSummary     bool
+	reviseRepo        string
 )
 
 func init() {
 	VarReviseCmd.Flags().StringVar(&reviseAutoFixture, "auto", "", "Non-interactive mode: path to fixture JSON file")
 	VarReviseCmd.Flags().BoolVar(&reviseDryRun, "dry-run", false, "Write prompt to file instead of launching agent")
 	VarReviseCmd.Flags().BoolVar(&reviseSummary, "summary", false, "Print compact comment listing and exit (for agent integration)")
+	VarReviseCmd.Flags().StringVarP(&reviseRepo, "repo", "R", "", "GitHub owner/repo (overrides git remote detection)")
+}
+
+// resolveRepo returns the repo owner/name from the --repo flag or by parsing the git remote.
+func resolveRepo(cwd string) (owner, name string, err error) {
+	if reviseRepo != "" {
+		return cligit.ParseRepoFlag(reviseRepo)
+	}
+	owner, name, err = cligit.GetRepoOwnerName(cwd)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get repo info: %w\n→ Specify manually: sl revise --repo owner/repo\n→ Or check repo remote with 'git remote -v'", err)
+	}
+	return owner, name, nil
 }
 
 func runRevise(cmd *cobra.Command, args []string) error {
@@ -465,7 +480,7 @@ func resolveBranch(cwd string, args []string, client *revise.ReviseClient) (spec
 
 // pickBranchFromAPI fetches specs with unresolved comments and shows a branch picker.
 func pickBranchFromAPI(cwd, currentBranch string, client *revise.ReviseClient) (specKey, targetBranch string, err error) {
-	repoOwner, repoName, err := cligit.GetRepoOwnerName(cwd)
+	repoOwner, repoName, err := resolveRepo(cwd)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to detect repo: %w", err)
 	}
@@ -582,7 +597,7 @@ func checkoutIfNeeded(cwd, targetBranch string) (stashUsed bool, err error) {
 // fetchComments runs the 4-step PostgREST query chain and returns unresolved comments
 // along with the changeID (needed for fetching thread replies).
 func fetchComments(cwd, specKey string, client *revise.ReviseClient) ([]revise.ReviewComment, string, error) {
-	repoOwner, repoName, err := cligit.GetRepoOwnerName(cwd)
+	repoOwner, repoName, err := resolveRepo(cwd)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to detect repo: %w", err)
 	}

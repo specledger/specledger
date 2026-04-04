@@ -14,6 +14,7 @@ import (
 	"github.com/specledger/specledger/internal/agent"
 	"github.com/specledger/specledger/pkg/cli/auth"
 	"github.com/specledger/specledger/pkg/cli/config"
+	cligit "github.com/specledger/specledger/pkg/cli/git"
 	"github.com/specledger/specledger/pkg/cli/launcher"
 	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/playbooks"
@@ -436,26 +437,13 @@ func detectGitRemote(projectPath string) (*GitRemoteInfo, error) {
 }
 
 // parseGitRemoteURL parses a git URL (HTTPS or SSH) to extract owner and repo name.
+// Delegates to cligit.ParseRepoURL for consistent parsing across the CLI.
 func parseGitRemoteURL(remoteURL string) (*GitRemoteInfo, error) {
-	// SSH format: git@github.com:owner/repo.git
-	sshPattern := regexp.MustCompile(`git@[^:]+:([^/]+)/(.+?)(?:\.git)?$`)
-	if matches := sshPattern.FindStringSubmatch(remoteURL); len(matches) == 3 {
-		return &GitRemoteInfo{
-			Owner: matches[1],
-			Name:  strings.TrimSuffix(matches[2], ".git"),
-		}, nil
+	owner, name, err := cligit.ParseRepoURL(remoteURL)
+	if err != nil {
+		return nil, err
 	}
-
-	// HTTPS format: https://github.com/owner/repo.git
-	httpsPattern := regexp.MustCompile(`https?://[^/]+/([^/]+)/(.+?)(?:\.git)?$`)
-	if matches := httpsPattern.FindStringSubmatch(remoteURL); len(matches) == 3 {
-		return &GitRemoteInfo{
-			Owner: matches[1],
-			Name:  strings.TrimSuffix(matches[2], ".git"),
-		}, nil
-	}
-
-	return nil, fmt.Errorf("could not parse git remote URL: %s", remoteURL)
+	return &GitRemoteInfo{Owner: owner, Name: name}, nil
 }
 
 // lookupProjectID attempts to find the project ID from Supabase using git remote info.
