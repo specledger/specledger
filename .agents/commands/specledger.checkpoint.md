@@ -149,6 +149,48 @@ Execution steps:
    - End with test status and progress numbers
    - If CRITICAL divergences exist, recommend resolving before merge
 
+8. Offer adversarial deep-dive agent:
+
+   After reporting your findings, **always offer** to launch an independent adversarial review agent. This agent runs in a fresh context with no knowledge of the implementation session — it cannot rationalize shortcuts or inherit anchoring bias from prior decisions.
+
+   **When all issues are closed** (zero open, zero in-progress), **strongly recommend** running the adversarial agent as a best practice before merge. This is the highest-value moment: the work appears complete, so the risk of undetected drift is greatest.
+
+   Otherwise, present it as an optional next step — useful when the checkpoint is mid-implementation and more sessions are expected.
+
+   Offer the user this prompt (adjust `FEATURE_DIR` and `BRANCH` from step 1):
+
+   > **Would you like me to launch an independent adversarial review agent?** This runs in a separate context with no memory of this session — it reviews the code and artifacts cold.
+
+   If the user accepts, launch an Agent with this prompt:
+
+   ~~~
+   You are an adversarial code reviewer. Your job is to find problems, not confirm success.
+
+   ## Context
+   - Feature directory: {FEATURE_DIR}
+   - Branch: {BRANCH}
+   - This review is context-free by design — you have no prior knowledge of
+     implementation decisions or tradeoffs made during development.
+
+   ## Instructions
+
+   1. Run `sl spec setup-plan --json` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH
+   2. Read the spec, plan, and any design artifacts in {FEATURE_DIR}.
+   3. Run `sl issue list --status closed --json` and `sl issue list --status open --json`.
+   4. Flag any closed issue where `definition_of_done` contains `checked: false` items.
+   5. Read the actual implementation code on this branch. For each requirement and
+      planned deliverable, verify it exists and behaves as specified.
+   6. Run the project's test/lint commands (check CLAUDE.md for canonical commands).
+   7. Produce a findings report:
+      - Divergences (severity + conscious/oversight classification)
+      - Force-closed issues with unchecked DoD
+      - Code quality concerns (dead code, missing error handling, untested paths)
+      - Requirements with no corresponding implementation
+      - Implementation that has no corresponding requirement (scope creep)
+   8. Be specific: cite file paths, line numbers, issue IDs, and artifact references.
+   9. Report findings only — do not fix anything.
+   ~~~
+
 ## Behavior Rules
 
 - **Lead with divergences, not accomplishments** — the progress summary is an appendix
