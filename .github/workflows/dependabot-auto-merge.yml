@@ -1,10 +1,10 @@
 name: Dependabot Auto-Merge
 
-on: pull_request
+on:
+  pull_request:
+    branches: [ main ]
 
-permissions:
-  contents: write
-  pull-requests: write
+permissions: {}
 
 jobs:
   auto-merge:
@@ -25,7 +25,9 @@ jobs:
           github-token: ${{ steps.app-token.outputs.token }}
 
       - name: Approve and auto-merge minor/patch
-        if: steps.metadata.outputs.update-type != 'version-update:semver-major'
+        if: >-
+          steps.metadata.outputs.update-type == 'version-update:semver-minor'
+          || steps.metadata.outputs.update-type == 'version-update:semver-patch'
         env:
           GH_TOKEN: ${{ steps.app-token.outputs.token }}
           PR_URL: ${{ github.event.pull_request.html_url }}
