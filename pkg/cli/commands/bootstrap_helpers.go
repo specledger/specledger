@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -98,6 +99,76 @@ func trustMiseConfig(projectPath string) {
 		ui.PrintWarning(fmt.Sprintf("Could not trust mise.toml: %v", err))
 		ui.PrintWarning("Run 'mise trust' to enable mise tools")
 	}
+}
+
+// resolveAgentFlags validates and resolves --agent flag values to the
+// comma-separated display names expected by setupSpecLedgerProject.
+// Valid values: claude, opencode, codex, copilot, all.
+func resolveAgentFlags(flags []string) (string, error) {
+	// Build alias map from launcher defaults (command -> display name)
+	aliases := map[string]string{
+		"copilot": "Copilot CLI", // friendly alias for github-copilot
+	}
+	for _, a := range launcher.DefaultAgents {
+		if a.Command == "" { // skip "None"
+			continue
+		}
+		aliases[strings.ToLower(a.Command)] = a.Name
+	}
+
+	// Derive valid flag values from aliases map for deterministic error messages
+	validValues := make([]string, 0, len(aliases)+1)
+	for k := range aliases {
+		validValues = append(validValues, k)
+	}
+	sort.Strings(validValues)
+	validValues = append(validValues, "all")
+
+	// Normalize all inputs once upfront
+	normalized := make([]string, len(flags))
+	for i, f := range flags {
+		normalized[i] = strings.ToLower(strings.TrimSpace(f))
+	}
+
+	// Check for "all"
+	hasAll := false
+	for _, key := range normalized {
+		if key == "all" {
+			hasAll = true
+			break
+		}
+	}
+
+	if hasAll {
+		if len(flags) > 1 {
+			return "", fmt.Errorf("\"all\" cannot be combined with other agent values")
+		}
+		var names []string
+		for _, a := range launcher.DefaultAgents {
+			if a.Command != "" {
+				names = append(names, a.Name)
+			}
+		}
+		return strings.Join(names, ","), nil
+	}
+
+	// Resolve each flag value
+	seen := make(map[string]bool)
+	var names []string
+	for _, key := range normalized {
+		if key == "" {
+			return "", fmt.Errorf("--agent value cannot be empty.\n→ Valid values: %s\n→ Example: sl init --ci --agent claude", strings.Join(validValues, ", "))
+		}
+		displayName, ok := aliases[key]
+		if !ok {
+			return "", fmt.Errorf("unknown agent %q.\n→ Valid values: %s\n→ Example: sl init --ci --agent claude --agent opencode", key, strings.Join(validValues, ", "))
+		}
+		if !seen[displayName] {
+			seen[displayName] = true
+			names = append(names, displayName)
+		}
+	}
+	return strings.Join(names, ","), nil
 }
 
 // setupSpecLedgerProject applies playbooks and creates metadata.
