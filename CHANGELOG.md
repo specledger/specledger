@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0](https://github.com/specledger/specledger/compare/v1.0.65...v1.1.0) (2026-04-04)
+
+
+### Features
+
+* **init:** add --agent flag for non-interactive agent selection ([#157](https://github.com/specledger/specledger/issues/157)) ([87aad06](https://github.com/specledger/specledger/commit/87aad06e7f81ffa37dfe4f99c54d30333f7ceaab))
+
+
+### Bug Fixes
+
+* detect missing git repository in sl init and offer to initialize ([#152](https://github.com/specledger/specledger/issues/152)) ([aefd202](https://github.com/specledger/specledger/commit/aefd2028b18b284976e0784c874fe8263461fff6))
+* improve agent prompt behavior for task tracking, interactivity, and template reading ([#154](https://github.com/specledger/specledger/issues/154)) ([5741a08](https://github.com/specledger/specledger/commit/5741a087ee714c19ffc1b42157690f55c0dce422))
+* improve embedded skill templates — fix duplicates, optimize triggering, reduce tokens ([#158](https://github.com/specledger/specledger/issues/158)) ([46ea82f](https://github.com/specledger/specledger/commit/46ea82f0d12190adbb3561da9f34fd7b097c4c6f))
+* prevent template updates from overwriting user-customized files ([#148](https://github.com/specledger/specledger/issues/148)) ([d1a6e51](https://github.com/specledger/specledger/commit/d1a6e5147e0d6361c2dc3f3f08e112302251cbf9))
+* remove beads from onboarding prompt ([#143](https://github.com/specledger/specledger/issues/143)) ([818d2fe](https://github.com/specledger/specledger/commit/818d2fedc509c69ed187704a86f6e564ec5d1c8a))
+* steer onboarding constitution toward design principles, not tech stack ([#155](https://github.com/specledger/specledger/issues/155)) ([b8c3f60](https://github.com/specledger/specledger/commit/b8c3f6002302ad12e4e28607af73c3c9fc29e6d3))
+* support SSH remote aliases and add --repo flag for manual override ([#151](https://github.com/specledger/specledger/issues/151)) ([f3d17f9](https://github.com/specledger/specledger/commit/f3d17f94fea20fc982aac5eebecc3d5996a1ed61))
+
 ## [Unreleased]
 
 ### Changed
