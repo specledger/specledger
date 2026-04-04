@@ -27,8 +27,9 @@ Check if a populated project constitution exists at `.specledger/memory/constitu
 
 **If constitution is missing or unfilled** (contains `[PLACEHOLDER]` tokens or file doesn't exist):
 - Explain: "Your project doesn't have a constitution yet. Let's create one by analyzing your codebase."
-- Run `/specledger.audit` to analyze the existing codebase (languages, frameworks, patterns, conventions).
-- Run `/specledger.constitution` to propose tailored guiding principles based on the audit findings.
+- Run `/specledger.audit` to build familiarity with the codebase structure and patterns.
+- Run `/specledger.constitution` to propose guiding principles for the project.
+  - **Important**: The constitution captures high-level software design principles (e.g., YAGNI, test-first, simplicity, contract-driven design) — NOT technology selections discovered during the audit. The audit provides codebase familiarity; principles come from how the team wants to approach software design.
 - Wait for the user to review and approve the constitution before proceeding.
 
 ### Step 2: Welcome & Orientation
