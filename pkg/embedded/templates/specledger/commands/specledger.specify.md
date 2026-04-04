@@ -18,6 +18,10 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+**Execution Tracking**: Before starting work, create a task list (using the TaskCreate tool) covering all execution steps in this workflow. If `$ARGUMENTS` contains user-specified actions beyond the standard workflow, place those tasks where they logically fit: before setup steps if arguments change what gets set up, or after all standard steps if arguments extend the workflow. Update task status as you complete each step.
+
+**User Interaction**: Whenever you need input, clarification, or a decision from the user, use the **AskUserQuestion** tool directly. Do not output questions as plain text and stop — always use the interactive tool for proper UX.
+
 ## Purpose
 
 Create feature specifications from natural language descriptions. This is the starting point of the SpecLedger workflow, transforming ideas into structured, actionable specs.
@@ -63,7 +67,9 @@ Given that feature description, do this:
    - The JSON is provided in the terminal as output - always refer to it to get the actual content you're looking for
    - The JSON output will contain BRANCH_NAME, FEATURE_DIR, and SPEC_FILE paths
 
-3. Load `.specledger/templates/spec-template.md` to understand required sections.
+   **CRITICAL**: After the command completes, READ the generated SPEC_FILE (path from JSON output) before writing any content to it — it contains section guidance and required fields.
+
+3. Load `.specledger/templates/spec-template.md` to understand required sections, then READ the generated SPEC_FILE to see its current scaffold before modifying it.
 
 4. Follow this execution flow:
 
@@ -176,7 +182,7 @@ Given that feature description, do this:
            | C      | [Third suggested answer] | [What this means for the feature] |
            | Custom | Provide your own answer | [Explain how to provide custom input] |
 
-           **Your choice**: _[Wait for user response]_
+           **Your choice**: _[Use AskUserQuestion tool]_
            ```
 
         4. **CRITICAL - Table Formatting**: Ensure markdown tables are properly formatted:
@@ -186,7 +192,7 @@ Given that feature description, do this:
            - Test that the table renders correctly in markdown preview
         5. Number questions sequentially (Q1, Q2, Q3 - max 3 total)
         6. Present all questions together before waiting for responses
-        7. Wait for user to respond with their choices for all questions (e.g., "Q1: A, Q2: Custom - [details], Q3: B")
+        7. Use the AskUserQuestion tool to collect the user's choices for all questions (e.g., "Q1: A, Q2: Custom - [details], Q3: B")
         8. Update the spec by replacing each [NEEDS CLARIFICATION] marker with the user's selected or provided answer
         9. Re-run validation after all clarifications are resolved
 

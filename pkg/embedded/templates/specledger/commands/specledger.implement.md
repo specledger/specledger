@@ -10,6 +10,10 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+**Execution Tracking**: Before starting work, create a task list (using the TaskCreate tool) covering all execution steps in this workflow. If `$ARGUMENTS` contains user-specified actions beyond the standard workflow, place those tasks where they logically fit: before setup steps if arguments change what gets set up, or after all standard steps if arguments extend the workflow. Update task status as you complete each step.
+
+**User Interaction**: Whenever you need input, clarification, or a decision from the user, use the **AskUserQuestion** tool directly. Do not output questions as plain text and stop — always use the interactive tool for proper UX.
+
 ## Purpose
 
 Execute the implementation plan by processing all tasks in tasks.md. This command orchestrates the actual coding work following the defined task order and dependencies.
@@ -33,7 +37,7 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
 
    **If in-progress tasks found**:
    - Display the in-progress tasks with their notes/last checkpoint
-   - Ask the user: "Found in-progress tasks from a previous session. Would you like to resume from the last checkpoint, or start fresh?"
+   - Use AskUserQuestion to ask: "Found in-progress tasks from a previous session. Would you like to resume from the last checkpoint, or start fresh?"
    - **If resume**: Continue from the last checkpoint by reading the task's `notes` field for context and proceeding with the next steps
    - **If start fresh**: Mark in-progress tasks as open and proceed below
 
@@ -61,7 +65,7 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
 
    - **If any checklist is incomplete**:
      * Display the table with incomplete item counts
-     * **STOP** and ask: "Some checklists are incomplete. Do you want to proceed with implementation anyway? (yes/no)"
+     * **STOP** and use AskUserQuestion to ask: "Some checklists are incomplete. Do you want to proceed with implementation anyway? (yes/no)"
      * Wait for user response before continuing
      * If user says "no" or "wait" or "stop", halt execution
      * If user says "yes" or "proceed" or "continue", proceed to step 4
