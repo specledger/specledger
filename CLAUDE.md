@@ -19,6 +19,10 @@ This file is auto-generated from plan.md. Manual additions are preserved below.
 
 <!-- MANUAL ADDITIONS START -->
 
+## Commits & PRs
+
+For conventional commit types, version bump rules, and the release flow, see [docs/guides/release-flow.md](docs/guides/release-flow.md).
+
 ## Pre-push Checklist
 
 - `make lint` — golangci-lint v2 (install: `mise install golangci-lint`)

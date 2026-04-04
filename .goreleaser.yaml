@@ -15,17 +15,7 @@ checksum:
   name_template: 'checksums.txt'
 
 changelog:
-  sort: asc
-  use: github
-  groups:
-    - title: 'Features'
-      regexp: '^feat[\s].*'
-      order: 100
-    - title: 'Under the Hood'
-      regexp: '^fix[\s].*|^perf[\s].*'
-      order: 200
-    - title: 'Other Changes'
-      order: 300
+  disable: true
 
 builds:
   - id: sl
@@ -76,28 +66,4 @@ release:
     name: specledger
   prerelease: auto
   draft: false
-  mode: replace
-  header: |
-    ## 🚀 SpecLedger {{ .Tag }}
-  footer: |
-    ## 📦 Installation
-
-    ### Binary
-    Download from the [releases page](https://github.com/specledger/specledger/releases/latest).
-
-    ### Homebrew
-    ```bash
-    brew tap specledger/homebrew-specledger
-    brew install specledger
-    ```
-
-    ### From source
-    ```bash
-    go install github.com/specledger/specledger/cmd/sl@latest
-    ```
-
-    ## 📚 Documentation
-
-    - [Documentation](https://specledger.io/docs)
-    - [GitHub Issues](https://github.com/specledger/specledger/issues)
-    - [Changelog](https://github.com/specledger/specledger/blob/main/CHANGELOG.md)
+  mode: keep-existing
