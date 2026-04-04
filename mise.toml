@@ -3,5 +3,6 @@
 
 [tools]
 go = "1.24"
-golangci-lint = "latest"
+golangci-lint = "2.11.4"
+zizmor = "1.23.1"
 # Add your project tools here
