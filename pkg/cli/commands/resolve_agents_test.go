@@ -48,6 +48,16 @@ func TestResolveAgentFlags(t *testing.T) {
 			want:  "Claude Code,OpenCode,Copilot CLI,Codex",
 		},
 		{
+			name:  "all with whitespace",
+			flags: []string{" all "},
+			want:  "Claude Code,OpenCode,Copilot CLI,Codex",
+		},
+		{
+			name:  "ALL uppercase",
+			flags: []string{"ALL"},
+			want:  "Claude Code,OpenCode,Copilot CLI,Codex",
+		},
+		{
 			name:    "all combined with other",
 			flags:   []string{"all", "claude"},
 			wantErr: "cannot be combined",
@@ -60,7 +70,7 @@ func TestResolveAgentFlags(t *testing.T) {
 		{
 			name:    "invalid agent includes valid values",
 			flags:   []string{"vim"},
-			wantErr: "Valid values: claude, opencode, codex, copilot, all",
+			wantErr: "Valid values: claude, codex, copilot, github-copilot, opencode, all",
 		},
 		{
 			name:    "empty string",

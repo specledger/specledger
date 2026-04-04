@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 	"time"
 
@@ -115,10 +116,24 @@ func resolveAgentFlags(flags []string) (string, error) {
 		aliases[strings.ToLower(a.Command)] = a.Name
 	}
 
+	// Derive valid flag values from aliases map for deterministic error messages
+	validValues := make([]string, 0, len(aliases)+1)
+	for k := range aliases {
+		validValues = append(validValues, k)
+	}
+	sort.Strings(validValues)
+	validValues = append(validValues, "all")
+
+	// Normalize all inputs once upfront
+	normalized := make([]string, len(flags))
+	for i, f := range flags {
+		normalized[i] = strings.ToLower(strings.TrimSpace(f))
+	}
+
 	// Check for "all"
 	hasAll := false
-	for _, f := range flags {
-		if strings.EqualFold(f, "all") {
+	for _, key := range normalized {
+		if key == "all" {
 			hasAll = true
 			break
 		}
@@ -137,20 +152,16 @@ func resolveAgentFlags(flags []string) (string, error) {
 		return strings.Join(names, ","), nil
 	}
 
-	// Build deterministic list of valid flag values for error messages
-	validValues := []string{"claude", "opencode", "codex", "copilot", "all"}
-
 	// Resolve each flag value
 	seen := make(map[string]bool)
 	var names []string
-	for _, f := range flags {
-		key := strings.ToLower(strings.TrimSpace(f))
+	for _, key := range normalized {
 		if key == "" {
 			return "", fmt.Errorf("--agent value cannot be empty.\n→ Valid values: %s\n→ Example: sl init --ci --agent claude", strings.Join(validValues, ", "))
 		}
 		displayName, ok := aliases[key]
 		if !ok {
-			return "", fmt.Errorf("unknown agent %q.\n→ Valid values: %s\n→ Example: sl init --ci --agent claude --agent opencode", f, strings.Join(validValues, ", "))
+			return "", fmt.Errorf("unknown agent %q.\n→ Valid values: %s\n→ Example: sl init --ci --agent claude --agent opencode", key, strings.Join(validValues, ", "))
 		}
 		if !seen[displayName] {
 			seen[displayName] = true
