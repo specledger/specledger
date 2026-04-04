@@ -35,6 +35,10 @@ Follow this execution flow:
 2. Collect/derive values for placeholders:
    - If user input (conversation) supplies a value, use it.
    - Otherwise infer from existing repo context (README, docs, prior constitution versions if embedded).
+   - **IMPORTANT**: Principles must be high-level software design philosophies, NOT technology selections or stack decisions. The constitution answers "how do we approach software design?" not "what tools do we use?".
+     - **Good principles**: YAGNI, Test-First, Simplicity, Contract-Driven Design, Single Responsibility, Observability-by-Default
+     - **Not principles**: "Use Go for backends", "PostgreSQL is required", "All APIs must be REST", "React for frontends"
+     - If the audit revealed architectural patterns (e.g., monorepo, microservices), you may reference the *philosophy* behind them (e.g., "Modular boundaries — services own their data") but not mandate the specific technology.
    - For every inferred value, Group the core principles in logical groups of 4. For each group of principals, ask a multiSelect user question allowing the user to confirm or adjust each principle using the AskUserQuestion tool. Use the AskUserQuestion tool multiple times if needed to cover all principles and based on user adjustments.
    - For governance dates: `RATIFICATION_DATE` is the original adoption date (if unknown ask or mark TODO), `LAST_AMENDED_DATE` is today if changes are made, otherwise keep previous.
    - `CONSTITUTION_VERSION` must increment according to semantic versioning rules:
