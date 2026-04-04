@@ -100,6 +100,66 @@ func trustMiseConfig(projectPath string) {
 	}
 }
 
+// resolveAgentFlags validates and resolves --agent flag values to the
+// comma-separated display names expected by setupSpecLedgerProject.
+// Valid values: claude, opencode, codex, copilot, all.
+func resolveAgentFlags(flags []string) (string, error) {
+	// Build alias map from launcher defaults (command -> display name)
+	aliases := map[string]string{
+		"copilot": "Copilot CLI", // friendly alias for github-copilot
+	}
+	for _, a := range launcher.DefaultAgents {
+		if a.Command == "" { // skip "None"
+			continue
+		}
+		aliases[strings.ToLower(a.Command)] = a.Name
+	}
+
+	// Check for "all"
+	hasAll := false
+	for _, f := range flags {
+		if strings.EqualFold(f, "all") {
+			hasAll = true
+			break
+		}
+	}
+
+	if hasAll {
+		if len(flags) > 1 {
+			return "", fmt.Errorf("\"all\" cannot be combined with other agent values")
+		}
+		var names []string
+		for _, a := range launcher.DefaultAgents {
+			if a.Command != "" {
+				names = append(names, a.Name)
+			}
+		}
+		return strings.Join(names, ","), nil
+	}
+
+	// Build deterministic list of valid flag values for error messages
+	validValues := []string{"claude", "opencode", "codex", "copilot", "all"}
+
+	// Resolve each flag value
+	seen := make(map[string]bool)
+	var names []string
+	for _, f := range flags {
+		key := strings.ToLower(strings.TrimSpace(f))
+		if key == "" {
+			return "", fmt.Errorf("--agent value cannot be empty.\n→ Valid values: %s\n→ Example: sl init --ci --agent claude", strings.Join(validValues, ", "))
+		}
+		displayName, ok := aliases[key]
+		if !ok {
+			return "", fmt.Errorf("unknown agent %q.\n→ Valid values: %s\n→ Example: sl init --ci --agent claude --agent opencode", f, strings.Join(validValues, ", "))
+		}
+		if !seen[displayName] {
+			seen[displayName] = true
+			names = append(names, displayName)
+		}
+	}
+	return strings.Join(names, ","), nil
+}
+
 // setupSpecLedgerProject applies playbooks and creates metadata.
 // Optionally initializes git based on flags.
 // If force is true, existing files will be overwritten and agent symlinks will be fixed.

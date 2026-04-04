@@ -106,6 +106,9 @@ sl new --ci --project-name myproject --short-code mp
 # Initialize in existing repository
 sl init
 
+# Initialize with specific agents (non-interactive)
+sl init --ci --agent claude --agent opencode
+
 # Check required tools
 sl doctor
 
@@ -124,6 +127,7 @@ sl deps resolve
 | `sl new` | Create a new project (interactive TUI) |
 | `sl new --ci --project-name <name> --short-code <code>` | Create a project (non-interactive) |
 | `sl init` | Initialize SpecLedger in an existing repository |
+| `sl init --ci --agent <name>` | Initialize non-interactively with specific agents (repeatable: claude, opencode, codex, copilot, all) |
 
 ### Slash Commands: Specification Workflow
 
