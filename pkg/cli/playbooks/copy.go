@@ -127,6 +127,8 @@ func copyStructureItem(srcPath, destPath, structureItem string, opts CopyOptions
 			}
 			result.FilesSkipped++
 			return nil
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to stat protected file %s: %w", structureItem, err)
 		}
 	}
 
@@ -178,6 +180,8 @@ func copyDirectory(srcPath, destPath, structureItem string, opts CopyOptions, re
 				}
 				result.FilesSkipped++
 				return nil
+			} else if !os.IsNotExist(statErr) {
+				return fmt.Errorf("failed to stat protected file %s: %w", fullPath, statErr)
 			}
 		}
 
@@ -196,6 +200,8 @@ func copySingleFile(srcPath, destPath string, opts CopyOptions, result *CopyResu
 			}
 			result.FilesSkipped++
 			return nil
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("failed to stat protected file %s: %w", filename, err)
 		}
 	}
 
