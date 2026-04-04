@@ -106,8 +106,8 @@ Present the generated tasks to the user and ask:
 > **Task Review**
 >
 > I've generated the implementation tasks. Please review them:
-> - Use `bd list --label "spec:<feature>" --limit 10` to see all tasks
-> - Use `bd dep tree --reverse <epic-id>` to see the dependency graph
+> - Use `sl issue list --all` to see all tasks
+> - Use `sl issue list --tree` to see the dependency graph
 >
 > **Would you like to proceed with implementation, or would you like to modify any tasks first?**
 
