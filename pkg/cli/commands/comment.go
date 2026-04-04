@@ -49,7 +49,8 @@ Examples:
   sl comment list
   sl comment list 601-cli-skills
   sl comment list --json --status open
-  sl comment list --status resolved`,
+  sl comment list --status resolved
+  sl comment list --repo owner/repo`,
 	Args:         cobra.MaximumNArgs(1),
 	RunE:         runCommentList,
 	SilenceUsage: true,
@@ -101,6 +102,7 @@ var (
 	commentVerbose       bool
 	commentListJSON      bool
 	commentListStatus    string
+	commentListRepo      string
 	commentShowJSON      bool
 	commentReplyJSON     bool
 	commentResolveJSON   bool
@@ -112,6 +114,7 @@ func init() {
 
 	commentListCmd.Flags().BoolVar(&commentListJSON, "json", false, "Output as JSON array")
 	commentListCmd.Flags().StringVar(&commentListStatus, "status", "open", "Filter by status: open, resolved, all")
+	commentListCmd.Flags().StringVarP(&commentListRepo, "repo", "R", "", "GitHub owner/repo (overrides git remote detection)")
 
 	commentShowCmd.Flags().BoolVar(&commentShowJSON, "json", false, "Output as JSON")
 
@@ -157,9 +160,17 @@ func runCommentList(cmd *cobra.Command, args []string) error {
 		specKey = currentBranch
 	}
 
-	repoOwner, repoName, err := cligit.GetRepoOwnerName(cwd)
-	if err != nil {
-		return fmt.Errorf("failed to get repo info: %w\n→ Check repo remote with 'git remote -v'", err)
+	var repoOwner, repoName string
+	if commentListRepo != "" {
+		repoOwner, repoName, err = cligit.ParseRepoFlag(commentListRepo)
+		if err != nil {
+			return err
+		}
+	} else {
+		repoOwner, repoName, err = cligit.GetRepoOwnerName(cwd)
+		if err != nil {
+			return fmt.Errorf("failed to get repo info: %w\n→ Specify manually: sl comment list --repo owner/repo\n→ Or check repo remote with 'git remote -v'", err)
+		}
 	}
 
 	project, err := client.GetProject(repoOwner, repoName)

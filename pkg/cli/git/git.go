@@ -26,10 +26,17 @@ import (
 
 var featureBranchRe = regexp.MustCompile(`^\d{3,}-`)
 
-// repoURLRe extracts owner/name from GitHub remote URLs (both HTTPS and SSH forms).
-// Also matches SSH config aliases like git@github.com-so0k:owner/repo.git where
-// the hostname suffix (-so0k) is a per-account alias in ~/.ssh/config.
-var repoURLRe = regexp.MustCompile(`github\.com(?:-[^:/]+)?[:/]([^/]+)/([^/\.]+?)(?:\.git)?$`)
+// sshURLRe matches SSH remote URLs with any hostname (including custom SSH config aliases).
+// Examples: git@github.com:o/r.git, git@github-so0k:o/r.git, git@my-host:o/r.git
+var sshURLRe = regexp.MustCompile(`git@[^:]+:([^/]+)/([^/.]+?)(?:\.git)?$`)
+
+// sshProtoURLRe matches ssh:// protocol URLs.
+// Examples: ssh://git@github.com/owner/repo.git, ssh://git@host:22/owner/repo.git
+var sshProtoURLRe = regexp.MustCompile(`ssh://[^/]+/([^/]+)/([^/.]+?)(?:\.git)?$`)
+
+// httpsURLRe matches HTTPS remote URLs with any hostname (including non-standard ports).
+// Examples: https://github.com/owner/repo.git, https://git.corp:8443/owner/repo.git
+var httpsURLRe = regexp.MustCompile(`https?://[^/]+/([^/]+)/([^/.]+?)(?:\.git)?$`)
 
 // openRepo opens the git repository at repoPath, searching parent dirs for .git.
 func openRepo(repoPath string) (*gogit.Repository, error) {
@@ -42,8 +49,33 @@ func openRepo(repoPath string) (*gogit.Repository, error) {
 	return repo, nil
 }
 
+// ParseRepoURL extracts owner and repo name from a git remote URL.
+// Supports SSH (git@host:owner/repo.git), ssh:// protocol (ssh://git@host/owner/repo.git),
+// and HTTPS (https://host/owner/repo.git) with any hostname, including custom SSH config aliases.
+func ParseRepoURL(rawURL string) (owner, name string, err error) {
+	if m := sshURLRe.FindStringSubmatch(rawURL); m != nil {
+		return m[1], m[2], nil
+	}
+	if m := sshProtoURLRe.FindStringSubmatch(rawURL); m != nil {
+		return m[1], m[2], nil
+	}
+	if m := httpsURLRe.FindStringSubmatch(rawURL); m != nil {
+		return m[1], m[2], nil
+	}
+	return "", "", fmt.Errorf("cannot parse owner/repo from remote URL: %s", rawURL)
+}
+
+// ParseRepoFlag parses a --repo flag value in "owner/repo" format.
+func ParseRepoFlag(flag string) (owner, name string, err error) {
+	parts := strings.SplitN(flag, "/", 2)
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" || strings.Contains(parts[1], "/") {
+		return "", "", fmt.Errorf("invalid --repo format: expected owner/repo, got %q", flag)
+	}
+	return parts[0], parts[1], nil
+}
+
 // GetRepoOwnerName parses the origin remote URL to extract the GitHub owner and repo name.
-// Supports both HTTPS (https://github.com/owner/repo.git) and SSH (git@github.com:owner/repo.git) URLs.
+// Supports both HTTPS and SSH URLs with any hostname, including custom SSH config aliases.
 func GetRepoOwnerName(repoPath string) (owner, name string, err error) {
 	repo, err := openRepo(repoPath)
 	if err != nil {
@@ -60,12 +92,7 @@ func GetRepoOwnerName(repoPath string) (owner, name string, err error) {
 		return "", "", fmt.Errorf("origin remote has no URLs")
 	}
 
-	m := repoURLRe.FindStringSubmatch(urls[0])
-	if m == nil {
-		return "", "", fmt.Errorf("cannot parse GitHub owner/repo from remote URL: %s", urls[0])
-	}
-
-	return m[1], m[2], nil
+	return ParseRepoURL(urls[0])
 }
 
 // BranchExists reports whether a local branch with the given name exists.
