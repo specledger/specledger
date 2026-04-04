@@ -286,6 +286,30 @@ func runInit(l *logger.Logger) error {
 	// Get project name from directory name
 	projectName := filepath.Base(projectPath)
 
+	// Check if interactive mode (needed early for git detection prompt)
+	modeDetector := tui.NewModeDetector()
+	isInteractive := modeDetector.IsInteractive() && !ciFlag
+
+	// Check if git repository exists
+	if _, err := os.Stat(filepath.Join(projectPath, ".git")); os.IsNotExist(err) {
+		if isInteractive {
+			shouldInit, promptErr := tui.ConfirmPrompt("No git repository found. Initialize one? (Many sl commands require git.) [y/N]: ")
+			if promptErr != nil {
+				return fmt.Errorf("failed to confirm git init: %w", promptErr)
+			}
+			if shouldInit {
+				if err := initializeGitRepo(projectPath); err != nil {
+					return fmt.Errorf("failed to initialize git: %w", err)
+				}
+				ui.PrintSuccess("Git repository initialized.")
+			} else {
+				ui.PrintWarning("No git repository detected. Many sl commands require git. Run 'git init' to initialize.")
+			}
+		} else {
+			ui.PrintWarning("No git repository detected. Many sl commands require git. Run 'git init' to initialize.")
+		}
+	}
+
 	// Check if already initialized
 	if !initForceFlag {
 		if _, err := os.Stat(filepath.Join(projectPath, "specledger", "specledger.yaml")); err == nil {
@@ -309,10 +333,6 @@ func runInit(l *logger.Logger) error {
 	shortCode := initShortCodeFlag
 	playbookName := initPlaybookFlag
 	agentPref := existingAgentPref
-
-	// Check if interactive mode
-	modeDetector := tui.NewModeDetector()
-	isInteractive := modeDetector.IsInteractive() && !ciFlag
 
 	if isInteractive {
 		// Build missing config
