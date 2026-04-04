@@ -14,7 +14,7 @@ go 1.24.2
 require (
 	github.com/charmbracelet/bubbles v0.21.1
 	github.com/charmbracelet/bubbletea v1.3.10
-	github.com/charmbracelet/huh v0.8.0
+	github.com/charmbracelet/huh v1.0.0
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/getsentry/sentry-go v0.43.0
 	github.com/go-git/go-git/v5 v5.16.4
