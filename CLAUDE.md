@@ -28,5 +28,6 @@ For conventional commit types, version bump rules, and the release flow, see [do
 - `make lint` — golangci-lint v2 (install: `mise install golangci-lint`)
 - `make test` — unit tests
 - `make fmt` — formatting
+- `zizmor .github/workflows/` — validate GitHub Actions workflows when modifying them (install: `mise install zizmor`)
 
 <!-- MANUAL ADDITIONS END -->
