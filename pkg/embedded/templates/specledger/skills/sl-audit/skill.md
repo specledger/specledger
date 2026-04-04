@@ -75,11 +75,9 @@ ELIF need_module_details:
 | `markdown` | Human review, documentation |
 | `json` | Scripting, automation, caching |
 
-### Cache Strategy
+### Reusing Prior Results
 
-- **Quick audit**: Cache to `scripts/audit-quick.json`
-- **Deep audit**: Cache to `scripts/audit-cache.json`
-- **Force re-analysis**: Use `--force` flag
+If you've already run reconnaissance commands, reuse the output rather than re-running. Save structured results to a scratch file if you need them across sessions.
 
 ## Detection Commands
 
@@ -199,65 +197,14 @@ grep -r "^import \|^from " [MODULE_PATH] | sort -u
 ## Common Pitfalls
 
 1. **Over-auditing**: Start with quick reconnaissance, go deep only when needed
-2. **Ignoring cache**: Reuse cached results to save time
-3. **Wrong scope**: Ensure you're in project root for accurate detection
-4. **Missing dependencies**: Always check cross-cutting concerns (auth, logging, config)
+2. **Wrong scope**: Ensure you're in project root for accurate detection
+3. **Missing dependencies**: Always check cross-cutting concerns (auth, logging, config)
 
-## CLI Reference
+## Note on CLI
 
-> **Note**: The `sl audit` command doesn't exist yet. This skill provides patterns for manual codebase reconnaissance using standard tools.
-
-### Essential Detection Commands
-
-| Action | Command |
-|--------|---------|
-| Tech stack detection | `ls -la | grep -E "package.json|go.mod|requirements.txt"` |
-| Directory tree | `tree -L 3 -d -I "node_modules|.git|dist|build"` |
-| Entry points | `find . -name "main.go" -o -name "main.ts" -o -name "app.py"` |
-
-> **Full syntax**: See `tree --help`, `find --help`, `grep --help` for complete command reference.
+There is no `sl audit` CLI command. This skill provides patterns for manual codebase reconnaissance using standard tools (`tree`, `find`, `grep`). See their respective `--help` for full syntax.
 
 ## Troubleshooting
-
-**If audit cache is stale**:
-```bash
-rm scripts/audit-quick.json scripts/audit-cache.json
-```
-
-And re-run the detection commands.
-
-**If no project structure detected**:
-- Verify you're in the project root directory
-- Check for hidden config files (e.g., `.github/workflows/`)
-- Look for `README.md` for project setup instructions
-
-**If dependency graph is incomplete**:
-- Some imports may be dynamically loaded
-- Check for reflection-based dependency injection
-- Look for configuration files that specify module relationships
-
-## CLI Reference
-
-> **Note**: The `sl audit` command doesn't exist yet. This skill provides patterns for manual codebase reconnaissance using standard tools.
-
-### Essential Detection Commands
-
-| Action | Command |
-|--------|---------|
-| Tech stack detection | `ls -la | grep -E "package.json|go.mod|requirements.txt"` |
-| Directory tree | `tree -L 3 -d -I "node_modules|.git|dist|build"` |
-| Entry points | `find . -name "main.go" -o -name "main.ts" -o -name "app.py"` |
-
-> **Full syntax**: See `tree --help`, `find --help`, `grep --help` for complete command reference.
-
-## Troubleshooting
-
-**If audit cache is stale**:
-```bash
-rm scripts/audit-quick.json scripts/audit-cache.json
-```
-
-And re-run the detection commands.
 
 **If no project structure detected**:
 - Verify you're in the project root directory

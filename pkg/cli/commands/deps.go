@@ -67,7 +67,7 @@ var VarRemoveCmd = &cobra.Command{
 var VarResolveCmd = &cobra.Command{
 	Use:     "resolve",
 	Short:   "Download and cache dependencies",
-	Long:    `Download all dependencies from specledger.yaml and cache them locally at ~/.github.com/specledger/specledger/cache/.`,
+	Long:    `Download all dependencies from specledger.yaml and cache them locally at ~/.specledger/cache/.`,
 	Example: `  sl deps resolve`,
 	RunE:    runResolveDependencies,
 }

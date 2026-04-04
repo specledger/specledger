@@ -1,226 +1,101 @@
-# sl Issue Tracking
+# sl Dependency Management
+
+**When to Load**: Triggered when tasks involve cross-repo specification dependencies, `sl deps` commands, artifact caching, or multi-repo dependency resolution.
 
 ## Overview
 
-`sl issue` is the built-in issue tracker for SpecLedger. Use it for multi-session work with complex dependencies; use TodoWrite for simple single-session tasks.
+`sl deps` manages external specification dependencies between repositories. Dependencies are declared in `specledger.yaml`, cached locally at `~/.specledger/cache/`, and optionally symlinked into your project's artifacts directory for direct access.
 
-## When to Use sl issue vs TodoWrite
+## Subcommands
 
-### Use sl issue when:
-- **Multi-session work** - Tasks spanning multiple compaction cycles or days
-- **Complex dependencies** - Work with blockers, prerequisites, or hierarchical structure
-- **Knowledge work** - Strategic documents, research, or tasks with fuzzy boundaries
-- **Side quests** - Exploratory work that might pause the main task
-- **Project memory** - Need to resume work after weeks away with full context
+| Command | Purpose | Output Mode |
+|---------|---------|-------------|
+| `sl deps add <url> [branch] -a <alias> [--link]` | Declare a new dependency | Progress + confirmation |
+| `sl deps list` | Show all declared dependencies | Table (repo, version, resolved status) |
+| `sl deps remove <url>` | Remove dependency declaration (cache kept) | Confirmation |
+| `sl deps resolve` | Download and cache all dependencies | Progress per dependency |
+| `sl deps update [url]` | Pull latest versions (all if no URL) | Progress + confirmation |
+| `sl deps link` | Symlink cached deps into project artifacts | Confirmation per link |
+| `sl deps unlink [alias]` | Remove symlinks (all if no alias) | Confirmation |
 
-### Use TodoWrite when:
-- **Single-session tasks** - Work that completes within current session
-- **Linear execution** - Straightforward step-by-step tasks with no branching
-- **Immediate context** - All information already in conversation
-- **Simple tracking** - Just need a checklist to show progress
+## Decision Criteria
 
-**Key insight**: If resuming work after 2 weeks would be difficult without sl issue, use sl issue. If the work can be picked up from a markdown skim, TodoWrite is sufficient.
+### sl deps vs sl issue link
 
-## Session Start Protocol
+These are fundamentally different concepts:
 
-**At session start, always check for available work:**
+**Use `sl deps`** for **repository-level artifact dependencies**:
+- Your project references specifications from another repository
+- You need external spec artifacts resolved locally for planning or implementation
+- Multi-repo projects sharing specification artifacts
 
-```bash
-# Check ready-to-work issues
-sl issue list --status open
+**Use `sl issue link`** for **work-item relationships** within a project:
+- Task A blocks task B
+- Issues that are related but not blocking
 
-# Check in-progress issues
-sl issue list --status in_progress
-```
+### Resolve Only vs Resolve + Link
 
-**Report format:**
-- "I can see X open issues: [summary]"
-- "Issue Y is in_progress. Last session: [summary from notes]. Next: [from notes]. Should I continue with that?"
+**Resolve only (`sl deps resolve`):**
+- CI environments where symlinks aren't needed
+- Checking dependency availability before a workflow
+- You'll reference cached artifacts by their cache path
 
-## Core Operations
+**Resolve + link (`sl deps resolve --link`):**
+- You want dependencies accessible at `<artifact_path>/deps/<alias>/`
+- Claude Code or other tools need to read dependency artifacts directly
+- Active development referencing external specs
 
-### Essential Commands
+### Cache Behavior
 
-**Create new issue:**
-```bash
-sl issue create --title "Fix login bug" --type bug
-sl issue create --title "Add OAuth" --type feature --priority 0
-sl issue create --title "Write tests" --description "Unit tests for auth module"
-```
+- `resolve` downloads to `~/.specledger/cache/` (reuses cache by default)
+- `resolve --no-cache` / `-n` forces fresh download
+- `remove` removes the declaration but **keeps the cache**
+- `update` fetches latest versions and refreshes cache
 
-**List issues:**
-```bash
-sl issue list                      # All open issues
-sl issue list --status in_progress # In-progress only
-sl issue list --all                # All issues across all specs
-sl issue list --label "phase:setup" # Filter by label
-```
+## Workflow Patterns
 
-**Show issue details:**
-```bash
-sl issue show SL-abc123
-```
-
-**Update issue:**
-```bash
-sl issue update SL-abc123 --status in_progress
-sl issue update SL-abc123 --priority 0
-sl issue update SL-abc123 --notes "COMPLETED: Login endpoint. NEXT: Session middleware"
-```
-
-**Close issue:**
-```bash
-sl issue close SL-abc123 --reason "Implemented in PR #42"
-```
-
-### Issue Types
-
-| Type | Description |
-|------|-------------|
-| `task` | Standard work item (default) |
-| `bug` | Defect or problem |
-| `feature` | New functionality |
-| `epic` | Large work with subtasks |
-| `chore` | Maintenance or cleanup |
-
-### Priority Levels
-
-| Priority | Description |
-|----------|-------------|
-| `0` | Critical (highest) |
-| `1` | High |
-| `2` | Normal (default) |
-| `3` | Low |
-
-### Labels
-
-Use labels for categorization:
-- `spec:<slug>` - Feature spec this issue belongs to
-- `phase:<name>` - Setup, US1, polish, etc.
-- `story:<id>` - User story traceability
-- `component:<area>` - Mapping to plan-defined modules
-
-## Progress Checkpointing
-
-Update issue notes at these checkpoints:
-
-**Critical triggers:**
-- Context running low / approaching token limit
-- Major milestone reached
-- Hit a blocker
-- Task transition or about to close issue
-
-**Notes format:**
-```
-COMPLETED: Specific deliverables
-IN PROGRESS: Current state + next immediate step
-BLOCKERS: What's preventing progress
-KEY DECISIONS: Important context or user guidance
-NEXT: Immediate next action
-```
-
-**Example:**
-```bash
-sl issue update SL-abc123 --notes "COMPLETED: JWT auth with RS256. KEY DECISION: RS256 over HS256 per security review. IN PROGRESS: Password reset flow. BLOCKERS: Waiting on user decision for token expiry. NEXT: Implement rate limiting."
-```
-
-## Issue Lifecycle
-
-### 1. Discovery Phase
-
-During exploration or implementation, proactively file issues for:
-- Bugs or problems discovered
-- Potential improvements noticed
-- Follow-up work identified
-- Technical debt encountered
+### Pattern 1: Add and Link a New Dependency
 
 ```bash
-sl issue create --title "Found: auth doesn't handle profile permissions"
+# SpecLedger repos: artifact_path auto-detected
+sl deps add git@github.com:org/api-spec --alias api
+
+# Non-SpecLedger repos: specify artifact path manually
+sl deps add https://github.com/org/api-docs --alias docs --artifact-path docs/openapi/
+
+# Resolve and symlink in one step
+sl deps resolve --link
 ```
 
-### 2. Execution Phase
-
-Mark issues in_progress when starting work:
-```bash
-sl issue update SL-abc123 --status in_progress
-```
-
-Update throughout work and close when complete:
-```bash
-sl issue close SL-abc123 --reason "Implemented with tests passing"
-```
-
-### 3. Planning Phase
-
-For complex multi-step work, structure issues with dependencies:
+### Pattern 2: Update Dependencies
 
 ```bash
-# Create epic
-sl issue create --title "Implement user authentication" --type epic
-
-# Create subtasks
-sl issue create --title "Set up OAuth credentials" --type task
-sl issue create --title "Implement authorization flow" --type task
-
-# Link dependencies
-sl issue link SL-epic blocks SL-credentials
-sl issue link SL-credentials blocks SL-flow
+sl deps update              # Update all to latest
+sl deps update git@github.com:org/spec  # Update one
+sl deps link                # Re-link after update
 ```
 
-## Dependency Management
+### Pattern 3: Clean Up
 
-**Link issues:**
 ```bash
-sl issue link SL-abc123 blocks SL-def456  # abc123 blocks def456
-sl issue link SL-abc123 related SL-xyz789 # related but not blocking
+sl deps unlink api          # Remove symlink for one
+sl deps unlink              # Remove all symlinks
+sl deps remove git@github.com:org/api-spec  # Remove declaration (cache remains)
 ```
 
-**View dependencies:**
-```bash
-sl issue show SL-abc123  # Shows linked issues
-```
+## Error Handling
 
-## Definition of Done
+| Error | Cause | Solution |
+|-------|-------|----------|
+| "failed to find project root" | No `specledger.yaml` in parent dirs | Run from within a SpecLedger project, or `sl init` first |
+| "invalid repository URL" | URL doesn't match git URL patterns | Use `git@host:org/repo` or `https://host/org/repo` format |
+| "Could not auto-detect artifact_path" | Remote repo lacks `specledger.yaml` | Add `--artifact-path` flag to specify manually |
+| Symlink errors | Missing cache or permissions | Run `sl deps resolve` first, check directory permissions |
 
-Before closing an issue, verify:
-1. All acceptance criteria met
-2. Tests pass (if applicable)
-3. Documentation updated (if needed)
-4. No blockers remaining
+## Token Efficiency (D21)
 
-Use `sl issue show <id>` to review issue details before closing.
+- **list**: Compact table (~200 tokens for 10 dependencies)
+- **add/remove/resolve/update**: Progress indicators + minimal confirmation
+- **link/unlink**: One line per symlink created/removed
 
-## Integration with TodoWrite
-
-Both tools complement each other at different timescales:
-
-**TodoWrite** (short-term working memory - this hour):
-- Tactical execution checklist
-- Marked completed as you go
-- Ephemeral: Disappears when session ends
-
-**sl issue** (long-term episodic memory - this week/month):
-- Strategic objectives and context
-- Key decisions and outcomes in notes field
-- Persistent: Survives compaction and session boundaries
-
-**Pattern:**
-1. Session start: Read sl issue -> Create TodoWrite items for immediate actions
-2. During work: Mark TodoWrite items completed as you go
-3. Reach milestone: Update sl issue notes with outcomes + context
-4. Session end: TodoWrite disappears, sl issue survives with enriched notes
-
-## Troubleshooting
-
-**If issues seem lost:**
-```bash
-sl issue list --all  # See all issues across specs
-```
-
-**If issue not found:**
-- Use exact issue ID (case-sensitive)
-- Check correct spec context (issues stored per-spec)
-
-**Lock file issues:**
-- Lock files (`.issues.jsonl.lock`) prevent concurrent access
-- If stale, remove and retry
+For full flag details, run `sl deps <subcommand> --help`.
