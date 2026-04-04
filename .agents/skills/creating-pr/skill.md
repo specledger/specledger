@@ -69,7 +69,7 @@ gh pr create --title "type(scope): description" --body "$(cat <<'EOF'
 <1-3 bullet points explaining what and why>
 
 ## Test plan
-- [ ] Verification steps
+[Describe how changes were verified]
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 EOF

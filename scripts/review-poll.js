@@ -20,7 +20,7 @@
  *   2 — argument/usage error
  */
 
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 const PLACEHOLDER_MARKERS = [
   "Looking for bugs?",
@@ -68,6 +68,19 @@ function parsePR(input) {
   return null;
 }
 
+const VALID_SLUG = /^[A-Za-z0-9_.-]+$/;
+
+function validatePR({ owner, repo, number }) {
+  if (!VALID_SLUG.test(owner) || !VALID_SLUG.test(repo)) {
+    console.error(`Error: invalid owner/repo characters: ${owner}/${repo}`);
+    process.exit(2);
+  }
+  if (!/^\d+$/.test(number)) {
+    console.error(`Error: invalid PR number: ${number}`);
+    process.exit(2);
+  }
+}
+
 function parseArgs(argv) {
   const args = argv.slice(2);
   if (args.length === 0 || args.includes("--help") || args.includes("-h")) {
@@ -95,16 +108,35 @@ function parseArgs(argv) {
     console.error(`Error: could not parse PR reference: ${prInput}`);
     process.exit(2);
   }
+  validatePR(pr);
+
+  if (!Number.isFinite(interval) || interval < 1) {
+    console.error(`Error: --interval must be a positive integer (got: ${interval})`);
+    process.exit(2);
+  }
+  if (!Number.isFinite(timeout) || timeout < 1) {
+    console.error(`Error: --timeout must be a positive integer (got: ${timeout})`);
+    process.exit(2);
+  }
 
   return { ...pr, interval, timeout };
 }
 
 function fetchComments(owner, repo, number) {
-  const result = execSync(
-    `gh api repos/${owner}/${repo}/issues/${number}/comments --jq '[.[] | {id, author: .user.login, body}]'`,
+  const result = execFileSync(
+    "gh",
+    [
+      "api",
+      `repos/${owner}/${repo}/issues/${number}/comments`,
+      "--paginate",
+      "--jq",
+      ".[] | {id, author: .user.login, body}",
+    ],
     { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
   );
-  return JSON.parse(result);
+  // --paginate with --jq outputs one JSON object per line (NDJSON)
+  const lines = result.trim().split("\n").filter(Boolean);
+  return lines.map((line) => JSON.parse(line));
 }
 
 function isPlaceholder(body) {
