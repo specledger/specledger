@@ -16,6 +16,7 @@ playbooks:
     protected:
       - ".specledger/memory/constitution.md"
       - "AGENTS.md"
+      - "mise.toml"
 
     # Files that use sentinel-based merge instead of copy
     mergeable:

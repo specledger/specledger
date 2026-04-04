@@ -119,13 +119,15 @@ func copyStructureItem(srcPath, destPath, structureItem string, opts CopyOptions
 		return mergeFile(srcPath, destPath, content, opts, result)
 	}
 
-	// It's a file - check if protected
+	// It's a file - check if protected (only skip if it already exists on disk)
 	if protectedFiles[structureItem] {
-		if opts.Verbose {
-			fmt.Printf("Skipped protected file: %s\n", structureItem)
+		if _, err := os.Stat(destPath); err == nil {
+			if opts.Verbose {
+				fmt.Printf("Skipped protected file: %s\n", structureItem)
+			}
+			result.FilesSkipped++
+			return nil
 		}
-		result.FilesSkipped++
-		return nil
 	}
 
 	// Copy directly
@@ -165,17 +167,19 @@ func copyDirectory(srcPath, destPath, structureItem string, opts CopyOptions, re
 		// e.g., structureItem=".specledger/" + relPath="memory/constitution.md"
 		fullPath := path.Join(strings.TrimSuffix(structureItem, "/"), relPath)
 
-		// Skip protected files that shouldn't be overwritten
-		if protectedFiles[fullPath] || protectedFiles[path.Base(relPath)] {
-			if opts.Verbose {
-				fmt.Printf("Skipped protected file: %s\n", fullPath)
-			}
-			result.FilesSkipped++
-			return nil
-		}
-
 		// Determine destination path (local filesystem uses filepath)
 		fileDestPath := filepath.Join(destPath, filepath.FromSlash(relPath))
+
+		// Skip protected files that already exist on disk
+		if protectedFiles[fullPath] || protectedFiles[path.Base(relPath)] {
+			if _, statErr := os.Stat(fileDestPath); statErr == nil {
+				if opts.Verbose {
+					fmt.Printf("Skipped protected file: %s\n", fullPath)
+				}
+				result.FilesSkipped++
+				return nil
+			}
+		}
 
 		return copySingleFile(walkPath, fileDestPath, opts, result, protectedFiles)
 	})
@@ -183,14 +187,16 @@ func copyDirectory(srcPath, destPath, structureItem string, opts CopyOptions, re
 
 // copySingleFile copies a single file from embedded FS to destination.
 func copySingleFile(srcPath, destPath string, opts CopyOptions, result *CopyResult, protectedFiles map[string]bool) error {
-	// Skip protected files that shouldn't be overwritten
+	// Skip protected files that already exist on disk
 	filename := path.Base(srcPath)
 	if protectedFiles[filename] {
-		if opts.Verbose {
-			fmt.Printf("Skipped protected file: %s\n", srcPath)
+		if _, err := os.Stat(destPath); err == nil {
+			if opts.Verbose {
+				fmt.Printf("Skipped protected file: %s\n", srcPath)
+			}
+			result.FilesSkipped++
+			return nil
 		}
-		result.FilesSkipped++
-		return nil
 	}
 
 	content, err := ReadFile(srcPath)

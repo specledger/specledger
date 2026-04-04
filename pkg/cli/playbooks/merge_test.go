@@ -101,6 +101,96 @@ func TestMergeSentinelSection(t *testing.T) {
 	}
 }
 
+func TestMergeSentinelSectionWithMarkers_HTML(t *testing.T) {
+	managed := "## Active Technologies\n\n- Go 1.24\n- Cobra (CLI)"
+
+	expectedBlock := HTMLMarkers.Begin + "\n" +
+		HTMLMarkers.Comment + "\n" +
+		managed + "\n" +
+		HTMLMarkers.End
+
+	tests := []struct {
+		name     string
+		existing string
+		managed  string
+		want     string
+	}{
+		{
+			name:     "empty existing content",
+			existing: "",
+			managed:  managed,
+			want:     expectedBlock + "\n",
+		},
+		{
+			name:     "append to existing markdown without sentinels",
+			existing: "# My Project\n\nCustom instructions here.\n",
+			managed:  managed,
+			want:     "# My Project\n\nCustom instructions here.\n\n" + expectedBlock + "\n",
+		},
+		{
+			name: "replace existing sentinel section",
+			existing: "# My Project\n\n" +
+				HTMLMarkers.Begin + "\n" +
+				HTMLMarkers.Comment + "\n" +
+				"old tech list\n" +
+				HTMLMarkers.End + "\n",
+			managed: managed,
+			want:    "# My Project\n\n" + expectedBlock + "\n",
+		},
+		{
+			name: "preserve content after sentinel section",
+			existing: "# My Project\n\n" +
+				HTMLMarkers.Begin + "\n" +
+				HTMLMarkers.Comment + "\n" +
+				"old tech list\n" +
+				HTMLMarkers.End + "\n" +
+				"\n## Custom Section\n\nUser content here.\n",
+			managed: managed,
+			want: "# My Project\n\n" + expectedBlock + "\n\n" +
+				"## Custom Section\n\nUser content here.\n",
+		},
+		{
+			name: "malformed sentinel - begin without end",
+			existing: "# My Project\n\n" +
+				HTMLMarkers.Begin + "\n" +
+				"orphaned content\n",
+			managed: managed,
+			want:    "# My Project\n\n" + expectedBlock + "\n",
+		},
+		{
+			name:     "idempotency",
+			existing: "# My Project\n\n" + expectedBlock + "\n",
+			managed:  managed,
+			want:     "# My Project\n\n" + expectedBlock + "\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := MergeSentinelSectionWithMarkers(tt.existing, tt.managed, HTMLMarkers)
+			if got != tt.want {
+				t.Errorf("MergeSentinelSectionWithMarkers() mismatch\ngot:\n%q\nwant:\n%q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMergeSentinelSectionWithMarkers_HTMLIdempotency(t *testing.T) {
+	managed := "## Active Technologies\n\n- Go 1.24\n- Cobra (CLI)"
+	existing := "# My Project\n\nCustom instructions.\n\n## Build Commands\n\nmake test\n"
+
+	first := MergeSentinelSectionWithMarkers(existing, managed, HTMLMarkers)
+	second := MergeSentinelSectionWithMarkers(first, managed, HTMLMarkers)
+	third := MergeSentinelSectionWithMarkers(second, managed, HTMLMarkers)
+
+	if first != second {
+		t.Errorf("Not idempotent: first != second\nfirst:\n%q\nsecond:\n%q", first, second)
+	}
+	if second != third {
+		t.Errorf("Not idempotent: second != third\nsecond:\n%q\nthird:\n%q", second, third)
+	}
+}
+
 func TestMergeSentinelSection_Idempotency(t *testing.T) {
 	managed := "specledger/*/issues.jsonl linguist-generated=true\nspecledger/*/tasks.md linguist-generated=true"
 	existing := "*.pbxproj binary\n# my custom rules\n*.log text\n"
