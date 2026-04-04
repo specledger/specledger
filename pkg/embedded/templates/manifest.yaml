@@ -68,13 +68,13 @@ playbooks:
     skills:
       - name: sl-audit
         path: "skills/sl-audit/skill.md"
-        description: "Codebase reconnaissance for understanding project structure"
+        description: "Codebase reconnaissance and structural analysis. Use for project exploration, architecture mapping, tech stack detection, module discovery, and dependency tracing in unfamiliar codebases."
       - name: sl-comment
         path: "skills/sl-comment/skill.md"
-        description: "Issue and comment management with sl comment commands"
+        description: "Manage PR and issue comments with sl comment list/show/reply/resolve. Use for code review feedback, comment threads, and batch comment processing."
       - name: sl-deps
         path: "skills/sl-deps/skill.md"
-        description: "Manage specification dependencies with sl deps commands"
+        description: "Manage cross-repo specification dependencies with sl deps add/list/resolve/link/unlink. Use for multi-repo dependency resolution, artifact caching, and spec imports."
       - name: sl-issue-tracking
         path: "skills/sl-issue-tracking/skill.md"
-        description: "Issue tracking patterns and best practices"
+        description: "Track multi-session work with sl issue create/list/show/update/close/ready. Use for task tracking, inter-issue dependencies, progress checkpointing, and session continuity."

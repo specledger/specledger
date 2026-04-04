@@ -244,3 +244,5 @@ sl issue list --all  # See all issues across specs
 **Lock file issues:**
 - Lock files (`.issues.jsonl.lock`) prevent concurrent access
 - If stale, remove and retry
+
+For full flag details, run `sl issue <subcommand> --help`.
