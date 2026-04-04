@@ -298,8 +298,11 @@ func runInit(l *logger.Logger) error {
 				return fmt.Errorf("failed to confirm git init: %w", promptErr)
 			}
 			if shouldInit {
-				if err := initializeGitRepo(projectPath); err != nil {
-					return fmt.Errorf("failed to initialize git: %w", err)
+				// initializeGitRepo also runs `git add .` which we don't want
+				cmd := exec.Command("git", "init")
+				cmd.Dir = projectPath
+				if output, err := cmd.CombinedOutput(); err != nil {
+					return fmt.Errorf("git init failed: %w\nOutput: %s", err, string(output))
 				}
 				ui.PrintSuccess("Git repository initialized.")
 			} else {
