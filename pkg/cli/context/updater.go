@@ -1,18 +1,14 @@
 package context
 
 import (
-	"bytes"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
-)
 
-const (
-	ManualAdditionsStart = "<!-- MANUAL ADDITIONS START -->"
-	ManualAdditionsEnd   = "<!-- MANUAL ADDITIONS END -->"
+	"github.com/specledger/specledger/pkg/cli/playbooks"
 )
 
 type AgentUpdater struct {
@@ -52,21 +48,18 @@ func NewAgentUpdater(agentType, repoRoot string) *AgentUpdater {
 }
 
 func (u *AgentUpdater) Update(ctx *TechnicalContext) error {
-	content, err := u.readFile()
+	existing, err := u.readFile()
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return fmt.Errorf("failed to read agent file: %w", err)
 		}
-		content = ""
+		existing = ""
 	}
 
-	manualAdditions := u.extractManualAdditions(content)
+	managed := u.generateActiveTechnologies(ctx)
+	merged := playbooks.MergeSentinelSectionWithMarkers(existing, managed, playbooks.HTMLMarkers)
 
-	activeTech := u.generateActiveTechnologies(ctx)
-
-	newContent := u.buildContent(activeTech, manualAdditions)
-
-	if err := u.writeFile(newContent); err != nil {
+	if err := u.writeFile(merged); err != nil {
 		return fmt.Errorf("failed to write agent file: %w", err)
 	}
 
@@ -87,11 +80,8 @@ func (u *AgentUpdater) writeFile(content string) error {
 		return fmt.Errorf("failed to create directory: %w", err)
 	}
 
-	var buf bytes.Buffer
-	buf.WriteString(content)
-
 	tmpFile := u.FilePath + ".tmp"
-	if err := os.WriteFile(tmpFile, buf.Bytes(), 0600); err != nil {
+	if err := os.WriteFile(tmpFile, []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write temp file: %w", err)
 	}
 
@@ -101,17 +91,6 @@ func (u *AgentUpdater) writeFile(content string) error {
 	}
 
 	return nil
-}
-
-func (u *AgentUpdater) extractManualAdditions(content string) string {
-	startIdx := strings.Index(content, ManualAdditionsStart)
-	endIdx := strings.Index(content, ManualAdditionsEnd)
-
-	if startIdx == -1 || endIdx == -1 || startIdx >= endIdx {
-		return ""
-	}
-
-	return content[startIdx : endIdx+len(ManualAdditionsEnd)]
 }
 
 func (u *AgentUpdater) generateActiveTechnologies(ctx *TechnicalContext) string {
@@ -165,29 +144,6 @@ func (u *AgentUpdater) deduplicateEntries(entries []string) []string {
 	return result
 }
 
-func (u *AgentUpdater) buildContent(activeTech, manualAdditions string) string {
-	var lines []string
-
-	lines = append(lines, "# Active Technologies")
-	lines = append(lines, "")
-	lines = append(lines, "This file is auto-generated from plan.md. Manual additions are preserved below.")
-	lines = append(lines, "")
-	lines = append(lines, activeTech)
-	lines = append(lines, "")
-
-	if manualAdditions != "" {
-		lines = append(lines, manualAdditions)
-	} else {
-		lines = append(lines, ManualAdditionsStart)
-		lines = append(lines, "")
-		lines = append(lines, ManualAdditionsEnd)
-	}
-
-	lines = append(lines, "")
-
-	return strings.Join(lines, "\n")
-}
-
 func (u *AgentUpdater) DiscoverAgentFiles(repoRoot string) ([]string, error) {
 	var files []string
 
@@ -239,10 +195,6 @@ func WalkAgentFiles(root string) ([]string, error) {
 	})
 
 	return files, err
-}
-
-func (u *AgentUpdater) PreserveManualAdditions(content string) string {
-	return u.extractManualAdditions(content)
 }
 
 func (u *AgentUpdater) DeduplicateEntries(entries []string) []string {

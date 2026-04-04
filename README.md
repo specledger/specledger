@@ -484,7 +484,7 @@ sl spec setup-plan
 
 #### sl context update
 
-Update AI agent context files with Technical Context from plan.md. Preserves manual additions between markers and deduplicates entries.
+Update AI agent context files with Technical Context from plan.md. Uses sentinel-based merge to inject an Active Technologies section while preserving all existing user content in the file.
 
 **Supported Agents:** claude, gemini, copilot, cursor, qwen, windsurf, kilocode, auggie, roo, codebuddy, qoder, shai, amazonq, ibmbob, opencode, codex
 
@@ -519,7 +519,7 @@ sl context update claude --json
 }
 ```
 
-**Marker Preservation:** The command preserves any manual additions between `<!-- MANUAL ADDITIONS START -->` and `<!-- MANUAL ADDITIONS END -->` markers.
+**Sentinel Merge:** The command manages only the content between `<!-- >>> specledger-generated -->` and `<!-- <<< specledger-generated -->` markers. All other content in the file is preserved untouched.
 
 ### UI Mockups (ALPHA)
 

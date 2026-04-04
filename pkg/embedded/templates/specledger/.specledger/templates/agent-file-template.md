@@ -24,5 +24,6 @@ Auto-generated from all feature plans. Last updated: [DATE]
 
 [LAST 3 FEATURES AND WHAT THEY ADDED]
 
-<!-- MANUAL ADDITIONS START -->
-<!-- MANUAL ADDITIONS END -->
+<!-- >>> specledger-generated -->
+<!-- Auto-managed by specledger - do not edit this section -->
+<!-- <<< specledger-generated -->

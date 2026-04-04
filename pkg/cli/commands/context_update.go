@@ -22,8 +22,8 @@ var contextUpdateCmd = &cobra.Command{
 This command reads the Technical Context section from plan.md and updates
 the specified agent file (e.g., CLAUDE.md, GEMINI.md) with the metadata.
 
-The update preserves any manual additions between the MANUAL ADDITIONS markers
-and deduplicates entries to avoid repetition.
+The update uses sentinel-based merge to inject an Active Technologies section
+while preserving all existing user content in the file.
 
 Supported agents:
   claude, gemini, copilot, cursor, qwen, windsurf, kilocode, auggie, roo,
