@@ -2,6 +2,8 @@
 description: Guided onboarding workflow - walks through the full SpecLedger process from constitution to implementation
 ---
 
+**User Interaction**: Whenever you need input, clarification, or a decision from the user, use the **AskUserQuestion** tool directly. Do not output questions as plain text and stop — always use the interactive tool for proper UX.
+
 ## Purpose
 
 Guide a new user through the complete SpecLedger workflow after project setup. This command is designed to be run immediately after `sl new` or `sl init` launches the coding agent.
@@ -71,9 +73,9 @@ Before we begin, here's a quick reference of the available SpecLedger commands:
 
 ### Step 3: Feature Description
 
-Ask the user: **"What feature would you like to build? Describe it in a few sentences."**
+Use AskUserQuestion to ask: **"What feature would you like to build? Describe it in a few sentences."**
 
-Wait for the user's response. Use their description as input for the next step.
+Use their description as input for the next step.
 
 ### Step 4: Specification
 
@@ -101,7 +103,7 @@ Run `/specledger.tasks` to create the actionable, dependency-ordered task list.
 
 **STOP HERE.** Do NOT proceed to implementation without explicit user approval.
 
-Present the generated tasks to the user and ask:
+Present the generated tasks to the user and use AskUserQuestion to ask:
 
 > **Task Review**
 >
@@ -110,8 +112,6 @@ Present the generated tasks to the user and ask:
 > - Use `sl issue list --tree` to see the dependency graph
 >
 > **Would you like to proceed with implementation, or would you like to modify any tasks first?**
-
-Wait for the user to explicitly confirm before proceeding.
 
 ### Step 9: Implementation
 

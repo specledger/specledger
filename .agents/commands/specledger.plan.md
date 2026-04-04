@@ -18,6 +18,10 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+**Execution Tracking**: Before starting work, create a task list (using the TaskCreate tool) covering all execution steps in this workflow. If `$ARGUMENTS` contains user-specified actions beyond the standard workflow, place those tasks where they logically fit: before setup steps if arguments change what gets set up, or after all standard steps if arguments extend the workflow. Update task status as you complete each step.
+
+**User Interaction**: Whenever you need input, clarification, or a decision from the user, use the **AskUserQuestion** tool directly. Do not output questions as plain text and stop — always use the interactive tool for proper UX.
+
 ## Purpose
 
 Generate an implementation plan from the feature specification. This includes tech stack decisions, architecture, file structure, and phase breakdown.
@@ -28,7 +32,7 @@ Generate an implementation plan from the feature specification. This includes te
 
 1. **Setup**: Run `sl spec setup-plan --json` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH.
 
-2. **Load context**: Read FEATURE_SPEC and `.specledger/memory/constitution.md`. Load IMPL_PLAN template (already copied).
+2. **Load context**: Read FEATURE_SPEC and `.specledger/memory/constitution.md`. READ the IMPL_PLAN file at the path from the JSON output — it was scaffolded by `sl spec setup-plan` and you MUST read it before writing to it.
 
 3. **Execute plan workflow**: Follow the structure in IMPL_PLAN template to:
    - Fill Technical Context (mark unknowns as "NEEDS CLARIFICATION")

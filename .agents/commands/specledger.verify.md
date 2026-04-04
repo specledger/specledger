@@ -10,6 +10,10 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+**Execution Tracking**: Before starting work, create a task list (using the TaskCreate tool) covering all execution steps in this workflow. If `$ARGUMENTS` contains user-specified actions beyond the standard workflow, place those tasks where they logically fit: before setup steps if arguments change what gets set up, or after all standard steps if arguments extend the workflow. Update task status as you complete each step.
+
+**User Interaction**: Whenever you need input, clarification, or a decision from the user, use the **AskUserQuestion** tool directly. Do not output questions as plain text and stop — always use the interactive tool for proper UX.
+
 ## Purpose
 
 Perform cross-artifact consistency and quality analysis to identify gaps before implementation. This command validates that spec.md, plan.md, and tasks.md are aligned and complete.
@@ -170,7 +174,7 @@ At end of report, output a concise Next Actions block:
 
 ### 8. Offer Remediation
 
-Ask the user: "Would you like me to suggest concrete remediation edits for the top N issues?" (Do NOT apply them automatically.)
+Use the AskUserQuestion tool to ask: "Would you like me to suggest concrete remediation edits for the top N issues?" (Do NOT apply them automatically.)
 
 ## Operating Principles
 

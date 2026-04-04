@@ -10,6 +10,10 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+**Execution Tracking**: Before starting work, create a task list (using the TaskCreate tool) covering all execution steps in this workflow. If `$ARGUMENTS` contains user-specified actions beyond the standard workflow, place those tasks where they logically fit: before setup steps if arguments change what gets set up, or after all standard steps if arguments extend the workflow. Update task status as you complete each step.
+
+**User Interaction**: Whenever you need input, clarification, or a decision from the user, use the **AskUserQuestion** tool directly. Do not output questions as plain text and stop — always use the interactive tool for proper UX.
+
 ## Purpose
 
 Perform a critical divergence review of the current implementation state against plan artifacts. Your job is to **find problems, not confirm success**. Surface plan drift, force-closed issues, uncovered requirements, and implementation gaps that human reviewers need to know about before merge.
@@ -159,7 +163,7 @@ Execution steps:
 
    Offer the user this prompt (adjust `FEATURE_DIR` and `BRANCH` from step 1):
 
-   > **Would you like me to launch an independent adversarial review agent?** This runs in a separate context with no memory of this session — it reviews the code and artifacts cold.
+   Use AskUserQuestion to ask: **"Would you like me to launch an independent adversarial review agent?"** This runs in a separate context with no memory of this session — it reviews the code and artifacts cold.
 
    If the user accepts, launch an Agent with this prompt:
 
