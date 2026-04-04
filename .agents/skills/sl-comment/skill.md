@@ -10,7 +10,7 @@ The `sl comment` CLI provides review comment management for SpecLedger projects.
 
 | Command | Purpose | Output Mode |
 |---------|---------|-------------|
-| `sl comment list [-R owner/repo]` | List all comments (compact) | Truncated previews, reply counts |
+| `sl comment list [branch-name] [-R owner/repo]` | List all comments (compact) | Truncated previews, reply counts |
 | `sl comment show <id>` | Full comment details | Complete content, all replies |
 | `sl comment reply <id> "msg"` | Reply to a comment | Minimal confirmation |
 | `sl comment resolve <id> --reason "text"` | Mark comment resolved (reason required, posted as reply) | Minimal confirmation |
@@ -106,10 +106,10 @@ sl comment show <id> --json
 sl comment resolve <id> --reason "Fixed in commit abc123. Added role check."
 ```
 
-### Pattern 2: Custom SSH Host / Manual Repo Override
+### Pattern 2: Manual Repo Override
 
-When the git remote uses a custom SSH host alias (e.g., `git@github-work:org/repo.git`),
-automatic repo detection may fail. Use `--repo` / `-R` to specify the owner/repo manually:
+When automatic repo detection fails (e.g., non-standard remote URL format, missing `origin` remote,
+or non `owner/repo` path structure), use `--repo` / `-R` to specify the owner/repo manually:
 
 ```bash
 sl comment list --repo owner/repo --status open --json
@@ -131,7 +131,7 @@ sl comment resolve id1 id2 id3 --reason "Batch resolved: all addressed in latest
 | Error | Cause | Solution |
 |-------|-------|----------|
 | Exit code 1 (silent) | No auth token | Run `sl auth login` |
-| "cannot parse owner/repo from remote URL" | Custom SSH host alias or non-GitHub remote | Use `--repo owner/repo` to specify manually |
+| "cannot parse owner/repo from remote URL" | Non-standard remote URL format or missing `origin` remote | Use `--repo owner/repo` to specify manually |
 | "comment not found" | Invalid ID | Verify ID from list output |
 | Network error | Supabase unavailable | Retry or check connectivity |
 
