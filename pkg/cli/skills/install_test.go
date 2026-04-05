@@ -127,3 +127,43 @@ func TestIsSkillInstalled(t *testing.T) {
 		t.Error("skill should be installed")
 	}
 }
+
+func TestValidateSkillName(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr bool
+	}{
+		{"valid-skill", false},
+		{"my_skill", false},
+		{"skill123", false},
+		{"", true},                 // empty
+		{"../evil", true},          // path traversal
+		{"foo/bar", true},          // slash
+		{"foo\\bar", true},         // backslash
+		{"/absolute", true},        // absolute path
+		{"skill/../etc", true},     // embedded traversal
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := ValidateSkillName(tt.name)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("ValidateSkillName(%q) error = %v, wantErr %v", tt.name, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestInstallSkill_PathTraversal(t *testing.T) {
+	dir := t.TempDir()
+	agentPath := filepath.Join(dir, ".claude", "skills")
+	lockPath := filepath.Join(dir, "skills-lock.json")
+	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
+
+	err := InstallSkill("../../../etc/passwd", []byte("evil"), []string{agentPath}, lockPath, source)
+	if err == nil {
+		t.Fatal("expected error for path traversal name")
+	}
+	if !contains(err.Error(), "unsafe skill name") {
+		t.Errorf("error = %q, want containing 'unsafe skill name'", err.Error())
+	}
+}

@@ -33,12 +33,11 @@ func Track(auditURL, event string, params map[string]string, version string) {
 		return
 	}
 
-	// Skip for private repos (check source param)
-	if source, ok := params["source"]; ok && isPrivateRepo(source) {
-		return
-	}
-
 	go func() {
+		// Private repo check runs inside the goroutine to avoid blocking the caller
+		if source, ok := params["source"]; ok && isPrivateRepo(source) {
+			return
+		}
 		_ = trackSync(auditURL, event, params, version)
 	}()
 }
@@ -129,8 +128,8 @@ func isPrivateRepo(source string) bool {
 	}
 	defer resp.Body.Close()
 
-	// If we get 404 without auth or the repo metadata says private, skip
-	if resp.StatusCode == http.StatusNotFound {
+	// Conservative: skip telemetry on any non-200 response
+	if resp.StatusCode != http.StatusOK {
 		return true
 	}
 
@@ -139,7 +138,7 @@ func isPrivateRepo(source string) bool {
 		Private bool `json:"private"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&repoInfo); err != nil {
-		return false
+		return true // conservative: skip on parse error
 	}
 	return repoInfo.Private
 }

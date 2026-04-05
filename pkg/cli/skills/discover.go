@@ -16,6 +16,7 @@ type SkillMetadata struct {
 	Description string `yaml:"description" json:"description"`
 	Slug        string `yaml:"-" json:"slug,omitempty"`
 	Source      string `yaml:"-" json:"source,omitempty"`
+	RepoPath    string `yaml:"-" json:"-"` // path to SKILL.md within the repo (set during discovery)
 	Internal    bool   `yaml:"internal,omitempty" json:"-"`
 }
 
@@ -73,6 +74,7 @@ func discoverViaGitHub(client *Client, source *SkillSource) ([]SkillMetadata, er
 
 		meta.Source = source.SourceString()
 		meta.Slug = source.SourceString() + "/" + meta.Name
+		meta.RepoPath = path // preserve discovered path for install fetch
 
 		// Apply skill filter if specified
 		if source.SkillFilter != "" && meta.Name != source.SkillFilter {
@@ -138,6 +140,11 @@ func discoverViaClone(cloneURL string, source *SkillSource) ([]SkillMetadata, er
 
 		meta.Source = source.SourceString()
 		meta.Slug = source.SourceString() + "/" + meta.Name
+		// Preserve relative path within the cloned repo for install fetch
+		relPath, _ := filepath.Rel(tmpDir, path)
+		if relPath != "" {
+			meta.RepoPath = filepath.ToSlash(relPath)
+		}
 
 		if source.SkillFilter != "" && meta.Name != source.SkillFilter {
 			return nil
@@ -187,6 +194,10 @@ func ParseSkillFrontmatter(content []byte) (*SkillMetadata, error) {
 	}
 	if meta.Description == "" {
 		return nil, fmt.Errorf("SKILL.md missing required 'description' field")
+	}
+
+	if err := ValidateSkillName(meta.Name); err != nil {
+		return nil, fmt.Errorf("SKILL.md has unsafe name: %w", err)
 	}
 
 	return &meta, nil
