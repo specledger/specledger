@@ -44,7 +44,7 @@ owner/repo@skill-name  12.3K installs
 └ https://skills.sh/slug
 ```
 
-**Impact on our spec**: Our spec calls this `sl skills search`. That's fine — we're not cloning their CLI, we're building our own. But we should consider whether we want interactive mode (P3 at most) or just non-interactive for v1. The interactive TUI is substantial code (~180 lines of raw readline/ANSI).
+**Impact on our spec**: Our spec calls this `sl skill search`. That's fine — we're not cloning their CLI, we're building our own. But we should consider whether we want interactive mode (P3 at most) or just non-interactive for v1. The interactive TUI is substantial code (~180 lines of raw readline/ANSI).
 
 ### Finding 3: Security Audit is Shown During `add`, NOT in `find`/`search`
 
@@ -83,8 +83,8 @@ Response structure per skill per partner:
 
 **Impact on our spec**: 
 1. Our issue #94 only mentions Snyk — the audit API actually returns **3 partners** (ath, socket, snyk). We should surface all three.
-2. Our spec has a separate `sl skills info` command for audit. The official CLI doesn't have an `info` command — it bakes audit into `add`. We may want to keep `info` as a value-add but should also show audit during `add`.
-3. Our spec has a standalone `sl skills audit` command. The official CLI has no standalone audit command either — it only audits during install. Our `audit` command for batch-checking installed skills is a genuine value-add.
+2. Our spec has a separate `sl skill info` command for audit. The official CLI doesn't have an `info` command — it bakes audit into `add`. We may want to keep `info` as a value-add but should also show audit during `add`.
+3. Our spec has a standalone `sl skill audit` command. The official CLI has no standalone audit command either — it only audits during install. Our `audit` command for batch-checking installed skills is a genuine value-add.
 
 ### Finding 4: Two Lock File Systems — Global and Local
 
@@ -162,20 +162,20 @@ Our spec only covers `owner/repo@skill-name`. This is fine for v1, but worth not
 
 ### Finding 9: No Standalone `info` Command Exists Upstream
 
-The official CLI has: `add`, `find`, `list`, `remove`, `check`, `update`, `init`. There is no `info` command. Our proposed `sl skills info` is a net-new feature that combines skill metadata with audit data in a single view. This is a genuine value-add over the official CLI.
+The official CLI has: `add`, `find`, `list`, `remove`, `check`, `update`, `init`. There is no `info` command. Our proposed `sl skill info` is a net-new feature that combines skill metadata with audit data in a single view. This is a genuine value-add over the official CLI.
 
 ## Decisions
 
-- **Decision 1**: Keep `sl skills search` (our naming) rather than `find` — we're building our own CLI, not cloning theirs. But drop any plans for interactive/TUI mode in v1.
+- **Decision 1**: Keep `sl skill search` (our naming) rather than `find` — we're building our own CLI, not cloning theirs. But drop any plans for interactive/TUI mode in v1.
 - **Decision 2**: Surface all 3 audit partners (ATH, Socket, Snyk) not just Snyk. The API returns all three and they each measure different things.
-- **Decision 3**: Show audit data during `sl skills add` flow (like upstream), AND keep `sl skills info` as a standalone pre-install check (our value-add), AND keep `sl skills audit` for batch checking installed skills.
+- **Decision 3**: Show audit data during `sl skill add` flow (like upstream), AND keep `sl skill info` as a standalone pre-install check (our value-add), AND keep `sl skill audit` for batch checking installed skills.
 - **Decision 4**: Use only the local lock file (`skills-lock.json`) for v1. Skip global lock — it's only needed for `check`/`update` which are out of scope.
 - **Decision 5**: Skip telemetry for private repos (match upstream behavior). Use `v=specledger-{version}` for the version identifier.
 
 ## Recommendations
 
 1. **Update spec FR-003 and US3**: Replace "Snyk security audit" references with "security risk assessments from ATH, Socket, and Snyk" to match actual API response
-2. **Add audit display to `sl skills add` flow**: Currently our spec only shows audit in `info` and `audit` commands — the official CLI shows it during install which is the most impactful moment
+2. **Add audit display to `sl skill add` flow**: Currently our spec only shows audit in `info` and `audit` commands — the official CLI shows it during install which is the most impactful moment
 3. **Update spec FR-013**: Change `v=sl-{version}` to `v=specledger-{version}` for clarity
 4. **Add private repo telemetry skip**: Add a requirement that telemetry is skipped for private repos
 5. **Clarify search result count**: Document that we'll pass `--limit` to the API but default to 10 (matching upstream), and that results are always sorted by popularity

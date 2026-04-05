@@ -26,19 +26,19 @@
 
 ## Decision 2: Agent Path Resolution
 
-**Decision**: Use `internal/agent/registry.go` to resolve agent names to skill installation paths. Read selected agents from constitution (`.specledger/memory/constitution.md`) via `ReadSelectedAgents()`.
+**Decision**: Use `internal/agent/registry.go` to resolve agent names to skill installation paths. Read configured agents from `specledger.yaml` (the single source of truth for agent preferences, per #147).
 
-**Rationale**: The agent registry already defines `ConfigDir` for each agent (claude→`.claude`, opencode→`.opencode`, etc.). The playbook system in `pkg/cli/playbooks/copy.go:302-403` already creates `.agents/skills/` and symlinks agent-specific dirs. We follow the same pattern.
+**Rationale**: The agent registry defines `ConfigDir` for each agent (claude→`.claude`, opencode→`.opencode`, etc.). `specledger.yaml` stores which agents the project uses (set during `sl init`). The constitution is NOT the source for agent preferences (#147).
 
 **Path resolution logic**:
-1. Read selected agents from constitution via `ReadSelectedAgents()`
+1. Read configured agents from `specledger.yaml` via metadata package
 2. For each agent, look up `ConfigDir` from `internal/agent/registry.go`
 3. Skill install path = `{projectRoot}/{ConfigDir}/skills/{skill-name}/SKILL.md`
 4. If multi-agent: also create canonical copy at `.agents/skills/{skill-name}/` (matching playbook behavior)
 
 **Alternatives considered**:
 - Hardcode `.claude/skills/` only → rejected, breaks multi-agent projects
-- Add new config field to `specledger.yaml` → rejected, YAGNI for v1 when constitution already stores agent selection
+- Read from constitution → rejected, constitution is not the source of truth for agent preferences (#147)
 
 ## Decision 3: Lock File Format
 
@@ -123,9 +123,9 @@
 **API**: `GET https://add-skill.vercel.sh/audit?source={owner/repo}&skills={slug1,slug2}`
 
 **Display contexts**:
-1. During `sl skills add` — fetched in parallel, shown before confirmation (non-blocking, 3s timeout)
-2. In `sl skills info` — fetched synchronously, shown with skill details
-3. In `sl skills audit` — batch query for all installed skills
+1. During `sl skill add` — fetched in parallel, shown before confirmation (non-blocking, 3s timeout)
+2. In `sl skill info` — fetched synchronously, shown with skill details
+3. In `sl skill audit` — batch query for all installed skills
 
 **Table format** (human output):
 ```
@@ -136,7 +136,7 @@ other-skill       High Risk    2 alerts     Med Risk
 
 ## Decision 8: Command Pattern Classification
 
-**Decision**: `sl skills` is a **Data CRUD** pattern per CLI design principles.
+**Decision**: `sl skill` is a **Data CRUD** pattern per CLI design principles.
 
 **Rationale**: It performs deterministic operations on skill entities (search, install, remove, list, audit). No AI reasoning involved. Returns structured data. Follows the same pattern as `sl deps` and `sl comment`.
 
@@ -152,8 +152,8 @@ other-skill       High Risk    2 alerts     Med Risk
 
 **Tiers**:
 1. **Unit tests** (`pkg/cli/skills/*_test.go`): Mock HTTP responses for API client, test source parsing, lock file read/write, hash computation
-2. **Integration tests** (`tests/integration/skills_test.go`): Build `sl` binary, run `sl skills search/add/remove/list` against mock server or live API
-3. **No E2E/Supabase tests needed**: `sl skills` doesn't interact with Supabase at all
+2. **Integration tests** (`tests/integration/skills_test.go`): Build `sl` binary, run `sl skill search/add/remove/list` against mock server or live API
+3. **No E2E/Supabase tests needed**: `sl skill` doesn't interact with Supabase at all
 
 **Alternatives considered**:
 - Live API tests only → rejected, flaky in CI, rate limits

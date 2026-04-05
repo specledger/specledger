@@ -8,7 +8,7 @@
 
 ### Findings
 
-**Existing SpecLedger pattern** (Constitution Principle VI/VII): Uses Supabase local stack for integration testing. This is for database-backed commands (`sl comment`, `sl session`). Not applicable to `sl skills` which calls external public APIs with no Supabase dependency.
+**Existing SpecLedger pattern** (Constitution Principle VI/VII): Uses Supabase local stack for integration testing. This is for database-backed commands (`sl comment`, `sl session`). Not applicable to `sl skill` which calls external public APIs with no Supabase dependency.
 
 **Reference: tfc-cli VCR setup** (`so0k/tfc-cli`):
 
@@ -35,7 +35,7 @@ Uses a **two-tier strategy**:
 
 ### Decision
 
-**Adopt the tfc-cli two-tier pattern** for `sl skills`:
+**Adopt the tfc-cli two-tier pattern** for `sl skill`:
 
 1. **Unit tests** (`pkg/cli/skills/client_test.go`): Use `dnaeon/go-vcr` v4 with cassettes for search, audit, and GitHub APIs. Record real responses once, replay deterministically in CI.
 
@@ -45,7 +45,7 @@ Uses a **two-tier strategy**:
 
 **Rationale**: VCR cassettes give us real API response shapes without network dependency. httptest gives us full CLI integration coverage. The two tiers complement each other — VCR validates client behavior, httptest validates command wiring + output formatting.
 
-**This is NOT a conflict with Constitution Principle VII** (Supabase local stack). That principle applies to commands that interact with Supabase. `sl skills` has zero Supabase interaction — its external dependencies are skills.sh, GitHub, and Vercel's audit API.
+**This is NOT a conflict with Constitution Principle VII** (Supabase local stack). That principle applies to commands that interact with Supabase. `sl skill` has zero Supabase interaction — its external dependencies are skills.sh, GitHub, and Vercel's audit API.
 
 ---
 

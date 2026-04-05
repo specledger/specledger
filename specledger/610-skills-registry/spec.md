@@ -156,7 +156,7 @@ As an AI agent working on a project with SpecLedger, I need an embedded skill te
 - **FR-001**: `sl skill search` MUST query the skills.sh search API and display results in compact format with name, source, install count, and footer hint for next steps
 - **FR-002**: `sl skill search` MUST support `--limit` flag to control number of results (default: 10)
 - **FR-003**: `sl skill info` MUST display skill metadata and security audit results from all available partners (ATH, Socket, Snyk) with risk level, alerts, score, and analysis date
-- **FR-004**: `sl skill add` MUST download the SKILL.md from raw GitHub content and save to each configured agent's skill path as defined in `specledger.yaml`
+- **FR-004**: `sl skill add` MUST download the SKILL.md from the source repository (via GitHub API for `owner/repo` shorthand, or `git clone --depth 1` for full git URLs) and save to each configured agent's skill path as defined in `specledger.yaml`
 - **FR-005**: `sl skill add` MUST create or update `skills-lock.json` using the official Vercel local lock schema (version, skills map with source, ref, sourceType, computedHash)
 - **FR-006**: `sl skill add` MUST send a telemetry ping to skills.sh on successful install unless `DISABLE_TELEMETRY` or `DO_NOT_TRACK` env vars are set, or the source repo is private
 - **FR-007**: `sl skill remove` MUST delete the skill directory from all configured agent paths and remove its entry from `skills-lock.json`
@@ -183,7 +183,7 @@ As an AI agent working on a project with SpecLedger, I need an embedded skill te
 
 ### Measurable Outcomes
 
-- **SC-001**: Users can discover relevant skills in under 10 seconds using `sl skill search`
+- **SC-001**: Users can discover relevant skills using `sl skill search` with results displayed in a single command invocation
 - **SC-002**: Users can install a skill in a single command without leaving the terminal
 - **SC-003**: Security audit results from all available partners are displayed for 100% of skills that have audit data
 - **SC-004**: Install telemetry is accurately reported back to skills.sh (installs via `sl` appear in leaderboard counts)

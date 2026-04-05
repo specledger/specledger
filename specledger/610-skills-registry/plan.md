@@ -85,7 +85,7 @@ tests/testdata/cassettes/skills/
 └── github_raw.yaml      # VCR cassette: raw.githubusercontent.com (SKILL.md fetch)
 ```
 
-**Structure Decision**: Follows existing pattern — `pkg/cli/skills/` for business logic (matching `pkg/cli/comment/`, `pkg/cli/spec/`), `pkg/cli/commands/skills.go` for Cobra wiring (matching `comment.go`, `deps.go`). No new top-level directories.
+**Structure Decision**: Follows existing pattern — `pkg/cli/skills/` for business logic (matching `pkg/cli/comment/`, `pkg/cli/spec/`), `pkg/cli/commands/skill.go` for Cobra wiring (matching `comment.go`, `deps.go`). No new top-level directories.
 
 ## Architecture
 
@@ -93,7 +93,7 @@ tests/testdata/cassettes/skills/
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  pkg/cli/commands/skills.go                             │
+│  pkg/cli/commands/skill.go                              │
 │  Cobra commands: search, info, add, remove, list, audit │
 │  Presentation: human (compact) vs JSON (complete)       │
 ├─────────────────────────────────────────────────────────┤
@@ -135,7 +135,7 @@ tests/testdata/cassettes/skills/
 5. Fetch audit data in parallel (3s timeout, non-blocking)
 6. Display audit table (if available)
 7. Prompt for confirmation (unless --yes)
-8. Resolve agent paths from registry + constitution
+8. Resolve agent paths from specledger.yaml + agent registry
 9. Write SKILL.md to each agent's skills directory
 10. Compute SHA-256 hash of installed folder
 11. Update skills-lock.json with new entry
@@ -176,7 +176,7 @@ tests/testdata/cassettes/skills/
    - If `owner/repo` shorthand fails GitHub API (404), automatically retry via `git clone https://github.com/{owner}/{repo}` before erroring — handles repos without Trees API access
 2. Implement `InstallSkill(metadata, content, agentPaths)` — write SKILL.md to resolved paths
 3. Implement `RemoveSkill(name, agentPaths, lockPath)` — delete dirs + update lock
-4. Agent path resolution: read constitution → look up ConfigDir from registry → build paths
+4. Agent path resolution: read agent config from `specledger.yaml` → look up ConfigDir from `internal/agent/registry.go` → build paths
 
 ### Phase 4: Telemetry (P1)
 
