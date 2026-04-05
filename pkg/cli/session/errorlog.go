@@ -90,7 +90,7 @@ func logToSentry(entry CaptureErrorEntry) {
 		if entry.CommitHash != "" {
 			scope.SetTag("commit_hash", entry.CommitHash)
 		}
-		scope.SetExtra("retry_count", entry.RetryCount)
+		scope.SetTag("retry_count", fmt.Sprintf("%d", entry.RetryCount))
 		sentry.CaptureException(fmt.Errorf("session capture: %s", entry.ErrorMessage))
 	})
 }
