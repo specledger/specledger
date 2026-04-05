@@ -16,8 +16,10 @@ These scenarios map 1:1 to E2E test cases per Constitution Principle VIII.
 # Search by keyword
 $ sl skill search "commit"
 vercel-labs/agent-skills@creating-pr  12.3K installs
+└ https://skills.sh/vercel-labs/agent-skills/creating-pr
 vercel-labs/agent-skills@commit       8.1K installs
-→ Use 'sl skill info <slug>' for details or 'sl skill add <slug>' to install
+└ https://skills.sh/vercel-labs/agent-skills/commit
+→ Install with 'sl skill add <owner/repo@skill>'
 
 # Search with limit
 $ sl skill search "testing" --limit 3
@@ -148,17 +150,28 @@ $ sl skill audit --json
 ## Scenario 7: Error Handling
 
 ```bash
-# Network error
+# Network error (3-part: what failed, raw error, suggested fix)
 $ sl skill search "test"  # (with no connectivity)
-Error: skills.sh API unreachable.
+Error: sl skill search failed: skills.sh API unreachable
 → Check your internet connection and try again.
 → skills.sh status: https://skills.sh
 
-# Invalid source
+# Invalid source format
 $ sl skill add invalid-source
-Error: invalid skill source "invalid-source".
+Error: sl skill add failed: invalid source "invalid-source"
 → Use format: owner/repo or owner/repo@skill-name
 → Example: sl skill add vercel-labs/agent-skills@creating-pr
+
+# Repository not found
+$ sl skill add nonexistent/repo@skill
+Error: sl skill add failed (404): repository "nonexistent/repo" not found
+→ Verify the repository exists and is public.
+→ For non-GitHub repos, use the full git URL.
+
+# Skill not found in repo
+$ sl skill add vercel-labs/agent-skills@nonexistent
+Error: sl skill add failed: skill "nonexistent" not found in vercel-labs/agent-skills
+→ Use 'sl skill add vercel-labs/agent-skills' to see available skills.
 
 # Corrupted lock file
 $ sl skill list  # (with malformed skills-lock.json)

@@ -28,11 +28,11 @@ As a developer setting up a new project, I want to search the skills.sh registry
 
 **Acceptance Scenarios**:
 
-1. **Given** a search query, **When** running `sl skill search "commit"`, **Then** matching skills are displayed in compact format: name, source repo, install count (truncated to 80 chars per CLI design principles)
+1. **Given** a search query, **When** running `sl skill search "commit"`, **Then** matching skills are displayed one per line as `{source}@{name}  {installs}` with a `└ https://skills.sh/{slug}` detail line, default 10 results
 2. **Given** a search query with `--json` flag, **When** run, **Then** output is valid JSON array of skill results (complete, untruncated)
 3. **Given** a search query with `--limit 5` flag, **When** run, **Then** at most 5 results are returned (default: 10)
 4. **Given** a query with no matches, **When** run, **Then** a "no skills found" message is shown (not an error)
-5. **Given** the skills.sh API is unreachable, **When** run, **Then** a user-friendly error is shown to stderr with suggested fix per CLI design principles
+5. **Given** the skills.sh API is unreachable, **When** run, **Then** a 3-part error is shown to stderr: `Error: sl skill search failed: {raw error}` + `→ {likely cause}. {suggested command}` per CLI design principles Principle 2
 6. **Given** search results are displayed, **When** output completes, **Then** a footer hint suggests the next step: `Use 'sl skill info <slug>' for details or 'sl skill add <slug>' to install`
 
 ---
@@ -71,7 +71,7 @@ As a security-conscious developer, I want to view a skill's details and its secu
 1. **Given** a valid skill identifier, **When** running `sl skill info owner/repo@skill-name`, **Then** skill details (name, source, description) and security audit results from ATH (general threat), Socket (supply chain alerts), and Snyk (vulnerabilities) are displayed with risk level, alert count, score, and analysis date
 2. **Given** `--json` flag, **When** run, **Then** output is valid JSON with both skill metadata and audit data for all available partners
 3. **Given** a skill with no audit data available for a partner, **When** run, **Then** that partner's column shows `--` (unknown)
-4. **Given** a skill with "high" or "critical" risk from any partner, **When** displayed, **Then** a prominent warning is shown advising caution
+4. **Given** a skill with "high" or "critical" risk from any partner, **When** displayed, **Then** a warning is shown: `⚠ Warning: {skill} has {RISK} risk from {partner}` with risk details (level, alerts, score) and a link to skills.sh
 
 ---
 
@@ -85,7 +85,7 @@ As a developer managing my project's agent capabilities, I want to list all loca
 
 **Acceptance Scenarios**:
 
-1. **Given** one or more installed skills, **When** running `sl skill list`, **Then** each skill is shown in compact format with name and source repo
+1. **Given** one or more installed skills, **When** running `sl skill list`, **Then** each skill is shown one per line as `{name}  {source}` with a footer count and hint
 2. **Given** `--json` flag, **When** run, **Then** output is valid JSON array from `skills-lock.json`
 3. **Given** no installed skills, **When** run, **Then** a helpful message with footer hint suggests `sl skill search`
 

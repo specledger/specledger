@@ -123,7 +123,7 @@ Complete Phases 1-3 (Setup → Foundational → US1+US2) for a working MVP:
 ### Parallel Opportunities
 
 1. **Foundational tasks** (T001-T004): All 4 can run in parallel — different files, no shared state
-2. **US3+US4+US5 tasks** (T010-T012): All 3 commands can be built in parallel — each modifies only skill.go with no overlapping functions
+2. **US3+US4+US5 tasks** (T010-T012): All 3 commands can be built in parallel — each owns a distinct function in `skill.go` (`runSkillInfo`, `runSkillList`, `runSkillRemove`). If built by separate agents, each should only modify its own function + Cobra command registration. Merge via git for non-overlapping changes.
 3. **US6 and US7**: Independent of each other, can run in parallel after Foundational
 4. **US3+US4+US5 and US1+US2**: After Foundational, P2 stories can start in parallel with P1 (if staffed)
 
