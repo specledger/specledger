@@ -7,6 +7,14 @@ import (
 	"testing"
 )
 
+// requireGit skips the test if git is not available on PATH.
+func requireGit(t *testing.T) {
+	t.Helper()
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found on PATH, skipping")
+	}
+}
+
 // gitExec runs a git command in dir, failing the test on error.
 func gitExec(t *testing.T, dir string, args ...string) {
 	t.Helper()
@@ -20,7 +28,8 @@ func gitExec(t *testing.T, dir string, args ...string) {
 // initExecRepo creates a git repo with an initial commit using exec.
 func initExecRepo(t *testing.T, dir string) {
 	t.Helper()
-	gitExec(t, dir, "init")
+	requireGit(t)
+	gitExec(t, dir, "init", "-b", "main")
 	gitExec(t, dir, "config", "user.email", "test@test.com")
 	gitExec(t, dir, "config", "user.name", "Test")
 	if err := os.WriteFile(filepath.Join(dir, ".gitkeep"), nil, 0644); err != nil {
