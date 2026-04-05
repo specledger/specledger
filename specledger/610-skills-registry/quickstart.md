@@ -14,12 +14,11 @@ These scenarios map 1:1 to E2E test cases per Constitution Principle VIII.
 
 ```bash
 # Search by keyword
-$ sl skill search "commit"
-vercel-labs/agent-skills@creating-pr  12.3K installs
-└ https://skills.sh/vercel-labs/agent-skills/creating-pr
-vercel-labs/agent-skills@commit       8.1K installs
-└ https://skills.sh/vercel-labs/agent-skills/commit
-→ Install with 'sl skill add <owner/repo@skill>'
+$ sl skill search "web design"
+web-design-guidelines   vercel-labs/agent-skills   210.6K installs
+web-design-reviewer     github/awesome-copilot       8.7K installs
+web-component-design    wshobson/agents              4.7K installs
+→ sl skill add <owner/repo@skill> to install
 
 # Search with limit
 $ sl skill search "testing" --limit 3

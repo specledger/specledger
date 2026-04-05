@@ -46,10 +46,11 @@ This document bridges the 4-layer architecture (defined in [README.md](README.md
 
 Commands that call Supabase/pgREST (e.g., `sl comment list`, `sl comment reply`, `sl comment resolve`):
 
-1. **go-vcr cassettes (Tier 1):** Record real pgREST request/response pairs. Commit cassettes to `testdata/cassettes/`. Replay in unit tests for fast, deterministic validation of:
+1. **go-vcr cassettes (Tier 1):** Record real API request/response pairs from actual backends. Commit cassettes to `testdata/cassettes/`. Replay in unit tests for fast, deterministic validation of:
    - Request construction (URL, headers, query params, RLS-aware auth)
    - Response parsing (JSON → Go structs)
    - Error handling (401 retry, RLS violations, network errors)
+   - See [docs/guides/vcr-cassettes.md](../guides/vcr-cassettes.md) for the complete recording/replay workflow. **Critical rule:** cassettes MUST be recorded against real backends, never from httptest handlers.
 
 2. **OpenAPI contract snapshot (Tier 2):** Fetch the auto-generated spec from PostgREST root endpoint after `supabase start`. Diff against committed `testdata/openapi.json`. Fail CI if they diverge — this catches migration-induced API surface changes.
 

@@ -1,0 +1,59 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: skills.sh
+        form:
+            limit:
+                - "10"
+            q:
+                - xyznonexistent99999
+        headers:
+            Accept:
+                - application/json
+        url: https://skills.sh/api/search?q=xyznonexistent99999&limit=10
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: '{"query":"xyznonexistent99999","searchType":"fuzzy","skills":[],"count":0,"duration_ms":52}'
+        headers:
+            Age:
+                - "0"
+            Cache-Control:
+                - public, max-age=0, must-revalidate
+            Content-Security-Policy:
+                - 'default-src ''self''; script-src ''self'' ''unsafe-inline'' https://va.vercel-scripts.com https://vercel.live; script-src-elem ''self'' ''unsafe-inline'' https://va.vercel-scripts.com https://vercel.live; style-src ''self'' ''unsafe-inline'' https://vercel.live; img-src ''self'' data: blob: https://vercel.live https://vercel.com; connect-src ''self'' https://vercel.live wss://ws-us3.pusher.com; font-src ''self'' https://vercel.live https://assets.vercel.com; frame-src https://vercel.live; frame-ancestors ''none''; base-uri ''self''; form-action ''self'''
+            Content-Type:
+                - application/json
+            Date:
+                - Sun, 05 Apr 2026 12:39:52 GMT
+            Referrer-Policy:
+                - strict-origin-when-cross-origin
+            Server:
+                - Vercel
+            Strict-Transport-Security:
+                - max-age=63072000
+            Vary:
+                - rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+            X-Content-Type-Options:
+                - nosniff
+            X-Frame-Options:
+                - DENY
+            X-Matched-Path:
+                - /api/search
+            X-Vercel-Cache:
+                - MISS
+            X-Vercel-Id:
+                - sin1::iad1::mfz2v-1775392792111-3cd5e042b226
+        status: 200 OK
+        code: 200
+        duration: 387.124125ms

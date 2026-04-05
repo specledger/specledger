@@ -234,6 +234,8 @@ All 16 existing top-level commands use singular naming (`sl comment`, `sl issue`
 - **ENV vars**: `SKILLS_API_URL`, `SKILLS_AUDIT_URL`, `GITHUB_API_URL` for endpoint injection
 - Not a conflict with Constitution Principle VII (Supabase stack) — `sl skill` has zero Supabase interaction
 
+> **Implementation note (2026-04-05):** VCR cassettes MUST be recorded against **real API backends** (skills.sh, GitHub), not from httptest handlers. Recording from httptest produces fabricated responses that defeat the purpose of VCR — real cassettes capture actual API response structure, headers, and edge cases. The initial implementation recorded from httptest handlers and was corrected during checkpoint review. See [docs/guides/vcr-cassettes.md](../../docs/guides/vcr-cassettes.md) for the definitive recording/replay workflow and [610-skills-registry/research/2026-04-05-vcr-cassette-recording.md](research/2026-04-05-vcr-cassette-recording.md) for the spike findings.
+
 ### Agent Skill Template: `sl-skill`
 New embedded skill at `pkg/embedded/templates/specledger/skills/sl-skill/SKILL.md` ensures AI agents can discover and use `sl skill` commands when users ask about finding/installing skills.
 
