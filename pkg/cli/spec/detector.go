@@ -40,7 +40,8 @@ func DetectFeatureContext(workDir string) (*FeatureContext, error) {
 // DetectFeatureContextWithOptions detects feature context with configurable behavior
 func DetectFeatureContextWithOptions(workDir string, opts DetectionOptions) (*FeatureContext, error) {
 	repo, err := git.PlainOpenWithOptions(workDir, &git.PlainOpenOptions{
-		DetectDotGit: true,
+		DetectDotGit:          true,
+		EnableDotGitCommonDir: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to open git repository: %w", err)
@@ -282,7 +283,8 @@ func GetFeatureNum(branch string) string {
 
 func openRepo(repoPath string) (*git.Repository, error) {
 	repo, err := git.PlainOpenWithOptions(repoPath, &git.PlainOpenOptions{
-		DetectDotGit: true,
+		DetectDotGit:          true,
+		EnableDotGitCommonDir: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to open git repository: %w", err)

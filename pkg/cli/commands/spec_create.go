@@ -64,7 +64,8 @@ func runSpecCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	repo, err := gogit.PlainOpenWithOptions(workDir, &gogit.PlainOpenOptions{
-		DetectDotGit: true,
+		DetectDotGit:          true,
+		EnableDotGitCommonDir: true,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to open git repository: %w", err)
