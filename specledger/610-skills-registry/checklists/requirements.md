@@ -2,6 +2,7 @@
 
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-04-05
+**Updated**: 2026-04-05 (post-clarification)
 **Feature**: [spec.md](../spec.md)
 
 ## Content Quality
@@ -29,8 +30,19 @@
 - [x] Feature meets measurable outcomes defined in Success Criteria
 - [x] No implementation details leak into specification
 
+## Clarification Session Coverage
+
+- [x] Multi-agent installation paths resolved (use specledger.yaml agents)
+- [x] Lock file format compatibility committed (Vercel schema)
+- [x] Search pagination decided (YAGNI, --limit only)
+- [x] Audit partner scope resolved (all 3: ATH, Socket, Snyk)
+- [x] Audit-in-add flow confirmed (non-blocking, 3s timeout)
+- [x] CLI design principles alignment verified (compact output, footer hints, stderr errors)
+- [x] YAGNI items simplified (corrupted lock file, conflict resolution)
+- [x] All 7 reviewer comments resolved with rationale
+
 ## Notes
 
-- All items pass validation. Spec is ready for `/specledger.clarify` or `/specledger.plan`.
-- The spec references specific API endpoint URLs in the GitHub issue for implementer context, but the spec itself remains technology-agnostic (describes what, not how).
-- Telemetry behavior (FR-006, FR-013) is specified as user-facing behavior (opt-out via env vars), not as implementation detail.
+- All items pass validation. Spec is ready for `/specledger.plan`.
+- Follow-up issue #164 created for symlink-vs-copy config enhancement.
+- Research spike findings fully integrated into spec updates.
