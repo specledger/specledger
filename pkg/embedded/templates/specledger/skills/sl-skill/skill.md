@@ -14,7 +14,7 @@ description: Manage agent skills from the skills.sh registry — search, install
 
 | Command | Purpose | Output Mode |
 |---------|---------|-------------|
-| `sl skill search <query>` | Search skills.sh registry by keyword | Compact table + footer hint |
+| `sl skill search <query>` | Search skills.sh registry by keyword (supports `--limit N`, default 10) | Compact table + footer hint |
 | `sl skill add <source>` | Install skill(s) from a repository | Audit table + confirmation + progress |
 | `sl skill info <source>` | Show skill metadata and security audit | Detail view with audit |
 | `sl skill list` | List installed skills from lock file | Compact list + footer hint |
@@ -39,6 +39,9 @@ Skills are identified by source format:
 ```bash
 # Search for skills
 sl skill search "commit"
+
+# Search with a result limit
+sl skill search "deploy" --limit 5
 
 # Install a specific skill
 sl skill add vercel-labs/agent-skills@creating-pr
