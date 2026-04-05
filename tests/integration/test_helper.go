@@ -49,3 +49,13 @@ func buildSLBinary(t testing.TB, tempDir string) string {
 	}
 	return slBinary
 }
+
+// addWorktree creates a git worktree at worktreePath with a new branch.
+func addWorktree(t *testing.T, repoDir, worktreePath, branchName string) {
+	t.Helper()
+	cmd := exec.Command("git", "worktree", "add", worktreePath, "-b", branchName)
+	cmd.Dir = repoDir
+	if output, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git worktree add failed: %v\nOutput: %s", err, string(output))
+	}
+}

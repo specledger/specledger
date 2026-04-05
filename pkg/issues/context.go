@@ -33,7 +33,10 @@ func NewContextDetector(repoPath string) *ContextDetector {
 
 // DetectSpecContext returns the current spec context from the git branch name
 func (d *ContextDetector) DetectSpecContext() (string, error) {
-	repo, err := git.PlainOpen(d.repoPath)
+	repo, err := git.PlainOpenWithOptions(d.repoPath, &git.PlainOpenOptions{
+		DetectDotGit:          true,
+		EnableDotGitCommonDir: true,
+	})
 	if err != nil {
 		return "", ErrNoGitRepo
 	}
@@ -84,7 +87,10 @@ func DetectSpecContextFromPath(path string) (string, error) {
 
 // GetBranchName returns the current git branch name
 func (d *ContextDetector) GetBranchName() (string, error) {
-	repo, err := git.PlainOpen(d.repoPath)
+	repo, err := git.PlainOpenWithOptions(d.repoPath, &git.PlainOpenOptions{
+		DetectDotGit:          true,
+		EnableDotGitCommonDir: true,
+	})
 	if err != nil {
 		return "", ErrNoGitRepo
 	}

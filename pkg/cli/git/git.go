@@ -42,7 +42,8 @@ var httpsURLRe = regexp.MustCompile(`https?://[^/]+/([^/]+)/([^/]+?)(?:\.git)?$`
 // openRepo opens the git repository at repoPath, searching parent dirs for .git.
 func openRepo(repoPath string) (*gogit.Repository, error) {
 	repo, err := gogit.PlainOpenWithOptions(repoPath, &gogit.PlainOpenOptions{
-		DetectDotGit: true,
+		DetectDotGit:          true,
+		EnableDotGitCommonDir: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to open git repository: %w", err)
