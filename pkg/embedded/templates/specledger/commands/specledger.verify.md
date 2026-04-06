@@ -170,11 +170,36 @@ At end of report, output a concise Next Actions block:
 
 - If CRITICAL issues exist: Recommend resolving before `/specledger.implement`
 - If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
-- Provide explicit command suggestions: e.g., "Run /specledger.specledger with refinement", "Run /specledger.plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
+- Provide explicit command suggestions: e.g., "Run /specledger.specify with refinement", "Run /specledger.plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
 
 ### 8. Offer Remediation
 
 Use the AskUserQuestion tool to ask: "Would you like me to suggest concrete remediation edits for the top N issues?" (Do NOT apply them automatically.)
+
+### 9. Persist Review Report (Recommended)
+
+After the analysis is complete and any remediation discussion is finished, offer to save the review.
+
+Use AskUserQuestion to ask: **"Would you like to save this review to `FEATURE_DIR/reviews/<spec-number>-review.md`?"** (Recommended — at least one review should exist before implementation begins.)
+
+**If the user accepts:**
+1. Create the `FEATURE_DIR/reviews/` directory if it doesn't exist
+2. Write the full analysis report (findings table, coverage summary, constitution alignment, unmapped tasks, metrics, and next actions) to `FEATURE_DIR/reviews/<spec-number>-review.md` (e.g., `006-review.md`)
+3. Include a YAML frontmatter header with date and summary metrics:
+   ```yaml
+   ---
+   date: YYYY-MM-DD
+   total_requirements: N
+   total_tasks: N
+   coverage_pct: N%
+   critical_issues: N
+   ---
+   ```
+4. Confirm the file was written and its path
+
+**If the user declines:** Note that no review file was persisted. The `/specledger.tasks` and `/specledger.implement` skills check for review files and will prompt again before implementation.
+
+**IMPORTANT**: The analysis itself (steps 1-8) remains **strictly read-only**. This file write is a separate, explicit opt-in step that happens only after analysis is complete.
 
 ## Operating Principles
 
@@ -187,7 +212,7 @@ Use the AskUserQuestion tool to ask: "Would you like me to suggest concrete reme
 
 ### Analysis Guidelines
 
-- **NEVER modify files** (this is read-only analysis)
+- **NEVER modify files during analysis** (steps 1-8 are strictly read-only; step 9 is an explicit opt-in write)
 - **NEVER hallucinate missing sections** (if absent, report them accurately)
 - **Prioritize constitution violations** (these are always CRITICAL)
 - **Use examples over exhaustive rules** (cite specific instances, not generic patterns)

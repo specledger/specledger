@@ -1,5 +1,5 @@
 ---
-description: Critical divergence review — compare implementation against plan artifacts, flag force-closed issues, and surface gaps. Updates session log at .specledger/sessions/<spec>-session.md
+description: Critical divergence review — compare implementation against plan artifacts, flag force-closed issues, and surface gaps. Updates session log at FEATURE_DIR/sessions/<spec>-checkpoint.md
 ---
 
 ## User Input
@@ -102,8 +102,8 @@ Execution steps:
    - **conscious**: Divergence is documented somewhere (issue notes, decision log, commit message)
    - **oversight**: No documentation found — this was likely missed
 
-6. Update session log at `.specledger/sessions/<branch>-session.md`:
-   - Create directory if it doesn't exist
+6. Update session log at `FEATURE_DIR/sessions/<spec>-checkpoint.md`:
+   - Create `FEATURE_DIR/sessions/` directory if it doesn't exist
    - Append timestamped entry using the format below
 
    ```markdown
@@ -225,7 +225,7 @@ Execution steps:
 
 ## Session Log Format
 
-Session logs are stored at `.specledger/sessions/<branch>-session.md`:
+Session logs are stored at `FEATURE_DIR/sessions/<spec>-checkpoint.md`:
 
 ```markdown
 # Session Log: <branch-name>

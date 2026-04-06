@@ -53,9 +53,9 @@ Run `/specledger.tasks` to generate the task breakdown.
 
 **Important: Generate tasks cleanly.** The task generation should produce a clean `tasks.md` file with dependency-ordered tasks. Do not use `sl issue` commands during task generation — the tasks file is the source of truth at this stage.
 
-## Stage 4: Analyze (Before Implementation)
+## Stage 4: Verify (Before Implementation)
 
-**Always run `/specledger.analyze` after task generation and before implementation.** This is a critical quality gate.
+**Always run `/specledger.verify` after task generation and before implementation.** This is a critical quality gate.
 
 The analyze command performs a read-only cross-artifact consistency check across `spec.md`, `plan.md`, and `tasks.md`. It will identify:
 
@@ -72,7 +72,7 @@ The analyze command performs a read-only cross-artifact consistency check across
 - **HIGH issues** — should be resolved; skip only with explicit justification
 - **MEDIUM/LOW issues** — resolve if time permits; document as known gaps if skipping
 
-If the analysis reveals gaps, update the relevant artifacts (spec, plan, or tasks) and re-run `/specledger.analyze` to confirm fixes.
+If the analysis reveals gaps, update the relevant artifacts (spec, plan, or tasks) and re-run `/specledger.verify` to confirm fixes.
 
 ## Stage 5: Final Review Before Implementation
 
@@ -140,8 +140,8 @@ The more specific your constraints and questions, the deeper the research agents
 | Specify   | `/specledger.specify`   | Yes - UI review     | Spec covers all requirements |
 | Clarify   | `/specledger.clarify`   | Optional            | Ambiguities resolved         |
 | Plan      | `/specledger.plan`      | Yes - UI review     | Architecture decisions sound |
-| Tasks     | `/specledger.tasks`     | After analyze       | Tasks are dependency-ordered |
-| Analyze   | `/specledger.analyze`   | Yes - UI review     | No CRITICAL gaps             |
+| Tasks     | `/specledger.tasks`     | After verify        | Tasks are dependency-ordered |
+| Verify    | `/specledger.verify`    | Yes - UI review     | No CRITICAL gaps             |
 | Revise    | `/specledger.revise`    | After each cycle    | All comments addressed       |
 | Implement | `/specledger.implement` | Post-implementation | Features match spec          |
 
