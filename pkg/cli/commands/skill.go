@@ -27,8 +27,8 @@ var (
 	skillInfoJSON    bool
 	skillListJSON    bool
 	skillRemoveJSON  bool
-	skillAuditJSON bool
-	skillAuditAll  bool
+	skillAuditJSON   bool
+	skillAuditAll    bool
 )
 
 // VarSkillCmd represents the skill command

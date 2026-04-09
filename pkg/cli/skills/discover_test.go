@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 )
 
@@ -166,5 +167,227 @@ func TestParseSkillFrontmatter(t *testing.T) {
 				t.Errorf("Description = %q, want %q", meta.Description, tt.wantDesc)
 			}
 		})
+	}
+}
+
+func TestDiscoverViaGitHub_NoSkillMDFiles(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/org/repo/git/trees/main", func(w http.ResponseWriter, _ *http.Request) {
+		resp := githubTreeResponse{
+			SHA: "abc",
+			Tree: []GitHubTreeEntry{
+				{Path: "README.md", Type: "blob"},
+				{Path: "src/main.go", Type: "blob"},
+				{Path: "docs", Type: "tree"},
+			},
+		}
+		_ = json.NewEncoder(w).Encode(resp)
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client := &Client{GitHubURL: srv.URL, RawGHURL: srv.URL, HTTPClient: srv.Client()}
+	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
+
+	_, err := discoverViaGitHub(client, source)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !contains(err.Error(), "no skills found") {
+		t.Errorf("error = %q, want containing %q", err.Error(), "no skills found")
+	}
+}
+
+func TestDiscoverViaGitHub_AllFetchesFail(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/org/repo/git/trees/main", func(w http.ResponseWriter, _ *http.Request) {
+		resp := githubTreeResponse{
+			SHA: "abc",
+			Tree: []GitHubTreeEntry{
+				{Path: "skills/alpha/SKILL.md", Type: "blob"},
+				{Path: "skills/beta/SKILL.md", Type: "blob"},
+			},
+		}
+		_ = json.NewEncoder(w).Encode(resp)
+	})
+	// All content fetches return 500
+	mux.HandleFunc("/org/repo/main/skills/alpha/SKILL.md", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	mux.HandleFunc("/org/repo/main/skills/beta/SKILL.md", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client := &Client{GitHubURL: srv.URL, RawGHURL: srv.URL, HTTPClient: srv.Client()}
+	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
+
+	_, err := discoverViaGitHub(client, source)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !contains(err.Error(), "no valid skills found") {
+		t.Errorf("error = %q, want containing %q", err.Error(), "no valid skills found")
+	}
+}
+
+func TestDiscoverViaGitHub_FilterNotFound(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/org/repo/git/trees/main", func(w http.ResponseWriter, _ *http.Request) {
+		resp := githubTreeResponse{
+			SHA: "abc",
+			Tree: []GitHubTreeEntry{
+				{Path: "skills/alpha/SKILL.md", Type: "blob"},
+				{Path: "skills/beta/SKILL.md", Type: "blob"},
+			},
+		}
+		_ = json.NewEncoder(w).Encode(resp)
+	})
+	mux.HandleFunc("/org/repo/main/skills/alpha/SKILL.md", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("---\nname: alpha\ndescription: Alpha skill\n---\n"))
+	})
+	mux.HandleFunc("/org/repo/main/skills/beta/SKILL.md", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("---\nname: beta\ndescription: Beta skill\n---\n"))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client := &Client{GitHubURL: srv.URL, RawGHURL: srv.URL, HTTPClient: srv.Client()}
+	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub, SkillFilter: "nonexistent"}
+
+	_, err := discoverViaGitHub(client, source)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !contains(err.Error(), "not found") {
+		t.Errorf("error = %q, want containing %q", err.Error(), "not found")
+	}
+	if !contains(err.Error(), "nonexistent") {
+		t.Errorf("error = %q, want containing skill name %q", err.Error(), "nonexistent")
+	}
+}
+
+func TestDiscoverViaGitHub_PartialFetchFailure(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/org/repo/git/trees/main", func(w http.ResponseWriter, _ *http.Request) {
+		resp := githubTreeResponse{
+			SHA: "abc",
+			Tree: []GitHubTreeEntry{
+				{Path: "skills/alpha/SKILL.md", Type: "blob"},
+				{Path: "skills/beta/SKILL.md", Type: "blob"},
+			},
+		}
+		_ = json.NewEncoder(w).Encode(resp)
+	})
+	// alpha fetch fails
+	mux.HandleFunc("/org/repo/main/skills/alpha/SKILL.md", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	})
+	// beta fetch succeeds
+	mux.HandleFunc("/org/repo/main/skills/beta/SKILL.md", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("---\nname: beta\ndescription: Beta skill\n---\n"))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client := &Client{GitHubURL: srv.URL, RawGHURL: srv.URL, HTTPClient: srv.Client()}
+	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
+
+	skills, err := discoverViaGitHub(client, source)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(skills) != 1 {
+		t.Fatalf("len(skills) = %d, want 1", len(skills))
+	}
+	if skills[0].Name != "beta" {
+		t.Errorf("Name = %q, want %q", skills[0].Name, "beta")
+	}
+}
+
+func TestDiscoverSkills_GitHubFallbackToClone(t *testing.T) {
+	// This test verifies that when GitHub Trees API fails, DiscoverSkills falls back
+	// to git clone. The fallback path constructs a hardcoded https://github.com/...
+	// clone URL that cannot be intercepted, so this test requires real network access
+	// and git authentication (or a public repo that 404s quickly).
+	//
+	// Behavioral coverage: this path is covered by E2E integration tests
+	// (tests/integration/skills_test.go) which use httptest to mock all endpoints.
+	//
+	// To run manually: DISCOVER_CLONE_TEST=1 go test ./pkg/cli/skills/ -run TestDiscoverSkills_GitHubFallbackToClone -timeout 60s
+	if os.Getenv("DISCOVER_CLONE_TEST") == "" {
+		t.Skip("skipped: exercises real git clone (network). Set DISCOVER_CLONE_TEST=1 to run.")
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	client := &Client{GitHubURL: srv.URL, RawGHURL: srv.URL, HTTPClient: srv.Client()}
+	source := &SkillSource{
+		Owner: "x",
+		Repo:  "y",
+		Ref:   "main",
+		Type:  SourceTypeGitHub,
+	}
+
+	_, err := DiscoverSkills(client, source)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !contains(err.Error(), "could not clone") {
+		t.Errorf("error = %q, want containing 'could not clone' (fallback path)", err.Error())
+	}
+}
+
+func TestDiscoverSkills_GitSourceType(t *testing.T) {
+	// SourceTypeGit should go directly to clone path, skipping GitHub API entirely.
+	// Uses file:// protocol pointing to a nonexistent path for fast failure (no network).
+	source := &SkillSource{
+		Owner: "org",
+		Repo:  "repo",
+		Ref:   "main",
+		Type:  SourceTypeGit,
+		URL:   "file:///nonexistent/path/to/repo.git",
+	}
+
+	// Client is irrelevant — SourceTypeGit bypasses GitHub API
+	client := &Client{}
+
+	_, err := DiscoverSkills(client, source)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	// Should fail with clone error, not a nil pointer from client usage
+	if !contains(err.Error(), "could not clone") {
+		t.Errorf("error = %q, want containing 'could not clone'", err.Error())
+	}
+}
+
+func TestParseSkillFrontmatter_UnsafeName(t *testing.T) {
+	content := "---\nname: ../etc/passwd\ndescription: Malicious skill\n---\n"
+	_, err := ParseSkillFrontmatter([]byte(content))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !contains(err.Error(), "unsafe name") {
+		t.Errorf("error = %q, want containing %q", err.Error(), "unsafe name")
+	}
+}
+
+func TestParseSkillFrontmatter_InvalidYAML(t *testing.T) {
+	content := "---\n: invalid: yaml\n---\n"
+	_, err := ParseSkillFrontmatter([]byte(content))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !contains(err.Error(), "invalid") {
+		t.Errorf("error = %q, want containing %q", err.Error(), "invalid")
 	}
 }

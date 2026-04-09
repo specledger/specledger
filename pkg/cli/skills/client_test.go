@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strings"
 	"testing"
 )
 
@@ -192,5 +194,278 @@ func TestClientFetchRepoTree_NotFound(t *testing.T) {
 	}
 	if !contains(err.Error(), "not found") {
 		t.Errorf("error = %q, want containing 'not found'", err.Error())
+	}
+}
+
+func TestNewClient_Defaults(t *testing.T) {
+	// Clear any env overrides that might be set
+	t.Setenv("SKILLS_API_URL", "")
+	os.Unsetenv("SKILLS_API_URL")
+	t.Setenv("SKILLS_AUDIT_URL", "")
+	os.Unsetenv("SKILLS_AUDIT_URL")
+	t.Setenv("GITHUB_API_URL", "")
+	os.Unsetenv("GITHUB_API_URL")
+	t.Setenv("GITHUB_RAW_URL", "")
+	os.Unsetenv("GITHUB_RAW_URL")
+
+	c := NewClient()
+	if c.SearchURL != defaultSearchURL {
+		t.Errorf("SearchURL = %q, want %q", c.SearchURL, defaultSearchURL)
+	}
+	if c.AuditURL != defaultAuditURL {
+		t.Errorf("AuditURL = %q, want %q", c.AuditURL, defaultAuditURL)
+	}
+	if c.GitHubURL != defaultGitHubURL {
+		t.Errorf("GitHubURL = %q, want %q", c.GitHubURL, defaultGitHubURL)
+	}
+	if c.RawGHURL != defaultRawGHURL {
+		t.Errorf("RawGHURL = %q, want %q", c.RawGHURL, defaultRawGHURL)
+	}
+	if c.HTTPClient == nil {
+		t.Error("HTTPClient is nil")
+	}
+}
+
+func TestNewClient_EnvOverrides(t *testing.T) {
+	t.Setenv("SKILLS_API_URL", "http://custom-search")
+	t.Setenv("SKILLS_AUDIT_URL", "http://custom-audit")
+	t.Setenv("GITHUB_API_URL", "http://custom-github")
+	t.Setenv("GITHUB_RAW_URL", "http://custom-raw")
+
+	c := NewClient()
+	if c.SearchURL != "http://custom-search" {
+		t.Errorf("SearchURL = %q, want %q", c.SearchURL, "http://custom-search")
+	}
+	if c.AuditURL != "http://custom-audit" {
+		t.Errorf("AuditURL = %q, want %q", c.AuditURL, "http://custom-audit")
+	}
+	if c.GitHubURL != "http://custom-github" {
+		t.Errorf("GitHubURL = %q, want %q", c.GitHubURL, "http://custom-github")
+	}
+	if c.RawGHURL != "http://custom-raw" {
+		t.Errorf("RawGHURL = %q, want %q", c.RawGHURL, "http://custom-raw")
+	}
+}
+
+func TestEnvOrDefault(t *testing.T) {
+	tests := []struct {
+		name     string
+		key      string
+		envValue string
+		setEnv   bool
+		def      string
+		want     string
+	}{
+		{
+			name:     "env set returns env value",
+			key:      "TEST_ENV_OR_DEFAULT_SET",
+			envValue: "from-env",
+			setEnv:   true,
+			def:      "default-val",
+			want:     "from-env",
+		},
+		{
+			name:   "env not set returns default",
+			key:    "TEST_ENV_OR_DEFAULT_UNSET",
+			setEnv: false,
+			def:    "default-val",
+			want:   "default-val",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.setEnv {
+				t.Setenv(tt.key, tt.envValue)
+			} else {
+				t.Setenv(tt.key, "")
+				os.Unsetenv(tt.key)
+			}
+			got := envOrDefault(tt.key, tt.def)
+			if got != tt.want {
+				t.Errorf("envOrDefault(%q, %q) = %q, want %q", tt.key, tt.def, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGithubToken(t *testing.T) {
+	tests := []struct {
+		name        string
+		githubToken string
+		ghToken     string
+		want        string
+	}{
+		{
+			name:        "GITHUB_TOKEN only",
+			githubToken: "gh-token-1",
+			ghToken:     "",
+			want:        "gh-token-1",
+		},
+		{
+			name:        "GH_TOKEN only",
+			githubToken: "",
+			ghToken:     "gh-token-2",
+			want:        "gh-token-2",
+		},
+		{
+			name:        "both set GITHUB_TOKEN wins",
+			githubToken: "primary",
+			ghToken:     "secondary",
+			want:        "primary",
+		},
+		{
+			name:        "neither set returns empty",
+			githubToken: "",
+			ghToken:     "",
+			want:        "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clear both vars before each subtest
+			t.Setenv("GITHUB_TOKEN", "")
+			os.Unsetenv("GITHUB_TOKEN")
+			t.Setenv("GH_TOKEN", "")
+			os.Unsetenv("GH_TOKEN")
+
+			if tt.githubToken != "" {
+				t.Setenv("GITHUB_TOKEN", tt.githubToken)
+			}
+			if tt.ghToken != "" {
+				t.Setenv("GH_TOKEN", tt.ghToken)
+			}
+
+			got := githubToken()
+			if got != tt.want {
+				t.Errorf("githubToken() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSearch_DefaultLimit(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		limit := r.URL.Query().Get("limit")
+		if limit != "10" {
+			t.Errorf("limit = %q, want %q", limit, "10")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(searchResponse{Skills: []SkillSearchResult{}})
+	}))
+	defer srv.Close()
+
+	c := &Client{SearchURL: srv.URL, HTTPClient: srv.Client()}
+	_, err := c.Search("test", 0)
+	if err != nil {
+		t.Fatalf("Search: %v", err)
+	}
+}
+
+func TestSearch_JSONDecodeError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{invalid`))
+	}))
+	defer srv.Close()
+
+	c := &Client{SearchURL: srv.URL, HTTPClient: srv.Client()}
+	_, err := c.Search("test", 10)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+	if !strings.Contains(err.Error(), "invalid response") {
+		t.Errorf("error = %q, want containing 'invalid response'", err.Error())
+	}
+}
+
+func TestFetchAudit_NonOK(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	c := &Client{AuditURL: srv.URL, HTTPClient: srv.Client()}
+	_, err := c.FetchAudit("owner/repo", []string{"skill-a"})
+	if err == nil {
+		t.Fatal("expected error for 500 response")
+	}
+}
+
+func TestFetchAudit_JSONDecodeError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{invalid`))
+	}))
+	defer srv.Close()
+
+	c := &Client{AuditURL: srv.URL, HTTPClient: srv.Client()}
+	_, err := c.FetchAudit("owner/repo", []string{"skill-a"})
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+	if !strings.Contains(err.Error(), "invalid response") {
+		t.Errorf("error = %q, want containing 'invalid response'", err.Error())
+	}
+}
+
+func TestFetchRepoTree_AuthHeader(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "test-token-abc")
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		auth := r.Header.Get("Authorization")
+		if auth != "Bearer test-token-abc" {
+			t.Errorf("Authorization = %q, want %q", auth, "Bearer test-token-abc")
+		}
+		resp := githubTreeResponse{
+			SHA:  "def456",
+			Tree: []GitHubTreeEntry{},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
+	_, err := c.FetchRepoTree("owner", "repo", "main")
+	if err != nil {
+		t.Fatalf("FetchRepoTree: %v", err)
+	}
+}
+
+func TestFetchRepoTree_JSONDecodeError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{invalid`))
+	}))
+	defer srv.Close()
+
+	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
+	_, err := c.FetchRepoTree("owner", "repo", "main")
+	if err == nil {
+		t.Fatal("expected error for invalid JSON")
+	}
+	if !strings.Contains(err.Error(), "invalid response") {
+		t.Errorf("error = %q, want containing 'invalid response'", err.Error())
+	}
+}
+
+func TestFetchSkillContent_Non200Non404(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer srv.Close()
+
+	c := &Client{RawGHURL: srv.URL, HTTPClient: srv.Client()}
+	_, err := c.FetchSkillContent("owner", "repo", "main", "skills/test/SKILL.md")
+	if err == nil {
+		t.Fatal("expected error for 403 response")
+	}
+	if !strings.Contains(err.Error(), "failed to fetch") {
+		t.Errorf("error = %q, want containing 'failed to fetch'", err.Error())
 	}
 }

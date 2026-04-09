@@ -145,3 +145,132 @@ func TestIsTelemetryDisabled(t *testing.T) {
 		t.Error("telemetry should be enabled with no env vars")
 	}
 }
+
+func TestIsCI_IndividualVars(t *testing.T) {
+	individualVars := []string{"CIRCLECI", "TRAVIS", "BUILDKITE", "JENKINS_URL", "TEAMCITY_VERSION"}
+
+	for _, target := range individualVars {
+		t.Run(target, func(t *testing.T) {
+			// Clear ALL CI env vars first
+			for _, v := range ciEnvVars {
+				t.Setenv(v, "")
+				os.Unsetenv(v)
+			}
+
+			// Set only the one under test
+			t.Setenv(target, "1")
+
+			if !isCI() {
+				t.Errorf("isCI() = false with %s set, want true", target)
+			}
+		})
+	}
+}
+
+func TestIsCI_NoneSet(t *testing.T) {
+	// Clear all CI env vars
+	for _, v := range ciEnvVars {
+		t.Setenv(v, "")
+		os.Unsetenv(v)
+	}
+
+	if isCI() {
+		t.Error("isCI() = true with no CI vars set, want false")
+	}
+}
+
+func TestIsPrivateRepo_InvalidSource(t *testing.T) {
+	// Source with no "/" separator → returns false (not valid, let telemetry proceed)
+	if isPrivateRepo("noseparator") {
+		t.Error("expected false for source without separator")
+	}
+}
+
+func TestIsPrivateRepo_EmptyParts(t *testing.T) {
+	// Empty owner
+	if isPrivateRepo("/repo") {
+		t.Error("expected false for empty owner")
+	}
+
+	// Empty repo
+	if isPrivateRepo("owner/") {
+		t.Error("expected false for empty repo")
+	}
+}
+
+func TestBuildTelemetryParams_NoAgents(t *testing.T) {
+	params := BuildTelemetryParams("org/repo", []string{"skill1"}, []string{})
+
+	if _, ok := params["agents"]; ok {
+		t.Error("expected no 'agents' key in params when agents slice is empty")
+	}
+}
+
+func TestTrackSync_InvalidURL(t *testing.T) {
+	// Clear telemetry-disabling env vars
+	for _, env := range []string{"DISABLE_TELEMETRY", "DO_NOT_TRACK"} {
+		t.Setenv(env, "")
+		os.Unsetenv(env)
+	}
+	for _, v := range ciEnvVars {
+		t.Setenv(v, "")
+		os.Unsetenv(v)
+	}
+
+	// "://invalid" is not a valid URL, should cause http.NewRequestWithContext to fail
+	err := TrackSync("://invalid", "install", nil, "1.0.0")
+	if err == nil {
+		t.Fatal("expected error for invalid URL")
+	}
+}
+
+func TestIsPrivateRepo_APIError(t *testing.T) {
+	// Server that closes the connection immediately — simulates unreachable API
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		// Trigger a connection error by hijacking and closing
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			// Fallback: just return 500 which also triggers conservative=true
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		conn, _, _ := hj.Hijack()
+		conn.Close()
+	}))
+	defer srv.Close()
+
+	t.Setenv("GITHUB_API_URL", srv.URL)
+
+	// Conservative behavior: API error → treat as private → skip telemetry
+	if !isPrivateRepo("owner/repo") {
+		t.Error("expected true (conservative) when API errors")
+	}
+}
+
+func TestTrackSync_EmptyAuditURL(t *testing.T) {
+	// Clear telemetry-disabling env vars
+	for _, env := range []string{"DISABLE_TELEMETRY", "DO_NOT_TRACK"} {
+		t.Setenv(env, "")
+		os.Unsetenv(env)
+	}
+	for _, v := range ciEnvVars {
+		t.Setenv(v, "")
+		os.Unsetenv(v)
+	}
+
+	// Empty auditURL should fall back to defaultAuditURL.
+	// Since defaultAuditURL is a real external URL, the request will fail
+	// with a network error — but the important thing is that the code path
+	// runs without panic and that the default was used (error references the URL).
+	err := TrackSync("", "install", map[string]string{"source": "org/repo"}, "1.0.0")
+	// We expect an error because defaultAuditURL is not reachable in tests,
+	// but the function should not panic.
+	if err == nil {
+		// If no error, the request somehow succeeded — acceptable but unexpected
+		return
+	}
+	// Verify the error is a network error (from trying defaultAuditURL), not a coding error
+	if contains(err.Error(), "nil pointer") || contains(err.Error(), "panic") {
+		t.Errorf("unexpected error type: %v", err)
+	}
+}

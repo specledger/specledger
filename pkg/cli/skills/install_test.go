@@ -136,12 +136,12 @@ func TestValidateSkillName(t *testing.T) {
 		{"valid-skill", false},
 		{"my_skill", false},
 		{"skill123", false},
-		{"", true},                 // empty
-		{"../evil", true},          // path traversal
-		{"foo/bar", true},          // slash
-		{"foo\\bar", true},         // backslash
-		{"/absolute", true},        // absolute path
-		{"skill/../etc", true},     // embedded traversal
+		{"", true},             // empty
+		{"../evil", true},      // path traversal
+		{"foo/bar", true},      // slash
+		{"foo\\bar", true},     // backslash
+		{"/absolute", true},    // absolute path
+		{"skill/../etc", true}, // embedded traversal
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -165,5 +165,128 @@ func TestInstallSkill_PathTraversal(t *testing.T) {
 	}
 	if !contains(err.Error(), "unsafe skill name") {
 		t.Errorf("error = %q, want containing 'unsafe skill name'", err.Error())
+	}
+}
+
+func TestInstallSkill_EmptyAgentPaths(t *testing.T) {
+	dir := t.TempDir()
+	lockPath := filepath.Join(dir, "skills-lock.json")
+	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
+
+	err := InstallSkill("valid-skill", []byte("content"), []string{}, lockPath, source)
+	if err == nil {
+		t.Fatal("expected error for empty agent paths")
+	}
+	if !contains(err.Error(), "no agent paths") {
+		t.Errorf("error = %q, want containing 'no agent paths'", err.Error())
+	}
+}
+
+func TestInstallSkill_InvalidName(t *testing.T) {
+	dir := t.TempDir()
+	lockPath := filepath.Join(dir, "skills-lock.json")
+	agentPath := filepath.Join(dir, ".claude", "skills")
+	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
+
+	err := InstallSkill("../evil", []byte("content"), []string{agentPath}, lockPath, source)
+	if err == nil {
+		t.Fatal("expected error for invalid name")
+	}
+	if !contains(err.Error(), "unsafe skill name") {
+		t.Errorf("error = %q, want containing 'unsafe skill name'", err.Error())
+	}
+
+	// Verify no I/O occurred — agent dir should not exist
+	if _, err := os.Stat(agentPath); !os.IsNotExist(err) {
+		t.Error("agent directory should not have been created")
+	}
+}
+
+func TestInstallSkill_RefInLockEntry(t *testing.T) {
+	dir := t.TempDir()
+	agentPath := filepath.Join(dir, ".claude", "skills")
+	lockPath := filepath.Join(dir, "skills-lock.json")
+
+	content := []byte("---\nname: ref-skill\ndescription: Test\n---\nBody")
+	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "v1.0", Type: SourceTypeGitHub}
+
+	err := InstallSkill("ref-skill", content, []string{agentPath}, lockPath, source)
+	if err != nil {
+		t.Fatalf("InstallSkill: %v", err)
+	}
+
+	lock, err := ReadLocalLock(lockPath)
+	if err != nil {
+		t.Fatalf("ReadLocalLock: %v", err)
+	}
+
+	entry, ok := lock.Skills["ref-skill"]
+	if !ok {
+		t.Fatal("skill not in lock file")
+	}
+	if entry.Ref != "v1.0" {
+		t.Errorf("Ref = %q, want %q", entry.Ref, "v1.0")
+	}
+}
+
+func TestUninstallSkill_InvalidName(t *testing.T) {
+	dir := t.TempDir()
+	agentPath := filepath.Join(dir, ".claude", "skills")
+	lockPath := filepath.Join(dir, "skills-lock.json")
+
+	err := UninstallSkill("../evil", []string{agentPath}, lockPath)
+	if err == nil {
+		t.Fatal("expected error for invalid name")
+	}
+	if !contains(err.Error(), "unsafe skill name") {
+		t.Errorf("error = %q, want containing 'unsafe skill name'", err.Error())
+	}
+}
+
+func TestUninstallSkill_NotInstalled(t *testing.T) {
+	dir := t.TempDir()
+	agentPath := filepath.Join(dir, ".claude", "skills")
+	lockPath := filepath.Join(dir, "skills-lock.json")
+
+	// Uninstall a skill that was never installed — should succeed
+	err := UninstallSkill("nonexistent-skill", []string{agentPath}, lockPath)
+	if err != nil {
+		t.Fatalf("UninstallSkill should succeed for non-installed skill: %v", err)
+	}
+}
+
+func TestIsSkillInstalled_CorruptLock(t *testing.T) {
+	dir := t.TempDir()
+	lockPath := filepath.Join(dir, "skills-lock.json")
+
+	// Write invalid JSON to the lock file
+	if err := os.WriteFile(lockPath, []byte("{corrupt json!!!}"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// ReadLocalLock will error → IsSkillInstalled should return false
+	if IsSkillInstalled("any-skill", lockPath) {
+		t.Error("expected false for corrupt lock file")
+	}
+}
+
+func TestInstallSkill_DirCreationFailure(t *testing.T) {
+	dir := t.TempDir()
+	lockPath := filepath.Join(dir, "skills-lock.json")
+	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
+
+	// Create a regular file where the agent path should be a directory.
+	// This makes MkdirAll fail when trying to create a subdirectory.
+	agentFile := filepath.Join(dir, "not-a-dir")
+	if err := os.WriteFile(agentFile, []byte("I am a file"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	err := InstallSkill("some-skill", []byte("content"), []string{agentFile}, lockPath, source)
+	if err == nil {
+		t.Fatal("expected error when agent path is a file")
+	}
+	if !contains(err.Error(), "failed to create") {
+		t.Errorf("error = %q, want containing 'failed to create'", err.Error())
 	}
 }

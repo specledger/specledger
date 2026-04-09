@@ -189,6 +189,144 @@ func TestAddRemoveSkill(t *testing.T) {
 	RemoveSkill(lock, "nonexistent")
 }
 
+func TestReadLocalLock_NullSkills(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "skills-lock.json")
+	if err := os.WriteFile(path, []byte(`{"version":1,"skills":null}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	lock, err := ReadLocalLock(path)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if lock.Skills == nil {
+		t.Error("Skills map should be non-nil after reading null skills")
+	}
+	if len(lock.Skills) != 0 {
+		t.Errorf("Skills = %v, want empty map", lock.Skills)
+	}
+}
+
+func TestAddSkill_NilSkillsMap(t *testing.T) {
+	lock := &LocalSkillLockFile{
+		Version: 1,
+		Skills:  nil,
+	}
+
+	AddSkill(lock, "new-skill", LocalSkillLockEntry{
+		Source:       "org/repo",
+		SourceType:   "github",
+		ComputedHash: "abc123",
+	})
+
+	if lock.Skills == nil {
+		t.Fatal("Skills map should be initialized")
+	}
+	entry, ok := lock.Skills["new-skill"]
+	if !ok {
+		t.Fatal("skill not added")
+	}
+	if entry.Source != "org/repo" {
+		t.Errorf("Source = %q, want %q", entry.Source, "org/repo")
+	}
+}
+
+func TestWriteLocalLock_EmptySkills(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "skills-lock.json")
+
+	lock := &LocalSkillLockFile{
+		Version: 1,
+		Skills:  make(map[string]LocalSkillLockEntry),
+	}
+
+	if err := WriteLocalLock(path, lock); err != nil {
+		t.Fatalf("WriteLocalLock: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content := string(data)
+	if !contains(content, `"skills": {}`) {
+		t.Errorf("expected empty skills object in output, got:\n%s", content)
+	}
+}
+
+func TestWriteLocalLock_VersionZero(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "skills-lock.json")
+
+	lock := &LocalSkillLockFile{
+		Version: 0,
+		Skills:  make(map[string]LocalSkillLockEntry),
+	}
+
+	if err := WriteLocalLock(path, lock); err != nil {
+		t.Fatalf("WriteLocalLock: %v", err)
+	}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	content := string(data)
+	if !contains(content, `"version": 1`) {
+		t.Errorf("expected version 1 in output, got:\n%s", content)
+	}
+}
+
+func TestReadLocalLock_PermissionDenied(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "skills-lock.json")
+
+	// Create file then make it unreadable
+	if err := os.WriteFile(path, []byte(`{"version":1,"skills":{}}`), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0000); err != nil {
+		t.Skip("cannot change file permissions on this OS")
+	}
+	// Restore permissions on cleanup so t.TempDir() can clean up
+	t.Cleanup(func() { _ = os.Chmod(path, 0644) })
+
+	_, err := ReadLocalLock(path)
+	if err == nil {
+		t.Fatal("expected error for permission denied")
+	}
+	if !contains(err.Error(), "failed to read") {
+		t.Errorf("error = %q, want containing 'failed to read'", err.Error())
+	}
+}
+
+func TestWriteLocalLock_PermissionDenied(t *testing.T) {
+	dir := t.TempDir()
+
+	// Make directory read-only so file creation fails
+	if err := os.Chmod(dir, 0555); err != nil {
+		t.Skip("cannot change directory permissions on this OS")
+	}
+	t.Cleanup(func() { _ = os.Chmod(dir, 0755) })
+
+	path := filepath.Join(dir, "skills-lock.json")
+	lock := &LocalSkillLockFile{
+		Version: 1,
+		Skills:  make(map[string]LocalSkillLockEntry),
+	}
+
+	err := WriteLocalLock(path, lock)
+	if err == nil {
+		t.Fatal("expected error for permission denied")
+	}
+	if !contains(err.Error(), "failed to write") {
+		t.Errorf("error = %q, want containing 'failed to write'", err.Error())
+	}
+}
+
 func indexOf(s, substr string) int {
 	for i := 0; i <= len(s)-len(substr); i++ {
 		if s[i:i+len(substr)] == substr {
