@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0](https://github.com/specledger/specledger/compare/v1.1.0...v1.2.0) (2026-04-09)
+
+
+### Features
+
+* **skill:** add sl skill command with skills.sh registry integration ([#167](https://github.com/specledger/specledger/issues/167)) ([9eddd7c](https://github.com/specledger/specledger/commit/9eddd7c315ab15c5a24b0be0e5a7329e61c4ba7f))
+
+
+### Bug Fixes
+
+* enable go-git worktree support across all repo open calls ([#165](https://github.com/specledger/specledger/issues/165)) ([de7f007](https://github.com/specledger/specledger/commit/de7f007f01da9f775bdff10d3273a251d5202df7))
+* resolve dependabot CI failures and bump dependencies ([#160](https://github.com/specledger/specledger/issues/160)) ([aac6eef](https://github.com/specledger/specledger/commit/aac6eef8f2de40922bb0f4db2ee5e78c1e84d09e))
+* **skills:** add verify and checkpoint prompts to spec-driven workflow ([#169](https://github.com/specledger/specledger/issues/169)) ([07d9d8e](https://github.com/specledger/specledger/commit/07d9d8e89e7eaec1d3924760dffd2516d6a245b4))
+
 ## [1.1.0](https://github.com/specledger/specledger/compare/v1.0.65...v1.1.0) (2026-04-04)
 
 
