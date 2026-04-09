@@ -97,7 +97,18 @@ Generate an implementation plan from the feature specification. This includes te
    - Adds only new technology from current plan
    - Preserves manual additions between markers
 
-**Output**: data-model.md, /contracts/*, quickstart.md, agent-specific file
+4. **Skill suggestions** (optional, non-blocking):
+   - Extract technology keywords from the Technical Context fields just filled
+     (Language, PrimaryDeps, Storage, Testing — skip generic terms like "files" or "N/A").
+   - For the 1-2 most specific technologies, run: `sl skill search "<technology>" --limit 5`
+   - Cross-reference results with `sl skill list --json` to exclude already-installed skills.
+   - If new skills are found, present them briefly and use AskUserQuestion with multi select.
+   - If user accepts, run `sl skill add <source> -y` for each.
+   - If user declines or no new skills found, continue immediately.
+   - **Error handling**: If `sl skill search` or `sl skill add` fails, notify the user and suggest they can try manually later with `sl skill search "<technology>"`. Do not retry.
+   - Do NOT block Phase 1 completion on this step.
+
+**Output**: data-model.md, /contracts/*, quickstart.md, agent-specific file, (optional) installed skills
 
 ## Key rules
 

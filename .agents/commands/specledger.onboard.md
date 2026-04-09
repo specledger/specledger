@@ -32,6 +32,16 @@ Check if a populated project constitution exists at `.specledger/memory/constitu
   - **Important**: The constitution captures high-level software design principles (e.g., YAGNI, test-first, simplicity, contract-driven design) — NOT technology selections discovered during the audit. The audit provides codebase familiarity; principles come from how the team wants to approach software design.
 - Wait for the user to review and approve the constitution before proceeding.
 
+**Commit Suggestion**: After the constitution is created or confirmed, use AskUserQuestion to suggest:
+
+> **Constitution Ready — Commit Setup?**
+>
+> Your project constitution is in place. It's a good idea to commit this setup before starting feature work.
+>
+> **Would you like to commit the constitution and setup files now?**
+
+If the user accepts, commit the constitution and any setup files. If skipped, proceed to Step 2.
+
 ### Step 2: Welcome & Orientation
 
 Present a brief welcome message:
@@ -44,7 +54,9 @@ Present a brief welcome message:
 > 3. **Plan** - Design the implementation approach
 > 4. **Tasks** - Generate actionable, ordered tasks
 > 5. **Review** - You review tasks before any code is written
-> 6. **Implement** - Execute the tasks
+> 6. **Verify** - Cross-check spec/plan/task consistency (recommended)
+> 7. **Implement** - Execute the tasks
+> 8. **Checkpoint** - Review implementation against plan (recommended)
 >
 > Let's start by describing your first feature!
 
@@ -59,8 +71,9 @@ Before we begin, here's a quick reference of the available SpecLedger commands:
 | `/specledger.clarify` | Resolve ambiguities and answer spec questions |
 | `/specledger.plan` | Generate technical implementation plan |
 | `/specledger.tasks` | Create ordered, dependency-linked task list |
-| `/specledger.implement` | Execute implementation tasks in order |
 | `/specledger.verify` | Cross-artifact consistency and quality check |
+| `/specledger.implement` | Execute implementation tasks in order |
+| `/specledger.checkpoint` | Divergence review during/after implementation |
 
 **Utility Commands:**
 | Command | Description |
@@ -71,6 +84,38 @@ Before we begin, here's a quick reference of the available SpecLedger commands:
 **Skills (auto-loaded context):**
 - `sl-issue-tracking` - Issue management patterns and best practices
 - `sl-audit` - Codebase reconnaissance and module discovery
+- `sl-skill` - Agent skill discovery, installation, and management
+
+### Step 2.6: Skill Discovery (Optional)
+
+Search the skills.sh registry for agent skills relevant to this project's technology stack.
+
+**If Step 1 performed an audit**: Extract the 2-3 primary technologies identified during the audit (e.g., the language, primary framework, and database).
+
+**If Step 1 skipped the audit** (constitution already existed): Use AskUserQuestion to ask whether the user would like to run a quick codebase audit to discover technologies and search for relevant agent skills from the skills.sh registry. If they accept, run `/specledger.audit` and extract technologies from the results. If they decline, wait for user to describe what skills to search for or directly proceed to Step 3.
+
+Once technologies are identified:
+
+1. For each technology, run: `sl skill search "<technology>" --limit 3`
+2. Collect unique results across all searches (deduplicate by skill name).
+3. If results were found, present a compact table:
+
+   > **Recommended Skills for your stack**
+   >
+   > | # | Skill | Source |
+   > |---|-------|--------|
+   > | 1 | skill-name | owner/repo |
+   > | 2 | skill-name | owner/repo |
+   >
+   > These skills provide agent context for working with your project's technologies.
+
+4. Use AskUserQuestion with multi select: "Would you like to install any of these skills?"
+5. If the user selects skills, run `sl skill add <source> -y` for each selected skill.
+6. If the user declines, proceed to Step 3 immediately.
+
+**Error handling**: If `sl skill search` or `sl skill add` fails (network error, API unavailable), notify the user and suggest they can try manually later with `sl skill search "<technology>"`. Do not retry — proceed to Step 3.
+
+If no relevant skills are found, mention no skills were found and suggest proceeding to Step 3.
 
 ### Step 3: Feature Description
 
@@ -114,15 +159,53 @@ Present the generated tasks to the user and use AskUserQuestion to ask:
 >
 > **Would you like to proceed with implementation, or would you like to modify any tasks first?**
 
+### Step 8.5: Verification (Recommended)
+
+After the user approves the tasks, recommend running verification before implementation.
+
+Use AskUserQuestion to ask:
+
+> **Pre-Implementation Verification**
+>
+> Before we start coding, it's strongly recommended to run `/specledger.verify` to check that your spec, plan, and tasks are consistent and complete. At least one verify review should exist before implementation begins.
+>
+> **Would you like to run verification now, or skip and go straight to implementation?**
+
+If the user chooses to verify:
+- Run `/specledger.verify` to perform cross-artifact consistency analysis.
+- If CRITICAL issues are found, recommend resolving them before proceeding.
+- After verification completes (or if only LOW/MEDIUM issues), ask if they want to proceed to implementation.
+
+If the user skips, proceed directly to Step 9.
+
 ### Step 9: Implementation
 
 Only after the user has reviewed and approved the tasks:
 
 Run `/specledger.implement` to begin executing the tasks in order.
 
+### Step 10: Post-Implementation Checkpoint (Recommended)
+
+After implementation completes, recommend a checkpoint review.
+
+Use AskUserQuestion to ask:
+
+> **Implementation Complete — Checkpoint Recommended**
+>
+> All tasks have been implemented. Before wrapping up, it's strongly recommended to run `/specledger.checkpoint` for a divergence review. This will compare your implementation against the plan, flag any gaps, and offer an adversarial code review.
+>
+> **Would you like to run a checkpoint now?**
+
+If the user accepts:
+- Run `/specledger.checkpoint` to perform the divergence review.
+- If the checkpoint offers an adversarial review agent, let the user decide whether to run it.
+
+If the user declines, summarize what was completed and note the checkpoint was skipped.
+
 ## Important Notes
 
 - **Never skip the review pause** in Step 8. The user must always approve tasks before implementation begins.
+- **Verify and checkpoint are optional but recommended.** If a user skips them during onboarding, note that they can always run `/specledger.verify` or `/specledger.checkpoint` independently later.
 - If the user wants to modify tasks, help them update the specledger issues before proceeding.
 - If the user wants to stop at any point, respect that and summarize what was completed.
 - Each step builds on the previous one - don't skip steps unless the user explicitly asks.

@@ -68,13 +68,30 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
      * **STOP** and use AskUserQuestion to ask: "Some checklists are incomplete. Do you want to proceed with implementation anyway? (yes/no)"
      * Wait for user response before continuing
      * If user says "no" or "wait" or "stop", halt execution
-     * If user says "yes" or "proceed" or "continue", proceed to step 4
+     * If user says "yes" or "proceed" or "continue", proceed to step 5
 
     - **If all checklists are complete**:
       * Display the table showing all checklists passed
       * Automatically proceed to step 5
 
-5. Load and analyze the implementation context:
+5. **Pre-flight review check** (verify review detection):
+
+   Check if `FEATURE_DIR/reviews/` contains any review files (written by `/specledger.verify`).
+
+   **If a review file exists**: Proceed silently — verification was already completed.
+
+   **If no review file exists**: Use AskUserQuestion to ask:
+
+   > **No Verify Review Found**
+   >
+   > No verification review was found in `FEATURE_DIR/reviews/`. It is **strongly recommended** to run `/specledger.verify` at least once before implementing — this catches spec/plan/task consistency issues that are much harder to fix during implementation.
+   >
+   > **Would you like to run `/specledger.verify` now, or proceed without a review?**
+
+   If the user chooses to verify, pause implementation and run `/specledger.verify`. Resume implementation after verification completes.
+   If the user chooses to proceed, continue — but note in the execution log that verification was skipped.
+
+6. Load and analyze the implementation context:
    - **REQUIRED**: Read tasks.md for the complete task list and execution plan
    - **REQUIRED**: Read plan.md for tech stack, architecture, and file structure
    - **IF EXISTS**: Read data-model.md for entities and relationships
@@ -82,7 +99,7 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
    - **IF EXISTS**: Read research.md for technical decisions and constraints
    - **IF EXISTS**: Read quickstart.md for integration scenarios
 
-6. **Project Setup Verification**:
+7. **Project Setup Verification**:
    - **REQUIRED**: Create/verify ignore files based on actual project setup:
 
    **Detection & Creation Logic**:
@@ -116,26 +133,35 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
    - **Prettier**: `node_modules/`, `dist/`, `build/`, `coverage/`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`
     - **Terraform**: `.terraform/`, `*.tfstate*`, `*.tfvars`, `.terraform.lock.hcl`
 
-7. Read tasks.md structure and extract:
+8. Read tasks.md structure and extract:
    - **Task phases**: Setup, Tests, Core, Integration, Polish
    - **Task dependencies**: Sequential vs parallel execution rules
    - **Task details**: ID, description, file paths, design + acceptance criteria
    - **Task comments**: Important notes and modifications to original plan
    - **Execution flow**: Order and dependency requirements
 
-8. Execute implementation following the task plan:
+9. Execute implementation following the task plan:
    - **Phase-by-phase execution**: Complete each phase before moving to the next
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **File-based coordination**: Tasks affecting the same files must run sequentially
    - **Validation checkpoints**: Verify each phase completion before proceeding
+   - **Phase checkpoint suggestion**: After completing all tasks in a phase, check if this specific phase has already been checkpointed by looking for `FEATURE_DIR/sessions/<branch-name>-checkpoint-<phase-name>.md`. If that file does not exist, use AskUserQuestion to suggest a scoped checkpoint:
+
+     > **Phase "[phase name]" Complete**
+     >
+     > All tasks in this phase are closed. You can run a scoped `/specledger.checkpoint` to verify issues and DoD for this phase before continuing.
+     >
+     > **Run scoped checkpoint for this phase, or continue to the next phase?**
+
+     If the user accepts, run `/specledger.checkpoint "Verify phase:[phase-name] issues only — phase completed this session"`. If the user skips, proceed to the next phase.
    - **Read issue fields before implementation**:
      - Use `sl issue show <id>` to retrieve the issue's details
      - Read the `design` field for technical approach and file references
       - Read the `acceptance_criteria` field for requirements and success criteria
       - Use these fields to guide implementation decisions
 
-9. Implementation execution rules:
+10. Implementation execution rules:
    - **Setup first**: Initialize project structure, dependencies, configuration
    - **Tests before code**: If you need to write tests for contracts, entities, and integration scenarios
    - **Core development**: Implement models, services, CLI commands, endpoints
@@ -145,7 +171,7 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
    - **Check off DoD items progressively**: As subtasks complete, use `sl issue update <id> --check-dod "Item text"` to mark relevant DoD items as verified
     - **Only close after all DoD items checked**: Ensure all Definition of Done items are marked complete before closing an issue
 
-10. Progress tracking and error handling:
+11. Progress tracking and error handling:
    - Find ready tasks using: `sl issue ready`
    - If no ready tasks, display blocking issues and offer options
    - Update issue status with: `sl issue update <id> --status in_progress`
@@ -156,7 +182,7 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
    - Suggest next steps if implementation cannot proceed
     - **IMPORTANT** For completed tasks, make sure to close the issue: `sl issue close <id> --reason "Completed"`
 
-10a. **Definition of Done Verification** (before closing issues):
+11a. **Definition of Done Verification** (before closing issues):
 
    Before closing any issue, verify its Definition of Done items:
 
@@ -197,12 +223,29 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
        Proceed with closing? (--force required)
        ```
 
-11. Completion validation:
+12. Completion validation:
    - Verify all required tasks are completed
    - Check that implemented features match the original specification
    - Validate that tests pass and coverage meets requirements
    - Confirm the implementation follows the technical plan
    - Report final status with summary of completed work
+
+13. **Post-Implementation Checkpoint** (strongly recommended):
+
+   After all tasks are complete and the completion summary is presented, use AskUserQuestion to ask:
+
+   > **All Tasks Complete — Checkpoint Strongly Recommended**
+   >
+   > Implementation is finished. Before merging or considering this feature done, it is **strongly recommended** to run `/specledger.checkpoint` for a critical divergence review. The checkpoint will:
+   > - Compare implementation against spec, plan, and task artifacts
+   > - Flag any force-closed issues with unchecked Definition of Done items
+   > - Surface coverage gaps and plan drift
+   > - Offer an independent adversarial review agent for a fresh-eyes code review
+   >
+   > **Would you like to run the checkpoint now?**
+
+   If the user accepts, invoke `/specledger.checkpoint`.
+   If the user declines, note in the completion summary that the post-implementation checkpoint was skipped.
 
 ## Issue Tracking Commands
 
@@ -221,7 +264,7 @@ Use the built-in `sl issue` commands for issue management:
 
 ## Definition of Done
 
-Before closing an issue, verify the Definition of Done criteria using the verification process in step 9a:
+Before closing an issue, verify the Definition of Done criteria using the verification process in step 11a:
 
 ### Verification Process
 

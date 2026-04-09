@@ -5,7 +5,7 @@ Best practices for using SpecLedger to build features methodically with human-in
 ## Core Workflow
 
 ```
-specify → UI review → revise → plan → UI review → revise → tasks → analyze → UI review → revise → implement
+specify → UI review → revise → plan → UI review → revise → tasks → verify → UI review → revise → implement
 ```
 
 Every stage produces artifacts that **must be reviewed in the SpecLedger UI** before proceeding. Never skip the review step.
@@ -53,11 +53,11 @@ Run `/specledger.tasks` to generate the task breakdown.
 
 **Important: Generate tasks cleanly.** The task generation should produce a clean `tasks.md` file with dependency-ordered tasks. Do not use `sl issue` commands during task generation — the tasks file is the source of truth at this stage.
 
-## Stage 4: Analyze (Before Implementation)
+## Stage 4: Verify (Before Implementation)
 
-**Always run `/specledger.analyze` after task generation and before implementation.** This is a critical quality gate.
+**Always run `/specledger.verify` after task generation and before implementation.** This is a critical quality gate.
 
-The analyze command performs a read-only cross-artifact consistency check across `spec.md`, `plan.md`, and `tasks.md`. It will identify:
+The verify command performs a read-only cross-artifact consistency check across `spec.md`, `plan.md`, and `tasks.md`. It will identify:
 
 - Requirements with no associated tasks (coverage gaps)
 - Tasks with no mapped requirement (orphan tasks)
@@ -72,11 +72,11 @@ The analyze command performs a read-only cross-artifact consistency check across
 - **HIGH issues** — should be resolved; skip only with explicit justification
 - **MEDIUM/LOW issues** — resolve if time permits; document as known gaps if skipping
 
-If the analysis reveals gaps, update the relevant artifacts (spec, plan, or tasks) and re-run `/specledger.analyze` to confirm fixes.
+If the analysis reveals gaps, update the relevant artifacts (spec, plan, or tasks) and re-run `/specledger.verify` to confirm fixes.
 
 ## Stage 5: Final Review Before Implementation
 
-After analyze passes cleanly:
+After verify passes cleanly:
 
 1. Push all artifacts and review the complete task list in the UI
 2. Verify task ordering, dependencies, and acceptance criteria make sense
@@ -140,15 +140,15 @@ The more specific your constraints and questions, the deeper the research agents
 | Specify   | `/specledger.specify`   | Yes - UI review     | Spec covers all requirements |
 | Clarify   | `/specledger.clarify`   | Optional            | Ambiguities resolved         |
 | Plan      | `/specledger.plan`      | Yes - UI review     | Architecture decisions sound |
-| Tasks     | `/specledger.tasks`     | After analyze       | Tasks are dependency-ordered |
-| Analyze   | `/specledger.analyze`   | Yes - UI review     | No CRITICAL gaps             |
+| Tasks     | `/specledger.tasks`     | After verify        | Tasks are dependency-ordered |
+| Verify    | `/specledger.verify`    | Yes - UI review     | No CRITICAL gaps             |
 | Revise    | `/specledger.revise`    | After each cycle    | All comments addressed       |
 | Implement | `/specledger.implement` | Post-implementation | Features match spec          |
 
 ## Anti-Patterns
 
 - **Skipping UI review** — Running specify-plan-tasks-implement without human review produces misaligned features
-- **Skipping analyze** — Going straight from tasks to implement misses coverage gaps and inconsistencies
+- **Skipping verify** — Going straight from tasks to implement misses coverage gaps and inconsistencies
 - **Vague prompts** — "Build a login page" produces a shallow spec; provide constraints, edge cases, and user context
-- **Ignoring CRITICAL findings** — Analyze flags them for a reason; resolve before implementing
+- **Ignoring CRITICAL findings** — Verify flags them for a reason; resolve before implementing
 - **Using issue tracking during task generation** — Keep task generation clean; issue tracking starts during implementation

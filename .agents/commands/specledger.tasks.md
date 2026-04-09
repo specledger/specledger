@@ -1,10 +1,9 @@
 ---
 description: Generate an actionable, dependency-ordered tasks.md for the feature based on available design artifacts.
 handoffs:
-  - label: Analyze For Consistency
-    agent: specledger.analyze
-    prompt: Run a project analysis for consistency
-    send: true
+  - label: Verify For Consistency
+    agent: specledger.verify
+    prompt: Run a cross-artifact consistency and quality verification
   - label: Implement Project
     agent: specledger.implement
     prompt: Start the implementation in phases
@@ -128,6 +127,22 @@ Generate actionable, dependency-ordered tasks from the implementation plan. Task
    - Parallel opportunities identified
    - Independent test criteria for each story
    - Suggested MVP (usually US1 or first P1 story)
+
+7. **Pre-Implementation Verify Check** (strongly recommended):
+
+   After presenting the report, check if `FEATURE_DIR/reviews/` contains any review files.
+
+   **If a review file exists**: Skip this prompt — verification was already completed. Proceed to implementation handoff.
+
+   **If no review file exists**: Use AskUserQuestion to ask:
+
+   > **Verification Strongly Recommended**
+   >
+   > At least one verify review should exist before implementation begins. Running `/specledger.verify` will cross-check your spec, plan, and tasks for consistency gaps, coverage issues, and ambiguities — catching problems now is far cheaper than finding them during implementation.
+   >
+   > **Would you like to run `/specledger.verify` now? (Strongly recommended)**
+
+   If the user accepts, the handoff to `specledger.verify` handles execution. If the user skips, proceed to the `specledger.implement` handoff — but note in the summary that verification was skipped.
 
 Context for task generation: $ARGUMENTS
 
