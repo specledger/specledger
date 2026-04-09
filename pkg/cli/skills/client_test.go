@@ -172,12 +172,15 @@ func TestClientFetchRepoTree(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-	tree, err := c.FetchRepoTree("vercel-labs", "agent-skills", "main")
+	tree, resolvedRef, err := c.FetchRepoTree("vercel-labs", "agent-skills", "main")
 	if err != nil {
 		t.Fatalf("FetchRepoTree: %v", err)
 	}
 	if len(tree) != 3 {
 		t.Fatalf("len(tree) = %d, want 3", len(tree))
+	}
+	if resolvedRef != "main" {
+		t.Errorf("resolvedRef = %q, want %q", resolvedRef, "main")
 	}
 }
 
@@ -188,12 +191,107 @@ func TestClientFetchRepoTree_NotFound(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-	_, err := c.FetchRepoTree("nonexistent", "repo", "main")
+	_, _, err := c.FetchRepoTree("nonexistent", "repo", "main")
 	if err == nil {
 		t.Fatal("expected error for 404")
 	}
 	if !contains(err.Error(), "not found") {
 		t.Errorf("error = %q, want containing 'not found'", err.Error())
+	}
+}
+
+func TestFetchRepoTree_ExplicitRefSkipsFallback(t *testing.T) {
+	// Verify that an explicit ref only tries that ref, not the HEAD/main/master fallback
+	var requestedPaths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPaths = append(requestedPaths, r.URL.Path)
+		if r.URL.Path == "/repos/org/repo/git/trees/dev" {
+			resp := githubTreeResponse{
+				SHA:  "abc",
+				Tree: []GitHubTreeEntry{{Path: "skills/s1/SKILL.md", Type: "blob"}},
+			}
+			_ = json.NewEncoder(w).Encode(resp)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
+	tree, resolvedRef, err := c.FetchRepoTree("org", "repo", "dev")
+	if err != nil {
+		t.Fatalf("FetchRepoTree: %v", err)
+	}
+	if len(tree) != 1 {
+		t.Fatalf("len(tree) = %d, want 1", len(tree))
+	}
+	if resolvedRef != "dev" {
+		t.Errorf("resolvedRef = %q, want %q", resolvedRef, "dev")
+	}
+	// Should have made exactly 1 request — no fallback
+	if len(requestedPaths) != 1 {
+		t.Errorf("expected 1 request, got %d: %v", len(requestedPaths), requestedPaths)
+	}
+}
+
+func TestFetchRepoTree_EmptyRefFallback(t *testing.T) {
+	// Verify that empty ref tries HEAD, main, master in order
+	var requestedPaths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPaths = append(requestedPaths, r.URL.Path)
+		// Only master succeeds
+		if r.URL.Path == "/repos/org/repo/git/trees/master" {
+			resp := githubTreeResponse{
+				SHA:  "abc",
+				Tree: []GitHubTreeEntry{{Path: "skills/s1/SKILL.md", Type: "blob"}},
+			}
+			_ = json.NewEncoder(w).Encode(resp)
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
+	tree, resolvedRef, err := c.FetchRepoTree("org", "repo", "")
+	if err != nil {
+		t.Fatalf("FetchRepoTree: %v", err)
+	}
+	if len(tree) != 1 {
+		t.Fatalf("len(tree) = %d, want 1", len(tree))
+	}
+	if resolvedRef != "master" {
+		t.Errorf("resolvedRef = %q, want %q", resolvedRef, "master")
+	}
+	// Should have tried HEAD (404), main (404), then master (200)
+	want := []string{
+		"/repos/org/repo/git/trees/HEAD",
+		"/repos/org/repo/git/trees/main",
+		"/repos/org/repo/git/trees/master",
+	}
+	if len(requestedPaths) != len(want) {
+		t.Fatalf("requests = %v, want %v", requestedPaths, want)
+	}
+	for i, p := range want {
+		if requestedPaths[i] != p {
+			t.Errorf("request[%d] = %q, want %q", i, requestedPaths[i], p)
+		}
+	}
+}
+
+func TestFetchRepoTree_AllFallbacksFail(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
+	_, _, err := c.FetchRepoTree("org", "repo", "")
+	if err == nil {
+		t.Fatal("expected error when all fallbacks fail")
+	}
+	if !strings.Contains(err.Error(), "could not resolve default branch") {
+		t.Errorf("error = %q, want containing 'could not resolve default branch'", err.Error())
 	}
 }
 
@@ -430,7 +528,7 @@ func TestFetchRepoTree_AuthHeader(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-	_, err := c.FetchRepoTree("owner", "repo", "main")
+	_, _, err := c.FetchRepoTree("owner", "repo", "main")
 	if err != nil {
 		t.Fatalf("FetchRepoTree: %v", err)
 	}
@@ -445,7 +543,7 @@ func TestFetchRepoTree_JSONDecodeError(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-	_, err := c.FetchRepoTree("owner", "repo", "main")
+	_, _, err := c.FetchRepoTree("owner", "repo", "main")
 	if err == nil {
 		t.Fatal("expected error for invalid JSON")
 	}

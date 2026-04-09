@@ -39,10 +39,13 @@ func DiscoverSkills(client *Client, source *SkillSource) ([]SkillMetadata, error
 }
 
 func discoverViaGitHub(client *Client, source *SkillSource) ([]SkillMetadata, error) {
-	tree, err := client.FetchRepoTree(source.Owner, source.Repo, source.Ref)
+	tree, resolvedRef, err := client.FetchRepoTree(source.Owner, source.Repo, source.Ref)
 	if err != nil {
 		return nil, err
 	}
+
+	// Propagate the resolved ref so install fetches use the correct branch
+	source.Ref = resolvedRef
 
 	// Find SKILL.md files in the tree
 	var skillPaths []string
@@ -103,8 +106,13 @@ func discoverViaClone(cloneURL string, source *SkillSource) ([]SkillMetadata, er
 	}
 	defer os.RemoveAll(tmpDir)
 
-	// git clone --depth 1
-	cmd := exec.Command("git", "clone", "--depth", "1", cloneURL, tmpDir)
+	// git clone --depth 1; omit --branch when ref is empty to use repo's default
+	args := []string{"clone", "--depth", "1"}
+	if source.Ref != "" {
+		args = append(args, "--branch", source.Ref)
+	}
+	args = append(args, cloneURL, tmpDir)
+	cmd := exec.Command("git", args...)
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
@@ -163,6 +171,11 @@ func discoverViaClone(cloneURL string, source *SkillSource) ([]SkillMetadata, er
 	}
 	if len(skills) == 0 {
 		return nil, fmt.Errorf("no skills found in repository\n→ The repository may not contain SKILL.md files")
+	}
+
+	// Set ref to HEAD if unset so install fetches use the repo's default branch
+	if source.Ref == "" {
+		source.Ref = "HEAD"
 	}
 
 	return skills, nil

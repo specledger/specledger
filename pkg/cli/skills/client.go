@@ -192,8 +192,36 @@ type githubTreeResponse struct {
 	Tree []GitHubTreeEntry `json:"tree"`
 }
 
+// defaultRefFallbacks is the ordered list of refs to try when no explicit ref is given.
+// Matches the skills.sh TS CLI behavior (blob.ts).
+var defaultRefFallbacks = []string{"HEAD", "main", "master"}
+
 // FetchRepoTree fetches the full recursive tree for a repository.
-func (c *Client) FetchRepoTree(owner, repo, ref string) ([]GitHubTreeEntry, error) {
+// When ref is empty, it tries HEAD, main, master in order (matching skills.sh behavior).
+// Returns the tree entries and the ref that succeeded.
+func (c *Client) FetchRepoTree(owner, repo, ref string) ([]GitHubTreeEntry, string, error) {
+	refs := []string{ref}
+	if ref == "" {
+		refs = defaultRefFallbacks
+	}
+
+	var lastErr error
+	for _, r := range refs {
+		tree, err := c.fetchRepoTreeOnce(owner, repo, r)
+		if err == nil {
+			return tree, r, nil
+		}
+		lastErr = err
+	}
+
+	// When auto-resolving, clarify that the repo may exist but we couldn't find the branch
+	if ref == "" {
+		return nil, "", fmt.Errorf("could not resolve default branch for %s/%s (tried HEAD, main, master)\n→ Specify a branch: sl skill add owner/repo#branch-name\n→ Or verify the repository is public and accessible", owner, repo)
+	}
+	return nil, "", lastErr
+}
+
+func (c *Client) fetchRepoTreeOnce(owner, repo, ref string) ([]GitHubTreeEntry, error) {
 	reqURL := fmt.Sprintf("%s/repos/%s/%s/git/trees/%s?recursive=1",
 		c.GitHubURL, owner, repo, ref)
 
