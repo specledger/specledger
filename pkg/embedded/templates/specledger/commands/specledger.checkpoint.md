@@ -1,5 +1,5 @@
 ---
-description: Critical divergence review — compare implementation against plan artifacts, flag force-closed issues, and surface gaps. Updates session log at FEATURE_DIR/sessions/<spec>-checkpoint.md
+description: Critical divergence review — compare implementation against plan artifacts, flag force-closed issues, and surface gaps. Updates session log at FEATURE_DIR/sessions/<branch-name>-checkpoint.md
 ---
 
 ## User Input
@@ -102,9 +102,12 @@ Execution steps:
    - **conscious**: Divergence is documented somewhere (issue notes, decision log, commit message)
    - **oversight**: No documentation found — this was likely missed
 
-6. Update session log at `FEATURE_DIR/sessions/<spec>-checkpoint.md`:
+6. Update session log:
    - Create `FEATURE_DIR/sessions/` directory if it doesn't exist
-   - Append timestamped entry using the format below
+   - **Determine output file based on scope**:
+     - **Phase-scoped checkpoint**: If `$ARGUMENTS` indicates a phase scope (e.g., `"Verify phase:setup issues only"`), write to `FEATURE_DIR/sessions/<branch-name>-checkpoint-<phase-name>.md`. One file per phase, overwriting any prior phase-scoped checkpoint for the same phase.
+     - **Full checkpoint** (no phase scope): Append a timestamped entry to `FEATURE_DIR/sessions/<branch-name>-checkpoint.md`.
+   - Use the entry format below
 
    ```markdown
    ## Divergence Review: YYYY-MM-DD HH:MM
@@ -225,7 +228,7 @@ Execution steps:
 
 ## Session Log Format
 
-Session logs are stored at `FEATURE_DIR/sessions/<spec>-checkpoint.md`:
+Session logs are stored at `FEATURE_DIR/sessions/<branch-name>-checkpoint.md`:
 
 ```markdown
 # Session Log: <branch-name>

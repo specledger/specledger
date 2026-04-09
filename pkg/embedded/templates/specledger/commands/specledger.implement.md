@@ -146,7 +146,7 @@ Execute the implementation plan by processing all tasks in tasks.md. This comman
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **File-based coordination**: Tasks affecting the same files must run sequentially
    - **Validation checkpoints**: Verify each phase completion before proceeding
-   - **Phase checkpoint suggestion**: After completing all tasks in a phase, check if this phase has already been covered by a previous checkpoint (look for existing checkpoint files in `FEATURE_DIR/sessions/`). If not already checkpointed, use AskUserQuestion to suggest a scoped checkpoint:
+   - **Phase checkpoint suggestion**: After completing all tasks in a phase, check if this specific phase has already been checkpointed by looking for `FEATURE_DIR/sessions/<branch-name>-checkpoint-<phase-name>.md`. If that file does not exist, use AskUserQuestion to suggest a scoped checkpoint:
 
      > **Phase "[phase name]" Complete**
      >
