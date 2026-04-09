@@ -109,6 +109,7 @@ type QueryOptions struct {
 	CommitHash    string
 	TaskID        string
 	AuthorID      string
+	Tag           string // Filter by tag (uses PostgREST array containment: cs.{tag})
 	StartDate     *time.Time
 	EndDate       *time.Time
 	Limit         int
@@ -145,6 +146,9 @@ func (m *MetadataClient) Query(accessToken string, opts *QueryOptions) ([]Sessio
 	}
 	if opts.AuthorID != "" {
 		params.Set("author_id", "eq."+opts.AuthorID)
+	}
+	if opts.Tag != "" {
+		params.Set("tags", "cs.{"+opts.Tag+"}")
 	}
 	// Date range filtering using PostgREST 'and' operator
 	if opts.StartDate != nil && opts.EndDate != nil {
@@ -278,6 +282,32 @@ func (m *MetadataClient) GetByTaskID(accessToken string, projectID string, taskI
 		return nil, nil
 	}
 	return &sessions[0], nil
+}
+
+// Delete removes a session metadata record by ID
+func (m *MetadataClient) Delete(accessToken string, sessionID string) error {
+	reqURL := fmt.Sprintf("%s/rest/v1/%s?id=eq.%s", m.baseURL, SessionsTable, sessionID)
+
+	req, err := http.NewRequest(http.MethodDelete, reqURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("apikey", m.anonKey)
+
+	resp, err := m.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("delete failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("delete failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
 }
 
 // ListByFeature retrieves all sessions for a feature branch

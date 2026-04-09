@@ -156,6 +156,32 @@ func (s *StorageClient) GetSignedURL(accessToken string, storagePath string, exp
 	return &signedResp, nil
 }
 
+// Delete removes a session file from Supabase Storage
+func (s *StorageClient) Delete(accessToken string, storagePath string) error {
+	url := fmt.Sprintf("%s/storage/v1/object/%s/%s", s.baseURL, StorageBucket, storagePath)
+
+	req, err := http.NewRequest(http.MethodDelete, url, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("apikey", s.anonKey)
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("delete failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("delete failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
+}
+
 // BuildStoragePath constructs the storage path for a session
 func BuildStoragePath(projectID, featureBranch, identifier string) string {
 	return fmt.Sprintf("%s/%s/%s.json.gz", projectID, featureBranch, identifier)
