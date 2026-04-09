@@ -1,0 +1,51 @@
+---
+version: 2
+interactions:
+    - id: 0
+      request:
+        proto: HTTP/1.1
+        proto_major: 1
+        proto_minor: 1
+        content_length: 0
+        host: add-skill.vercel.sh
+        form:
+            skills:
+                - skill-creator
+            source:
+                - anthropics/skills
+        headers:
+            Accept:
+                - application/json
+        url: https://add-skill.vercel.sh/audit?source=anthropics%2Fskills&skills=skill-creator
+        method: GET
+      response:
+        proto: HTTP/2.0
+        proto_major: 2
+        proto_minor: 0
+        content_length: -1
+        uncompressed: true
+        body: '{"skill-creator":{"ath":{"risk":"safe","analyzedAt":"2026-03-07T07:58:45.726Z"},"socket":{"risk":"safe","alerts":0,"score":90,"analyzedAt":"2026-03-18T16:47:53.813Z"},"snyk":{"risk":"low","analyzedAt":"2026-03-07T07:58:17.402388+00:00"}}}'
+        headers:
+            Age:
+                - "403"
+            Cache-Control:
+                - public
+            Content-Type:
+                - application/json
+            Date:
+                - Sun, 05 Apr 2026 12:33:08 GMT
+            Server:
+                - Vercel
+            Strict-Transport-Security:
+                - max-age=63072000; includeSubDomains; preload
+            Vary:
+                - rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+            X-Matched-Path:
+                - /audit
+            X-Vercel-Cache:
+                - STALE
+            X-Vercel-Id:
+                - sin1::iad1::d9rcq-1775392792651-9d8f8069a162
+        status: 200 OK
+        code: 200
+        duration: 306.836583ms

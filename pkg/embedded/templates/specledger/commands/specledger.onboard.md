@@ -71,6 +71,38 @@ Before we begin, here's a quick reference of the available SpecLedger commands:
 **Skills (auto-loaded context):**
 - `sl-issue-tracking` - Issue management patterns and best practices
 - `sl-audit` - Codebase reconnaissance and module discovery
+- `sl-skill` - Agent skill discovery, installation, and management
+
+### Step 2.6: Skill Discovery (Optional)
+
+Search the skills.sh registry for agent skills relevant to this project's technology stack.
+
+**If Step 1 performed an audit**: Extract the 2-3 primary technologies identified during the audit (e.g., the language, primary framework, and database).
+
+**If Step 1 skipped the audit** (constitution already existed): Use AskUserQuestion to ask whether the user would like to run a quick codebase audit to discover technologies and search for relevant agent skills from the skills.sh registry. If they accept, run `/specledger.audit` and extract technologies from the results. If they decline, wait for user to describe what skills to search for or directly proceed to Step 3.
+
+Once technologies are identified:
+
+1. For each technology, run: `sl skill search "<technology>" --limit 3`
+2. Collect unique results across all searches (deduplicate by skill name).
+3. If results were found, present a compact table:
+
+   > **Recommended Skills for your stack**
+   >
+   > | # | Skill | Source |
+   > |---|-------|--------|
+   > | 1 | skill-name | owner/repo |
+   > | 2 | skill-name | owner/repo |
+   >
+   > These skills provide agent context for working with your project's technologies.
+
+4. Use AskUserQuestion with multi select: "Would you like to install any of these skills?"
+5. If the user selects skills, run `sl skill add <source> -y` for each selected skill.
+6. If the user declines, proceed to Step 3 immediately.
+
+**Error handling**: If `sl skill search` or `sl skill add` fails (network error, API unavailable), notify the user and suggest they can try manually later with `sl skill search "<technology>"`. Do not retry — proceed to Step 3.
+
+If no relevant skills are found, mention no skills were found and suggest proceeding to Step 3.
 
 ### Step 3: Feature Description
 

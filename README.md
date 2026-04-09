@@ -20,6 +20,7 @@ SpecLedger is an **all-in-one SDD toolkit** that provides:
 - **Team Alignment** - Leverage the specledger.io web portal to preview and discuss across the team, from specification, stack research to task phases, blockers and definition of done. With tailored prompts to address and resolve points of discussion at the speed of AI.
 - **Issue Tracking** - Built-in task tracking with `sl issue` commands (no external dependencies, inspired by [steveyegge/beads](https://github.com/steveyegge/beads))
 - **Spec Dependencies** - Manage and track specification dependencies across projects
+- **Skills Registry** - Search, install, and audit community agent skills from [skills.sh](https://skills.sh)
 - **Repo And Tool Health** - Verify Repo and Tool set up as well as detect and fix identified issues
 - **Workflow Orchestration** - End-to-end workflows from spec to ship
 
@@ -290,6 +291,43 @@ Fetch review comments from the SpecLedger platform and address them interactivel
 | `sl comment show`    | Show full comment details with thread replies |
 | `sl comment reply`   | Reply to a comment thread |
 | `sl comment resolve` | Mark comments as resolved (--reason required) |
+
+### Skills Management
+
+Search, install, and audit community agent skills from the [skills.sh](https://skills.sh) registry. Skills are SKILL.md files that teach AI agents new capabilities — installed to agent directories and tracked in `skills-lock.json`.
+
+| Command | Description |
+|---------|-------------|
+| `sl skill search <query>` | Search the skills.sh registry by keyword |
+| `sl skill search <query> --limit 5` | Limit results (default: 10) |
+| `sl skill add <source>` | Install skill(s) from a repository |
+| `sl skill add <source> -y` | Install without confirmation prompt |
+| `sl skill info <source>` | Show skill metadata and security audit |
+| `sl skill list` | List installed skills from lock file |
+| `sl skill remove <name>` | Remove an installed skill |
+| `sl skill audit` | Security audit all installed skills |
+| `sl skill audit <name>` | Audit a specific skill |
+
+**Source formats:**
+```bash
+sl skill add vercel-labs/agent-skills@web-design-guidelines   # Specific skill
+sl skill add anthropics/skills                                 # All skills from repo
+sl skill add https://github.com/org/repo.git                  # Full git URL
+```
+
+**Security audits** show risk assessments from three partners (ATH, Socket, Snyk) during install and on demand:
+```bash
+$ sl skill audit
+Security Risk Assessments for 2 installed skill(s)
+
+                    Gen          Socket       Snyk
+skill-creator       Safe         0 alerts     Safe
+web-design          Safe         0 alerts     Safe
+
+✓ No high or critical risks detected.
+```
+
+All commands support `--json` for machine-readable output. Telemetry reports installs back to the skills.sh ecosystem (respects `DISABLE_TELEMETRY` / `DO_NOT_TRACK`).
 
 ### CLI Configuration
 
