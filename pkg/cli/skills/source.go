@@ -20,7 +20,7 @@ type SkillSource struct {
 	Owner       string
 	Repo        string
 	SkillFilter string // optional: specific skill name from @skill syntax
-	Ref         string // git ref, defaults to "main"
+	Ref         string // git ref; empty means auto-resolve (tries HEAD, main, master)
 	Type        SourceType
 	URL         string // original URL for git type
 }
@@ -78,7 +78,7 @@ func ParseSource(input string) (*SkillSource, error) {
 			Owner:       owner,
 			Repo:        repo,
 			SkillFilter: skillFilter,
-			Ref:         "main",
+			Ref:         "", // empty = auto-resolve via HEAD/main/master fallback
 			Type:        SourceTypeGitHub,
 		}, nil
 	}
@@ -92,7 +92,7 @@ func ParseSource(input string) (*SkillSource, error) {
 		Owner:       owner,
 		Repo:        repo,
 		SkillFilter: skillFilter,
-		Ref:         "main",
+		Ref:         "", // empty = auto-resolve; clone uses repo default, GitHub tries HEAD/main/master
 		Type:        SourceTypeGit,
 		URL:         base,
 	}, nil

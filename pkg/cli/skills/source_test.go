@@ -157,8 +157,8 @@ func TestParseSource(t *testing.T) {
 			if tt.wantURL != "" && got.URL != tt.wantURL {
 				t.Errorf("URL = %q, want %q", got.URL, tt.wantURL)
 			}
-			if got.Ref != "main" {
-				t.Errorf("Ref = %q, want %q", got.Ref, "main")
+			if got.Ref != "" {
+				t.Errorf("Ref = %q, want empty (auto-resolve)", got.Ref)
 			}
 		})
 	}

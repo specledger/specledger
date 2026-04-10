@@ -172,12 +172,15 @@ func TestClientFetchRepoTree(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-	tree, err := c.FetchRepoTree("vercel-labs", "agent-skills", "main")
+	tree, resolvedRef, err := c.FetchRepoTree("vercel-labs", "agent-skills", "main")
 	if err != nil {
 		t.Fatalf("FetchRepoTree: %v", err)
 	}
 	if len(tree) != 3 {
 		t.Fatalf("len(tree) = %d, want 3", len(tree))
+	}
+	if resolvedRef != "main" {
+		t.Errorf("resolvedRef = %q, want %q", resolvedRef, "main")
 	}
 }
 
@@ -188,12 +191,105 @@ func TestClientFetchRepoTree_NotFound(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-	_, err := c.FetchRepoTree("nonexistent", "repo", "main")
+	_, _, err := c.FetchRepoTree("nonexistent", "repo", "main")
 	if err == nil {
 		t.Fatal("expected error for 404")
 	}
 	if !contains(err.Error(), "not found") {
 		t.Errorf("error = %q, want containing 'not found'", err.Error())
+	}
+}
+
+func TestFetchRepoTree_RefFallback(t *testing.T) {
+	tests := []struct {
+		name         string
+		inputRef     string
+		successPath  string // which path returns 200; empty = all 404
+		wantRef      string
+		wantErr      string
+		wantRequests []string
+		wantTree     int
+	}{
+		{
+			name:         "explicit ref skips fallback",
+			inputRef:     "dev",
+			successPath:  "/repos/org/repo/git/trees/dev",
+			wantRef:      "dev",
+			wantRequests: []string{"/repos/org/repo/git/trees/dev"},
+			wantTree:     1,
+		},
+		{
+			name:        "empty ref falls back through HEAD, main, master",
+			inputRef:    "",
+			successPath: "/repos/org/repo/git/trees/master",
+			wantRef:     "master",
+			wantRequests: []string{
+				"/repos/org/repo/git/trees/HEAD",
+				"/repos/org/repo/git/trees/main",
+				"/repos/org/repo/git/trees/master",
+			},
+			wantTree: 1,
+		},
+		{
+			name:     "all fallbacks fail",
+			inputRef: "",
+			wantErr:  "could not resolve default branch",
+			wantRequests: []string{
+				"/repos/org/repo/git/trees/HEAD",
+				"/repos/org/repo/git/trees/main",
+				"/repos/org/repo/git/trees/master",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var requestedPaths []string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requestedPaths = append(requestedPaths, r.URL.Path)
+				if tt.successPath != "" && r.URL.Path == tt.successPath {
+					resp := githubTreeResponse{
+						SHA:  "abc",
+						Tree: []GitHubTreeEntry{{Path: "skills/s1/SKILL.md", Type: "blob"}},
+					}
+					_ = json.NewEncoder(w).Encode(resp)
+					return
+				}
+				w.WriteHeader(http.StatusNotFound)
+			}))
+			defer srv.Close()
+
+			c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
+			tree, resolvedRef, err := c.FetchRepoTree("org", "repo", tt.inputRef)
+
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if !strings.Contains(err.Error(), tt.wantErr) {
+					t.Errorf("error = %q, want containing %q", err.Error(), tt.wantErr)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("FetchRepoTree: %v", err)
+				}
+				if len(tree) != tt.wantTree {
+					t.Fatalf("len(tree) = %d, want %d", len(tree), tt.wantTree)
+				}
+				if resolvedRef != tt.wantRef {
+					t.Errorf("resolvedRef = %q, want %q", resolvedRef, tt.wantRef)
+				}
+			}
+
+			if len(requestedPaths) != len(tt.wantRequests) {
+				t.Fatalf("requests = %v, want %v", requestedPaths, tt.wantRequests)
+			}
+			for i, p := range tt.wantRequests {
+				if requestedPaths[i] != p {
+					t.Errorf("request[%d] = %q, want %q", i, requestedPaths[i], p)
+				}
+			}
+		})
 	}
 }
 
@@ -430,7 +526,7 @@ func TestFetchRepoTree_AuthHeader(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-	_, err := c.FetchRepoTree("owner", "repo", "main")
+	_, _, err := c.FetchRepoTree("owner", "repo", "main")
 	if err != nil {
 		t.Fatalf("FetchRepoTree: %v", err)
 	}
@@ -445,7 +541,7 @@ func TestFetchRepoTree_JSONDecodeError(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-	_, err := c.FetchRepoTree("owner", "repo", "main")
+	_, _, err := c.FetchRepoTree("owner", "repo", "main")
 	if err == nil {
 		t.Fatal("expected error for invalid JSON")
 	}
