@@ -200,98 +200,96 @@ func TestClientFetchRepoTree_NotFound(t *testing.T) {
 	}
 }
 
-func TestFetchRepoTree_ExplicitRefSkipsFallback(t *testing.T) {
-	// Verify that an explicit ref only tries that ref, not the HEAD/main/master fallback
-	var requestedPaths []string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestedPaths = append(requestedPaths, r.URL.Path)
-		if r.URL.Path == "/repos/org/repo/git/trees/dev" {
-			resp := githubTreeResponse{
-				SHA:  "abc",
-				Tree: []GitHubTreeEntry{{Path: "skills/s1/SKILL.md", Type: "blob"}},
+func TestFetchRepoTree_RefFallback(t *testing.T) {
+	tests := []struct {
+		name         string
+		inputRef     string
+		successPath  string // which path returns 200; empty = all 404
+		wantRef      string
+		wantErr      string
+		wantRequests []string
+		wantTree     int
+	}{
+		{
+			name:         "explicit ref skips fallback",
+			inputRef:     "dev",
+			successPath:  "/repos/org/repo/git/trees/dev",
+			wantRef:      "dev",
+			wantRequests: []string{"/repos/org/repo/git/trees/dev"},
+			wantTree:     1,
+		},
+		{
+			name:        "empty ref falls back through HEAD, main, master",
+			inputRef:    "",
+			successPath: "/repos/org/repo/git/trees/master",
+			wantRef:     "master",
+			wantRequests: []string{
+				"/repos/org/repo/git/trees/HEAD",
+				"/repos/org/repo/git/trees/main",
+				"/repos/org/repo/git/trees/master",
+			},
+			wantTree: 1,
+		},
+		{
+			name:     "all fallbacks fail",
+			inputRef: "",
+			wantErr:  "could not resolve default branch",
+			wantRequests: []string{
+				"/repos/org/repo/git/trees/HEAD",
+				"/repos/org/repo/git/trees/main",
+				"/repos/org/repo/git/trees/master",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var requestedPaths []string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requestedPaths = append(requestedPaths, r.URL.Path)
+				if tt.successPath != "" && r.URL.Path == tt.successPath {
+					resp := githubTreeResponse{
+						SHA:  "abc",
+						Tree: []GitHubTreeEntry{{Path: "skills/s1/SKILL.md", Type: "blob"}},
+					}
+					_ = json.NewEncoder(w).Encode(resp)
+					return
+				}
+				w.WriteHeader(http.StatusNotFound)
+			}))
+			defer srv.Close()
+
+			c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
+			tree, resolvedRef, err := c.FetchRepoTree("org", "repo", tt.inputRef)
+
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatal("expected error, got nil")
+				}
+				if !strings.Contains(err.Error(), tt.wantErr) {
+					t.Errorf("error = %q, want containing %q", err.Error(), tt.wantErr)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("FetchRepoTree: %v", err)
+				}
+				if len(tree) != tt.wantTree {
+					t.Fatalf("len(tree) = %d, want %d", len(tree), tt.wantTree)
+				}
+				if resolvedRef != tt.wantRef {
+					t.Errorf("resolvedRef = %q, want %q", resolvedRef, tt.wantRef)
+				}
 			}
-			_ = json.NewEncoder(w).Encode(resp)
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer srv.Close()
 
-	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-	tree, resolvedRef, err := c.FetchRepoTree("org", "repo", "dev")
-	if err != nil {
-		t.Fatalf("FetchRepoTree: %v", err)
-	}
-	if len(tree) != 1 {
-		t.Fatalf("len(tree) = %d, want 1", len(tree))
-	}
-	if resolvedRef != "dev" {
-		t.Errorf("resolvedRef = %q, want %q", resolvedRef, "dev")
-	}
-	// Should have made exactly 1 request — no fallback
-	if len(requestedPaths) != 1 {
-		t.Errorf("expected 1 request, got %d: %v", len(requestedPaths), requestedPaths)
-	}
-}
-
-func TestFetchRepoTree_EmptyRefFallback(t *testing.T) {
-	// Verify that empty ref tries HEAD, main, master in order
-	var requestedPaths []string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestedPaths = append(requestedPaths, r.URL.Path)
-		// Only master succeeds
-		if r.URL.Path == "/repos/org/repo/git/trees/master" {
-			resp := githubTreeResponse{
-				SHA:  "abc",
-				Tree: []GitHubTreeEntry{{Path: "skills/s1/SKILL.md", Type: "blob"}},
+			if len(requestedPaths) != len(tt.wantRequests) {
+				t.Fatalf("requests = %v, want %v", requestedPaths, tt.wantRequests)
 			}
-			_ = json.NewEncoder(w).Encode(resp)
-			return
-		}
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer srv.Close()
-
-	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-	tree, resolvedRef, err := c.FetchRepoTree("org", "repo", "")
-	if err != nil {
-		t.Fatalf("FetchRepoTree: %v", err)
-	}
-	if len(tree) != 1 {
-		t.Fatalf("len(tree) = %d, want 1", len(tree))
-	}
-	if resolvedRef != "master" {
-		t.Errorf("resolvedRef = %q, want %q", resolvedRef, "master")
-	}
-	// Should have tried HEAD (404), main (404), then master (200)
-	want := []string{
-		"/repos/org/repo/git/trees/HEAD",
-		"/repos/org/repo/git/trees/main",
-		"/repos/org/repo/git/trees/master",
-	}
-	if len(requestedPaths) != len(want) {
-		t.Fatalf("requests = %v, want %v", requestedPaths, want)
-	}
-	for i, p := range want {
-		if requestedPaths[i] != p {
-			t.Errorf("request[%d] = %q, want %q", i, requestedPaths[i], p)
-		}
-	}
-}
-
-func TestFetchRepoTree_AllFallbacksFail(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusNotFound)
-	}))
-	defer srv.Close()
-
-	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-	_, _, err := c.FetchRepoTree("org", "repo", "")
-	if err == nil {
-		t.Fatal("expected error when all fallbacks fail")
-	}
-	if !strings.Contains(err.Error(), "could not resolve default branch") {
-		t.Errorf("error = %q, want containing 'could not resolve default branch'", err.Error())
+			for i, p := range tt.wantRequests {
+				if requestedPaths[i] != p {
+					t.Errorf("request[%d] = %q, want %q", i, requestedPaths[i], p)
+				}
+			}
+		})
 	}
 }
 

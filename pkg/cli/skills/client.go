@@ -150,7 +150,7 @@ func (c *Client) FetchAudit(source string, slugs []string) (map[string]*SkillAud
 // FetchSkillContent fetches the raw SKILL.md content from GitHub.
 func (c *Client) FetchSkillContent(owner, repo, ref, skillPath string) ([]byte, error) {
 	reqURL := fmt.Sprintf("%s/%s/%s/%s/%s",
-		c.RawGHURL, owner, repo, ref, skillPath)
+		c.RawGHURL, owner, repo, url.PathEscape(ref), skillPath)
 
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
 	if err != nil {
@@ -216,14 +216,14 @@ func (c *Client) FetchRepoTree(owner, repo, ref string) ([]GitHubTreeEntry, stri
 
 	// When auto-resolving, clarify that the repo may exist but we couldn't find the branch
 	if ref == "" {
-		return nil, "", fmt.Errorf("could not resolve default branch for %s/%s (tried HEAD, main, master)\n→ Specify a branch: sl skill add owner/repo#branch-name\n→ Or verify the repository is public and accessible", owner, repo)
+		return nil, "", fmt.Errorf("could not resolve default branch for %s/%s (tried HEAD, main, master)\n→ Verify the repository is public and accessible", owner, repo)
 	}
 	return nil, "", lastErr
 }
 
 func (c *Client) fetchRepoTreeOnce(owner, repo, ref string) ([]GitHubTreeEntry, error) {
 	reqURL := fmt.Sprintf("%s/repos/%s/%s/git/trees/%s?recursive=1",
-		c.GitHubURL, owner, repo, ref)
+		c.GitHubURL, owner, repo, url.PathEscape(ref))
 
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
 	if err != nil {
