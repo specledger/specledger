@@ -16,7 +16,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/huh v0.8.0
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/getsentry/sentry-go v0.44.1
+	github.com/getsentry/sentry-go v0.45.0
 	github.com/go-git/go-git/v5 v5.17.2
 	github.com/gofrs/flock v0.13.0
 	github.com/google/uuid v1.6.0
