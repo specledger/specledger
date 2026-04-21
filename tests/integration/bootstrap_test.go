@@ -281,7 +281,7 @@ func TestInitPreservesExistingConstitution(t *testing.T) {
 	}
 
 	// Run sl init
-	cmd := exec.Command(slBinary, "init", "--short-code", "ep", "--playbook", "specledger")
+	cmd := exec.Command(slBinary, "init", "--short-code", "ep", "--playbook", "specledger", "--ci")
 	cmd.Dir = projectDir
 
 	output, err := cmd.CombinedOutput()
