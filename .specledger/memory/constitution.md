@@ -63,7 +63,6 @@ The detailed, up-to-date testing implementation lives in [`tests/README.md`](../
 - E2E tests covering quickstart scenarios are part of the task list, not an afterthought
 - New CLI commands must be classified into one of the 5 command patterns (see [`docs/design/cli.md` — Pattern Classification](../../docs/design/cli.md)) and task lists must include a verification task for pattern compliance
 - Local Supabase stack is validated before pushing (CI enforces this)
-- Use `/specledger.commit` for all git operations (auth-aware session capture)
 
 ## Agent Preferences
 

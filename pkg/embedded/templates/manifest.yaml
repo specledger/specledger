@@ -60,9 +60,6 @@ playbooks:
       - name: specledger.checkpoint
         path: "commands/specledger.checkpoint.md"
         description: "Verify implementation progress and run tests"
-      - name: specledger.commit
-        path: "commands/specledger.commit.md"
-        description: "Commit and push with auth-aware session capture"
 
     # All skills (stored in skills/)
     skills:
