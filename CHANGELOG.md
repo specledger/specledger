@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.2](https://github.com/specledger/specledger/compare/v1.2.1...v1.2.2) (2026-04-21)
+
+
+### Bug Fixes
+
+* **init:** drop stale specledger.commit entry from manifest ([#188](https://github.com/specledger/specledger/issues/188)) ([36e5bb3](https://github.com/specledger/specledger/commit/36e5bb3f090e2edd41cff66184dd8d38a24333b7))
+* **skills:** download full skill directory, not just SKILL.md ([#186](https://github.com/specledger/specledger/issues/186)) ([dde76a6](https://github.com/specledger/specledger/commit/dde76a60570a088fd3eba42a05cbe47632221f6c))
+
 ## [1.2.1](https://github.com/specledger/specledger/compare/v1.2.0...v1.2.1) (2026-04-10)
 
 
