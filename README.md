@@ -145,7 +145,6 @@ SpecLedger provides slash commands for Agent Shells such as [Claude Code](https:
 | `/specledger.checklist` | Generate custom checklist for current feature |
 | `/specledger.spike` | Time-boxed exploratory research |
 | `/specledger.checkpoint` | Verify implementation progress and run tests |
-| `/specledger.commit` | Commit and push with auth-aware session capture |
 
 ### Slash Commands: Project Setup
 
