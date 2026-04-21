@@ -3,6 +3,7 @@ package skills
 import (
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -131,7 +132,7 @@ func fetchWithRetry(client *Client, source *SkillSource, repoPath string) ([]byt
 // and returns the Retry-After duration, or 0 if not rate-limited.
 func parseRetryWait(client *Client, source *SkillSource, repoPath string) time.Duration {
 	reqURL := fmt.Sprintf("%s/%s/%s/%s/%s",
-		client.RawGHURL, source.Owner, source.Repo, source.Ref, repoPath)
+		client.RawGHURL, source.Owner, source.Repo, url.PathEscape(source.Ref), repoPath)
 
 	req, err := http.NewRequest(http.MethodHead, reqURL, nil)
 	if err != nil {

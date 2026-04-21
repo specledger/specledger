@@ -195,6 +195,17 @@ func discoverViaClone(cloneURL string, source *SkillSource) ([]SkillMetadata, er
 			return nil
 		}
 
+		// Skip symlinked SKILL.md that resolves outside the clone
+		if info.Mode()&os.ModeSymlink != 0 {
+			resolved, resolveErr := filepath.EvalSymlinks(path)
+			if resolveErr != nil {
+				return nil
+			}
+			if !strings.HasPrefix(resolved, tmpDir+string(filepath.Separator)) {
+				return nil
+			}
+		}
+
 		content, readErr := os.ReadFile(path)
 		if readErr != nil {
 			return nil
@@ -227,7 +238,13 @@ func discoverViaClone(cloneURL string, source *SkillSource) ([]SkillMetadata, er
 		return nil, fmt.Errorf("failed to scan cloned repository: %w", err)
 	}
 
-	// Walk each skill directory to collect files
+	// Build set of all skill dirs for nested-skill isolation
+	allSkillDirs := make(map[string]bool, len(candidates))
+	for _, c := range candidates {
+		allSkillDirs[c.skillDir] = true
+	}
+
+	// Walk each skill directory to collect files, skipping nested skill subtrees
 	for i := range candidates {
 		c := &candidates[i]
 		skillDirAbs := c.skillDir
@@ -237,6 +254,10 @@ func discoverViaClone(cloneURL string, source *SkillSource) ([]SkillMetadata, er
 				return nil
 			}
 			if fi.IsDir() {
+				// Skip nested skill directories (they belong to their own candidate)
+				if p != skillDirAbs && allSkillDirs[p] {
+					return filepath.SkipDir
+				}
 				return nil
 			}
 

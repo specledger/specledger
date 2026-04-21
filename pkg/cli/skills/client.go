@@ -147,7 +147,7 @@ func (c *Client) FetchAudit(source string, slugs []string) (map[string]*SkillAud
 	return results, nil
 }
 
-// FetchSkillContent fetches the raw SKILL.md content from GitHub.
+// FetchSkillContent fetches raw file content from GitHub (any path under a skill directory).
 func (c *Client) FetchSkillContent(owner, repo, ref, skillPath string) ([]byte, error) {
 	reqURL := fmt.Sprintf("%s/%s/%s/%s/%s",
 		c.RawGHURL, owner, repo, url.PathEscape(ref), skillPath)
