@@ -12,9 +12,10 @@ func TestInstallSkill(t *testing.T) {
 	lockPath := filepath.Join(dir, "skills-lock.json")
 
 	content := []byte("---\nname: test-skill\ndescription: Test\n---\nBody")
+	files := map[string][]byte{"SKILL.md": content}
 	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
 
-	err := InstallSkill("test-skill", content, []string{agentPath}, lockPath, source)
+	err := InstallSkill("test-skill", files, []string{agentPath}, lockPath, source)
 	if err != nil {
 		t.Fatalf("InstallSkill: %v", err)
 	}
@@ -53,9 +54,10 @@ func TestInstallSkill_MultipleAgentPaths(t *testing.T) {
 	lockPath := filepath.Join(dir, "skills-lock.json")
 
 	content := []byte("---\nname: multi\ndescription: Multi-agent\n---\n")
+	files := map[string][]byte{"SKILL.md": content}
 	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
 
-	err := InstallSkill("multi", content, []string{path1, path2}, lockPath, source)
+	err := InstallSkill("multi", files, []string{path1, path2}, lockPath, source)
 	if err != nil {
 		t.Fatalf("InstallSkill: %v", err)
 	}
@@ -76,8 +78,9 @@ func TestUninstallSkill(t *testing.T) {
 
 	// Install first
 	content := []byte("---\nname: removeme\ndescription: Test\n---\n")
+	files := map[string][]byte{"SKILL.md": content}
 	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
-	if err := InstallSkill("removeme", content, []string{agentPath}, lockPath, source); err != nil {
+	if err := InstallSkill("removeme", files, []string{agentPath}, lockPath, source); err != nil {
 		t.Fatalf("InstallSkill: %v", err)
 	}
 
@@ -159,7 +162,7 @@ func TestInstallSkill_PathTraversal(t *testing.T) {
 	lockPath := filepath.Join(dir, "skills-lock.json")
 	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
 
-	err := InstallSkill("../../../etc/passwd", []byte("evil"), []string{agentPath}, lockPath, source)
+	err := InstallSkill("../../../etc/passwd", map[string][]byte{"SKILL.md": []byte("evil")}, []string{agentPath}, lockPath, source)
 	if err == nil {
 		t.Fatal("expected error for path traversal name")
 	}
@@ -173,7 +176,7 @@ func TestInstallSkill_EmptyAgentPaths(t *testing.T) {
 	lockPath := filepath.Join(dir, "skills-lock.json")
 	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
 
-	err := InstallSkill("valid-skill", []byte("content"), []string{}, lockPath, source)
+	err := InstallSkill("valid-skill", map[string][]byte{"SKILL.md": []byte("content")}, []string{}, lockPath, source)
 	if err == nil {
 		t.Fatal("expected error for empty agent paths")
 	}
@@ -188,7 +191,7 @@ func TestInstallSkill_InvalidName(t *testing.T) {
 	agentPath := filepath.Join(dir, ".claude", "skills")
 	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
 
-	err := InstallSkill("../evil", []byte("content"), []string{agentPath}, lockPath, source)
+	err := InstallSkill("../evil", map[string][]byte{"SKILL.md": []byte("content")}, []string{agentPath}, lockPath, source)
 	if err == nil {
 		t.Fatal("expected error for invalid name")
 	}
@@ -208,9 +211,10 @@ func TestInstallSkill_RefInLockEntry(t *testing.T) {
 	lockPath := filepath.Join(dir, "skills-lock.json")
 
 	content := []byte("---\nname: ref-skill\ndescription: Test\n---\nBody")
+	files := map[string][]byte{"SKILL.md": content}
 	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "v1.0", Type: SourceTypeGitHub}
 
-	err := InstallSkill("ref-skill", content, []string{agentPath}, lockPath, source)
+	err := InstallSkill("ref-skill", files, []string{agentPath}, lockPath, source)
 	if err != nil {
 		t.Fatalf("InstallSkill: %v", err)
 	}
@@ -282,11 +286,88 @@ func TestInstallSkill_DirCreationFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err := InstallSkill("some-skill", []byte("content"), []string{agentFile}, lockPath, source)
+	err := InstallSkill("some-skill", map[string][]byte{"SKILL.md": []byte("content")}, []string{agentFile}, lockPath, source)
 	if err == nil {
 		t.Fatal("expected error when agent path is a file")
 	}
 	if !contains(err.Error(), "failed to create") {
 		t.Errorf("error = %q, want containing 'failed to create'", err.Error())
+	}
+}
+
+func TestInstallSkill_PathTraversalInFiles(t *testing.T) {
+	dir := t.TempDir()
+	agentPath := filepath.Join(dir, ".claude", "skills")
+	lockPath := filepath.Join(dir, "skills-lock.json")
+	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
+
+	files := map[string][]byte{
+		"SKILL.md":   []byte("---\nname: test\ndescription: Test\n---\n"),
+		"../evil.md": []byte("malicious content"),
+	}
+	err := InstallSkill("test-skill", files, []string{agentPath}, lockPath, source)
+	if err == nil {
+		t.Fatal("expected error for path traversal in files map key")
+	}
+	if !contains(err.Error(), "unsafe file path") {
+		t.Errorf("error = %q, want containing 'unsafe file path'", err.Error())
+	}
+}
+
+func TestInstallSkill_MissingSKILLMD(t *testing.T) {
+	dir := t.TempDir()
+	agentPath := filepath.Join(dir, ".claude", "skills")
+	lockPath := filepath.Join(dir, "skills-lock.json")
+	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
+
+	files := map[string][]byte{
+		"GENERATION.md": []byte("# Generation"),
+	}
+	err := InstallSkill("test-skill", files, []string{agentPath}, lockPath, source)
+	if err == nil {
+		t.Fatal("expected error for missing SKILL.md")
+	}
+	if !contains(err.Error(), "missing SKILL.md") {
+		t.Errorf("error = %q, want containing 'missing SKILL.md'", err.Error())
+	}
+}
+
+func TestInstallSkill_MultipleFiles(t *testing.T) {
+	dir := t.TempDir()
+	agentPath := filepath.Join(dir, ".claude", "skills")
+	lockPath := filepath.Join(dir, "skills-lock.json")
+	source := &SkillSource{Owner: "org", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
+
+	files := map[string][]byte{
+		"SKILL.md":               []byte("---\nname: multi-file\ndescription: Test\n---\nBody"),
+		"GENERATION.md":          []byte("# Generation"),
+		"references/core.md":     []byte("# Core"),
+		"references/advanced.md": []byte("# Advanced"),
+	}
+	err := InstallSkill("multi-file", files, []string{agentPath}, lockPath, source)
+	if err != nil {
+		t.Fatalf("InstallSkill: %v", err)
+	}
+
+	// Verify all files were written
+	for relPath, expected := range files {
+		fullPath := filepath.Join(agentPath, "multi-file", filepath.FromSlash(relPath))
+		data, readErr := os.ReadFile(fullPath)
+		if readErr != nil {
+			t.Errorf("file %s not created: %v", relPath, readErr)
+			continue
+		}
+		if string(data) != string(expected) {
+			t.Errorf("file %s: content mismatch: got %q, want %q", relPath, string(data), string(expected))
+		}
+	}
+
+	// Verify lock file has an entry
+	lock, readErr := ReadLocalLock(lockPath)
+	if readErr != nil {
+		t.Fatalf("ReadLocalLock: %v", readErr)
+	}
+	if _, ok := lock.Skills["multi-file"]; !ok {
+		t.Error("skill not in lock file")
 	}
 }

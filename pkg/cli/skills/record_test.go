@@ -72,7 +72,7 @@ func TestRecordCassettes(t *testing.T) {
 			name:     "github_trees",
 			cassette: "tests/testdata/cassettes/skills/github_trees",
 			call: func(c *Client) error {
-				tree, _, err := c.FetchRepoTree("anthropics", "skills", "main")
+				tree, _, _, err := c.FetchRepoTree("anthropics", "skills", "main")
 				if err != nil {
 					return err
 				}
@@ -104,7 +104,7 @@ func TestRecordCassettes(t *testing.T) {
 			cassette: "tests/testdata/cassettes/skills/github_trees_nonmain_404",
 			call: func(c *Client) error {
 				// different-ai/openwork uses "dev" as default branch; "main" should 404
-				_, _, err := c.FetchRepoTree("different-ai", "openwork", "main")
+				_, _, _, err := c.FetchRepoTree("different-ai", "openwork", "main")
 				if err == nil {
 					return fmt.Errorf("expected 404 for main branch, but got success")
 				}
@@ -117,7 +117,7 @@ func TestRecordCassettes(t *testing.T) {
 			cassette: "tests/testdata/cassettes/skills/github_trees_nonmain",
 			call: func(c *Client) error {
 				// HEAD resolves to the repo's default branch (dev)
-				tree, _, err := c.FetchRepoTree("different-ai", "openwork", "HEAD")
+				tree, _, _, err := c.FetchRepoTree("different-ai", "openwork", "HEAD")
 				if err != nil {
 					return err
 				}

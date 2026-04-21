@@ -1,10 +1,12 @@
 package skills
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -12,13 +14,19 @@ import (
 
 // SkillMetadata is parsed from SKILL.md YAML frontmatter.
 type SkillMetadata struct {
-	Name        string `yaml:"name" json:"name"`
-	Description string `yaml:"description" json:"description"`
-	Slug        string `yaml:"-" json:"slug,omitempty"`
-	Source      string `yaml:"-" json:"source,omitempty"`
-	RepoPath    string `yaml:"-" json:"-"` // path to SKILL.md within the repo (set during discovery)
-	Internal    bool   `yaml:"internal,omitempty" json:"-"`
+	Name        string   `yaml:"name" json:"name"`
+	Description string   `yaml:"description" json:"description"`
+	Slug        string   `yaml:"-" json:"slug,omitempty"`
+	Source      string   `yaml:"-" json:"source,omitempty"`
+	RepoPath    string   `yaml:"-" json:"-"` // path to SKILL.md within the repo (set during discovery)
+	Files       []string `yaml:"-" json:"-"` // all repo-relative file paths under the skill directory
+	Internal    bool     `yaml:"internal,omitempty" json:"-"`
 }
+
+// errTreeTruncated is returned by discoverViaGitHub when the Trees API response
+// is truncated (>100k entries or >7 MB). DiscoverSkills uses this to auto-fallback
+// to the clone path.
+var errTreeTruncated = errors.New("GitHub tree response truncated")
 
 // DiscoverSkills enumerates available skills in a repository.
 // For GitHub sources, uses the Trees API (fast path).
@@ -29,7 +37,10 @@ func DiscoverSkills(client *Client, source *SkillSource) ([]SkillMetadata, error
 		if err == nil {
 			return skills, nil
 		}
-		// Auto-retry via git clone on GitHub API failure
+		// Auto-retry via git clone on GitHub API failure (including truncation)
+		if errors.Is(err, errTreeTruncated) {
+			fmt.Fprintf(os.Stderr, "→ tree response truncated, falling back to clone\n")
+		}
 		cloneURL := fmt.Sprintf("https://github.com/%s/%s.git", source.Owner, source.Repo)
 		return discoverViaClone(cloneURL, source)
 	}
@@ -39,16 +50,20 @@ func DiscoverSkills(client *Client, source *SkillSource) ([]SkillMetadata, error
 }
 
 func discoverViaGitHub(client *Client, source *SkillSource) ([]SkillMetadata, error) {
-	tree, resolvedRef, err := client.FetchRepoTree(source.Owner, source.Repo, source.Ref)
+	tree, resolvedRef, truncated, err := client.FetchRepoTree(source.Owner, source.Repo, source.Ref)
 	if err != nil {
 		return nil, err
+	}
+
+	if truncated {
+		return nil, errTreeTruncated
 	}
 
 	// Propagate the resolved ref so install fetches use the correct branch
 	source.Ref = resolvedRef
 
-	// Find SKILL.md files in the tree
-	var skillPaths []string
+	// Build set of skill directories (each containing a SKILL.md)
+	skillDirs := make(map[string]string) // dir → full SKILL.md path
 	for _, entry := range tree {
 		if entry.Type != "blob" {
 			continue
@@ -56,16 +71,52 @@ func discoverViaGitHub(client *Client, source *SkillSource) ([]SkillMetadata, er
 		if !strings.HasSuffix(entry.Path, "/SKILL.md") {
 			continue
 		}
-		skillPaths = append(skillPaths, entry.Path)
+		dir := strings.TrimSuffix(entry.Path, "/SKILL.md")
+		skillDirs[dir] = entry.Path
 	}
 
-	if len(skillPaths) == 0 {
+	if len(skillDirs) == 0 {
 		return nil, fmt.Errorf("no skills found in %s/%s\n→ The repository may not contain SKILL.md files", source.Owner, source.Repo)
 	}
 
+	// For each tree entry, find the deepest enclosing skill dir.
+	// This avoids assigning a file to a parent skill when it belongs to a nested skill.
+	findOwningSkillDir := func(filePath string) string {
+		best := ""
+		for dir := range skillDirs {
+			prefix := dir + "/"
+			if strings.HasPrefix(filePath, prefix) && len(dir) > len(best) {
+				best = dir
+			}
+		}
+		return best
+	}
+
+	// Build file lists per skill dir, skipping symlinks and submodules
+	skillFiles := make(map[string][]string) // skill dir → list of repo-relative paths
+	for _, entry := range tree {
+		if entry.Type != "blob" {
+			continue
+		}
+		// Skip symlinks (120000) and submodules (160000)
+		if entry.Mode == "120000" || entry.Mode == "160000" {
+			continue
+		}
+		owningDir := findOwningSkillDir(entry.Path)
+		if owningDir == "" {
+			continue
+		}
+		skillFiles[owningDir] = append(skillFiles[owningDir], entry.Path)
+	}
+
+	// Sort file lists for deterministic order (VCR cassettes depend on this)
+	for dir := range skillFiles {
+		sort.Strings(skillFiles[dir])
+	}
+
 	var skills []SkillMetadata
-	for _, path := range skillPaths {
-		content, err := client.FetchSkillContent(source.Owner, source.Repo, source.Ref, path)
+	for dir, skillMdPath := range skillDirs {
+		content, err := client.FetchSkillContent(source.Owner, source.Repo, source.Ref, skillMdPath)
 		if err != nil {
 			continue // skip individual fetch failures
 		}
@@ -77,7 +128,8 @@ func discoverViaGitHub(client *Client, source *SkillSource) ([]SkillMetadata, er
 
 		meta.Source = source.SourceString()
 		meta.Slug = source.SourceString() + "/" + meta.Name
-		meta.RepoPath = path // preserve discovered path for install fetch
+		meta.RepoPath = skillMdPath // preserve discovered path for install fetch
+		meta.Files = skillFiles[dir]
 
 		// Apply skill filter if specified
 		if source.SkillFilter != "" && meta.Name != source.SkillFilter {
@@ -104,7 +156,9 @@ func discoverViaClone(cloneURL string, source *SkillSource) ([]SkillMetadata, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temp directory: %w", err)
 	}
-	defer os.RemoveAll(tmpDir)
+	// Store on source so FetchSkillFiles can read from the clone.
+	// Caller is responsible for calling source.Cleanup().
+	source.cloneDir = tmpDir
 
 	// git clone --depth 1; omit --branch when ref is empty to use repo's default
 	args := []string{"clone", "--depth", "1"}
@@ -119,10 +173,15 @@ func discoverViaClone(cloneURL string, source *SkillSource) ([]SkillMetadata, er
 		return nil, fmt.Errorf("sl skill add failed: could not clone %q\n→ Verify the repository exists and is accessible", cloneURL)
 	}
 
-	// Scan for SKILL.md files
-	var skills []SkillMetadata
-	err = filepath.Walk(tmpDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
+	// Scan for SKILL.md files and collect all files per skill directory
+	type skillCandidate struct {
+		meta     *SkillMetadata
+		skillDir string // absolute path to the skill directory in the clone
+	}
+	var candidates []skillCandidate
+
+	err = filepath.Walk(tmpDir, func(path string, info os.FileInfo, walkErr error) error {
+		if walkErr != nil {
 			return nil // skip errors
 		}
 		if info.IsDir() {
@@ -136,13 +195,13 @@ func discoverViaClone(cloneURL string, source *SkillSource) ([]SkillMetadata, er
 			return nil
 		}
 
-		content, err := os.ReadFile(path)
-		if err != nil {
+		content, readErr := os.ReadFile(path)
+		if readErr != nil {
 			return nil
 		}
 
-		meta, err := ParseSkillFrontmatter(content)
-		if err != nil {
+		meta, parseErr := ParseSkillFrontmatter(content)
+		if parseErr != nil {
 			return nil
 		}
 
@@ -158,11 +217,51 @@ func discoverViaClone(cloneURL string, source *SkillSource) ([]SkillMetadata, er
 			return nil
 		}
 
-		skills = append(skills, *meta)
+		candidates = append(candidates, skillCandidate{
+			meta:     meta,
+			skillDir: filepath.Dir(path),
+		})
 		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan cloned repository: %w", err)
+	}
+
+	// Walk each skill directory to collect files
+	for i := range candidates {
+		c := &candidates[i]
+		skillDirAbs := c.skillDir
+		var files []string
+		_ = filepath.Walk(skillDirAbs, func(p string, fi os.FileInfo, walkErr error) error {
+			if walkErr != nil {
+				return nil
+			}
+			if fi.IsDir() {
+				return nil
+			}
+
+			// Symlink escape check: resolve symlink and verify it stays under the skill dir
+			if fi.Mode()&os.ModeSymlink != 0 {
+				resolved, resolveErr := filepath.EvalSymlinks(p)
+				if resolveErr != nil {
+					return nil // skip broken symlinks
+				}
+				if !strings.HasPrefix(resolved, skillDirAbs+string(filepath.Separator)) {
+					return nil // skip symlinks that escape the skill directory
+				}
+			}
+
+			rel, _ := filepath.Rel(tmpDir, p)
+			files = append(files, filepath.ToSlash(rel))
+			return nil
+		})
+		sort.Strings(files)
+		c.meta.Files = files
+	}
+
+	var skills []SkillMetadata
+	for _, c := range candidates {
+		skills = append(skills, *c.meta)
 	}
 
 	if len(skills) == 0 && source.SkillFilter != "" {

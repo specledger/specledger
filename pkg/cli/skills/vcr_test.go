@@ -81,7 +81,7 @@ func TestVCR_Audit(t *testing.T) {
 
 func TestVCR_GitHubTrees(t *testing.T) {
 	c := newVCRClient(t, "github_trees")
-	tree, resolvedRef, err := c.FetchRepoTree("anthropics", "skills", "main")
+	tree, resolvedRef, _, err := c.FetchRepoTree("anthropics", "skills", "main")
 	if err != nil {
 		t.Fatalf("FetchRepoTree: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestVCR_GitHubRaw(t *testing.T) {
 func TestVCR_GitHubTreesNonMainDefault_404(t *testing.T) {
 	// Reproduces #172: Trees API returns 404 when repo uses "dev" not "main"
 	c := newVCRClient(t, "github_trees_nonmain_404")
-	_, _, err := c.FetchRepoTree("different-ai", "openwork", "main")
+	_, _, _, err := c.FetchRepoTree("different-ai", "openwork", "main")
 	if err == nil {
 		t.Fatal("expected error for 404 on main branch")
 	}
@@ -138,7 +138,7 @@ func TestVCR_GitHubTreesNonMainDefault_404(t *testing.T) {
 func TestVCR_GitHubTreesNonMainDefault_HEAD(t *testing.T) {
 	// Verifies HEAD ref resolves to the repo's actual default branch
 	c := newVCRClient(t, "github_trees_nonmain")
-	tree, resolvedRef, err := c.FetchRepoTree("different-ai", "openwork", "HEAD")
+	tree, resolvedRef, _, err := c.FetchRepoTree("different-ai", "openwork", "HEAD")
 	if err != nil {
 		t.Fatalf("FetchRepoTree: %v", err)
 	}
@@ -205,4 +205,61 @@ func TestVCR_GitHubRawNonMain(t *testing.T) {
 		t.Errorf("Name = %q, want %q", meta.Name, "opencode-primitives")
 	}
 	t.Logf("got %d bytes, skill name: %s", len(data), meta.Name)
+}
+
+func TestVCR_FetchSkillFiles_MultiFile(t *testing.T) {
+	c := newVCRClient(t, "github_multi_file")
+	source := &SkillSource{
+		Owner: "test-org",
+		Repo:  "multi-repo",
+		Ref:   "main",
+		Type:  SourceTypeGitHub,
+	}
+
+	// Manually construct the SkillMetadata as discovery would produce it.
+	// This tests FetchSkillFiles in isolation (discovery has its own tests).
+	skill := SkillMetadata{
+		Name:     "multi-skill",
+		RepoPath: "skills/multi-skill/SKILL.md",
+		Files: []string{
+			"skills/multi-skill/GENERATION.md",
+			"skills/multi-skill/SKILL.md",
+			"skills/multi-skill/references/advanced.md",
+			"skills/multi-skill/references/core.md",
+		},
+	}
+
+	files, err := FetchSkillFiles(c, source, &skill)
+	if err != nil {
+		t.Fatalf("FetchSkillFiles: %v", err)
+	}
+
+	// Verify all 4 files returned with correct relative keys
+	wantKeys := []string{"SKILL.md", "GENERATION.md", "references/advanced.md", "references/core.md"}
+	if len(files) != len(wantKeys) {
+		t.Fatalf("got %d files, want %d: %v", len(files), len(wantKeys), mapKeys(files))
+	}
+	for _, key := range wantKeys {
+		if _, ok := files[key]; !ok {
+			t.Errorf("missing key %q in files map", key)
+		}
+		if len(files[key]) == 0 {
+			t.Errorf("file %q is empty", key)
+		}
+	}
+
+	// Verify content fidelity
+	if !contains(string(files["references/core.md"]), "Core concepts") {
+		t.Errorf("references/core.md content wrong: %q", string(files["references/core.md"]))
+	}
+
+	t.Logf("FetchSkillFiles returned %d files", len(files))
+}
+
+func mapKeys(m map[string][]byte) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }

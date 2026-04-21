@@ -188,8 +188,9 @@ type GitHubTreeEntry struct {
 }
 
 type githubTreeResponse struct {
-	SHA  string            `json:"sha"`
-	Tree []GitHubTreeEntry `json:"tree"`
+	SHA       string            `json:"sha"`
+	Tree      []GitHubTreeEntry `json:"tree"`
+	Truncated bool              `json:"truncated"`
 }
 
 // defaultRefFallbacks is the ordered list of refs to try when no explicit ref is given.
@@ -198,8 +199,8 @@ var defaultRefFallbacks = []string{"HEAD", "main", "master"}
 
 // FetchRepoTree fetches the full recursive tree for a repository.
 // When ref is empty, it tries HEAD, main, master in order (matching skills.sh behavior).
-// Returns the tree entries and the ref that succeeded.
-func (c *Client) FetchRepoTree(owner, repo, ref string) ([]GitHubTreeEntry, string, error) {
+// Returns the tree entries, the ref that succeeded, and whether the response was truncated.
+func (c *Client) FetchRepoTree(owner, repo, ref string) ([]GitHubTreeEntry, string, bool, error) {
 	refs := []string{ref}
 	if ref == "" {
 		refs = defaultRefFallbacks
@@ -207,27 +208,27 @@ func (c *Client) FetchRepoTree(owner, repo, ref string) ([]GitHubTreeEntry, stri
 
 	var lastErr error
 	for _, r := range refs {
-		tree, err := c.fetchRepoTreeOnce(owner, repo, r)
+		tree, truncated, err := c.fetchRepoTreeOnce(owner, repo, r)
 		if err == nil {
-			return tree, r, nil
+			return tree, r, truncated, nil
 		}
 		lastErr = err
 	}
 
 	// When auto-resolving, clarify that the repo may exist but we couldn't find the branch
 	if ref == "" {
-		return nil, "", fmt.Errorf("could not resolve default branch for %s/%s (tried HEAD, main, master)\n→ Verify the repository is public and accessible", owner, repo)
+		return nil, "", false, fmt.Errorf("could not resolve default branch for %s/%s (tried HEAD, main, master)\n→ Verify the repository is public and accessible", owner, repo)
 	}
-	return nil, "", lastErr
+	return nil, "", false, lastErr
 }
 
-func (c *Client) fetchRepoTreeOnce(owner, repo, ref string) ([]GitHubTreeEntry, error) {
+func (c *Client) fetchRepoTreeOnce(owner, repo, ref string) ([]GitHubTreeEntry, bool, error) {
 	reqURL := fmt.Sprintf("%s/repos/%s/%s/git/trees/%s?recursive=1",
 		c.GitHubURL, owner, repo, url.PathEscape(ref))
 
 	req, err := http.NewRequest(http.MethodGet, reqURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("GitHub Trees API request failed: %w", err)
+		return nil, false, fmt.Errorf("GitHub Trees API request failed: %w", err)
 	}
 	req.Header.Set("Accept", "application/json")
 
@@ -238,23 +239,23 @@ func (c *Client) fetchRepoTreeOnce(owner, repo, ref string) ([]GitHubTreeEntry, 
 
 	resp, err := c.HTTPClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("GitHub API unreachable\n→ Check your internet connection and try again")
+		return nil, false, fmt.Errorf("GitHub API unreachable\n→ Check your internet connection and try again")
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode == http.StatusNotFound {
-		return nil, fmt.Errorf("repository %q not found (404)\n→ Verify the repository exists and is public.\n→ For private repos, set GITHUB_TOKEN.", owner+"/"+repo)
+		return nil, false, fmt.Errorf("repository %q not found (404)\n→ Verify the repository exists and is public.\n→ For private repos, set GITHUB_TOKEN.", owner+"/"+repo)
 	}
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("GitHub Trees API failed (%d)\n→ Try again later. If rate-limited, set GITHUB_TOKEN.", resp.StatusCode)
+		return nil, false, fmt.Errorf("GitHub Trees API failed (%d)\n→ Try again later. If rate-limited, set GITHUB_TOKEN.", resp.StatusCode)
 	}
 
 	var result githubTreeResponse
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("GitHub Trees API: invalid response: %w", err)
+		return nil, false, fmt.Errorf("GitHub Trees API: invalid response: %w", err)
 	}
 
-	return result.Tree, nil
+	return result.Tree, result.Truncated, nil
 }
 
 func envOrDefault(key, def string) string {
