@@ -236,6 +236,89 @@ func TestSkillsAddInvalidSource(t *testing.T) {
 	}
 }
 
+func TestSkillsAdd_DownloadsAllFiles(t *testing.T) {
+	env := newSkillsTestEnv(t)
+
+	// Register multi-file skill handlers (overrides default test-org handlers)
+	env.mux.HandleFunc("/repos/multi-org/multi-repo/git/trees/main", func(w http.ResponseWriter, _ *http.Request) {
+		resp := map[string]interface{}{
+			"sha":       "multi123",
+			"truncated": false,
+			"tree": []map[string]interface{}{
+				{"path": "skills/vitest-mock/SKILL.md", "type": "blob", "mode": "100644"},
+				{"path": "skills/vitest-mock/GENERATION.md", "type": "blob", "mode": "100644"},
+				{"path": "skills/vitest-mock/references", "type": "tree", "mode": "040000"},
+				{"path": "skills/vitest-mock/references/core.md", "type": "blob", "mode": "100644"},
+				{"path": "skills/vitest-mock/references/advanced.md", "type": "blob", "mode": "100644"},
+				// Nested skill — should NOT be included in vitest-mock's files
+				{"path": "skills/vitest-mock/nested/SKILL.md", "type": "blob", "mode": "100644"},
+				{"path": "skills/vitest-mock/nested/helper.md", "type": "blob", "mode": "100644"},
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	})
+	env.mux.HandleFunc("/multi-org/multi-repo/main/skills/vitest-mock/SKILL.md", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("---\nname: vitest-mock\ndescription: A multi-file test skill\n---\n# Vitest Mock\nSee references/core.md"))
+	})
+	env.mux.HandleFunc("/multi-org/multi-repo/main/skills/vitest-mock/GENERATION.md", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("# Generation\nGenerated content sentinel"))
+	})
+	env.mux.HandleFunc("/multi-org/multi-repo/main/skills/vitest-mock/references/core.md", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("# Core Reference\ncore-sentinel-content"))
+	})
+	env.mux.HandleFunc("/multi-org/multi-repo/main/skills/vitest-mock/references/advanced.md", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("# Advanced Reference\nadvanced-sentinel-content"))
+	})
+	// Nested SKILL.md (for the nested skill)
+	env.mux.HandleFunc("/multi-org/multi-repo/main/skills/vitest-mock/nested/SKILL.md", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("---\nname: nested-skill\ndescription: A nested skill\n---\n"))
+	})
+
+	output, err := env.run("skill", "add", "multi-org/multi-repo@vitest-mock", "-y")
+	if err != nil {
+		t.Fatalf("sl skill add failed: %v\nOutput: %s", err, output)
+	}
+	if !strings.Contains(output, "Installed vitest-mock") {
+		t.Errorf("output missing install confirmation: %s", output)
+	}
+
+	// Verify all 4 files exist (NOT the nested skill's files)
+	expectedFiles := map[string]string{
+		".claude/skills/vitest-mock/SKILL.md":               "# Vitest Mock",
+		".claude/skills/vitest-mock/GENERATION.md":          "Generated content sentinel",
+		".claude/skills/vitest-mock/references/core.md":     "core-sentinel-content",
+		".claude/skills/vitest-mock/references/advanced.md": "advanced-sentinel-content",
+	}
+	for relPath, sentinel := range expectedFiles {
+		fullPath := filepath.Join(env.projectPath, relPath)
+		data, readErr := os.ReadFile(fullPath)
+		if readErr != nil {
+			t.Errorf("expected file %s missing: %v", relPath, readErr)
+			continue
+		}
+		if !strings.Contains(string(data), sentinel) {
+			t.Errorf("file %s missing sentinel %q, got: %s", relPath, sentinel, string(data))
+		}
+	}
+
+	// Verify nested skill files are NOT in vitest-mock (nested skill isolation)
+	nestedPath := filepath.Join(env.projectPath, ".claude/skills/vitest-mock/nested/helper.md")
+	if _, statErr := os.Stat(nestedPath); statErr == nil {
+		t.Error("nested skill file should NOT be included in vitest-mock install")
+	}
+
+	// Verify lock file has vitest-mock entry
+	lockPath := filepath.Join(env.projectPath, "skills-lock.json")
+	lockData, readErr := os.ReadFile(lockPath)
+	if readErr != nil {
+		t.Fatalf("lock file not found: %v", readErr)
+	}
+	if !strings.Contains(string(lockData), "vitest-mock") {
+		t.Error("lock file missing vitest-mock entry")
+	}
+}
+
 // --- List Tests ---
 
 func TestSkillsList(t *testing.T) {

@@ -172,7 +172,7 @@ func TestClientFetchRepoTree(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-	tree, resolvedRef, err := c.FetchRepoTree("vercel-labs", "agent-skills", "main")
+	tree, resolvedRef, _, err := c.FetchRepoTree("vercel-labs", "agent-skills", "main")
 	if err != nil {
 		t.Fatalf("FetchRepoTree: %v", err)
 	}
@@ -191,7 +191,7 @@ func TestClientFetchRepoTree_NotFound(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-	_, _, err := c.FetchRepoTree("nonexistent", "repo", "main")
+	_, _, _, err := c.FetchRepoTree("nonexistent", "repo", "main")
 	if err == nil {
 		t.Fatal("expected error for 404")
 	}
@@ -260,7 +260,7 @@ func TestFetchRepoTree_RefFallback(t *testing.T) {
 			defer srv.Close()
 
 			c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-			tree, resolvedRef, err := c.FetchRepoTree("org", "repo", tt.inputRef)
+			tree, resolvedRef, _, err := c.FetchRepoTree("org", "repo", tt.inputRef)
 
 			if tt.wantErr != "" {
 				if err == nil {
@@ -526,7 +526,7 @@ func TestFetchRepoTree_AuthHeader(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-	_, _, err := c.FetchRepoTree("owner", "repo", "main")
+	_, _, _, err := c.FetchRepoTree("owner", "repo", "main")
 	if err != nil {
 		t.Fatalf("FetchRepoTree: %v", err)
 	}
@@ -541,7 +541,7 @@ func TestFetchRepoTree_JSONDecodeError(t *testing.T) {
 	defer srv.Close()
 
 	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
-	_, _, err := c.FetchRepoTree("owner", "repo", "main")
+	_, _, _, err := c.FetchRepoTree("owner", "repo", "main")
 	if err == nil {
 		t.Fatal("expected error for invalid JSON")
 	}
@@ -563,5 +563,79 @@ func TestFetchSkillContent_Non200Non404(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "failed to fetch") {
 		t.Errorf("error = %q, want containing 'failed to fetch'", err.Error())
+	}
+}
+
+func TestFetchRepoTree_TruncatedFallback(t *testing.T) {
+	// When the Trees API returns truncated: true, discoverViaGitHub should
+	// return errTreeTruncated so DiscoverSkills falls through to clone.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		resp := githubTreeResponse{
+			SHA:       "abc123",
+			Tree:      []GitHubTreeEntry{{Path: "skills/partial/SKILL.md", Type: "blob", Mode: "100644"}},
+			Truncated: true,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer srv.Close()
+
+	c := &Client{GitHubURL: srv.URL, HTTPClient: srv.Client()}
+	_, _, truncated, err := c.FetchRepoTree("owner", "repo", "main")
+	if err != nil {
+		t.Fatalf("FetchRepoTree should not error: %v", err)
+	}
+	if !truncated {
+		t.Fatal("expected truncated = true")
+	}
+
+	// Now verify discoverViaGitHub returns errTreeTruncated
+	// We need a RawGHURL too (for SKILL.md fetching, which won't be reached)
+	c.RawGHURL = srv.URL
+	source := &SkillSource{Owner: "owner", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
+	_, err = discoverViaGitHub(c, source)
+	if err == nil {
+		t.Fatal("expected errTreeTruncated")
+	}
+	if err != errTreeTruncated {
+		t.Errorf("error = %v, want errTreeTruncated", err)
+	}
+}
+
+func TestFetchSkillContent_429Retry(t *testing.T) {
+	// Simulate a 429 on first request, then success on retry.
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		if r.Method == "HEAD" {
+			// parseRetryWait does a HEAD to check rate-limit status
+			w.Header().Set("Retry-After", "1")
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		if calls <= 2 {
+			// First GET returns 429
+			w.WriteHeader(http.StatusTooManyRequests)
+			return
+		}
+		// Subsequent GET succeeds
+		_, _ = w.Write([]byte("---\nname: test\ndescription: Test\n---\n"))
+	}))
+	defer srv.Close()
+
+	c := &Client{RawGHURL: srv.URL, HTTPClient: srv.Client()}
+	source := &SkillSource{Owner: "owner", Repo: "repo", Ref: "main", Type: SourceTypeGitHub}
+	skill := &SkillMetadata{
+		Name:     "test",
+		RepoPath: "skills/test/SKILL.md",
+		Files:    []string{"skills/test/SKILL.md"},
+	}
+
+	files, err := FetchSkillFiles(c, source, skill)
+	if err != nil {
+		t.Fatalf("FetchSkillFiles should succeed after retry: %v", err)
+	}
+	if _, ok := files["SKILL.md"]; !ok {
+		t.Error("expected SKILL.md in result")
 	}
 }

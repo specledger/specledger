@@ -2,6 +2,7 @@ package skills
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	cligit "github.com/specledger/specledger/pkg/cli/git"
@@ -23,6 +24,17 @@ type SkillSource struct {
 	Ref         string // git ref; empty means auto-resolve (tries HEAD, main, master)
 	Type        SourceType
 	URL         string // original URL for git type
+
+	cloneDir string // temp dir created by discoverViaClone; cleaned up by Cleanup()
+}
+
+// Cleanup removes temporary resources allocated during discovery (e.g. cloned repos).
+// Safe to call multiple times. Should be deferred by the caller of DiscoverSkills.
+func (s *SkillSource) Cleanup() {
+	if s.cloneDir != "" {
+		_ = os.RemoveAll(s.cloneDir)
+		s.cloneDir = ""
+	}
 }
 
 // SourceString returns the canonical "owner/repo" string.

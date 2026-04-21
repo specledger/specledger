@@ -215,6 +215,7 @@ func runSkillAdd(_ *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
+	defer source.Cleanup()
 
 	projectRoot, err := metadata.FindProjectRoot()
 	if err != nil {
@@ -321,18 +322,13 @@ func runSkillAdd(_ *cobra.Command, args []string) error {
 	var results []installResult
 
 	for _, s := range toInstall {
-		// Use the discovered repo path if available, fallback to conventional layout
-		fetchPath := s.RepoPath
-		if fetchPath == "" {
-			fetchPath = fmt.Sprintf("skills/%s/SKILL.md", s.Name)
-		}
-		content, err := client.FetchSkillContent(source.Owner, source.Repo, source.Ref, fetchPath)
+		files, err := skills.FetchSkillFiles(client, source, &s)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to fetch %s: %v\n", s.Name, err)
 			continue
 		}
 
-		if err := skills.InstallSkill(s.Name, content, agentPaths, lockPath, source); err != nil {
+		if err := skills.InstallSkill(s.Name, files, agentPaths, lockPath, source); err != nil {
 			fmt.Fprintf(os.Stderr, "Error: failed to install %s: %v\n", s.Name, err)
 			continue
 		}
