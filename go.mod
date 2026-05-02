@@ -1,6 +1,6 @@
 module github.com/specledger/specledger
 
-go 1.24.2
+go 1.25.0
 
 // SpecLedger - Specification Dependency Management CLI
 //
@@ -16,7 +16,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/huh v0.8.0
 	github.com/charmbracelet/lipgloss v1.1.0
-	github.com/getsentry/sentry-go v0.45.1
+	github.com/getsentry/sentry-go v0.46.0
 	github.com/go-git/go-git/v5 v5.18.0
 	github.com/gofrs/flock v0.13.0
 	github.com/google/uuid v1.6.0
