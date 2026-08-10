@@ -51,6 +51,7 @@ type SessionMetadata struct {
 	SizeBytes     int64         `json:"size_bytes"`     // compressed size
 	RawSizeBytes  int64         `json:"raw_size_bytes"` // uncompressed size
 	MessageCount  int           `json:"message_count"`
+	Tags          []string      `json:"tags,omitempty"`
 	CreatedAt     time.Time     `json:"created_at"`
 }
 

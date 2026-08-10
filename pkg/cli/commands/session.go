@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 	"text/tabwriter"
+	"time"
 
 	"github.com/specledger/specledger/pkg/cli/auth"
+	"github.com/specledger/specledger/pkg/cli/metadata"
 	"github.com/specledger/specledger/pkg/cli/session"
 	"github.com/spf13/cobra"
 )
@@ -97,6 +100,39 @@ Examples:
 	RunE: runSessionGet,
 }
 
+// VarSessionPruneCmd represents the prune command
+var VarSessionPruneCmd = &cobra.Command{
+	Use:   "prune",
+	Short: "Delete old sessions",
+	Long: `Delete sessions older than a configurable threshold.
+
+By default, uses the TTL from specledger.yaml (session.ttl_days, default: 30).
+Use --older-than to specify a custom threshold (e.g., 30d, 7d, 90d).
+Use --expired to delete sessions past their configured TTL.
+
+Examples:
+  sl session prune --older-than 30d          # Delete sessions older than 30 days
+  sl session prune --older-than 30d --dry-run # Preview what would be deleted
+  sl session prune --expired                  # Delete sessions past their TTL`,
+	RunE: runSessionPrune,
+}
+
+// VarSessionStatsCmd represents the stats command
+var VarSessionStatsCmd = &cobra.Command{
+	Use:   "stats",
+	Short: "Show session usage statistics",
+	Long: `Aggregate view of session usage.
+
+Shows total sessions, total size, sessions per branch, average messages
+per session, and oldest/newest session timestamps.
+
+Examples:
+  sl session stats                 # Stats for current project
+  sl session stats --all-projects  # Global stats
+  sl session stats --json          # Machine-readable output`,
+	RunE: runSessionStats,
+}
+
 // VarSessionSyncCmd represents the sync command
 var VarSessionSyncCmd = &cobra.Command{
 	Use:   "sync",
@@ -114,7 +150,7 @@ Examples:
 }
 
 func init() {
-	VarSessionCmd.AddCommand(VarSessionCaptureCmd, VarSessionListCmd, VarSessionGetCmd, VarSessionSyncCmd)
+	VarSessionCmd.AddCommand(VarSessionCaptureCmd, VarSessionListCmd, VarSessionGetCmd, VarSessionSyncCmd, VarSessionPruneCmd, VarSessionStatsCmd)
 
 	// Capture flags
 	VarSessionCaptureCmd.Flags().Bool("test-mode", false, "Run in test mode with simulated hook input")
@@ -123,6 +159,8 @@ func init() {
 	VarSessionListCmd.Flags().String("feature", "", "Feature branch to list sessions for (default: current branch)")
 	VarSessionListCmd.Flags().String("commit", "", "Filter by commit hash (partial or full)")
 	VarSessionListCmd.Flags().String("task", "", "Filter by task ID (e.g., SL-42)")
+	VarSessionListCmd.Flags().String("tag", "", "Filter by tag (e.g., docker, bugfix, feature)")
+	VarSessionListCmd.Flags().Bool("all-projects", false, "List sessions across all projects")
 	VarSessionListCmd.Flags().Int("limit", 0, "Maximum number of sessions to return (0 = unlimited)")
 	VarSessionListCmd.Flags().Bool("json", false, "Output as JSON (for scripts/AI)")
 
@@ -133,6 +171,15 @@ func init() {
 	// Sync flags
 	VarSessionSyncCmd.Flags().Bool("json", false, "Output results as JSON")
 	VarSessionSyncCmd.Flags().Bool("status", false, "Check queue status without uploading")
+
+	// Prune flags
+	VarSessionPruneCmd.Flags().String("older-than", "", "Delete sessions older than duration (e.g., 30d, 7d, 90d)")
+	VarSessionPruneCmd.Flags().Bool("expired", false, "Delete sessions past their configured TTL")
+	VarSessionPruneCmd.Flags().Bool("dry-run", false, "Preview what would be deleted without deleting")
+
+	// Stats flags
+	VarSessionStatsCmd.Flags().Bool("all-projects", false, "Show stats across all projects")
+	VarSessionStatsCmd.Flags().Bool("json", false, "Output as JSON")
 }
 
 func runSessionCapture(cmd *cobra.Command, args []string) error {
@@ -171,28 +218,34 @@ func runSessionList(cmd *cobra.Command, args []string) error {
 	featureBranch, _ := cmd.Flags().GetString("feature")
 	commitHash, _ := cmd.Flags().GetString("commit")
 	taskID, _ := cmd.Flags().GetString("task")
+	tag, _ := cmd.Flags().GetString("tag")
+	allProjects, _ := cmd.Flags().GetBool("all-projects")
 	limit, _ := cmd.Flags().GetInt("limit")
 
-	// Get current branch if not specified
-	if featureBranch == "" {
+	var projectID string
+
+	if !allProjects {
+		// Get current branch if not specified
+		if featureBranch == "" {
+			cwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("failed to get working directory: %w", err)
+			}
+			featureBranch, err = session.GetCurrentBranch(cwd)
+			if err != nil {
+				return fmt.Errorf("failed to get current branch (not in a git repo?): %w", err)
+			}
+		}
+
+		// Get project ID
 		cwd, err := os.Getwd()
 		if err != nil {
 			return fmt.Errorf("failed to get working directory: %w", err)
 		}
-		featureBranch, err = session.GetCurrentBranch(cwd)
+		projectID, err = session.GetProjectIDWithFallback(cwd)
 		if err != nil {
-			return fmt.Errorf("failed to get current branch (not in a git repo?): %w", err)
+			return fmt.Errorf("project not configured: %w\n\nHint: Ensure specledger.yaml has 'project.id' set, or the project is registered in Supabase with matching git remote.", err)
 		}
-	}
-
-	// Get project ID
-	cwd, err := os.Getwd()
-	if err != nil {
-		return fmt.Errorf("failed to get working directory: %w", err)
-	}
-	projectID, err := session.GetProjectIDWithFallback(cwd)
-	if err != nil {
-		return fmt.Errorf("project not configured: %w\n\nHint: Ensure specledger.yaml has 'project.id' set, or the project is registered in Supabase with matching git remote.", err)
 	}
 
 	// Get access token
@@ -208,6 +261,7 @@ func runSessionList(cmd *cobra.Command, args []string) error {
 		FeatureBranch: featureBranch,
 		CommitHash:    commitHash,
 		TaskID:        taskID,
+		Tag:           tag,
 		Limit:         limit,
 		OrderBy:       "created_at",
 		OrderDesc:     true,
@@ -455,4 +509,237 @@ func errorsToStrings(errs []error) []string {
 		result[i] = err.Error()
 	}
 	return result
+}
+
+// parseDuration parses a duration string like "30d", "7d", "90d" into a time.Duration
+func parseDuration(s string) (time.Duration, error) {
+	re := regexp.MustCompile(`^(\d+)d$`)
+	matches := re.FindStringSubmatch(s)
+	if matches == nil {
+		return 0, fmt.Errorf("invalid duration format %q (expected e.g. 30d)", s)
+	}
+	days := 0
+	_, err := fmt.Sscanf(matches[1], "%d", &days)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(days) * 24 * time.Hour, nil
+}
+
+func runSessionPrune(cmd *cobra.Command, args []string) error {
+	olderThan, _ := cmd.Flags().GetString("older-than")
+	expired, _ := cmd.Flags().GetBool("expired")
+	dryRun, _ := cmd.Flags().GetBool("dry-run")
+
+	if olderThan == "" && !expired {
+		return fmt.Errorf("must specify --older-than or --expired")
+	}
+
+	// Determine cutoff time
+	var cutoff time.Time
+	if expired {
+		// Use TTL from config
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get working directory: %w", err)
+		}
+		meta, err := metadata.Load(cwd)
+		if err != nil {
+			// Default to 30 days if config not found
+			cutoff = time.Now().AddDate(0, 0, -30)
+		} else {
+			ttlDays := meta.GetSessionTTLDays()
+			cutoff = time.Now().AddDate(0, 0, -ttlDays)
+		}
+	} else {
+		dur, err := parseDuration(olderThan)
+		if err != nil {
+			return err
+		}
+		cutoff = time.Now().Add(-dur)
+	}
+
+	// Get project ID
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get working directory: %w", err)
+	}
+	projectID, err := session.GetProjectIDWithFallback(cwd)
+	if err != nil {
+		return fmt.Errorf("project not configured: %w", err)
+	}
+
+	// Get access token
+	accessToken, err := auth.GetValidAccessToken()
+	if err != nil {
+		return fmt.Errorf("authentication required: run 'sl auth login' first\n\nDetails: %w", err)
+	}
+
+	// Query sessions older than cutoff
+	client := session.NewMetadataClient()
+	endDate := cutoff
+	sessions, err := client.Query(accessToken, &session.QueryOptions{
+		ProjectID: projectID,
+		EndDate:   &endDate,
+		OrderBy:   "created_at",
+		OrderDesc: false,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to query sessions: %w", err)
+	}
+
+	if len(sessions) == 0 {
+		fmt.Println("No sessions to prune")
+		return nil
+	}
+
+	if dryRun {
+		fmt.Printf("Would delete %d session(s) created before %s:\n", len(sessions), cutoff.Format("2006-01-02"))
+		for _, s := range sessions {
+			commit := "-"
+			if s.CommitHash != nil && len(*s.CommitHash) >= 7 {
+				commit = (*s.CommitHash)[:7]
+			}
+			fmt.Printf("  %s  %s  %s  %s\n", s.ID[:8], commit, formatSize(s.SizeBytes), s.CreatedAt.Format("2006-01-02 15:04"))
+		}
+		return nil
+	}
+
+	// Delete sessions
+	storageClient := session.NewStorageClient()
+	deleted := 0
+	var errs []error
+
+	for _, s := range sessions {
+		// Delete storage object
+		if err := storageClient.Delete(accessToken, s.StoragePath); err != nil {
+			errs = append(errs, fmt.Errorf("storage delete %s: %w", s.ID[:8], err))
+			continue
+		}
+		// Delete metadata row
+		if err := client.Delete(accessToken, s.ID); err != nil {
+			errs = append(errs, fmt.Errorf("metadata delete %s: %w", s.ID[:8], err))
+			continue
+		}
+		deleted++
+	}
+
+	fmt.Printf("Deleted %d session(s)\n", deleted)
+	if len(errs) > 0 {
+		fmt.Printf("%d error(s) occurred:\n", len(errs))
+		for _, e := range errs {
+			fmt.Printf("  %s\n", e)
+		}
+		return fmt.Errorf("prune completed with errors")
+	}
+
+	return nil
+}
+
+// SessionStats holds aggregated session statistics
+type SessionStats struct {
+	TotalSessions    int              `json:"total_sessions"`
+	TotalSize        int64            `json:"total_size_bytes"`
+	TotalRawSize     int64            `json:"total_raw_size_bytes"`
+	AvgMessages      float64          `json:"avg_messages_per_session"`
+	OldestSession    *time.Time       `json:"oldest_session,omitempty"`
+	NewestSession    *time.Time       `json:"newest_session,omitempty"`
+	SessionsByBranch map[string]int   `json:"sessions_by_branch"`
+	SizeByBranch     map[string]int64 `json:"size_by_branch"`
+}
+
+func runSessionStats(cmd *cobra.Command, args []string) error {
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+	allProjects, _ := cmd.Flags().GetBool("all-projects")
+
+	var projectID string
+	if !allProjects {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return fmt.Errorf("failed to get working directory: %w", err)
+		}
+		projectID, err = session.GetProjectIDWithFallback(cwd)
+		if err != nil {
+			return fmt.Errorf("project not configured: %w", err)
+		}
+	}
+
+	accessToken, err := auth.GetValidAccessToken()
+	if err != nil {
+		return fmt.Errorf("authentication required: run 'sl auth login' first\n\nDetails: %w", err)
+	}
+
+	client := session.NewMetadataClient()
+	sessions, err := client.Query(accessToken, &session.QueryOptions{
+		ProjectID: projectID,
+		OrderBy:   "created_at",
+		OrderDesc: false,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to query sessions: %w", err)
+	}
+
+	if len(sessions) == 0 {
+		fmt.Println("No sessions found")
+		return nil
+	}
+
+	// Compute stats
+	stats := SessionStats{
+		TotalSessions:    len(sessions),
+		SessionsByBranch: make(map[string]int),
+		SizeByBranch:     make(map[string]int64),
+	}
+
+	totalMessages := 0
+	for i, s := range sessions {
+		stats.TotalSize += s.SizeBytes
+		stats.TotalRawSize += s.RawSizeBytes
+		totalMessages += s.MessageCount
+		stats.SessionsByBranch[s.FeatureBranch]++
+		stats.SizeByBranch[s.FeatureBranch] += s.SizeBytes
+
+		if i == 0 {
+			t := s.CreatedAt
+			stats.OldestSession = &t
+		}
+		if i == len(sessions)-1 {
+			t := s.CreatedAt
+			stats.NewestSession = &t
+		}
+	}
+
+	if stats.TotalSessions > 0 {
+		stats.AvgMessages = float64(totalMessages) / float64(stats.TotalSessions)
+	}
+
+	if jsonOutput {
+		data, err := json.MarshalIndent(stats, "", "  ")
+		if err != nil {
+			return fmt.Errorf("failed to marshal JSON: %w", err)
+		}
+		fmt.Println(string(data))
+		return nil
+	}
+
+	// Pretty print
+	fmt.Printf("Total sessions:  %d\n", stats.TotalSessions)
+	fmt.Printf("Total size:      %s (compressed), %s (raw)\n", formatSize(stats.TotalSize), formatSize(stats.TotalRawSize))
+	fmt.Printf("Avg messages:    %.1f per session\n", stats.AvgMessages)
+	if stats.OldestSession != nil {
+		fmt.Printf("Oldest session:  %s\n", stats.OldestSession.Format("2006-01-02 15:04"))
+	}
+	if stats.NewestSession != nil {
+		fmt.Printf("Newest session:  %s\n", stats.NewestSession.Format("2006-01-02 15:04"))
+	}
+
+	fmt.Printf("\nSessions by branch:\n")
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	fmt.Fprintln(w, "BRANCH\tSESSIONS\tSIZE")
+	for branch, count := range stats.SessionsByBranch {
+		fmt.Fprintf(w, "%s\t%d\t%s\n", branch, count, formatSize(stats.SizeByBranch[branch]))
+	}
+	w.Flush()
+
+	return nil
 }
