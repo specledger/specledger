@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"slices"
 	"testing"
 )
 
@@ -101,6 +104,139 @@ func TestDiscoverSkills_WithFilter(t *testing.T) {
 	}
 	if skills[0].Name != "alpha" {
 		t.Errorf("Name = %q, want %q", skills[0].Name, "alpha")
+	}
+}
+
+func TestDiscoverViaGitHub_WithDirectorySlugFilter(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/repos/rknall/claude-skills/git/trees/HEAD", func(w http.ResponseWriter, _ *http.Request) {
+		resp := githubTreeResponse{
+			Tree: []GitHubTreeEntry{
+				{Path: "svg-logo-designer/SKILL.md", Type: "blob"},
+			},
+		}
+		_ = json.NewEncoder(w).Encode(resp)
+	})
+	mux.HandleFunc("/rknall/claude-skills/HEAD/svg-logo-designer/SKILL.md", func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("---\nname: SVG Logo Designer\ndescription: Design SVG logos\n---\n"))
+	})
+
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client := &Client{GitHubURL: srv.URL, RawGHURL: srv.URL, HTTPClient: srv.Client()}
+	source := &SkillSource{
+		Owner:       "rknall",
+		Repo:        "claude-skills",
+		SkillFilter: "svg-logo-designer",
+		Type:        SourceTypeGitHub,
+	}
+
+	discovered, err := discoverViaGitHub(client, source)
+	if err != nil {
+		t.Fatalf("discoverViaGitHub: %v", err)
+	}
+	if len(discovered) != 1 {
+		t.Fatalf("len(discovered) = %d, want 1", len(discovered))
+	}
+	if discovered[0].Name != "SVG Logo Designer" {
+		t.Errorf("Name = %q, want frontmatter name", discovered[0].Name)
+	}
+	if discovered[0].Slug != "rknall/claude-skills/svg-logo-designer" {
+		t.Errorf("Slug = %q, want directory-based registry slug", discovered[0].Slug)
+	}
+}
+
+func TestDiscoverViaClone_WithDirectorySlugFilterAndHEAD(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not found on PATH")
+	}
+
+	repoDir := t.TempDir()
+	skillDir := filepath.Join(repoDir, "svg-logo-designer")
+	if err := os.Mkdir(skillDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("---\nname: SVG Logo Designer\ndescription: Design SVG logos\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	runGit := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = repoDir
+		if output, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v failed: %v\n%s", args, err, output)
+		}
+	}
+	runGit("init", "-b", "main")
+	runGit("config", "user.name", "SpecLedger Test")
+	runGit("config", "user.email", "test@specledger.dev")
+	runGit("add", ".")
+	runGit("commit", "-m", "add test skill")
+
+	source := &SkillSource{
+		Owner:       "rknall",
+		Repo:        "claude-skills",
+		Ref:         "HEAD",
+		SkillFilter: "svg-logo-designer",
+		Type:        SourceTypeGit,
+	}
+	discovered, err := discoverViaClone(repoDir, source)
+	defer source.Cleanup()
+	if err != nil {
+		t.Fatalf("discoverViaClone: %v", err)
+	}
+	if len(discovered) != 1 {
+		t.Fatalf("len(discovered) = %d, want 1", len(discovered))
+	}
+	if discovered[0].Name != "SVG Logo Designer" {
+		t.Errorf("Name = %q, want frontmatter name", discovered[0].Name)
+	}
+	if discovered[0].Slug != "rknall/claude-skills/svg-logo-designer" {
+		t.Errorf("Slug = %q, want directory-based registry slug", discovered[0].Slug)
+	}
+}
+
+func TestSkillFilterMatchesNameOrDirectorySlug(t *testing.T) {
+	tests := []struct {
+		name          string
+		filter        string
+		frontmatter   string
+		directorySlug string
+		want          bool
+	}{
+		{name: "frontmatter name", filter: "creating-pr", frontmatter: "creating-pr", directorySlug: "pr", want: true},
+		{name: "directory slug", filter: "svg-logo-designer", frontmatter: "SVG Logo Designer", directorySlug: "svg-logo-designer", want: true},
+		{name: "unrelated filter", filter: "other", frontmatter: "SVG Logo Designer", directorySlug: "svg-logo-designer", want: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := matchesSkillFilter(tt.filter, tt.frontmatter, tt.directorySlug); got != tt.want {
+				t.Errorf("matchesSkillFilter() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestCloneArgs(t *testing.T) {
+	tests := []struct {
+		name string
+		ref  string
+		want []string
+	}{
+		{name: "empty ref uses default branch", want: []string{"clone", "--depth", "1", "repo", "target"}},
+		{name: "HEAD uses default branch", ref: "HEAD", want: []string{"clone", "--depth", "1", "repo", "target"}},
+		{name: "explicit ref selects branch", ref: "release", want: []string{"clone", "--depth", "1", "--branch", "release", "repo", "target"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := cloneArgs("repo", "target", tt.ref); !slices.Equal(got, tt.want) {
+				t.Errorf("cloneArgs() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 

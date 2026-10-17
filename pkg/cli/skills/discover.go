@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -126,13 +127,14 @@ func discoverViaGitHub(client *Client, source *SkillSource) ([]SkillMetadata, er
 			continue
 		}
 
+		skillSlug := path.Base(dir)
 		meta.Source = source.SourceString()
-		meta.Slug = source.SourceString() + "/" + meta.Name
+		meta.Slug = source.SourceString() + "/" + skillSlug
 		meta.RepoPath = skillMdPath // preserve discovered path for install fetch
 		meta.Files = skillFiles[dir]
 
 		// Apply skill filter if specified
-		if source.SkillFilter != "" && meta.Name != source.SkillFilter {
+		if !matchesSkillFilter(source.SkillFilter, meta.Name, skillSlug) {
 			continue
 		}
 
@@ -160,17 +162,12 @@ func discoverViaClone(cloneURL string, source *SkillSource) ([]SkillMetadata, er
 	// Caller is responsible for calling source.Cleanup().
 	source.cloneDir = tmpDir
 
-	// git clone --depth 1; omit --branch when ref is empty to use repo's default
-	args := []string{"clone", "--depth", "1"}
-	if source.Ref != "" {
-		args = append(args, "--branch", source.Ref)
-	}
-	args = append(args, cloneURL, tmpDir)
+	args := cloneArgs(cloneURL, tmpDir, source.Ref)
 	cmd := exec.Command("git", args...)
 	cmd.Stdout = nil
 	cmd.Stderr = nil
 	if err := cmd.Run(); err != nil {
-		return nil, fmt.Errorf("sl skill add failed: could not clone %q\n→ Verify the repository exists and is accessible", cloneURL)
+		return nil, fmt.Errorf("skill discovery failed: could not clone %q: %w\n→ Verify the repository exists and is accessible", cloneURL, err)
 	}
 
 	// Scan for SKILL.md files and collect all files per skill directory
@@ -216,15 +213,16 @@ func discoverViaClone(cloneURL string, source *SkillSource) ([]SkillMetadata, er
 			return nil
 		}
 
+		skillSlug := filepath.Base(filepath.Dir(path))
 		meta.Source = source.SourceString()
-		meta.Slug = source.SourceString() + "/" + meta.Name
+		meta.Slug = source.SourceString() + "/" + skillSlug
 		// Preserve relative path within the cloned repo for install fetch
 		relPath, _ := filepath.Rel(tmpDir, path)
 		if relPath != "" {
 			meta.RepoPath = filepath.ToSlash(relPath)
 		}
 
-		if source.SkillFilter != "" && meta.Name != source.SkillFilter {
+		if !matchesSkillFilter(source.SkillFilter, meta.Name, skillSlug) {
 			return nil
 		}
 
@@ -299,6 +297,18 @@ func discoverViaClone(cloneURL string, source *SkillSource) ([]SkillMetadata, er
 	}
 
 	return skills, nil
+}
+
+func matchesSkillFilter(filter, frontmatterName, directorySlug string) bool {
+	return filter == "" || filter == frontmatterName || filter == directorySlug
+}
+
+func cloneArgs(cloneURL, targetDir, ref string) []string {
+	args := []string{"clone", "--depth", "1"}
+	if ref != "" && ref != "HEAD" {
+		args = append(args, "--branch", ref)
+	}
+	return append(args, cloneURL, targetDir)
 }
 
 // ParseSkillFrontmatter parses YAML frontmatter from SKILL.md content.
