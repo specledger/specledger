@@ -25,6 +25,21 @@ type ProjectMetadata struct {
 	ActiveProfile   string                         `yaml:"active-profile,omitempty"`
 	// BranchAliases maps non-standard branch names to spec feature names (FR-012)
 	BranchAliases map[string]string `yaml:"branch_aliases,omitempty"`
+	// Session contains session lifecycle configuration
+	Session *SessionConfig `yaml:"session,omitempty"`
+}
+
+// SessionConfig contains session lifecycle configuration
+type SessionConfig struct {
+	TTLDays int `yaml:"ttl_days,omitempty"` // Days before sessions are considered expired (default: 30)
+}
+
+// GetSessionTTLDays returns the configured TTL or the default (30 days)
+func (m *ProjectMetadata) GetSessionTTLDays() int {
+	if m.Session != nil && m.Session.TTLDays > 0 {
+		return m.Session.TTLDays
+	}
+	return 30
 }
 
 // ProjectInfo contains project identification
